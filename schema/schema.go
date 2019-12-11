@@ -52,7 +52,7 @@ func Version(config map[string]interface{}) string {
 func normalizeVersion(version string) string {
 	switch version {
 	case "3":
-		return "3.0"
+		return "3.9" // latest
 	default:
 		return version
 	}
@@ -60,6 +60,7 @@ func normalizeVersion(version string) string {
 
 // Validate uses the jsonschema to validate the configuration
 func Validate(config map[string]interface{}, version string) error {
+	version = normalizeVersion(version)
 	schemaData, err := _escFSByte(false, fmt.Sprintf("/data/config_schema_v%s.json", version))
 	if err != nil {
 		return errors.Errorf("unsupported Compose file version: %s", version)
