@@ -245,7 +245,7 @@ func TestLoad(t *testing.T) {
 
 func TestLoadExtras(t *testing.T) {
 	actual, err := loadYAML(`
-version: "3.7"
+version: "3"
 services:
   foo:
     image: busybox
@@ -260,44 +260,9 @@ services:
 	assert.Check(t, is.DeepEqual(extras, service.Extras))
 }
 
-func TestLoadV31(t *testing.T) {
+func TestLoadv39(t *testing.T) {
 	actual, err := loadYAML(`
-version: "3.1"
-services:
-  foo:
-    image: busybox
-    secrets: [super]
-secrets:
-  super:
-    external: true
-`)
-	assert.NilError(t, err)
-	assert.Check(t, is.Len(actual.Services, 1))
-	assert.Check(t, is.Len(actual.Secrets, 1))
-}
-
-func TestLoadV33(t *testing.T) {
-	actual, err := loadYAML(`
-version: "3.3"
-services:
-  foo:
-    image: busybox
-    credential_spec:
-      file: "/foo"
-    configs: [super]
-configs:
-  super:
-    external: true
-`)
-	assert.NilError(t, err)
-	assert.Assert(t, is.Len(actual.Services, 1))
-	assert.Check(t, is.Equal(actual.Services[0].CredentialSpec.File, "/foo"))
-	assert.Assert(t, is.Len(actual.Configs, 1))
-}
-
-func TestLoadV38(t *testing.T) {
-	actual, err := loadYAML(`
-version: "3.8"
+version: "3.9"
 services:
   foo:
     image: busybox
@@ -381,7 +346,7 @@ services:
 	assert.NilError(t, err)
 
 	_, err = loadYAML(`
-version: "3.0"
+version: "3.9"
 services:
   foo:
     image: busybox
@@ -582,7 +547,7 @@ volumes:
 
 func TestLoadWithInterpolationCastFull(t *testing.T) {
 	dict, err := ParseYAML([]byte(`
-version: "3.8"
+version: "3"
 services:
   web:
     configs:
@@ -654,7 +619,7 @@ networks:
 	assert.NilError(t, err)
 	expected := &types.Config{
 		Filename: "filename.yml",
-		Version:  "3.8",
+		Version:  "3.9",
 		Services: []types.ServiceConfig{
 			{
 				Name: "web",
@@ -733,6 +698,7 @@ networks:
 			},
 		},
 	}
+
 
 	assert.Check(t, is.DeepEqual(expected, config))
 }
@@ -920,7 +886,7 @@ volumes:
 
 func TestLoadVolumeInvalidExternalNameAndNameCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3.4"
+version: "3"
 volumes:
   external_volume:
     name: user_specified_name
@@ -969,7 +935,7 @@ func TestFullExample(t *testing.T) {
 
 func TestLoadTmpfsVolume(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.6"
+version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -996,22 +962,22 @@ services:
 
 func TestLoadTmpfsVolumeAdditionalPropertyNotAllowed(t *testing.T) {
 	_, err := loadYAML(`
-version: "3.5"
+version: "3"
 services:
   tmpfs:
     image: nginx:latest
     volumes:
       - type: tmpfs
         target: /app
-        tmpfs:
-          size: 10000
+        foo:
+          bar: zot
 `)
-	assert.ErrorContains(t, err, "services.tmpfs.volumes.0 Additional property tmpfs is not allowed")
+	assert.ErrorContains(t, err, "services.tmpfs.volumes.0 Additional property foo is not allowed")
 }
 
 func TestLoadBindMountSourceMustNotBeEmpty(t *testing.T) {
 	_, err := loadYAML(`
-version: "3.5"
+version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -1031,7 +997,7 @@ func TestLoadBindMountSourceIsWindowsAbsolute(t *testing.T) {
 		{
 			doc: "Z-drive lowercase",
 			yaml: `
-version: '3.3'
+version: "3"
 
 services:
   windows:
@@ -1046,7 +1012,7 @@ services:
 		{
 			doc: "Z-drive uppercase",
 			yaml: `
-version: '3.3'
+version: "3"
 
 services:
   windows:
@@ -1061,7 +1027,7 @@ services:
 		{
 			doc: "Z-drive subdirectory",
 			yaml: `
-version: '3.3'
+version: "3"
 
 services:
   windows:
@@ -1076,7 +1042,7 @@ services:
 		{
 			doc: "forward-slashes",
 			yaml: `
-version: '3.3'
+version: "3"
 
 services:
   app:
@@ -1102,7 +1068,7 @@ services:
 
 func TestLoadBindMountWithSource(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.5"
+version: "3"
 services:
   bind:
     image: nginx:latest
@@ -1129,7 +1095,7 @@ services:
 
 func TestLoadTmpfsVolumeSizeCanBeZero(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.6"
+version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -1154,7 +1120,7 @@ services:
 
 func TestLoadTmpfsVolumeSizeMustBeGTEQZero(t *testing.T) {
 	_, err := loadYAML(`
-version: "3.6"
+version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -1169,7 +1135,7 @@ services:
 
 func TestLoadTmpfsVolumeSizeMustBeInteger(t *testing.T) {
 	_, err := loadYAML(`
-version: "3.6"
+version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -1191,7 +1157,7 @@ func serviceSort(services []types.ServiceConfig) []types.ServiceConfig {
 
 func TestLoadAttachableNetwork(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.2"
+version: "3"
 networks:
   mynet1:
     driver: overlay
@@ -1217,7 +1183,7 @@ networks:
 
 func TestLoadExpandedPortFormat(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.2"
+version: "3"
 services:
   web:
     image: busybox
@@ -1241,7 +1207,7 @@ services:
 
 func TestLoadExpandedMountFormat(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.2"
+version: "3"
 services:
   web:
     image: busybox
@@ -1269,7 +1235,7 @@ volumes:
 
 func TestLoadExtraHostsMap(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.2"
+version: "3"
 services:
   web:
     image: busybox
@@ -1290,7 +1256,7 @@ services:
 
 func TestLoadExtraHostsList(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.2"
+version: "3"
 services:
   web:
     image: busybox
@@ -1365,39 +1331,10 @@ func TestLoadVolumesWarnOnDeprecatedExternalNameVersion33(t *testing.T) {
 	assert.Check(t, is.Equal("", buf.String()))
 }
 
-func TestLoadV35(t *testing.T) {
-	actual, err := loadYAML(`
-version: "3.5"
-services:
-  foo:
-    image: busybox
-    isolation: process
-configs:
-  foo:
-    name: fooqux
-    external: true
-  bar:
-    name: barqux
-    file: ./example1.env
-secrets:
-  foo:
-    name: fooqux
-    external: true
-  bar:
-    name: barqux
-    file: ./full-example.yml
-`)
-	assert.NilError(t, err)
-	assert.Check(t, is.Len(actual.Services, 1))
-	assert.Check(t, is.Len(actual.Secrets, 2))
-	assert.Check(t, is.Len(actual.Configs, 2))
-	assert.Check(t, is.Equal("process", actual.Services[0].Isolation))
-}
-
-func TestLoadV35InvalidIsolation(t *testing.T) {
+func TestLoadInvalidIsolation(t *testing.T) {
 	// validation should be done only on the daemon side
 	actual, err := loadYAML(`
-version: "3.5"
+version: "3"
 services:
   foo:
     image: busybox
@@ -1413,7 +1350,7 @@ configs:
 
 func TestLoadSecretInvalidExternalNameAndNameCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3.5"
+version: "3"
 secrets:
   external_secret:
     name: user_specified_name
@@ -1500,7 +1437,7 @@ func TestLoadNetworksWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
 
 func TestLoadNetworkInvalidExternalNameAndNameCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3.5"
+version: "3"
 networks:
   foo:
     name: user_specified_name
@@ -1514,7 +1451,7 @@ networks:
 
 func TestLoadNetworkWithName(t *testing.T) {
 	config, err := loadYAML(`
-version: '3.5'
+version: "3"
 services:
   hello-world:
     image: redis:alpine
@@ -1530,7 +1467,7 @@ networks:
 	assert.NilError(t, err)
 	expected := &types.Config{
 		Filename: "filename.yml",
-		Version:  "3.5",
+		Version:  "3.9",
 		Services: types.Services{
 			{
 				Name:  "hello-world",
@@ -1561,7 +1498,7 @@ func TestLoadInit(t *testing.T) {
 		{
 			doc: "no init defined",
 			yaml: `
-version: '3.7'
+version: "3"
 services:
   foo:
     image: alpine`,
@@ -1569,7 +1506,7 @@ services:
 		{
 			doc: "has true init",
 			yaml: `
-version: '3.7'
+version: "3"
 services:
   foo:
     image: alpine
@@ -1579,7 +1516,7 @@ services:
 		{
 			doc: "has false init",
 			yaml: `
-version: '3.7'
+version: "3"
 services:
   foo:
     image: alpine
@@ -1600,7 +1537,7 @@ services:
 
 func TestLoadSysctls(t *testing.T) {
 	config, err := loadYAML(`
-version: "3.8"
+version: "3"
 services:
   web:
     image: busybox
@@ -1623,7 +1560,7 @@ services:
 	assert.Check(t, is.DeepEqual(expected, config.Services[0].Sysctls))
 
 	config, err = loadYAML(`
-version: "3.8"
+version: "3"
 services:
   web:
     image: busybox
@@ -1665,7 +1602,7 @@ func TestTransform(t *testing.T) {
 
 func TestLoadTemplateDriver(t *testing.T) {
 	config, err := loadYAML(`
-version: '3.8'
+version: "3"
 services:
   hello-world:
     image: redis:alpine
@@ -1689,7 +1626,7 @@ secrets:
 	assert.NilError(t, err)
 	expected := &types.Config{
 		Filename: "filename.yml",
-		Version:  "3.8",
+		Version:  "3.9",
 		Services: types.Services{
 			{
 				Name:  "hello-world",
@@ -1726,7 +1663,7 @@ secrets:
 
 func TestLoadSecretDriver(t *testing.T) {
 	config, err := loadYAML(`
-version: '3.8'
+version: "3"
 services:
   hello-world:
     image: redis:alpine
@@ -1751,7 +1688,7 @@ secrets:
 	assert.NilError(t, err)
 	expected := &types.Config{
 		Filename: "filename.yml",
-		Version:  "3.8",
+		Version:  "3.9",
 		Services: types.Services{
 			{
 				Name:  "hello-world",

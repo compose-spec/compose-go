@@ -7,6 +7,7 @@ import (
 	"gotest.tools/assert"
 )
 
+/* FIXME to be reconsidered once we have new schema versions
 func TestLoadTwoDifferentVersion(t *testing.T) {
 	configDetails := types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
@@ -21,6 +22,7 @@ func TestLoadTwoDifferentVersion(t *testing.T) {
 	_, err := Load(configDetails)
 	assert.Error(t, err, "version mismatched between two composefiles : 3.1 and 3.4")
 }
+*/
 
 func TestLoadLogging(t *testing.T) {
 	loggingCases := []struct {
@@ -186,7 +188,7 @@ func TestLoadLogging(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.loggingBase,
 							},
@@ -195,7 +197,7 @@ func TestLoadLogging(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.loggingOverride,
 							},
@@ -207,7 +209,7 @@ func TestLoadLogging(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Config{
 				Filename: "base.yml",
-				Version:  "3.4",
+				Version:  "3.9",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -305,7 +307,7 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.portBase,
 							},
@@ -314,7 +316,7 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.portOverride,
 							},
@@ -326,7 +328,7 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Config{
 				Filename: "base.yml",
-				Version:  "3.4",
+				Version:  "3.9",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -431,7 +433,7 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.secretBase,
 							},
@@ -440,7 +442,7 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.secretOverride,
 							},
@@ -452,7 +454,7 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Config{
 				Filename: "base.yml",
-				Version:  "3.4",
+				Version:  "3.9",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -557,7 +559,7 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.configBase,
 							},
@@ -566,7 +568,7 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.configOverride,
 							},
@@ -578,7 +580,7 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Config{
 				Filename: "base.yml",
-				Version:  "3.4",
+				Version:  "3.9",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -673,7 +675,7 @@ func TestLoadMultipleUlimits(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.ulimitBase,
 							},
@@ -682,7 +684,7 @@ func TestLoadMultipleUlimits(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.ulimitOverride,
 							},
@@ -694,7 +696,7 @@ func TestLoadMultipleUlimits(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Config{
 				Filename: "base.yml",
-				Version:  "3.4",
+				Version:  "3.9",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -792,7 +794,7 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.networkBase,
 							},
@@ -801,7 +803,7 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3.4",
+							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.networkOverride,
 							},
@@ -813,7 +815,7 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Config{
 				Filename: "base.yml",
-				Version:  "3.4",
+				Version:  "3.9",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -832,7 +834,7 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 
 func TestLoadMultipleConfigs(t *testing.T) {
 	base := map[string]interface{}{
-		"version": "3.4",
+		"version": "3",
 		"services": map[string]interface{}{
 			"foo": map[string]interface{}{
 				"image": "foo",
@@ -858,7 +860,7 @@ func TestLoadMultipleConfigs(t *testing.T) {
 		"configs":  map[string]interface{}{},
 	}
 	override := map[string]interface{}{
-		"version": "3.4",
+		"version": "3",
 		"services": map[string]interface{}{
 			"foo": map[string]interface{}{
 				"image": "baz",
@@ -901,7 +903,7 @@ func TestLoadMultipleConfigs(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, &types.Config{
 		Filename: "base.yml",
-		Version:  "3.4",
+		Version:  "3.9",
 		Services: []types.ServiceConfig{
 			{
 				Name:        "bar",
@@ -947,7 +949,7 @@ func TestLoadMultipleConfigs(t *testing.T) {
 // Issue#972
 func TestLoadMultipleNetworks(t *testing.T) {
 	base := map[string]interface{}{
-		"version": "3.4",
+		"version": "3",
 		"services": map[string]interface{}{
 			"foo": map[string]interface{}{
 				"image": "baz",
@@ -971,7 +973,7 @@ func TestLoadMultipleNetworks(t *testing.T) {
 		"configs": map[string]interface{}{},
 	}
 	override := map[string]interface{}{
-		"version":  "3.4",
+		"version":  "3",
 		"services": map[string]interface{}{},
 		"volumes":  map[string]interface{}{},
 		"networks": map[string]interface{}{
@@ -994,7 +996,7 @@ func TestLoadMultipleNetworks(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, &types.Config{
 		Filename: "base.yml",
-		Version:  "3.4",
+		Version:  "3.9",
 		Services: []types.ServiceConfig{
 			{
 				Name:        "foo",
