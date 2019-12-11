@@ -11,7 +11,7 @@ type dict map[string]interface{}
 
 func TestValidate(t *testing.T) {
 	config := dict{
-		"version": "3.0",
+		"version": "3",
 		"services": dict{
 			"foo": dict{
 				"image": "busybox",
@@ -19,12 +19,12 @@ func TestValidate(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, Validate(config, "3.0"))
+	assert.NilError(t, Validate(config, "3"))
 }
 
 func TestValidateUndefinedTopLevelOption(t *testing.T) {
 	config := dict{
-		"version": "3.0",
+		"version": "3",
 		"helicopters": dict{
 			"foo": dict{
 				"image": "busybox",
@@ -32,23 +32,23 @@ func TestValidateUndefinedTopLevelOption(t *testing.T) {
 		},
 	}
 
-	err := Validate(config, "3.0")
+	err := Validate(config, "3.9")
 	assert.ErrorContains(t, err, "Additional property helicopters is not allowed")
 }
 
 func TestValidateAllowsXTopLevelFields(t *testing.T) {
 	config := dict{
-		"version":       "3.4",
+		"version":       "3",
 		"x-extra-stuff": dict{},
 	}
 
-	err := Validate(config, "3.4")
-	assert.NilError(t, err)
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
 
 func TestValidateAllowsXFields(t *testing.T) {
 	config := dict{
-		"version": "3.7",
+		"version": "3",
 		"services": dict{
 			"bar": dict{
 				"x-extra-stuff": dict{},
@@ -75,8 +75,8 @@ func TestValidateAllowsXFields(t *testing.T) {
 			},
 		},
 	}
-	err := Validate(config, "3.7")
-	assert.NilError(t, err)
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
 
 func TestValidateCredentialSpecs(t *testing.T) {
@@ -84,15 +84,7 @@ func TestValidateCredentialSpecs(t *testing.T) {
 		version     string
 		expectedErr string
 	}{
-		{version: "3.0", expectedErr: "credential_spec"},
-		{version: "3.1", expectedErr: "credential_spec"},
-		{version: "3.2", expectedErr: "credential_spec"},
-		{version: "3.3", expectedErr: "config"},
-		{version: "3.4", expectedErr: "config"},
-		{version: "3.5", expectedErr: "config"},
-		{version: "3.6", expectedErr: "config"},
-		{version: "3.7", expectedErr: "config"},
-		{version: "3.8"},
+		{version: "3"},
 		{version: "3.9"},
 	}
 
@@ -122,7 +114,7 @@ func TestValidateCredentialSpecs(t *testing.T) {
 
 func TestValidateSecretConfigNames(t *testing.T) {
 	config := dict{
-		"version": "3.5",
+		"version": "3",
 		"configs": dict{
 			"bar": dict{
 				"name": "foobar",
@@ -135,8 +127,8 @@ func TestValidateSecretConfigNames(t *testing.T) {
 		},
 	}
 
-	err := Validate(config, "3.5")
-	assert.NilError(t, err)
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
 
 func TestValidateInvalidVersion(t *testing.T) {
@@ -157,7 +149,7 @@ type array []interface{}
 
 func TestValidatePlacement(t *testing.T) {
 	config := dict{
-		"version": "3.3",
+		"version": "3",
 		"services": dict{
 			"foo": dict{
 				"image": "busybox",
@@ -174,12 +166,13 @@ func TestValidatePlacement(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, Validate(config, "3.3"))
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
 
 func TestValidateIsolation(t *testing.T) {
 	config := dict{
-		"version": "3.5",
+		"version": "3",
 		"services": dict{
 			"foo": dict{
 				"image":     "busybox",
@@ -187,12 +180,13 @@ func TestValidateIsolation(t *testing.T) {
 			},
 		},
 	}
-	assert.NilError(t, Validate(config, "3.5"))
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
 
 func TestValidateRollbackConfig(t *testing.T) {
 	config := dict{
-		"version": "3.4",
+		"version": "3",
 		"services": dict{
 			"foo": dict{
 				"image": "busybox",
@@ -205,12 +199,13 @@ func TestValidateRollbackConfig(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, Validate(config, "3.7"))
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
 
 func TestValidateRollbackConfigWithOrder(t *testing.T) {
 	config := dict{
-		"version": "3.4",
+		"version": "3",
 		"services": dict{
 			"foo": dict{
 				"image": "busybox",
@@ -224,12 +219,13 @@ func TestValidateRollbackConfigWithOrder(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, Validate(config, "3.7"))
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
 
 func TestValidateRollbackConfigWithUpdateConfig(t *testing.T) {
 	config := dict{
-		"version": "3.4",
+		"version": "3",
 		"services": dict{
 			"foo": dict{
 				"image": "busybox",
@@ -247,12 +243,13 @@ func TestValidateRollbackConfigWithUpdateConfig(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, Validate(config, "3.7"))
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
 
 func TestValidateRollbackConfigWithUpdateConfigFull(t *testing.T) {
 	config := dict{
-		"version": "3.4",
+		"version": "3",
 		"services": dict{
 			"foo": dict{
 				"image": "busybox",
@@ -276,5 +273,6 @@ func TestValidateRollbackConfigWithUpdateConfigFull(t *testing.T) {
 		},
 	}
 
-	assert.NilError(t, Validate(config, "3.7"))
+	assert.NilError(t, Validate(config, "3"))
+	assert.NilError(t, Validate(config, "3.9"))
 }
