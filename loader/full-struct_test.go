@@ -32,7 +32,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 		{
 			Name: "foo",
 
-			Build: types.BuildConfig{
+			Build: &types.BuildConfig{
 				Context:    "./dir",
 				Dockerfile: "Dockerfile",
 				Args:       map[string]*string{"foo": strPtr("bar")},
@@ -59,7 +59,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			},
 			ContainerName: "my-web-container",
 			DependsOn:     []string{"db", "redis"},
-			Deploy: types.DeployConfig{
+			Deploy: &types.DeployConfig{
 				Mode:     "replicated",
 				Replicas: uint64Ptr(6),
 				Labels:   map[string]string{"FOO": "BAR"},
@@ -1027,7 +1027,6 @@ func fullExampleJSON(workingDir string) string {
         }
       ],
       "container_name": "my-web-container",
-      "credential_spec": {},
       "depends_on": [
         "db",
         "redis"
