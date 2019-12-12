@@ -54,6 +54,7 @@ func mergeServices(base, override []types.ServiceConfig) ([]types.ServiceConfig,
 	specials := &specials{
 		m: map[reflect.Type]func(dst, src reflect.Value) error{
 			reflect.TypeOf(&types.LoggingConfig{}):           safelyMerge(mergeLoggingConfig),
+			reflect.TypeOf(&types.UlimitsConfig{}):           safelyMerge(mergeUlimitsConfig),
 			reflect.TypeOf([]types.ServicePortConfig{}):      mergeSlice(toServicePortConfigsMap, toServicePortConfigsSlice),
 			reflect.TypeOf([]types.ServiceSecretConfig{}):    mergeSlice(toServiceSecretConfigsMap, toServiceSecretConfigsSlice),
 			reflect.TypeOf([]types.ServiceConfigObjConfig{}): mergeSlice(toServiceConfigObjConfigsMap, toSServiceConfigObjConfigsSlice),
@@ -200,6 +201,21 @@ func mergeLoggingConfig(dst, src reflect.Value) error {
 	dst.Set(src)
 	return nil
 }
+
+func mergeUlimitsConfig(dst, src reflect.Value) error {
+	srcSingle := src.Elem().FieldByName("Single").Int()
+	if srcSingle != 0 {
+		dst.Elem().FieldByName("Soft").SetInt(0)
+		dst.Elem().FieldByName("Hard").SetInt(0)
+		dst.Elem().FieldByName("Single").SetInt(srcSingle)
+	} else {
+		dst.Elem().FieldByName("Soft").SetInt(src.Elem().FieldByName("Soft").Int())
+		dst.Elem().FieldByName("Hard").SetInt(src.Elem().FieldByName("Hard").Int())
+		dst.Elem().FieldByName("Single").SetInt(0)
+	}
+	return nil
+}
+
 
 func getLoggingDriver(v reflect.Value) string {
 	return v.FieldByName("Driver").String()
