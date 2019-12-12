@@ -639,7 +639,7 @@ networks:
 					Retries: uint64Ptr(555),
 					Disable: true,
 				},
-				Deploy: types.DeployConfig{
+				Deploy: &types.DeployConfig{
 					Replicas: uint64Ptr(555),
 					UpdateConfig: &types.UpdateConfig{
 						Parallelism:     uint64Ptr(555),

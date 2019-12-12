@@ -913,7 +913,7 @@ func TestLoadMultipleConfigs(t *testing.T) {
 			{
 				Name:  "foo",
 				Image: "baz",
-				Build: types.BuildConfig{
+				Build: &types.BuildConfig{
 					Context:    ".",
 					Dockerfile: "foo.Dockerfile",
 					Args: types.MappingWithEquals{
