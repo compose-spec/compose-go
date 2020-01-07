@@ -17,6 +17,13 @@
   version = "v19.03.0-beta4"
 
 [[projects]]
+  digest = "1:787a64c235184387a5735b8d5ebbfee3b2e8e70d9e0dd08dfa532f7281a50b3a"
+  name = "github.com/docker/compose-spec"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "464c592b0cf7e2c8a8cdbf0d732e8ba310a9ad26"
+
+[[projects]]
   digest = "1:de4a141036d93a75ae89ed0868ab7759c1f1b74131cd3a6a7ce4071bce006fd6"
   name = "github.com/docker/distribution"
   packages = ["registry/api/errcode"]
@@ -242,6 +249,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/docker/cli/opts",
+    "github.com/docker/compose-spec",
     "github.com/docker/docker/api/types/mount",
     "github.com/docker/docker/api/types/versions",
     "github.com/docker/go-connections/nat",

@@ -26,6 +26,10 @@
 
 
 [[constraint]]
+  name = "github.com/docker/compose-spec"
+  revision = "464c592b0cf7e2c8a8cdbf0d732e8ba310a9ad26"
+
+[[constraint]]
   name = "github.com/docker/cli"
   version = "19.3.0-beta4"
 

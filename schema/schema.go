@@ -1,7 +1,5 @@
 package schema
 
-//go:generate esc -o bindata.go -pkg schema -ignore .*\.go -private -modtime=1518458244 data
-
 import (
 	"fmt"
 	"strings"
@@ -9,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/xeipuuv/gojsonschema"
+	"github.com/docker/compose-spec"
 )
 
 const (
@@ -61,7 +60,7 @@ func normalizeVersion(version string) string {
 // Validate uses the jsonschema to validate the configuration
 func Validate(config map[string]interface{}, version string) error {
 	version = normalizeVersion(version)
-	schemaData, err := _escFSByte(false, fmt.Sprintf("/data/config_schema_v%s.json", version))
+	schemaData, err := spec.FSByte(false, fmt.Sprintf("/schema/config_schema_v%s.json", version))
 	if err != nil {
 		return errors.Errorf("unsupported Compose file version: %s", version)
 	}
