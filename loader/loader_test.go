@@ -699,7 +699,6 @@ networks:
 		},
 	}
 
-
 	assert.Check(t, is.DeepEqual(expected, config))
 }
 

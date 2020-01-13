@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/cli/opts"
 	interp "github.com/docker/compose-go/interpolation"
 	"github.com/docker/compose-go/schema"
 	"github.com/docker/compose-go/template"
 	"github.com/docker/compose-go/types"
-	"github.com/docker/cli/opts"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
