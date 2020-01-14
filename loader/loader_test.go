@@ -259,7 +259,7 @@ func TestLoad(t *testing.T) {
 	assert.Check(t, is.DeepEqual(sampleConfig.Volumes, actual.Volumes))
 }
 
-func TestLoadExtras(t *testing.T) {
+func TestLoadExtensions(t *testing.T) {
 	actual, err := loadYAML(`
 version: "3"
 services:
@@ -273,7 +273,7 @@ services:
 	extras := map[string]interface{}{
 		"x-foo": "bar",
 	}
-	assert.Check(t, is.DeepEqual(extras, service.Extras))
+	assert.Check(t, is.DeepEqual(extras, service.Extensions))
 }
 
 func TestLoadv39(t *testing.T) {
@@ -916,7 +916,7 @@ func TestFullExample(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expectedConfig.Volumes, config.Volumes))
 	assert.Check(t, is.DeepEqual(expectedConfig.Secrets, config.Secrets))
 	assert.Check(t, is.DeepEqual(expectedConfig.Configs, config.Configs))
-	assert.Check(t, is.DeepEqual(expectedConfig.Extras, config.Extras))
+	assert.Check(t, is.DeepEqual(expectedConfig.Extensions, config.Extensions))
 }
 
 func TestLoadTmpfsVolume(t *testing.T) {

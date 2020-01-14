@@ -44,14 +44,14 @@ type ConfigFile struct {
 
 // Config is a full compose file configuration
 type Config struct {
-	Filename string                     `yaml:"-" json:"-"`
-	Version  string                     `json:"version"`
-	Services Services                   `json:"services"`
-	Networks map[string]NetworkConfig   `yaml:",omitempty" json:"networks,omitempty"`
-	Volumes  map[string]VolumeConfig    `yaml:",omitempty" json:"volumes,omitempty"`
-	Secrets  map[string]SecretConfig    `yaml:",omitempty" json:"secrets,omitempty"`
-	Configs  map[string]ConfigObjConfig `yaml:",omitempty" json:"configs,omitempty"`
-	Extras   map[string]interface{}     `yaml:",inline" json:"-"`
+	Filename   string                     `yaml:"-" json:"-"`
+	Version    string                     `json:"version"`
+	Services   Services                   `json:"services"`
+	Networks   map[string]NetworkConfig   `yaml:",omitempty" json:"networks,omitempty"`
+	Volumes    map[string]VolumeConfig    `yaml:",omitempty" json:"volumes,omitempty"`
+	Secrets    map[string]SecretConfig    `yaml:",omitempty" json:"secrets,omitempty"`
+	Configs    map[string]ConfigObjConfig `yaml:",omitempty" json:"configs,omitempty"`
+	Extensions map[string]interface{}     `yaml:",inline" json:"-"`
 }
 
 // ServiceNames return names for all services in this Compose config
@@ -180,7 +180,7 @@ func (c Config) MarshalJSON() ([]byte, error) {
 	if len(c.Configs) > 0 {
 		m["configs"] = c.Configs
 	}
-	for k, v := range c.Extras {
+	for k, v := range c.Extensions {
 		m[k] = v
 	}
 	return json.Marshal(m)

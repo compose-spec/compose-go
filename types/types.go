@@ -148,7 +148,7 @@ type ServiceConfig struct {
 	VolumesFrom     []string                         `mapstructure:"volumes_from" yaml:"volumes_from,omitempty" json:"volumes_from,omitempty"`
 	WorkingDir      string                           `mapstructure:"working_dir" yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
 
-	Extras map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // GetDependencies retrieve all services this service depends on
@@ -188,6 +188,8 @@ type BuildConfig struct {
 	CacheFrom  StringList        `mapstructure:"cache_from" yaml:"cache_from,omitempty" json:"cache_from,omitempty"`
 	Network    string            `yaml:",omitempty" json:"network,omitempty"`
 	Target     string            `yaml:",omitempty" json:"target,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // ShellCommand is a string or list of string args
@@ -264,6 +266,8 @@ type HostsList []string
 type LoggingConfig struct {
 	Driver  string            `yaml:",omitempty" json:"driver,omitempty"`
 	Options map[string]string `yaml:",omitempty" json:"options,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // DeployConfig the deployment configuration for a service
@@ -277,6 +281,8 @@ type DeployConfig struct {
 	RestartPolicy  *RestartPolicy `mapstructure:"restart_policy" yaml:"restart_policy,omitempty" json:"restart_policy,omitempty"`
 	Placement      Placement      `yaml:",omitempty" json:"placement,omitempty"`
 	EndpointMode   string         `mapstructure:"endpoint_mode" yaml:"endpoint_mode,omitempty" json:"endpoint_mode,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // HealthCheckConfig the healthcheck configuration for a service
@@ -287,6 +293,8 @@ type HealthCheckConfig struct {
 	Retries     *uint64         `yaml:",omitempty" json:"retries,omitempty"`
 	StartPeriod *Duration       `mapstructure:"start_period" yaml:"start_period,omitempty" json:"start_period,omitempty"`
 	Disable     bool            `yaml:",omitempty" json:"disable,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // HealthCheckTest is the command run to test the health of a service
@@ -300,12 +308,16 @@ type UpdateConfig struct {
 	Monitor         Duration `yaml:",omitempty" json:"monitor,omitempty"`
 	MaxFailureRatio float32  `mapstructure:"max_failure_ratio" yaml:"max_failure_ratio,omitempty" json:"max_failure_ratio,omitempty"`
 	Order           string   `yaml:",omitempty" json:"order,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // Resources the resource limits and reservations
 type Resources struct {
 	Limits       *Resource `yaml:",omitempty" json:"limits,omitempty"`
 	Reservations *Resource `yaml:",omitempty" json:"reservations,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // Resource is a resource to be limited or reserved
@@ -314,12 +326,16 @@ type Resource struct {
 	NanoCPUs         string            `mapstructure:"cpus" yaml:"cpus,omitempty" json:"cpus,omitempty"`
 	MemoryBytes      UnitBytes         `mapstructure:"memory" yaml:"memory,omitempty" json:"memory,omitempty"`
 	GenericResources []GenericResource `mapstructure:"generic_resources" yaml:"generic_resources,omitempty" json:"generic_resources,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // GenericResource represents a "user defined" resource which can
 // only be an integer (e.g: SSD=3) for a service
 type GenericResource struct {
 	DiscreteResourceSpec *DiscreteGenericResource `mapstructure:"discrete_resource_spec" yaml:"discrete_resource_spec,omitempty" json:"discrete_resource_spec,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // DiscreteGenericResource represents a "user defined" resource which is defined
@@ -329,6 +345,8 @@ type GenericResource struct {
 type DiscreteGenericResource struct {
 	Kind  string `json:"kind"`
 	Value int64  `json:"value"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // UnitBytes is the bytes type
@@ -350,6 +368,8 @@ type RestartPolicy struct {
 	Delay       *Duration `yaml:",omitempty" json:"delay,omitempty"`
 	MaxAttempts *uint64   `mapstructure:"max_attempts" yaml:"max_attempts,omitempty" json:"max_attempts,omitempty"`
 	Window      *Duration `yaml:",omitempty" json:"window,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // Placement constraints for the service
@@ -357,11 +377,15 @@ type Placement struct {
 	Constraints []string               `yaml:",omitempty" json:"constraints,omitempty"`
 	Preferences []PlacementPreferences `yaml:",omitempty" json:"preferences,omitempty"`
 	MaxReplicas uint64                 `mapstructure:"max_replicas_per_node" yaml:"max_replicas_per_node,omitempty" json:"max_replicas_per_node,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // PlacementPreferences is the preferences for a service placement
 type PlacementPreferences struct {
 	Spread string `yaml:",omitempty" json:"spread,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // ServiceNetworkConfig is the network configuration for a service
@@ -369,6 +393,8 @@ type ServiceNetworkConfig struct {
 	Aliases     []string `yaml:",omitempty" json:"aliases,omitempty"`
 	Ipv4Address string   `mapstructure:"ipv4_address" yaml:"ipv4_address,omitempty" json:"ipv4_address,omitempty"`
 	Ipv6Address string   `mapstructure:"ipv6_address" yaml:"ipv6_address,omitempty" json:"ipv6_address,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // ServicePortConfig is the port configuration for a service
@@ -378,6 +404,8 @@ type ServicePortConfig struct {
 	Target    uint32 `yaml:",omitempty" json:"target,omitempty"`
 	Published uint32 `yaml:",omitempty" json:"published,omitempty"`
 	Protocol  string `yaml:",omitempty" json:"protocol,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // ParsePortConfig parse short syntax for service port configuration
@@ -437,6 +465,8 @@ type ServiceVolumeConfig struct {
 	Bind        *ServiceVolumeBind   `yaml:",omitempty" json:"bind,omitempty"`
 	Volume      *ServiceVolumeVolume `yaml:",omitempty" json:"volume,omitempty"`
 	Tmpfs       *ServiceVolumeTmpfs  `yaml:",omitempty" json:"tmpfs,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 const (
@@ -453,6 +483,8 @@ const (
 // ServiceVolumeBind are options for a service volume of type bind
 type ServiceVolumeBind struct {
 	Propagation string `yaml:",omitempty" json:"propagation,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // Propagation represents the propagation of a mount.
@@ -474,11 +506,15 @@ const (
 // ServiceVolumeVolume are options for a service volume of type volume
 type ServiceVolumeVolume struct {
 	NoCopy bool `mapstructure:"nocopy" yaml:"nocopy,omitempty" json:"nocopy,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // ServiceVolumeTmpfs are options for a service volume of type tmpfs
 type ServiceVolumeTmpfs struct {
 	Size int64 `yaml:",omitempty" json:"size,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // FileReferenceConfig for a reference to a swarm file object
@@ -488,6 +524,8 @@ type FileReferenceConfig struct {
 	UID    string  `yaml:",omitempty" json:"uid,omitempty"`
 	GID    string  `yaml:",omitempty" json:"gid,omitempty"`
 	Mode   *uint32 `yaml:",omitempty" json:"mode,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // ServiceConfigObjConfig is the config obj configuration for a service
@@ -501,6 +539,8 @@ type UlimitsConfig struct {
 	Single int `yaml:",omitempty" json:"single,omitempty"`
 	Soft   int `yaml:",omitempty" json:"soft,omitempty"`
 	Hard   int `yaml:",omitempty" json:"hard,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // MarshalYAML makes UlimitsConfig implement yaml.Marshaller
@@ -530,18 +570,20 @@ type NetworkConfig struct {
 	Internal   bool                   `yaml:",omitempty" json:"internal,omitempty"`
 	Attachable bool                   `yaml:",omitempty" json:"attachable,omitempty"`
 	Labels     Labels                 `yaml:",omitempty" json:"labels,omitempty"`
-	Extras     map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // IPAMConfig for a network
 type IPAMConfig struct {
-	Driver string      `yaml:",omitempty" json:"driver,omitempty"`
-	Config []*IPAMPool `yaml:",omitempty" json:"config,omitempty"`
+	Driver     string                 `yaml:",omitempty" json:"driver,omitempty"`
+	Config     []*IPAMPool            `yaml:",omitempty" json:"config,omitempty"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // IPAMPool for a network
 type IPAMPool struct {
-	Subnet string `yaml:",omitempty" json:"subnet,omitempty"`
+	Subnet     string                 `yaml:",omitempty" json:"subnet,omitempty"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // VolumeConfig for a volume
@@ -551,15 +593,16 @@ type VolumeConfig struct {
 	DriverOpts map[string]string      `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
 	External   External               `yaml:",omitempty" json:"external,omitempty"`
 	Labels     Labels                 `yaml:",omitempty" json:"labels,omitempty"`
-	Extras     map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // External identifies a Volume or Network as a reference to a resource that is
 // not managed, and should already exist.
 // External.name is deprecated and replaced by Volume.name
 type External struct {
-	Name     string `yaml:",omitempty" json:"name,omitempty"`
-	External bool   `yaml:",omitempty" json:"external,omitempty"`
+	Name       string                 `yaml:",omitempty" json:"name,omitempty"`
+	External   bool                   `yaml:",omitempty" json:"external,omitempty"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // MarshalYAML makes External implement yaml.Marshaller
@@ -580,9 +623,10 @@ func (e External) MarshalJSON() ([]byte, error) {
 
 // CredentialSpecConfig for credential spec on Windows
 type CredentialSpecConfig struct {
-	Config   string `yaml:",omitempty" json:"config,omitempty"` // Config was added in API v1.40
-	File     string `yaml:",omitempty" json:"file,omitempty"`
-	Registry string `yaml:",omitempty" json:"registry,omitempty"`
+	Config     string                 `yaml:",omitempty" json:"config,omitempty"` // Config was added in API v1.40
+	File       string                 `yaml:",omitempty" json:"file,omitempty"`
+	Registry   string                 `yaml:",omitempty" json:"registry,omitempty"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // FileObjectConfig is a config type for a file used by a service
@@ -591,10 +635,10 @@ type FileObjectConfig struct {
 	File           string                 `yaml:",omitempty" json:"file,omitempty"`
 	External       External               `yaml:",omitempty" json:"external,omitempty"`
 	Labels         Labels                 `yaml:",omitempty" json:"labels,omitempty"`
-	Extras         map[string]interface{} `yaml:",inline" json:"-"`
 	Driver         string                 `yaml:",omitempty" json:"driver,omitempty"`
 	DriverOpts     map[string]string      `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
 	TemplateDriver string                 `mapstructure:"template_driver" yaml:"template_driver,omitempty" json:"template_driver,omitempty"`
+	Extensions     map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // SecretConfig for a secret

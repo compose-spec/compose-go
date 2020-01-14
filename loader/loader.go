@@ -119,6 +119,8 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			}
 		}
 
+		configDict = groupXFieldsIntoExtensions(configDict)
+
 		cfg, err := loadSections(configDict, configDetails)
 		if err != nil {
 			return nil, err
@@ -135,6 +137,24 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 	return merge(configs)
 }
+
+func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
+	extras := map[string]interface{}{}
+	for key, value := range dict {
+		if strings.HasPrefix(key, "x-") {
+			extras[key] = value
+			delete(dict, key)
+		}
+		if d, ok := value.(map[string]interface{}); ok {
+			dict[key] = groupXFieldsIntoExtensions(d)
+		}
+	}
+	if len(extras) > 0 {
+		dict["extensions"] = extras
+	}
+	return dict
+}
+
 
 func loadSections(config map[string]interface{}, configDetails types.ConfigDetails) (*types.Config, error) {
 	var err error
@@ -181,13 +201,21 @@ func loadSections(config map[string]interface{}, configDetails types.ConfigDetai
 				return err
 			},
 		},
+		{
+			key: "extensions",
+			fnc: func(config map[string]interface{}) error {
+				if len(config) > 0 {
+					cfg.Extensions = config
+				}
+				return err
+			},
+		},
 	}
 	for _, loader := range loaders {
 		if err := loader.fnc(getSection(config, loader.key)); err != nil {
 			return nil, err
 		}
 	}
-	cfg.Extras = getExtras(config)
 	return &cfg, nil
 }
 
@@ -389,29 +417,7 @@ func LoadService(name string, serviceDict map[string]interface{}, workingDir str
 		return nil, err
 	}
 
-	serviceConfig.Extras = getExtras(serviceDict)
-
 	return serviceConfig, nil
-}
-
-func loadExtras(name string, source map[string]interface{}) map[string]interface{} {
-	if dict, ok := source[name].(map[string]interface{}); ok {
-		return getExtras(dict)
-	}
-	return nil
-}
-
-func getExtras(dict map[string]interface{}) map[string]interface{} {
-	extras := map[string]interface{}{}
-	for key, value := range dict {
-		if strings.HasPrefix(key, "x-") {
-			extras[key] = value
-		}
-	}
-	if len(extras) == 0 {
-		return nil
-	}
-	return extras
 }
 
 func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
@@ -478,8 +484,12 @@ func transformUlimits(data interface{}) (interface{}, error) {
 		return types.UlimitsConfig{Single: value}, nil
 	case map[string]interface{}:
 		ulimit := types.UlimitsConfig{}
-		ulimit.Soft = value["soft"].(int)
-		ulimit.Hard = value["hard"].(int)
+		if v, ok := value["soft"]; ok {
+			ulimit.Soft = v.(int)
+		}
+		if v, ok := value["hard"]; ok {
+			ulimit.Hard = v.(int)
+		}
 		return ulimit, nil
 	default:
 		return data, errors.Errorf("invalid type %T for ulimits", value)
@@ -509,7 +519,6 @@ func LoadNetworks(source map[string]interface{}, version string) (map[string]typ
 		case network.Name == "":
 			network.Name = name
 		}
-		network.Extras = loadExtras(name, source)
 		networks[name] = network
 	}
 	return networks, nil
@@ -550,7 +559,6 @@ func LoadVolumes(source map[string]interface{}) (map[string]types.VolumeConfig, 
 		case volume.Name == "":
 			volume.Name = name
 		}
-		volume.Extras = loadExtras(name, source)
 		volumes[name] = volume
 	}
 	return volumes, nil
@@ -569,7 +577,6 @@ func LoadSecrets(source map[string]interface{}, details types.ConfigDetails) (ma
 			return nil, err
 		}
 		secretConfig := types.SecretConfig(obj)
-		secretConfig.Extras = loadExtras(name, source)
 		secrets[name] = secretConfig
 	}
 	return secrets, nil
@@ -588,7 +595,6 @@ func LoadConfigObjs(source map[string]interface{}, details types.ConfigDetails) 
 			return nil, err
 		}
 		configConfig := types.ConfigObjConfig(obj)
-		configConfig.Extras = loadExtras(name, source)
 		configs[name] = configConfig
 	}
 	return configs, nil

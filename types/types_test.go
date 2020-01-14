@@ -196,7 +196,7 @@ func TestParsePortConfig(t *testing.T) {
 func assertContains(t *testing.T, portConfigs []ServicePortConfig, expected ServicePortConfig) {
 	var contains = false
 	for _, portConfig := range portConfigs {
-		if portConfig == expected {
+		if is.DeepEqual(portConfig, expected)().Success() {
 			contains = true
 			break
 		}
