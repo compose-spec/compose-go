@@ -9,13 +9,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/cli/opts"
+	"github.com/docker/compose-go/envfile"
 	interp "github.com/docker/compose-go/interpolation"
 	"github.com/docker/compose-go/schema"
 	"github.com/docker/compose-go/template"
 	"github.com/docker/compose-go/types"
 	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/go-connections/nat"
 	units "github.com/docker/go-units"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
@@ -449,37 +448,21 @@ func getExtras(dict map[string]interface{}) map[string]interface{} {
 	return extras
 }
 
-func updateEnvironment(environment map[string]*string, vars map[string]*string, lookupEnv template.Mapping) {
-	for k, v := range vars {
-		interpolatedV, ok := lookupEnv(k)
-		if (v == nil || *v == "") && ok {
-			// lookupEnv is prioritized over vars
-			environment[k] = &interpolatedV
-		} else {
-			environment[k] = v
-		}
-	}
-}
-
 func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
-	environment := make(map[string]*string)
+	environment := types.MappingWithEquals{}
 
 	if len(serviceConfig.EnvFile) > 0 {
-		var envVars []string
-
 		for _, file := range serviceConfig.EnvFile {
 			filePath := absPath(workingDir, file)
-			fileVars, err := opts.ParseEnvFile(filePath)
+			fileVars, err := envfile.Parse(filePath)
 			if err != nil {
 				return err
 			}
-			envVars = append(envVars, fileVars...)
+			environment.OverrideBy(fileVars.Resolve(lookupEnv))
 		}
-		updateEnvironment(environment,
-			opts.ConvertKVStringsToMapWithNil(envVars), lookupEnv)
 	}
 
-	updateEnvironment(environment, serviceConfig.Environment, lookupEnv)
+	environment.OverrideBy(serviceConfig.Environment.Resolve(lookupEnv))
 	serviceConfig.Environment = environment
 	return nil
 }
@@ -719,17 +702,21 @@ var transformServicePort TransformerFunc = func(data interface{}) (interface{}, 
 		for _, entry := range entries {
 			switch value := entry.(type) {
 			case int:
-				v, err := toServicePortConfigs(fmt.Sprint(value))
+				parsed, err := types.ParsePortConfig(fmt.Sprint(value))
 				if err != nil {
 					return data, err
 				}
-				ports = append(ports, v...)
+				for _, v := range parsed {
+					ports = append(ports, v)
+				}
 			case string:
-				v, err := toServicePortConfigs(value)
+				parsed, err := types.ParsePortConfig(value)
 				if err != nil {
 					return data, err
 				}
-				ports = append(ports, v...)
+				for _, v := range parsed {
+					ports = append(ports, v)
+				}
 			case map[string]interface{}:
 				ports = append(ports, value)
 			default:
@@ -890,39 +877,6 @@ var transformStringToDuration TransformerFunc = func(value interface{}) (interfa
 	default:
 		return value, errors.Errorf("invalid type %T for duration", value)
 	}
-}
-
-func toServicePortConfigs(value string) ([]interface{}, error) {
-	var portConfigs []interface{}
-
-	ports, portBindings, err := nat.ParsePortSpecs([]string{value})
-	if err != nil {
-		return nil, err
-	}
-	// We need to sort the key of the ports to make sure it is consistent
-	keys := []string{}
-	for port := range ports {
-		keys = append(keys, string(port))
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		// Reuse ConvertPortToPortConfig so that it is consistent
-		portConfig, err := opts.ConvertPortToPortConfig(nat.Port(key), portBindings)
-		if err != nil {
-			return nil, err
-		}
-		for _, p := range portConfig {
-			portConfigs = append(portConfigs, types.ServicePortConfig{
-				Protocol:  string(p.Protocol),
-				Target:    p.TargetPort,
-				Published: p.PublishedPort,
-				Mode:      string(p.PublishMode),
-			})
-		}
-	}
-
-	return portConfigs, nil
 }
 
 func toMapStringString(value map[string]interface{}, allowNil bool) map[string]interface{} {

@@ -3,7 +3,12 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
+
+	"github.com/docker/go-connections/nat"
+	"github.com/sirupsen/logrus"
 )
 
 // UnsupportedProperties not yet supported by this implementation of the compose file
@@ -239,6 +244,26 @@ type StringOrNumberList []string
 // For the key without value (`key`), the mapped value is set to nil.
 type MappingWithEquals map[string]*string
 
+// OverrideBy update MappingWithEquals with values from another MappingWithEquals
+func (e MappingWithEquals) OverrideBy(other MappingWithEquals) MappingWithEquals {
+	for k, v := range other {
+		e[k] = v
+	}
+	return e
+}
+
+// Resolve update a MappingWithEquals for keys without value (`key`, but not `key=`)
+func (e MappingWithEquals) Resolve(lookupFn func(string) (string, bool)) MappingWithEquals {
+	for k, v := range e {
+		if v == nil || *v == "" {
+			if value, ok := lookupFn(k); ok {
+				e[k] = &value
+			}
+		}
+	}
+	return e
+}
+
 // Mapping is a mapping type that can be converted from a list of
 // key[=value] strings.
 // For the key with an empty value (`key=`), or key without value (`key`), the
@@ -372,6 +397,56 @@ type ServicePortConfig struct {
 	Target    uint32 `yaml:",omitempty" json:"target,omitempty"`
 	Published uint32 `yaml:",omitempty" json:"published,omitempty"`
 	Protocol  string `yaml:",omitempty" json:"protocol,omitempty"`
+}
+
+// ParsePortConfig parse short syntax for service port configuration
+func ParsePortConfig(value string) ([]ServicePortConfig, error) {
+	var portConfigs []ServicePortConfig
+	ports, portBindings, err := nat.ParsePortSpecs([]string{value})
+	if err != nil {
+		return nil, err
+	}
+	// We need to sort the key of the ports to make sure it is consistent
+	keys := []string{}
+	for port := range ports {
+		keys = append(keys, string(port))
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		port := nat.Port(key)
+		converted, err := convertPortToPortConfig(port, portBindings)
+		if err != nil {
+			return nil, err
+		}
+		portConfigs = append(portConfigs, converted...)
+	}
+	return portConfigs, nil
+}
+
+func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.PortBinding) ([]ServicePortConfig, error) {
+	portConfigs := []ServicePortConfig{}
+	for _, binding := range portBindings[port] {
+		if binding.HostIP != "" && binding.HostIP != "0.0.0.0" {
+			logrus.Warnf("ignoring IP-address (%s:%s:%s) service will listen on '0.0.0.0'", binding.HostIP, binding.HostPort, port)
+		}
+
+		startHostPort, endHostPort, err := nat.ParsePortRange(binding.HostPort)
+
+		if err != nil && binding.HostPort != "" {
+			return nil, fmt.Errorf("invalid hostport binding (%s) for port (%s)", binding.HostPort, port.Port())
+		}
+
+		for i := startHostPort; i <= endHostPort; i++ {
+			portConfigs = append(portConfigs, ServicePortConfig{
+				Protocol:  strings.ToLower(port.Proto()),
+				Target:    uint32(port.Int()),
+				Published: uint32(i),
+				Mode:      "ingress",
+			})
+		}
+	}
+	return portConfigs, nil
 }
 
 // ServiceVolumeConfig are references to a volume used by a service
