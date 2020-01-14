@@ -2,43 +2,11 @@
 
 
 [[projects]]
-  digest = "1:3ea20e6792814facc25e4741a46987db47ac54f9520a677fbc1f06ee77987971"
-  name = "github.com/containerd/containerd"
-  packages = ["errdefs"]
-  pruneopts = "UT"
-  revision = "7c1e88399ec0b0b077121d9d5ad97e647b11c870"
-
-[[projects]]
-  digest = "1:2a7e553396721a7dee398f65d74d9621fd470df277ca58944b71110af2b0d68a"
-  name = "github.com/docker/cli"
-  packages = ["opts"]
-  pruneopts = "UT"
-  revision = "8aebc318062963ba861b65cc2a43425dfdd80fe7"
-  version = "v19.03.0-beta4"
-
-[[projects]]
-  digest = "1:de4a141036d93a75ae89ed0868ab7759c1f1b74131cd3a6a7ce4071bce006fd6"
-  name = "github.com/docker/distribution"
-  packages = ["registry/api/errcode"]
-  pruneopts = "UT"
-  revision = "0d3efadf0154c2b8a4e7b6621fff9809655cc580"
-
-[[projects]]
-  digest = "1:4d47198269c85f659614ba8a5583c1c596bc7e4c58698e32447a5ea50d0c1855"
+  digest = "1:8455b8d6f329e63ce6836859e7573f755f5240c5f0066cd2c7449270d7b0dd1a"
   name = "github.com/docker/docker"
   packages = [
-    "api/types",
-    "api/types/blkiodev",
-    "api/types/container",
-    "api/types/filters",
     "api/types/mount",
-    "api/types/network",
-    "api/types/registry",
-    "api/types/strslice",
-    "api/types/swarm",
-    "api/types/swarm/runtime",
     "api/types/versions",
-    "errdefs",
   ]
   pruneopts = "UT"
   revision = "a09e6e323e55e1a9b21df9c2c555f5668df3ac9b"
@@ -58,28 +26,6 @@
   pruneopts = "UT"
   revision = "519db1ee28dcc9fd2474ae59fca29a810482bfb1"
   version = "v0.4.0"
-
-[[projects]]
-  digest = "1:48092bf6632f55839850666c33469f546f6d45fdbd59a66759ec12e84d853dc2"
-  name = "github.com/gogo/protobuf"
-  packages = ["proto"]
-  pruneopts = "UT"
-  revision = "ba06b47c162d49f2af050fb4c75bcbc86a159d5c"
-  version = "v1.2.1"
-
-[[projects]]
-  digest = "1:4c0989ca0bcd10799064318923b9bc2db6b4d6338dd75f3f2d86c3511aaaf5cf"
-  name = "github.com/golang/protobuf"
-  packages = [
-    "proto",
-    "ptypes",
-    "ptypes/any",
-    "ptypes/duration",
-    "ptypes/timestamp",
-  ]
-  pruneopts = "UT"
-  revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
-  version = "v1.2.0"
 
 [[projects]]
   digest = "1:d2754cafcab0d22c13541618a8029a70a8959eb3525ff201fe971637e2274cd0"
@@ -125,25 +71,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "f15292f7a699fcc1a38a80977f80a046874ba8ac"
-
-[[projects]]
-  digest = "1:ee4d4af67d93cc7644157882329023ce9a7bcfce956a079069a9405521c7cc8d"
-  name = "github.com/opencontainers/go-digest"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "279bed98673dd5bef374d3b6e4b09e2af76183bf"
-  version = "v1.0.0-rc1"
-
-[[projects]]
-  digest = "1:11db38d694c130c800d0aefb502fb02519e514dc53d9804ce51d1ad25ec27db6"
-  name = "github.com/opencontainers/image-spec"
-  packages = [
-    "specs-go",
-    "specs-go/v1",
-  ]
-  pruneopts = "UT"
-  revision = "d60099175f88c47cd379c4738d158884749ed235"
-  version = "v1.0.1"
 
 [[projects]]
   digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
@@ -193,27 +120,6 @@
   revision = "9eafafc0a87e0fd0aeeba439a4573537970c44c7"
 
 [[projects]]
-  digest = "1:601e63e7d4577f907118bec825902505291918859d223bce015539e79f1160e3"
-  name = "google.golang.org/genproto"
-  packages = ["googleapis/rpc/status"]
-  pruneopts = "UT"
-  revision = "02b4e95473316948020af0b7a4f0f22c73929b0e"
-
-[[projects]]
-  digest = "1:dd9e017df31acd9cf78ad0df2c8a1132fb3f724ec9287240ee7306364130bafc"
-  name = "google.golang.org/grpc"
-  packages = [
-    "codes",
-    "connectivity",
-    "grpclog",
-    "internal",
-    "status",
-  ]
-  pruneopts = "UT"
-  revision = "6eaf6f47437a6b4e2153a190160ef39a92c7eceb"
-  version = "v1.23.0"
-
-[[projects]]
   digest = "1:1033856ca84153217fda9f527e1c02e11b636e28ad2ab19f2ea4a06e4abbe8e1"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -241,7 +147,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/docker/cli/opts",
     "github.com/docker/docker/api/types/mount",
     "github.com/docker/docker/api/types/versions",
     "github.com/docker/go-connections/nat",
