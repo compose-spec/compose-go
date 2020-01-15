@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/sirupsen/logrus"
 )
 
 // UnsupportedProperties not yet supported by this implementation of the compose file
@@ -404,6 +403,7 @@ type ServiceNetworkConfig struct {
 // ServicePortConfig is the port configuration for a service
 type ServicePortConfig struct {
 	Mode      string `yaml:",omitempty" json:"mode,omitempty"`
+	HostIP    string `yaml:"-" json:"-"`
 	Target    uint32 `yaml:",omitempty" json:"target,omitempty"`
 	Published uint32 `yaml:",omitempty" json:"published,omitempty"`
 	Protocol  string `yaml:",omitempty" json:"protocol,omitempty"`
@@ -437,10 +437,6 @@ func ParsePortConfig(value string) ([]ServicePortConfig, error) {
 func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.PortBinding) ([]ServicePortConfig, error) {
 	portConfigs := []ServicePortConfig{}
 	for _, binding := range portBindings[port] {
-		if binding.HostIP != "" && binding.HostIP != "0.0.0.0" {
-			logrus.Warnf("ignoring IP-address (%s:%s:%s) service will listen on '0.0.0.0'", binding.HostIP, binding.HostPort, port)
-		}
-
 		startHostPort, endHostPort, err := nat.ParsePortRange(binding.HostPort)
 
 		if err != nil && binding.HostPort != "" {
@@ -449,6 +445,7 @@ func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.Port
 
 		for i := startHostPort; i <= endHostPort; i++ {
 			portConfigs = append(portConfigs, ServicePortConfig{
+				HostIP:    binding.HostIP,
 				Protocol:  strings.ToLower(port.Proto()),
 				Target:    uint32(port.Int()),
 				Published: uint32(i),
