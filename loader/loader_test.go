@@ -41,7 +41,17 @@ func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Config, error) 
 		return nil, err
 	}
 
-	return Load(buildConfigDetails(dict, env))
+	if home, ok := env["HOME"]; ok {
+		// test overrides $HOME
+		os.Setenv("HOME", home)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return Load(buildConfigDetails(dict, env), func(options *Options) {
+		options.CheckVolumes = ResolveRelativeBindPath(wd)
+	})
 }
 
 var sampleYAML = `

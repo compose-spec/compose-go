@@ -2,6 +2,7 @@ package loader
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -34,6 +35,38 @@ type Options struct {
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
 	discardEnvFiles bool
+	// CheckVolumes check binds for supported path and transform them if needed
+	CheckVolumes BindPathResolverFn
+}
+
+// BindPathResolverFn is used to check/override bind-mount volume sources
+type BindPathResolverFn func(string) (string, error)
+
+// RejectRelativeBindPath check bind path for volume is absolute
+func RejectRelativeBindPath(filePath string) (string, error) {
+	if !path.IsAbs(filePath) && !isAbs(filePath) {
+		return "", fmt.Errorf("volume bind mount MUST be an absolute path")
+	}
+	return filePath, nil
+}
+
+// ResolveRelativeBindPath build a BindPathResolverFn to expand relative paths based on local environment
+func ResolveRelativeBindPath(workingDir string) BindPathResolverFn {
+	return func(filePath string) (string, error) {
+		if strings.HasPrefix(filePath, "~") {
+			home, err := os.UserHomeDir()
+			if err != nil {
+				return "", fmt.Errorf("cannot resolve user home dir to expand '~'")
+			}
+			return strings.Replace(filePath, "~", home, 1), nil
+		}
+
+		if !path.IsAbs(filePath) && !isAbs(filePath) {
+			filePath = absPath(workingDir, filePath)
+		}
+
+		return filePath, nil
+	}
 }
 
 // WithDiscardEnvFiles sets the Options to discard the `env_file` section after resolving to
@@ -72,6 +105,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			LookupValue:     configDetails.LookupEnv,
 			TypeCastMapping: interpolateTypeCastMapping,
 		},
+		CheckVolumes: RejectRelativeBindPath,
 	}
 
 	for _, op := range options {
@@ -108,7 +142,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			}
 		}
 
-		cfg, err := loadSections(configDict, configDetails)
+		cfg, err := loadSections(configDict, configDetails, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -137,7 +171,7 @@ func validateForbidden(configDict map[string]interface{}) error {
 	return nil
 }
 
-func loadSections(config map[string]interface{}, configDetails types.ConfigDetails) (*types.Config, error) {
+func loadSections(config map[string]interface{}, configDetails types.ConfigDetails, opts *Options) (*types.Config, error) {
 	var err error
 	cfg := types.Config{
 		Version: schema.Version(config),
@@ -150,7 +184,7 @@ func loadSections(config map[string]interface{}, configDetails types.ConfigDetai
 		{
 			key: "services",
 			fnc: func(config map[string]interface{}) error {
-				cfg.Services, err = LoadServices(config, configDetails.WorkingDir, configDetails.LookupEnv)
+				cfg.Services, err = LoadServices(config, configDetails.WorkingDir, configDetails.LookupEnv, opts)
 				return err
 			},
 		},
@@ -393,11 +427,11 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 
 // LoadServices produces a ServiceConfig map from a compose file Dict
 // the servicesDict is not validated if directly used. Use Load() to enable validation
-func LoadServices(servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
+func LoadServices(servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
 	for name, serviceDef := range servicesDict {
-		serviceConfig, err := LoadService(name, serviceDef.(map[string]interface{}), workingDir, lookupEnv)
+		serviceConfig, err := LoadService(name, serviceDef.(map[string]interface{}), workingDir, lookupEnv, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -409,7 +443,7 @@ func LoadServices(servicesDict map[string]interface{}, workingDir string, lookup
 
 // LoadService produces a single ServiceConfig from a compose file Dict
 // the serviceDict is not validated if directly used. Use Load() to enable validation
-func LoadService(name string, serviceDict map[string]interface{}, workingDir string, lookupEnv template.Mapping) (*types.ServiceConfig, error) {
+func LoadService(name string, serviceDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options) (*types.ServiceConfig, error) {
 	serviceConfig := &types.ServiceConfig{}
 	if err := Transform(serviceDict, serviceConfig); err != nil {
 		return nil, err
@@ -420,7 +454,7 @@ func LoadService(name string, serviceDict map[string]interface{}, workingDir str
 		return nil, err
 	}
 
-	if err := resolveVolumePaths(serviceConfig.Volumes, workingDir, lookupEnv); err != nil {
+	if err := resolveVolumePaths(serviceConfig.Volumes, opts.CheckVolumes); err != nil {
 		return nil, err
 	}
 
@@ -484,7 +518,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 	return nil
 }
 
-func resolveVolumePaths(volumes []types.ServiceVolumeConfig, workingDir string, lookupEnv template.Mapping) error {
+func resolveVolumePaths(volumes []types.ServiceVolumeConfig, resolveFn BindPathResolverFn) error {
 	for i, volume := range volumes {
 		if volume.Type != "bind" {
 			continue
@@ -494,33 +528,16 @@ func resolveVolumePaths(volumes []types.ServiceVolumeConfig, workingDir string, 
 			return errors.New(`invalid mount config for type "bind": field Source must not be empty`)
 		}
 
-		filePath := expandUser(volume.Source, lookupEnv)
-		// Check if source is an absolute path (either Unix or Windows), to
-		// handle a Windows client with a Unix daemon or vice-versa.
-		//
-		// Note that this is not required for Docker for Windows when specifying
-		// a local Windows path, because Docker for Windows translates the Windows
-		// path into a valid path within the VM.
-		if !path.IsAbs(filePath) && !isAbs(filePath) {
-			filePath = absPath(workingDir, filePath)
+		if resolveFn != nil {
+			filePath, err := resolveFn(volume.Source)
+			if err != nil {
+				return err
+			}
+			volume.Source = filePath
+			volumes[i] = volume
 		}
-		volume.Source = filePath
-		volumes[i] = volume
 	}
 	return nil
-}
-
-// TODO: make this more robust
-func expandUser(path string, lookupEnv template.Mapping) string {
-	if strings.HasPrefix(path, "~") {
-		home, ok := lookupEnv("HOME")
-		if !ok {
-			logrus.Warn("cannot expand '~', because the environment lacks HOME")
-			return path
-		}
-		return strings.Replace(path, "~", home, 1)
-	}
-	return path
 }
 
 func transformUlimits(data interface{}) (interface{}, error) {
