@@ -458,7 +458,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 			if err != nil {
 				return err
 			}
-			environment.OverrideBy(fileVars.Resolve(lookupEnv))
+			environment.OverrideBy(fileVars.Resolve(lookupEnv).RemoveEmpty())
 		}
 	}
 
