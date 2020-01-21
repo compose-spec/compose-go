@@ -264,6 +264,16 @@ func (e MappingWithEquals) Resolve(lookupFn func(string) (string, bool)) Mapping
 	return e
 }
 
+// RemoveEmpty excludes keys that are not associated with a value
+func (e MappingWithEquals) RemoveEmpty() MappingWithEquals {
+	for k, v := range e {
+		if v == nil {
+			delete(e, k)
+		}
+	}
+	return e
+}
+
 // Mapping is a mapping type that can be converted from a list of
 // key[=value] strings.
 // For the key with an empty value (`key=`), or key without value (`key`), the
