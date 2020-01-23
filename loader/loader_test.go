@@ -6,6 +6,7 @@ import (
 	"os"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -1287,7 +1288,7 @@ func TestLoadVolumesWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
 			},
 		},
 	}
-	volumes, err := LoadVolumes(source, "3.4")
+	volumes, err := LoadVolumes(source)
 	assert.NilError(t, err)
 	expected := map[string]types.VolumeConfig{
 		"foo": {
@@ -1307,7 +1308,7 @@ func patchLogrus() (*bytes.Buffer, func()) {
 	return buf, func() { logrus.SetOutput(out) }
 }
 
-func TestLoadVolumesWarnOnDeprecatedExternalNameVersion33(t *testing.T) {
+func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
@@ -1318,7 +1319,7 @@ func TestLoadVolumesWarnOnDeprecatedExternalNameVersion33(t *testing.T) {
 			},
 		},
 	}
-	volumes, err := LoadVolumes(source, "3.3")
+	volumes, err := LoadVolumes(source)
 	assert.NilError(t, err)
 	expected := map[string]types.VolumeConfig{
 		"foo": {
@@ -1327,7 +1328,7 @@ func TestLoadVolumesWarnOnDeprecatedExternalNameVersion33(t *testing.T) {
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, volumes))
-	assert.Check(t, is.Equal("", buf.String()))
+	assert.Check(t, strings.Contains(buf.String(), "volume foo: volume.external.name is deprecated in favor of volume.name"))
 }
 
 func TestLoadInvalidIsolation(t *testing.T) {
@@ -1411,7 +1412,7 @@ func TestLoadNetworksWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 
 }
 
-func TestLoadNetworksWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
+func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
@@ -1431,7 +1432,7 @@ func TestLoadNetworksWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, networks))
-	assert.Check(t, is.Equal("", buf.String()))
+	assert.Check(t, strings.Contains(buf.String(), "network foo: network.external.name is deprecated in favor of network.name"))
 }
 
 func TestLoadNetworkInvalidExternalNameAndNameCombination(t *testing.T) {

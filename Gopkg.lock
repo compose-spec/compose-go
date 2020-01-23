@@ -2,16 +2,6 @@
 
 
 [[projects]]
-  digest = "1:8455b8d6f329e63ce6836859e7573f755f5240c5f0066cd2c7449270d7b0dd1a"
-  name = "github.com/docker/docker"
-  packages = [
-    "api/types/mount",
-    "api/types/versions",
-  ]
-  pruneopts = "UT"
-  revision = "a09e6e323e55e1a9b21df9c2c555f5668df3ac9b"
-
-[[projects]]
   digest = "1:ade935c55cd6d0367c843b109b09c9d748b1982952031414740750fdf94747eb"
   name = "github.com/docker/go-connections"
   packages = ["nat"]
@@ -66,11 +56,12 @@
   version = "v1.0.6"
 
 [[projects]]
-  digest = "1:5ab79470a1d0fb19b041a624415612f8236b3c06070161a910562f2b2d064355"
+  digest = "1:53bc4cd4914cd7cd52139990d5170d6dc99067ae31c56530621b18b35fc30318"
   name = "github.com/mitchellh/mapstructure"
   packages = ["."]
   pruneopts = "UT"
-  revision = "f15292f7a699fcc1a38a80977f80a046874ba8ac"
+  revision = "3536a929edddb9a5b34bd6861dc4a9647cb459fe"
+  version = "v1.1.2"
 
 [[projects]]
   digest = "1:cf31692c14422fa27c83a05292eb5cbe0fb2775972e8f1f8446a71549bd8980b"
@@ -113,11 +104,12 @@
   version = "v1.1.0"
 
 [[projects]]
-  digest = "1:8d30f87f59931cdd4d45e450185216a34eba66c1f1f68a314ac0fa49d19f9826"
+  branch = "master"
+  digest = "1:8a44970c7e8c0a1c8646af14605c1ffd31374074d68101c2e11d7761df12c9d1"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "9eafafc0a87e0fd0aeeba439a4573537970c44c7"
+  revision = "e047566fdf82409bf7a52212cf71df83ea2772fb"
 
 [[projects]]
   digest = "1:1033856ca84153217fda9f527e1c02e11b636e28ad2ab19f2ea4a06e4abbe8e1"
@@ -147,8 +139,6 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/docker/docker/api/types/mount",
-    "github.com/docker/docker/api/types/versions",
     "github.com/docker/go-connections/nat",
     "github.com/docker/go-units",
     "github.com/google/go-cmp/cmp/cmpopts",

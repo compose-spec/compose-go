@@ -468,10 +468,37 @@ type ServiceVolumeConfig struct {
 	Tmpfs       *ServiceVolumeTmpfs  `yaml:",omitempty" json:"tmpfs,omitempty"`
 }
 
+const (
+	// TypeBind is the type for mounting host dir
+	VolumeTypeBind = "bind"
+	// TypeVolume is the type for remote storage volumes
+	VolumeTypeVolume = "volume"
+	// TypeTmpfs is the type for mounting tmpfs
+	VolumeTypeTmpfs = "tmpfs"
+	// TypeNamedPipe is the type for mounting Windows named pipes
+	VolumeTypeNamedPipe = "npipe"
+)
+
 // ServiceVolumeBind are options for a service volume of type bind
 type ServiceVolumeBind struct {
 	Propagation string `yaml:",omitempty" json:"propagation,omitempty"`
 }
+
+// Propagation represents the propagation of a mount.
+const (
+	// PropagationRPrivate RPRIVATE
+	PropagationRPrivate string = "rprivate"
+	// PropagationPrivate PRIVATE
+	PropagationPrivate string = "private"
+	// PropagationRShared RSHARED
+	PropagationRShared string = "rshared"
+	// PropagationShared SHARED
+	PropagationShared string = "shared"
+	// PropagationRSlave RSLAVE
+	PropagationRSlave string = "rslave"
+	// PropagationSlave SLAVE
+	PropagationSlave string = "slave"
+)
 
 // ServiceVolumeVolume are options for a service volume of type volume
 type ServiceVolumeVolume struct {

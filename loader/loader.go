@@ -14,7 +14,6 @@ import (
 	"github.com/docker/compose-go/schema"
 	"github.com/docker/compose-go/template"
 	"github.com/docker/compose-go/types"
-	"github.com/docker/docker/api/types/versions"
 	units "github.com/docker/go-units"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
@@ -163,7 +162,7 @@ func loadSections(config map[string]interface{}, configDetails types.ConfigDetai
 		{
 			key: "volumes",
 			fnc: func(config map[string]interface{}) error {
-				cfg.Volumes, err = LoadVolumes(config, configDetails.Version)
+				cfg.Volumes, err = LoadVolumes(config)
 				return err
 			},
 		},
@@ -537,9 +536,7 @@ func LoadNetworks(source map[string]interface{}, version string) (map[string]typ
 			if network.Name != "" {
 				return nil, errors.Errorf("network %s: network.external.name and network.name conflict; only use network.name", name)
 			}
-			if versions.GreaterThanOrEqualTo(version, "3.5") {
-				logrus.Warnf("network %s: network.external.name is deprecated in favor of network.name", name)
-			}
+			logrus.Warnf("network %s: network.external.name is deprecated in favor of network.name", name)
 			network.Name = network.External.Name
 			network.External.Name = ""
 		case network.Name == "":
@@ -559,7 +556,7 @@ func externalVolumeError(volume, key string) error {
 
 // LoadVolumes produces a VolumeConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadVolumes(source map[string]interface{}, version string) (map[string]types.VolumeConfig, error) {
+func LoadVolumes(source map[string]interface{}) (map[string]types.VolumeConfig, error) {
 	volumes := make(map[string]types.VolumeConfig)
 	if err := Transform(source, &volumes); err != nil {
 		return volumes, err
@@ -580,9 +577,7 @@ func LoadVolumes(source map[string]interface{}, version string) (map[string]type
 			if volume.Name != "" {
 				return nil, errors.Errorf("volume %s: volume.external.name and volume.name conflict; only use volume.name", name)
 			}
-			if versions.GreaterThanOrEqualTo(version, "3.4") {
-				logrus.Warnf("volume %s: volume.external.name is deprecated in favor of volume.name", name)
-			}
+			logrus.Warnf("volume %s: volume.external.name is deprecated in favor of volume.name", name)
 			volume.Name = volume.External.Name
 			volume.External.Name = ""
 		case volume.Name == "":
@@ -641,9 +636,7 @@ func loadFileObjectConfig(name string, objType string, obj types.FileObjectConfi
 			if obj.Name != "" {
 				return obj, errors.Errorf("%[1]s %[2]s: %[1]s.external.name and %[1]s.name conflict; only use %[1]s.name", objType, name)
 			}
-			if versions.GreaterThanOrEqualTo(details.Version, "3.5") {
-				logrus.Warnf("%[1]s %[2]s: %[1]s.external.name is deprecated in favor of %[1]s.name", objType, name)
-			}
+			logrus.Warnf("%[1]s %[2]s: %[1]s.external.name is deprecated in favor of %[1]s.name", objType, name)
 			obj.Name = obj.External.Name
 			obj.External.Name = ""
 		} else {
