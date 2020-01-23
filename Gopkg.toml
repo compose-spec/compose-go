@@ -27,43 +27,43 @@
 
 [[constraint]]
   name = "github.com/docker/go-connections"
-  version = "0.4.0"
+  version = "=0.4.0"
 
 [[constraint]]
   name = "github.com/docker/go-units"
-  version = "0.4.0"
+  version = "=0.4.0"
 
 [[constraint]]
   name = "github.com/google/go-cmp"
-  version = "0.2.0"
+  version = "=0.2.0"
 
 [[constraint]]
   name = "github.com/imdario/mergo"
-  version = "0.3.8"
+  version = "=0.3.8"
 
 [[constraint]]
   name = "github.com/mattn/go-shellwords"
-  version = "1.0.6"
+  version = "=1.0.6"
 
 [[constraint]]
   name = "github.com/pkg/errors"
-  version = "0.8.1"
+  version = "=0.8.1"
 
 [[constraint]]
   name = "github.com/sirupsen/logrus"
-  version = "1.4.2"
+  version = "=1.4.2"
 
 [[constraint]]
   name = "github.com/xeipuuv/gojsonschema"
-  version = "1.1.0"
+  version = "=1.1.0"
 
 [[constraint]]
   name = "gopkg.in/yaml.v2"
-  version = "2.2.3"
+  version = "=2.2.3"
 
 [[constraint]]
   name = "gotest.tools"
-  version = "2.3.0"
+  version = "=2.3.0"
 
 [prune]
   go-tests = true

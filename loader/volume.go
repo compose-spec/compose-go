@@ -6,7 +6,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/docker/compose-go/types"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/pkg/errors"
 )
 
@@ -21,7 +20,7 @@ func ParseVolume(spec string) (types.ServiceVolumeConfig, error) {
 		return volume, errors.New("invalid empty volume spec")
 	case 1, 2:
 		volume.Target = spec
-		volume.Type = string(mount.TypeVolume)
+		volume.Type = string(types.VolumeTypeVolume)
 		return volume, nil
 	}
 
@@ -85,9 +84,18 @@ func populateFieldFromBuffer(char rune, buffer []rune, volume *types.ServiceVolu
 	return nil
 }
 
+var Propagations = []string{
+	types.PropagationRPrivate,
+	types.PropagationPrivate,
+	types.PropagationRShared,
+	types.PropagationShared,
+	types.PropagationRSlave,
+	types.PropagationSlave,
+}
+
 func isBindOption(option string) bool {
-	for _, propagation := range mount.Propagations {
-		if mount.Propagation(option) == propagation {
+	for _, propagation := range Propagations {
+		if option == propagation {
 			return true
 		}
 	}
@@ -98,11 +106,11 @@ func populateType(volume *types.ServiceVolumeConfig) {
 	switch {
 	// Anonymous volume
 	case volume.Source == "":
-		volume.Type = string(mount.TypeVolume)
+		volume.Type = string(types.VolumeTypeVolume)
 	case isFilePath(volume.Source):
-		volume.Type = string(mount.TypeBind)
+		volume.Type = string(types.VolumeTypeBind)
 	default:
-		volume.Type = string(mount.TypeVolume)
+		volume.Type = string(types.VolumeTypeVolume)
 	}
 }
 
