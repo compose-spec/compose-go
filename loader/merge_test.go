@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/compose-go/types"
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 /* FIXME to be reconsidered once we have new schema versions

@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/docker/compose-go/types"
-	is "gotest.tools/assert/cmp"
+	is "gotest.tools/v3/assert/cmp"
 
-	"gotest.tools/assert"
+	"gotest.tools/v3/assert"
 )
 
 func tmpFileWithContent(content string, t *testing.T) string {
