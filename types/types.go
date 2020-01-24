@@ -52,20 +52,6 @@ var ForbiddenProperties = map[string]string{
 	"memswap_limit": "Set resource limits using deploy.resources",
 }
 
-// ConfigFile is a filename and the contents of the file as a Dict
-type ConfigFile struct {
-	Filename string
-	Config   map[string]interface{}
-}
-
-// ConfigDetails are the details about a group of ConfigFiles
-type ConfigDetails struct {
-	Version     string
-	WorkingDir  string
-	ConfigFiles []ConfigFile
-	Environment map[string]string
-}
-
 // Duration is a thin wrapper around time.Duration with improved JSON marshalling
 type Duration time.Duration
 
@@ -96,43 +82,6 @@ func (d Duration) MarshalYAML() (interface{}, error) {
 func (cd ConfigDetails) LookupEnv(key string) (string, bool) {
 	v, ok := cd.Environment[key]
 	return v, ok
-}
-
-// Config is a full compose file configuration
-type Config struct {
-	Filename string                     `yaml:"-" json:"-"`
-	Version  string                     `json:"version"`
-	Services Services                   `json:"services"`
-	Networks map[string]NetworkConfig   `yaml:",omitempty" json:"networks,omitempty"`
-	Volumes  map[string]VolumeConfig    `yaml:",omitempty" json:"volumes,omitempty"`
-	Secrets  map[string]SecretConfig    `yaml:",omitempty" json:"secrets,omitempty"`
-	Configs  map[string]ConfigObjConfig `yaml:",omitempty" json:"configs,omitempty"`
-	Extras   map[string]interface{}     `yaml:",inline" json:"-"`
-}
-
-// MarshalJSON makes Config implement json.Marshaler
-func (c Config) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{
-		"version":  c.Version,
-		"services": c.Services,
-	}
-
-	if len(c.Networks) > 0 {
-		m["networks"] = c.Networks
-	}
-	if len(c.Volumes) > 0 {
-		m["volumes"] = c.Volumes
-	}
-	if len(c.Secrets) > 0 {
-		m["secrets"] = c.Secrets
-	}
-	if len(c.Configs) > 0 {
-		m["configs"] = c.Configs
-	}
-	for k, v := range c.Extras {
-		m[k] = v
-	}
-	return json.Marshal(m)
 }
 
 // Services is a list of ServiceConfig
