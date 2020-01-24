@@ -183,27 +183,27 @@ func TestExtractVariables(t *testing.T) {
 	testCases := []struct {
 		name     string
 		dict     map[string]interface{}
-		expected map[string]string
+		expected map[string]Variable
 	}{
 		{
 			name:     "empty",
 			dict:     map[string]interface{}{},
-			expected: map[string]string{},
+			expected: map[string]Variable{},
 		},
 		{
 			name: "no-variables",
 			dict: map[string]interface{}{
 				"foo": "bar",
 			},
-			expected: map[string]string{},
+			expected: map[string]Variable{},
 		},
 		{
 			name: "variable-without-curly-braces",
 			dict: map[string]interface{}{
 				"foo": "$bar",
 			},
-			expected: map[string]string{
-				"bar": "",
+			expected: map[string]Variable{
+				"bar": {Name: "bar"},
 			},
 		},
 		{
@@ -211,8 +211,8 @@ func TestExtractVariables(t *testing.T) {
 			dict: map[string]interface{}{
 				"foo": "${bar}",
 			},
-			expected: map[string]string{
-				"bar": "",
+			expected: map[string]Variable{
+				"bar": {Name: "bar", DefaultValue: ""},
 			},
 		},
 		{
@@ -220,8 +220,8 @@ func TestExtractVariables(t *testing.T) {
 			dict: map[string]interface{}{
 				"foo": "${bar?:foo}",
 			},
-			expected: map[string]string{
-				"bar": "",
+			expected: map[string]Variable{
+				"bar": {Name: "bar", DefaultValue: "", Required: true},
 			},
 		},
 		{
@@ -229,8 +229,8 @@ func TestExtractVariables(t *testing.T) {
 			dict: map[string]interface{}{
 				"foo": "${bar?foo}",
 			},
-			expected: map[string]string{
-				"bar": "",
+			expected: map[string]Variable{
+				"bar": {Name: "bar", DefaultValue: "", Required: true},
 			},
 		},
 		{
@@ -238,8 +238,8 @@ func TestExtractVariables(t *testing.T) {
 			dict: map[string]interface{}{
 				"foo": "${bar:-foo}",
 			},
-			expected: map[string]string{
-				"bar": "foo",
+			expected: map[string]Variable{
+				"bar": {Name: "bar", DefaultValue: "foo"},
 			},
 		},
 		{
@@ -247,8 +247,8 @@ func TestExtractVariables(t *testing.T) {
 			dict: map[string]interface{}{
 				"foo": "${bar-foo}",
 			},
-			expected: map[string]string{
-				"bar": "foo",
+			expected: map[string]Variable{
+				"bar": {Name: "bar", DefaultValue: "foo"},
 			},
 		},
 		{
@@ -265,12 +265,12 @@ func TestExtractVariables(t *testing.T) {
 					"$toto",
 				},
 			},
-			expected: map[string]string{
-				"bar":     "foo",
-				"fruit":   "banana",
-				"toto":    "",
-				"docker":  "",
-				"project": "cli",
+			expected: map[string]Variable{
+				"bar":     {Name: "bar", DefaultValue: "foo"},
+				"fruit":   {Name: "fruit", DefaultValue: "banana"},
+				"toto":    {Name: "toto", DefaultValue: ""},
+				"docker":  {Name: "docker", DefaultValue: ""},
+				"project": {Name: "project", DefaultValue: "cli"},
 			},
 		},
 	}
