@@ -109,16 +109,16 @@ func (s Services) MarshalJSON() ([]byte, error) {
 type ServiceConfig struct {
 	Name string `yaml:"-" json:"-"`
 
-	Build           *BuildConfig                      `yaml:",omitempty" json:"build,omitempty"`
+	Build           *BuildConfig                     `yaml:",omitempty" json:"build,omitempty"`
 	CapAdd          []string                         `mapstructure:"cap_add" yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
 	CapDrop         []string                         `mapstructure:"cap_drop" yaml:"cap_drop,omitempty" json:"cap_drop,omitempty"`
 	CgroupParent    string                           `mapstructure:"cgroup_parent" yaml:"cgroup_parent,omitempty" json:"cgroup_parent,omitempty"`
 	Command         ShellCommand                     `yaml:",omitempty" json:"command,omitempty"`
 	Configs         []ServiceConfigObjConfig         `yaml:",omitempty" json:"configs,omitempty"`
 	ContainerName   string                           `mapstructure:"container_name" yaml:"container_name,omitempty" json:"container_name,omitempty"`
-	CredentialSpec  *CredentialSpecConfig             `mapstructure:"credential_spec" yaml:"credential_spec,omitempty" json:"credential_spec,omitempty"`
+	CredentialSpec  *CredentialSpecConfig            `mapstructure:"credential_spec" yaml:"credential_spec,omitempty" json:"credential_spec,omitempty"`
 	DependsOn       []string                         `mapstructure:"depends_on" yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
-	Deploy          *DeployConfig                     `yaml:",omitempty" json:"deploy,omitempty"`
+	Deploy          *DeployConfig                    `yaml:",omitempty" json:"deploy,omitempty"`
 	Devices         []string                         `yaml:",omitempty" json:"devices,omitempty"`
 	DNS             StringList                       `yaml:",omitempty" json:"dns,omitempty"`
 	DNSSearch       StringList                       `mapstructure:"dns_search" yaml:"dns_search,omitempty" json:"dns_search,omitempty"`
@@ -162,6 +162,33 @@ type ServiceConfig struct {
 	WorkingDir      string                           `mapstructure:"working_dir" yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
 
 	Extras map[string]interface{} `yaml:",inline" json:"-"`
+}
+
+// GetDependencies retrieve all services this service depends on
+func (s ServiceConfig) GetDependencies() []string {
+	dependencies := make(set)
+	dependencies.append(s.DependsOn...)
+	dependencies.append(s.Links...)
+	if strings.HasPrefix(s.NetworkMode, "service:") {
+		dependencies.append(s.NetworkMode[8:])
+	}
+	return dependencies.toSlice()
+}
+
+type set map[string]struct{}
+
+func (s set) append(strings ...string) {
+	for _, str := range strings {
+		s[str] = struct{}{}
+	}
+}
+
+func (s set) toSlice() []string {
+	slice := make([]string, len(s))
+	for v := range s {
+		slice = append(slice, v)
+	}
+	return slice
 }
 
 // BuildConfig is a type for build

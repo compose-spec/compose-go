@@ -125,7 +125,7 @@ func (c Config) withServices(names []string, fn ServiceFunc, done map[string]boo
 			continue
 		}
 		if len(service.DependsOn) > 0 {
-			err := c.withServices(service.DependsOn, fn, done)
+			err := c.withServices(service.GetDependencies(), fn, done)
 			if err != nil {
 				return err
 			}
