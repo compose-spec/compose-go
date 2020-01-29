@@ -189,3 +189,12 @@ func assertContains(t *testing.T, portConfigs []ServicePortConfig, expected Serv
 		t.Errorf("expected %v to contain %v, did not", portConfigs, expected)
 	}
 }
+
+func TestSet(t *testing.T) {
+	s := make(set)
+	s.append("one")
+	s.append("two")
+	s.append("three")
+	s.append("two")
+	assert.Equal(t, len(s.toSlice()), 3)
+}

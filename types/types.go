@@ -184,7 +184,7 @@ func (s set) append(strings ...string) {
 }
 
 func (s set) toSlice() []string {
-	slice := make([]string, len(s))
+	slice := make([]string, 0, len(s))
 	for v := range s {
 		slice = append(slice, v)
 	}
