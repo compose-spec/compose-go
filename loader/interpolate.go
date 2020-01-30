@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 
-	interp "github.com/docker/compose-go/interpolation"
+	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/pkg/errors"
 )
 

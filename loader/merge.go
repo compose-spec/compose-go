@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/docker/compose-go/types"
+	"github.com/compose-spec/compose-go/types"
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 )
