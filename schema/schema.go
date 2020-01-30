@@ -53,7 +53,7 @@ func normalizeVersion(version string) string {
 	switch version {
 	case "3":
 		return "3.9" // latest
-	case "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8":
+	case "3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8":
 		return "3.9" // pre-existing specification but backward compatible
 	default:
 		return version
