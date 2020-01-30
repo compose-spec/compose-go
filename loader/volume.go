@@ -5,7 +5,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/docker/compose-go/types"
+	"github.com/compose-spec/compose-go/types"
 	"github.com/pkg/errors"
 )
 

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/compose-go/types"
+	"github.com/compose-spec/compose-go/types"
 	is "gotest.tools/v3/assert/cmp"
 
 	"gotest.tools/v3/assert"

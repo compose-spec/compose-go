@@ -3,7 +3,7 @@ package loader
 import (
 	"testing"
 
-	"github.com/docker/compose-go/types"
+	"github.com/compose-spec/compose-go/types"
 	"gotest.tools/v3/assert"
 )
 
