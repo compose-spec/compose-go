@@ -865,7 +865,7 @@ volumes:
   some-volume: {}
 secrets:
   secret1:
-    file: %s/secret_data
+    file: %s
     labels:
       foo: bar
   secret2:
@@ -881,7 +881,7 @@ secrets:
     x-foo: bar
 configs:
   config1:
-    file: %s/config_data
+    file: %s
     labels:
       foo: bar
   config2:
@@ -903,9 +903,9 @@ x-nested:
 `,
 		filepath.Join(workingDir, "static"),
 		filepath.Join(workingDir, "opt"),
+		filepath.Join(workingDir, "secret_data"),
 		workingDir,
-		workingDir,
-		workingDir,
+		filepath.Join(workingDir, "config_data"),
 		workingDir)
 }
 
@@ -913,7 +913,7 @@ func fullExampleJSON(workingDir string) string {
 	return fmt.Sprintf(`{
   "configs": {
     "config1": {
-      "file": "%s/config_data",
+      "file": "%s",
       "external": false,
       "labels": {
         "foo": "bar"
@@ -973,7 +973,7 @@ func fullExampleJSON(workingDir string) string {
   },
   "secrets": {
     "secret1": {
-      "file": "%s/secret_data",
+      "file": "%s",
       "external": false,
       "labels": {
         "foo": "bar"
@@ -1453,9 +1453,9 @@ func fullExampleJSON(workingDir string) string {
     "foo": "bar"
   }
 }`,
+		filepath.Join(workingDir, "config_data"),
 		workingDir,
-		workingDir,
-		workingDir,
+		filepath.Join(workingDir, "secret_data"),
 		workingDir,
 		filepath.Join(workingDir, "static"),
 		filepath.Join(workingDir, "opt"))
