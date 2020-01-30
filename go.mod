@@ -1,4 +1,4 @@
-module github.com/docker/compose-go
+module github.com/compose-spec/compose-go
 
 go 1.12
 
