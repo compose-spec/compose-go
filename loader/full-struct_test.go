@@ -901,11 +901,11 @@ x-nested:
   bar: baz
   foo: bar
 `,
-		filepath.Join(workingDir, "static"),
-		filepath.Join(workingDir, "opt"),
-		filepath.Join(workingDir, "secret_data"),
+		filepath.ToSlash(filepath.Join(workingDir, "static")),
+		filepath.ToSlash(filepath.Join(workingDir, "opt")),
+		filepath.ToSlash(filepath.Join(workingDir, "secret_data")),
 		workingDir,
-		filepath.Join(workingDir, "config_data"),
+		filepath.ToSlash(filepath.Join(workingDir, "config_data")),
 		workingDir)
 }
 
@@ -1453,10 +1453,10 @@ func fullExampleJSON(workingDir string) string {
     "foo": "bar"
   }
 }`,
-		filepath.Join(workingDir, "config_data"),
+		filepath.ToSlash(filepath.Join(workingDir, "config_data")),
 		workingDir,
-		filepath.Join(workingDir, "secret_data"),
+		filepath.ToSlash(filepath.Join(workingDir, "secret_data")),
 		workingDir,
-		filepath.ToSlash(filepath.Join(workingDir, "static")),
-		filepath.ToSlash(filepath.Join(workingDir, "opt")))
+		filepath.ToSlash(filepath.ToSlash(filepath.Join(workingDir, "static"))),
+		filepath.ToSlash(filepath.ToSlash(filepath.Join(workingDir, "opt"))))
 }
