@@ -58,6 +58,8 @@ func mergeServices(base, override []types.ServiceConfig) ([]types.ServiceConfig,
 			reflect.TypeOf([]types.ServicePortConfig{}):      mergeSlice(toServicePortConfigsMap, toServicePortConfigsSlice),
 			reflect.TypeOf([]types.ServiceSecretConfig{}):    mergeSlice(toServiceSecretConfigsMap, toServiceSecretConfigsSlice),
 			reflect.TypeOf([]types.ServiceConfigObjConfig{}): mergeSlice(toServiceConfigObjConfigsMap, toSServiceConfigObjConfigsSlice),
+			reflect.TypeOf(&types.UlimitsConfig{}):           mergeUlimitsConfig,
+			reflect.TypeOf(&types.ServiceNetworkConfig{}):    mergeServiceNetworkConfig,
 		},
 	}
 	for name, overrideService := range overrideServices {
@@ -202,20 +204,27 @@ func mergeLoggingConfig(dst, src reflect.Value) error {
 	return nil
 }
 
+//nolint: unparam
 func mergeUlimitsConfig(dst, src reflect.Value) error {
-	srcSingle := src.Elem().FieldByName("Single").Int()
-	if srcSingle != 0 {
-		dst.Elem().FieldByName("Soft").SetInt(0)
-		dst.Elem().FieldByName("Hard").SetInt(0)
-		dst.Elem().FieldByName("Single").SetInt(srcSingle)
-	} else {
-		dst.Elem().FieldByName("Soft").SetInt(src.Elem().FieldByName("Soft").Int())
-		dst.Elem().FieldByName("Hard").SetInt(src.Elem().FieldByName("Hard").Int())
-		dst.Elem().FieldByName("Single").SetInt(0)
+	if src.Interface() != reflect.Zero(reflect.TypeOf(src.Interface())).Interface() {
+		dst.Elem().Set(src.Elem())
 	}
 	return nil
 }
 
+//nolint: unparam
+func mergeServiceNetworkConfig(dst, src reflect.Value) error {
+	if src.Interface() != reflect.Zero(reflect.TypeOf(src.Interface())).Interface() {
+		dst.Elem().FieldByName("Aliases").Set(src.Elem().FieldByName("Aliases"))
+		if ipv4 := src.Elem().FieldByName("Ipv4Address").Interface().(string); ipv4 != "" {
+			dst.Elem().FieldByName("Ipv4Address").SetString(ipv4)
+		}
+		if ipv6 := src.Elem().FieldByName("Ipv6Address").Interface().(string); ipv6 != "" {
+			dst.Elem().FieldByName("Ipv6Address").SetString(ipv6)
+		}
+	}
+	return nil
+}
 
 func getLoggingDriver(v reflect.Value) string {
 	return v.FieldByName("Driver").String()
