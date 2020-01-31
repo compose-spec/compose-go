@@ -782,7 +782,7 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 			},
 			expected: map[string]*types.ServiceNetworkConfig{
 				"net1": {
-					Aliases: []string{"alias1", "alias2", "alias3"},
+					Aliases: []string{"alias2", "alias3"},
 				},
 				"net2": nil,
 				"net3": {},
