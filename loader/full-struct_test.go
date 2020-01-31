@@ -3,6 +3,7 @@ package loader
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/compose-spec/compose-go/types"
@@ -378,10 +379,10 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				{Target: "/var/lib/mysql", Type: "volume"},
 				{Source: "/opt/data", Target: "/var/lib/mysql", Type: "bind"},
 				{Source: workingDir, Target: "/code", Type: "bind"},
-				{Source: filepath.ToSlash(filepath.Join(workingDir, "static")), Target: "/var/www/html", Type: "bind"},
-				{Source: homeDir + "/configs", Target: "/etc/configs/", Type: "bind", ReadOnly: true},
+				{Source: filepath.Join(workingDir, "static"), Target: "/var/www/html", Type: "bind"},
+				{Source: filepath.Join(homeDir, "/configs"), Target: "/etc/configs/", Type: "bind", ReadOnly: true},
 				{Source: "datavolume", Target: "/var/lib/mysql", Type: "volume"},
-				{Source: filepath.ToSlash(filepath.Join(workingDir, "opt")), Target: "/opt", Consistency: "cached", Type: "bind"},
+				{Source: filepath.Join(workingDir, "opt"), Target: "/opt", Consistency: "cached", Type: "bind"},
 				{Target: "/opt", Type: "tmpfs", Tmpfs: &types.ServiceVolumeTmpfs{
 					Size: int64(10000),
 				}},
@@ -472,7 +473,7 @@ func volumes() map[string]types.VolumeConfig {
 func configs(workingDir string) map[string]types.ConfigObjConfig {
 	return map[string]types.ConfigObjConfig{
 		"config1": {
-			File: filepath.ToSlash(filepath.Join(workingDir, "config_data")),
+			File: filepath.Join(workingDir, "config_data"),
 			Labels: map[string]string{
 				"foo": "bar",
 			},
@@ -499,7 +500,7 @@ func configs(workingDir string) map[string]types.ConfigObjConfig {
 func secrets(workingDir string) map[string]types.SecretConfig {
 	return map[string]types.SecretConfig{
 		"secret1": {
-			File: filepath.ToSlash(filepath.Join(workingDir, "secret_data")),
+			File: filepath.Join(workingDir, "secret_data"),
 			Labels: map[string]string{
 				"foo": "bar",
 			},
@@ -523,7 +524,7 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 	}
 }
 
-func fullExampleYAML(workingDir string) string {
+func fullExampleYAML(workingDir, homeDir string) string {
 	return fmt.Sprintf(`version: "3.9"
 services:
   foo:
@@ -792,13 +793,13 @@ services:
       source: /opt/data
       target: /var/lib/mysql
     - type: bind
-      source: /foo
+      source: %s
       target: /code
     - type: bind
       source: %s
       target: /var/www/html
     - type: bind
-      source: /bar/configs
+      source: %s
       target: /etc/configs/
       read_only: true
     - type: volume
@@ -901,15 +902,17 @@ x-nested:
   bar: baz
   foo: bar
 `,
-		filepath.ToSlash(filepath.Join(workingDir, "static")),
-		filepath.ToSlash(filepath.Join(workingDir, "opt")),
-		filepath.ToSlash(filepath.Join(workingDir, "secret_data")),
-		workingDir,
-		filepath.ToSlash(filepath.Join(workingDir, "config_data")),
-		workingDir)
+		filepath.Join(workingDir),
+		filepath.Join(workingDir, "static"),
+		filepath.Join(homeDir, "configs"),
+		filepath.Join(workingDir, "opt"),
+		filepath.Join(workingDir, "secret_data"),
+		filepath.Join(workingDir),
+		filepath.Join(workingDir, "config_data"),
+		filepath.Join(workingDir))
 }
 
-func fullExampleJSON(workingDir string) string {
+func fullExampleJSON(workingDir, homeDir string) string {
 	return fmt.Sprintf(`{
   "configs": {
     "config1": {
@@ -1372,7 +1375,7 @@ func fullExampleJSON(workingDir string) string {
         },
         {
           "type": "bind",
-          "source": "/foo",
+          "source": "%s",
           "target": "/code"
         },
         {
@@ -1382,7 +1385,7 @@ func fullExampleJSON(workingDir string) string {
         },
         {
           "type": "bind",
-          "source": "/bar/configs",
+          "source": "%s",
           "target": "/etc/configs/",
           "read_only": true
         },
@@ -1453,10 +1456,16 @@ func fullExampleJSON(workingDir string) string {
     "foo": "bar"
   }
 }`,
-		filepath.ToSlash(filepath.Join(workingDir, "config_data")),
-		workingDir,
-		filepath.ToSlash(filepath.Join(workingDir, "secret_data")),
-		workingDir,
-		filepath.ToSlash(filepath.ToSlash(filepath.Join(workingDir, "static"))),
-		filepath.ToSlash(filepath.ToSlash(filepath.Join(workingDir, "opt"))))
+		toPath(workingDir, "config_data"),
+		toPath(workingDir),
+		toPath(workingDir, "secret_data"),
+		toPath(workingDir),
+		toPath(workingDir),
+		toPath(workingDir, "static"),
+		toPath(homeDir, "configs"),
+		toPath(workingDir, "opt"))
+}
+
+func toPath(path...string) string {
+	return strings.ReplaceAll(filepath.Join(path...), "\\", "\\\\")
 }

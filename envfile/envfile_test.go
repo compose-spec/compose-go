@@ -151,7 +151,7 @@ another invalid line`
 func TestParseEnvVariableDefinitionsFile(t *testing.T) {
 	content := `# comment=
 UNDEFINED_VAR
-HOME
+DEFINED_VAR
 `
 	tmpFile := tmpFileWithContent(content, t)
 	defer os.Remove(tmpFile)
@@ -160,10 +160,15 @@ HOME
 	if nil != err {
 		t.Fatal("There must not be any error")
 	}
-	variables.Resolve(os.LookupEnv)
+	variables.Resolve(func(key string) (string, bool) {
+		if key == "DEFINED_VAR" {
+			return "VALUE", true
+		}
+		return "", false
+	})
 
-	if os.Getenv("HOME") != *variables["HOME"] {
-		t.Fatal("the HOME variable is not properly imported as the first variable (but it is the only one to import)")
+	if variables["DEFINED_VAR"]  == nil || *variables["DEFINED_VAR"]!= "VALUE" {
+		t.Fatal("the DEFINED_VAR variable is not properly imported as the first variable (but it is the only one to import)")
 	}
 }
 

@@ -915,7 +915,8 @@ func TestFullExample(t *testing.T) {
 	bytes, err := ioutil.ReadFile("full-example.yml")
 	assert.NilError(t, err)
 
-	homeDir := "/home/foo"
+	homeDir, err := os.UserHomeDir()
+	assert.NilError(t, err)
 	env := map[string]string{"HOME": homeDir, "QUX": "qux_from_environment"}
 	config, err := loadYAMLWithEnv(string(bytes), env)
 	assert.NilError(t, err)

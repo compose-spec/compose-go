@@ -2,6 +2,7 @@ package loader
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -495,12 +496,12 @@ func resolveVolumePaths(volumes []types.ServiceVolumeConfig, workingDir string, 
 // TODO: make this more robust
 func expandUser(path string, lookupEnv template.Mapping) string {
 	if strings.HasPrefix(path, "~") {
-		home, ok := lookupEnv("HOME")
-		if !ok {
+		home, err := os.UserHomeDir()
+		if err != nil {
 			logrus.Warn("cannot expand '~', because the environment lacks HOME")
 			return path
 		}
-		return strings.Replace(path, "~", home, 1)
+		return filepath.Join(home, path[1:])
 	}
 	return path
 }

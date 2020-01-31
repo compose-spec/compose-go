@@ -2,6 +2,7 @@ package loader
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
 	yaml "gopkg.in/yaml.v2"
@@ -10,10 +11,12 @@ import (
 )
 
 func TestMarshallConfig(t *testing.T) {
-	workingDir := "/foo"
-	homeDir := "/bar"
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	homeDir, err := os.UserHomeDir()
+	assert.NilError(t, err)
 	cfg := fullExampleConfig(workingDir, homeDir)
-	expected := fullExampleYAML(workingDir)
+	expected := fullExampleYAML(workingDir, homeDir)
 
 	actual, err := yaml.Marshal(cfg)
 	assert.NilError(t, err)
@@ -27,10 +30,13 @@ func TestMarshallConfig(t *testing.T) {
 }
 
 func TestJSONMarshallConfig(t *testing.T) {
-	workingDir := "/foo"
-	homeDir := "/bar"
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	homeDir, err := os.UserHomeDir()
+	assert.NilError(t, err)
+
 	cfg := fullExampleConfig(workingDir, homeDir)
-	expected := fullExampleJSON(workingDir)
+	expected := fullExampleJSON(workingDir, homeDir)
 
 	actual, err := json.MarshalIndent(cfg, "", "  ")
 	assert.NilError(t, err)
