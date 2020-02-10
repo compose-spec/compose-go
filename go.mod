@@ -13,5 +13,5 @@ require (
 	github.com/sirupsen/logrus v1.4.2
 	github.com/xeipuuv/gojsonschema v1.2.0
 	gopkg.in/yaml.v2 v2.2.8
-	gotest.tools/v3 v3.0.0
+	gotest.tools/v3 v3.0.2
 )
