@@ -258,6 +258,14 @@ type Mapping map[string]string
 // Labels is a mapping type for labels
 type Labels map[string]string
 
+func (l Labels) Add(key, value string) Labels {
+	if l == nil {
+		l = Labels{}
+	}
+	l[key] = value
+	return l
+}
+
 // MappingWithColon is a mapping type that can be converted from a list of
 // 'key: value' strings
 type MappingWithColon map[string]string
