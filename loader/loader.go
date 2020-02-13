@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	yaml "gopkg.in/yaml.v2"
+	"k8s.io/client-go/util/jsonpath"
 )
 
 // Options supported by Load
@@ -33,6 +34,44 @@ type Options struct {
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
 	discardEnvFiles bool
+	// ValidatorFn define a hook for Compose implementation to inspect parsed yaml and check for unsupported entries
+	ValidatorFn ValidationFunc
+}
+
+// ValidationFunc check parsed yaml for unsupported fields.
+type ValidationFunc func(map[string]interface{}) error
+
+// Blacklist produce a ValidationFunc which check parsed yaml using a set of JSONPath expressions
+func Blacklist(blacklist map[string]string) ValidationFunc {
+	return func(dict map[string]interface{}) error {
+		var unsupported = make(map[string]struct{})
+		for name, path := range blacklist {
+			jp := jsonpath.New(name)
+			err := jp.Parse(path)
+			if err != nil {
+				return err
+			}
+			jp.AllowMissingKeys(true)
+			results, err := jp.FindResults(dict)
+			if err != nil {
+				return err
+			}
+			for _, r := range results {
+				if len(r) > 0 {
+					unsupported[name] = struct{}{}
+				}
+			}
+		}
+		names := make([]string, 0, len(unsupported))
+		for n := range unsupported {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		if len(names) > 0 {
+			return fmt.Errorf("compose file contains unsupported properties: %s", strings.Join(names, ", "))
+		}
+		return nil
+	}
 }
 
 // WithDiscardEnvFiles sets the Options to discard the `env_file` section after resolving to
@@ -87,11 +126,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			configDetails.Version = version
 		}
 		if configDetails.Version != version {
-			return nil, errors.Errorf("version mismatched between two composefiles : %v and %v", configDetails.Version, version)
-		}
-
-		if err := validateForbidden(configDict); err != nil {
-			return nil, err
+			return nil, errors.Errorf("version mismatched between two compose files : %v and %v", configDetails.Version, version)
 		}
 
 		if !opts.SkipInterpolation {
@@ -103,6 +138,12 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 		if !opts.SkipValidation {
 			if err := schema.Validate(configDict, configDetails.Version); err != nil {
+				return nil, err
+			}
+		}
+
+		if opts.ValidatorFn != nil {
+			if err := opts.ValidatorFn(configDict); err != nil {
 				return nil, err
 			}
 		}
@@ -122,18 +163,6 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	return merge(configs)
-}
-
-func validateForbidden(configDict map[string]interface{}) error {
-	servicesDict, ok := configDict["services"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	forbidden := getProperties(servicesDict, types.ForbiddenProperties)
-	if len(forbidden) > 0 {
-		return &ForbiddenPropertiesError{Properties: forbidden}
-	}
-	return nil
 }
 
 func loadSections(config map[string]interface{}, configDetails types.ConfigDetails) (*types.Config, error) {
@@ -197,85 +226,6 @@ func getSection(config map[string]interface{}, key string) map[string]interface{
 		return make(map[string]interface{})
 	}
 	return section.(map[string]interface{})
-}
-
-// GetUnsupportedProperties returns the list of any unsupported properties that are
-// used in the Compose files.
-func GetUnsupportedProperties(configDicts ...map[string]interface{}) []string {
-	unsupported := map[string]bool{}
-
-	for _, configDict := range configDicts {
-		for _, service := range getServices(configDict) {
-			serviceDict := service.(map[string]interface{})
-			for _, property := range types.UnsupportedProperties {
-				if _, isSet := serviceDict[property]; isSet {
-					unsupported[property] = true
-				}
-			}
-		}
-	}
-
-	return sortedKeys(unsupported)
-}
-
-func sortedKeys(set map[string]bool) []string {
-	var keys []string
-	for key := range set {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-// GetDeprecatedProperties returns the list of any deprecated properties that
-// are used in the compose files.
-func GetDeprecatedProperties(configDicts ...map[string]interface{}) map[string]string {
-	deprecated := map[string]string{}
-
-	for _, configDict := range configDicts {
-		deprecatedProperties := getProperties(getServices(configDict), types.DeprecatedProperties)
-		for key, value := range deprecatedProperties {
-			deprecated[key] = value
-		}
-	}
-
-	return deprecated
-}
-
-func getProperties(services map[string]interface{}, propertyMap map[string]string) map[string]string {
-	output := map[string]string{}
-
-	for _, service := range services {
-		if serviceDict, ok := service.(map[string]interface{}); ok {
-			for property, description := range propertyMap {
-				if _, isSet := serviceDict[property]; isSet {
-					output[property] = description
-				}
-			}
-		}
-	}
-
-	return output
-}
-
-// ForbiddenPropertiesError is returned when there are properties in the Compose
-// file that are forbidden.
-type ForbiddenPropertiesError struct {
-	Properties map[string]string
-}
-
-func (e *ForbiddenPropertiesError) Error() string {
-	return "Configuration contains forbidden properties"
-}
-
-func getServices(configDict map[string]interface{}) map[string]interface{} {
-	if services, ok := configDict["services"]; ok {
-		if servicesDict, ok := services.(map[string]interface{}); ok {
-			return servicesDict
-		}
-	}
-
-	return map[string]interface{}{}
 }
 
 // Transform converts the source into the target struct with compose types transformer

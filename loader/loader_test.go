@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -703,33 +702,6 @@ networks:
 	assert.Check(t, is.DeepEqual(expected, config))
 }
 
-func TestUnsupportedProperties(t *testing.T) {
-	dict, err := ParseYAML([]byte(`
-version: "3"
-services:
-  web:
-    image: web
-    build:
-     context: ./web
-    links:
-      - bar
-    pid: host
-  db:
-    image: db
-    build:
-     context: ./db
-`))
-	assert.NilError(t, err)
-
-	configDetails := buildConfigDetails(dict, nil)
-
-	_, err = Load(configDetails)
-	assert.NilError(t, err)
-
-	unsupported := GetUnsupportedProperties(dict)
-	assert.Check(t, is.DeepEqual([]string{"build", "links", "pid"}, unsupported))
-}
-
 func TestDiscardEnvFileOption(t *testing.T) {
 	dict, err := ParseYAML([]byte(`version: "3"
 services:
@@ -780,53 +752,6 @@ services:
 	configDetails := buildConfigDetails(dict, nil)
 	_, err = Load(configDetails)
 	assert.NilError(t, err)
-}
-
-func TestDeprecatedProperties(t *testing.T) {
-	dict, err := ParseYAML([]byte(`
-version: "3"
-services:
-  web:
-    image: web
-    container_name: web
-  db:
-    image: db
-    container_name: db
-    expose: ["5434"]
-`))
-	assert.NilError(t, err)
-
-	configDetails := buildConfigDetails(dict, nil)
-
-	_, err = Load(configDetails)
-	assert.NilError(t, err)
-
-	deprecated := GetDeprecatedProperties(dict)
-	assert.Check(t, is.Len(deprecated, 2))
-	assert.Check(t, is.Contains(deprecated, "container_name"))
-	assert.Check(t, is.Contains(deprecated, "expose"))
-}
-
-func TestForbiddenProperties(t *testing.T) {
-	_, err := loadYAML(`
-version: "3"
-services:
-  foo:
-    image: busybox
-    volumes:
-      - /data
-    volume_driver: some-driver
-  bar:
-    extends:
-      service: foo
-`)
-
-	assert.ErrorType(t, err, reflect.TypeOf(&ForbiddenPropertiesError{}))
-
-	props := err.(*ForbiddenPropertiesError).Properties
-	assert.Check(t, is.Len(props, 2))
-	assert.Check(t, is.Contains(props, "volume_driver"))
-	assert.Check(t, is.Contains(props, "extends"))
 }
 
 func TestInvalidResource(t *testing.T) {
@@ -1724,4 +1649,57 @@ secrets:
 		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+}
+
+func Test_Blacklist(t *testing.T) {
+	dict, err := ParseYAML([]byte(`
+version: "3"
+services:
+  web:
+    image: busybox
+    sysctls:
+      testing: ""
+`))
+	assert.NilError(t, err)
+
+	tests := []struct {
+		name      string
+		blacklist map[string]string
+		wantErr   string
+	}{
+		{
+			name:      "no blacklist",
+			blacklist: nil,
+		},
+		{
+			name:      "empty blacklist",
+			blacklist: map[string]string{},
+		},
+		{
+			name: "blacklist should not detect unsupported element",
+			blacklist: map[string]string{
+				"secrets": "{$.secrets}",
+			},
+		},
+		{
+			name: "blacklist should detect unsupported element",
+			blacklist: map[string]string{
+				"secrets": "{$.services.*.sysctls}",
+			},
+			wantErr: "compose file contains unsupported properties: secrets",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Blacklist(tt.blacklist)(dict)
+			if err != nil {
+				if tt.wantErr == "" {
+					t.Errorf("validateSupported() error = %v", err)
+				} else if tt.wantErr != err.Error() {
+					t.Errorf("validateSupported() error = %q wantErr %q", err, tt.wantErr)
+				}
+
+			}
+		})
+	}
 }

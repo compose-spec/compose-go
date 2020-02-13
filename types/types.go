@@ -10,48 +10,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// UnsupportedProperties not yet supported by this implementation of the compose file
-var UnsupportedProperties = []string{
-	"build",
-	"cap_add",
-	"cap_drop",
-	"cgroup_parent",
-	"devices",
-	"domainname",
-	"external_links",
-	"ipc",
-	"links",
-	"mac_address",
-	"network_mode",
-	"pid",
-	"privileged",
-	"restart",
-	"security_opt",
-	"shm_size",
-	"ulimits",
-	"userns_mode",
-}
-
-// DeprecatedProperties that were removed from the v3 format, but their
-// use should not impact the behaviour of the application.
-var DeprecatedProperties = map[string]string{
-	"container_name": "Setting the container name is not supported.",
-	"expose":         "Exposing ports is unnecessary - services on the same network can access each other's containers on any port.",
-}
-
-// ForbiddenProperties that are not supported in this implementation of the
-// compose file.
-var ForbiddenProperties = map[string]string{
-	"extends":       "Support for `extends` is not implemented yet.",
-	"volume_driver": "Instead of setting the volume driver on the service, define a volume using the top-level `volumes` option and specify the driver there.",
-	"volumes_from":  "To share a volume between services, define it using the top-level `volumes` option and reference it from each service that shares it using the service-level `volumes` option.",
-	"cpu_quota":     "Set resource limits using deploy.resources",
-	"cpu_shares":    "Set resource limits using deploy.resources",
-	"cpuset":        "Set resource limits using deploy.resources",
-	"mem_limit":     "Set resource limits using deploy.resources",
-	"memswap_limit": "Set resource limits using deploy.resources",
-}
-
 // Duration is a thin wrapper around time.Duration with improved JSON marshalling
 type Duration time.Duration
 

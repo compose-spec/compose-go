@@ -14,4 +14,5 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	gopkg.in/yaml.v2 v2.2.8
 	gotest.tools/v3 v3.0.2
+	k8s.io/client-go v11.0.0+incompatible
 )
