@@ -107,7 +107,8 @@ func (s Services) MarshalJSON() ([]byte, error) {
 
 // ServiceConfig is the configuration of one service
 type ServiceConfig struct {
-	Name string `yaml:"-" json:"-"`
+	Name    string  `yaml:"-" json:"-"`
+	Project *Config `yaml:"-" json:"-"`
 
 	Build           *BuildConfig                     `yaml:",omitempty" json:"build,omitempty"`
 	CapAdd          []string                         `mapstructure:"cap_add" yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
@@ -535,6 +536,7 @@ func (u *UlimitsConfig) MarshalJSON() ([]byte, error) {
 
 // NetworkConfig for a network
 type NetworkConfig struct {
+	Project    *Config                `yaml:"-" json:"-"`
 	Name       string                 `yaml:",omitempty" json:"name,omitempty"`
 	Driver     string                 `yaml:",omitempty" json:"driver,omitempty"`
 	DriverOpts map[string]string      `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
@@ -559,6 +561,7 @@ type IPAMPool struct {
 
 // VolumeConfig for a volume
 type VolumeConfig struct {
+	Project    *Config                `yaml:"-" json:"-"`
 	Name       string                 `yaml:",omitempty" json:"name,omitempty"`
 	Driver     string                 `yaml:",omitempty" json:"driver,omitempty"`
 	DriverOpts map[string]string      `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
@@ -600,6 +603,7 @@ type CredentialSpecConfig struct {
 
 // FileObjectConfig is a config type for a file used by a service
 type FileObjectConfig struct {
+	Project        *Config                `yaml:"-" json:"-"`
 	Name           string                 `yaml:",omitempty" json:"name,omitempty"`
 	File           string                 `yaml:",omitempty" json:"file,omitempty"`
 	External       External               `yaml:",omitempty" json:"external,omitempty"`

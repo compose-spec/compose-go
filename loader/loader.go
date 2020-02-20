@@ -121,7 +121,33 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		configs = append(configs, cfg)
 	}
 
-	return merge(configs)
+	project, err := merge(configs)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, s := range project.Services {
+		s.Project = project
+		project.Services[i] = s
+	}
+	for i, v := range project.Volumes {
+		v.Project = project
+		project.Volumes[i] = v
+	}
+	for i, s := range project.Secrets {
+		s.Project = project
+		project.Secrets[i] = s
+	}
+	for i, c := range project.Configs {
+		c.Project = project
+		project.Configs[i] = c
+	}
+	for i, n := range project.Networks {
+		n.Project = project
+		project.Networks[i] = n
+	}
+
+	return project, nil
 }
 
 func validateForbidden(configDict map[string]interface{}) error {
