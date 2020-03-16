@@ -113,6 +113,9 @@ type ServiceConfig struct {
 	CapAdd          []string                         `mapstructure:"cap_add" yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
 	CapDrop         []string                         `mapstructure:"cap_drop" yaml:"cap_drop,omitempty" json:"cap_drop,omitempty"`
 	CgroupParent    string                           `mapstructure:"cgroup_parent" yaml:"cgroup_parent,omitempty" json:"cgroup_parent,omitempty"`
+	CPUQuota        int64                            `mapstructure:"cpu_quota" yaml:"cpu_quota,omitempty" json:"cpu_quota,omitempty"`
+	CPUSet          string                           `mapstructure:"cpuset" yaml:"cpuset,omitempty" json:"cpuset,omitempty"`
+	CPUShares       int64                            `mapstructure:"cpu_shares" yaml:"cpu_shares,omitempty" json:"cpu_shares,omitempty"`
 	Command         ShellCommand                     `yaml:",omitempty" json:"command,omitempty"`
 	Configs         []ServiceConfigObjConfig         `yaml:",omitempty" json:"configs,omitempty"`
 	ContainerName   string                           `mapstructure:"container_name" yaml:"container_name,omitempty" json:"container_name,omitempty"`
@@ -121,14 +124,18 @@ type ServiceConfig struct {
 	Deploy          *DeployConfig                    `yaml:",omitempty" json:"deploy,omitempty"`
 	Devices         []string                         `yaml:",omitempty" json:"devices,omitempty"`
 	DNS             StringList                       `yaml:",omitempty" json:"dns,omitempty"`
+	DNSOpts         []string                         `mapstructure:"dns_opt" yaml:"dns_opt,omitempty" json:"dns_opt,omitempty"`
 	DNSSearch       StringList                       `mapstructure:"dns_search" yaml:"dns_search,omitempty" json:"dns_search,omitempty"`
+	Dockerfile      string                           `yaml:"dockerfile,omitempty" json:"dockerfile,omitempty"`
 	DomainName      string                           `mapstructure:"domainname" yaml:"domainname,omitempty" json:"domainname,omitempty"`
 	Entrypoint      ShellCommand                     `yaml:",omitempty" json:"entrypoint,omitempty"`
 	Environment     MappingWithEquals                `yaml:",omitempty" json:"environment,omitempty"`
 	EnvFile         StringList                       `mapstructure:"env_file" yaml:"env_file,omitempty" json:"env_file,omitempty"`
 	Expose          StringOrNumberList               `yaml:",omitempty" json:"expose,omitempty"`
+	Extends         MappingWithEquals                `yaml:"extends,omitempty" json:"extends,omitempty"`
 	ExternalLinks   []string                         `mapstructure:"external_links" yaml:"external_links,omitempty" json:"external_links,omitempty"`
 	ExtraHosts      HostsList                        `mapstructure:"extra_hosts" yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
+	GroupAdd        []string                         `mapstructure:"group_app" yaml:"group_add,omitempty" json:"group_add,omitempty"`
 	Hostname        string                           `yaml:",omitempty" json:"hostname,omitempty"`
 	HealthCheck     *HealthCheckConfig               `yaml:",omitempty" json:"healthcheck,omitempty"`
 	Image           string                           `yaml:",omitempty" json:"image,omitempty"`
@@ -138,9 +145,18 @@ type ServiceConfig struct {
 	Labels          Labels                           `yaml:",omitempty" json:"labels,omitempty"`
 	Links           []string                         `yaml:",omitempty" json:"links,omitempty"`
 	Logging         *LoggingConfig                   `yaml:",omitempty" json:"logging,omitempty"`
+	LogDriver       string                           `mapstructure:"log_driver" yaml:"log_driver,omitempty" json:"log_driver,omitempty"`
+	LogOpt          map[string]string                `mapstructure:"log_opt" yaml:"log_opt,omitempty" json:"log_opt,omitempty"`
+	MemLimit        UnitBytes                        `mapstructure:"mem_limit" yaml:"mem_limit,omitempty" json:"mem_limit,omitempty"`
+	MemReservation  UnitBytes                        `mapstructure:"mem_reservation" yaml:"mem_reservation,omitempty" json:"mem_reservation,omitempty"`
+	MemSwapLimit    UnitBytes                        `mapstructure:"memswap_limit" yaml:"memswap_limit,omitempty" json:"memswap_limit,omitempty"`
+	MemSwappiness   UnitBytes                        `mapstructure:"mem_swappiness" yaml:"mem_swappiness,omitempty" json:"mem_swappiness,omitempty"`
 	MacAddress      string                           `mapstructure:"mac_address" yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
+	Net             string                           `yaml:"net,omitempty" json:"net,omitempty"`
 	NetworkMode     string                           `mapstructure:"network_mode" yaml:"network_mode,omitempty" json:"network_mode,omitempty"`
 	Networks        map[string]*ServiceNetworkConfig `yaml:",omitempty" json:"networks,omitempty"`
+	OomKillDisable  bool                             `mapstructure:"oom_kill_disable" yaml:"oom_kill_disable,omitempty" json:"oom_kill_disable,omitempty"`
+	OomScoreAdj     int64                            `mapstructure:"oom_score_adj" yaml:"oom_score_adj,omitempty" json:"oom_score_adj,omitempty"`
 	Pid             string                           `yaml:",omitempty" json:"pid,omitempty"`
 	Ports           []ServicePortConfig              `yaml:",omitempty" json:"ports,omitempty"`
 	Privileged      bool                             `yaml:",omitempty" json:"privileged,omitempty"`
@@ -158,7 +174,10 @@ type ServiceConfig struct {
 	Ulimits         map[string]*UlimitsConfig        `yaml:",omitempty" json:"ulimits,omitempty"`
 	User            string                           `yaml:",omitempty" json:"user,omitempty"`
 	UserNSMode      string                           `mapstructure:"userns_mode" yaml:"userns_mode,omitempty" json:"userns_mode,omitempty"`
+	Uts             string                           `yaml:"uts,omitempty" json:"uts,omitempty"`
+	VolumeDriver    string                           `mapstructure:"volume_driver" yaml:"volume_driver,omitempty" json:"volume_driver,omitempty"`
 	Volumes         []ServiceVolumeConfig            `yaml:",omitempty" json:"volumes,omitempty"`
+	VolumesFrom     []string                         `mapstructure:"volumes_from" yaml:"volumes_from,omitempty" json:"volumes_from,omitempty"`
 	WorkingDir      string                           `mapstructure:"working_dir" yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
 
 	Extras map[string]interface{} `yaml:",inline" json:"-"`
