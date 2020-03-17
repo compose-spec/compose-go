@@ -27,7 +27,6 @@ import (
 
 func fullExampleConfig(workingDir, homeDir string) *types.Config {
 	return &types.Config{
-		Version:  "3.9",
 		Services: services(workingDir, homeDir),
 		Networks: networks(),
 		Volumes:  volumes(),
@@ -541,8 +540,7 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 }
 
 func fullExampleYAML(workingDir, homeDir string) string {
-	return fmt.Sprintf(`version: "3.9"
-services:
+	return fmt.Sprintf(`services:
   foo:
     build:
       context: ./dir
@@ -1427,7 +1425,6 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "working_dir": "/code"
     }
   },
-  "version": "3.9",
   "volumes": {
     "another-volume": {
       "name": "user_specified_name",

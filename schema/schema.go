@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -56,32 +55,11 @@ func init() {
 	gojsonschema.FormatCheckers.Add("duration", durationFormatChecker{})
 }
 
-// Version returns the version of the config, defaulting to version 1.0
-func Version(config map[string]interface{}) string {
-	version, ok := config[versionField]
-	if !ok {
-		return defaultVersion
-	}
-	return normalizeVersion(fmt.Sprintf("%v", version))
-}
-
-func normalizeVersion(version string) string {
-	switch version {
-	case "3":
-		return "3.9" // latest
-	case "3.0", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6", "3.7", "3.8":
-		return "3.9" // pre-existing specification but backward compatible
-	default:
-		return version
-	}
-}
-
 // Validate uses the jsonschema to validate the configuration
-func Validate(config map[string]interface{}, version string) error {
-	version = normalizeVersion(version)
-	schemaData, err := _escFSByte(false, fmt.Sprintf("/data/config_schema_v%s.json", version))
+func Validate(config map[string]interface{}) error {
+	schemaData, err := _escFSByte(false, "/data/compose-spec.json")
 	if err != nil {
-		return errors.Errorf("unsupported Compose file version: %s", version)
+		return err
 	}
 
 	schemaLoader := gojsonschema.NewStringLoader(string(schemaData))
