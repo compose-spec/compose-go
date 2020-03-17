@@ -26,23 +26,6 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-/* FIXME to be reconsidered once we have new schema versions
-func TestLoadTwoDifferentVersion(t *testing.T) {
-	configDetails := types.ConfigDetails{
-		ConfigFiles: []types.ConfigFile{
-			{Filename: "base.yml", Config: map[string]interface{}{
-				"version": "3.1",
-			}},
-			{Filename: "override.yml", Config: map[string]interface{}{
-				"version": "3.4",
-			}},
-		},
-	}
-	_, err := Load(configDetails)
-	assert.Error(t, err, "version mismatched between two composefiles : 3.1 and 3.4")
-}
-*/
-
 func TestLoadLogging(t *testing.T) {
 	loggingCases := []struct {
 		name            string
@@ -207,7 +190,6 @@ func TestLoadLogging(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.loggingBase,
 							},
@@ -216,7 +198,6 @@ func TestLoadLogging(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.loggingOverride,
 							},
@@ -333,7 +314,6 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.portBase,
 							},
@@ -342,7 +322,6 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.portOverride,
 							},
@@ -459,7 +438,6 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.secretBase,
 							},
@@ -468,7 +446,6 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.secretOverride,
 							},
@@ -585,7 +562,6 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.configBase,
 							},
@@ -594,7 +570,6 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.configOverride,
 							},
@@ -701,7 +676,6 @@ func TestLoadMultipleUlimits(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.ulimitBase,
 							},
@@ -710,7 +684,6 @@ func TestLoadMultipleUlimits(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.ulimitOverride,
 							},
@@ -820,7 +793,6 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 					{
 						Filename: "base.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.networkBase,
 							},
@@ -829,7 +801,6 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 					{
 						Filename: "override.yml",
 						Config: map[string]interface{}{
-							"version": "3",
 							"services": map[string]interface{}{
 								"foo": tc.networkOverride,
 							},
@@ -860,7 +831,6 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 
 func TestLoadMultipleConfigs(t *testing.T) {
 	base := map[string]interface{}{
-		"version": "3",
 		"services": map[string]interface{}{
 			"foo": map[string]interface{}{
 				"image": "foo",
@@ -886,7 +856,6 @@ func TestLoadMultipleConfigs(t *testing.T) {
 		"configs":  map[string]interface{}{},
 	}
 	override := map[string]interface{}{
-		"version": "3",
 		"services": map[string]interface{}{
 			"foo": map[string]interface{}{
 				"image": "baz",
@@ -975,7 +944,6 @@ func TestLoadMultipleConfigs(t *testing.T) {
 // Issue#972
 func TestLoadMultipleNetworks(t *testing.T) {
 	base := map[string]interface{}{
-		"version": "3",
 		"services": map[string]interface{}{
 			"foo": map[string]interface{}{
 				"image": "baz",
@@ -999,7 +967,6 @@ func TestLoadMultipleNetworks(t *testing.T) {
 		"configs": map[string]interface{}{},
 	}
 	override := map[string]interface{}{
-		"version":  "3",
 		"services": map[string]interface{}{},
 		"volumes":  map[string]interface{}{},
 		"networks": map[string]interface{}{

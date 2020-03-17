@@ -43,7 +43,6 @@ type ConfigFile struct {
 // Config is a full compose file configuration and model
 type Config struct {
 	Filename   string                 `yaml:"-" json:"-"`
-	Version    string                 `json:"version"`
 	Services   Services               `json:"services"`
 	Networks   Networks               `yaml:",omitempty" json:"networks,omitempty"`
 	Volumes    Volumes                `yaml:",omitempty" json:"volumes,omitempty"`
@@ -67,7 +66,6 @@ type Configs map[string]ConfigObjConfig
 // MarshalJSON makes Config implement json.Marshaler
 func (c Config) MarshalJSON() ([]byte, error) {
 	m := map[string]interface{}{
-		"version":  c.Version,
 		"services": c.Services,
 	}
 
