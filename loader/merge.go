@@ -13,6 +13,18 @@ type specials struct {
 	m map[reflect.Type]func(dst, src reflect.Value) error
 }
 
+var service_specials = &specials{
+	m: map[reflect.Type]func(dst, src reflect.Value) error{
+		reflect.TypeOf(&types.LoggingConfig{}):           safelyMerge(mergeLoggingConfig),
+		reflect.TypeOf(&types.UlimitsConfig{}):           safelyMerge(mergeUlimitsConfig),
+		reflect.TypeOf([]types.ServicePortConfig{}):      mergeSlice(toServicePortConfigsMap, toServicePortConfigsSlice),
+		reflect.TypeOf([]types.ServiceSecretConfig{}):    mergeSlice(toServiceSecretConfigsMap, toServiceSecretConfigsSlice),
+		reflect.TypeOf([]types.ServiceConfigObjConfig{}): mergeSlice(toServiceConfigObjConfigsMap, toSServiceConfigObjConfigsSlice),
+		reflect.TypeOf(&types.UlimitsConfig{}):           mergeUlimitsConfig,
+		reflect.TypeOf(&types.ServiceNetworkConfig{}):    mergeServiceNetworkConfig,
+	},
+}
+
 func (s *specials) Transformer(t reflect.Type) func(dst, src reflect.Value) error {
 	if fn, ok := s.m[t]; ok {
 		return fn
@@ -51,21 +63,10 @@ func merge(configs []*types.Config) (*types.Config, error) {
 func mergeServices(base, override []types.ServiceConfig) ([]types.ServiceConfig, error) {
 	baseServices := mapByName(base)
 	overrideServices := mapByName(override)
-	specials := &specials{
-		m: map[reflect.Type]func(dst, src reflect.Value) error{
-			reflect.TypeOf(&types.LoggingConfig{}):           safelyMerge(mergeLoggingConfig),
-			reflect.TypeOf(&types.UlimitsConfig{}):           safelyMerge(mergeUlimitsConfig),
-			reflect.TypeOf([]types.ServicePortConfig{}):      mergeSlice(toServicePortConfigsMap, toServicePortConfigsSlice),
-			reflect.TypeOf([]types.ServiceSecretConfig{}):    mergeSlice(toServiceSecretConfigsMap, toServiceSecretConfigsSlice),
-			reflect.TypeOf([]types.ServiceConfigObjConfig{}): mergeSlice(toServiceConfigObjConfigsMap, toSServiceConfigObjConfigsSlice),
-			reflect.TypeOf(&types.UlimitsConfig{}):           mergeUlimitsConfig,
-			reflect.TypeOf(&types.ServiceNetworkConfig{}):    mergeServiceNetworkConfig,
-		},
-	}
 	for name, overrideService := range overrideServices {
 		overrideService := overrideService
 		if baseService, ok := baseServices[name]; ok {
-			if err := mergo.Merge(&baseService, &overrideService, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(specials)); err != nil {
+			if err := mergo.Merge(&baseService, &overrideService, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(service_specials)); err != nil {
 				return base, errors.Wrapf(err, "cannot merge service %s", name)
 			}
 			baseServices[name] = baseService

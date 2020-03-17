@@ -2,6 +2,7 @@ package loader
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -9,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/imdario/mergo"
 
 	"github.com/compose-spec/compose-go/envfile"
 	interp "github.com/compose-spec/compose-go/interpolation"
@@ -400,6 +403,38 @@ func LoadServices(servicesDict map[string]interface{}, workingDir string, lookup
 		if err != nil {
 			return nil, err
 		}
+
+		if serviceConfig.Extends != nil {
+			file := serviceConfig.Extends["file"]
+			service := serviceConfig.Extends["service"]
+			var source interface{}
+			if file == nil {
+				// extends a service from same file
+				source = servicesDict[*service]
+			} else {
+				if !filepath.IsAbs(*file) {
+					absolute := filepath.Join(workingDir, *file)
+					file = &absolute
+				}
+				bytes, err := ioutil.ReadFile(*file)
+				if err != nil {
+					return nil, err
+				}
+				source, err = ParseYAML(bytes)
+				if err != nil {
+					return nil, err
+				}
+			}
+			baseService, err := LoadService(name, source.(map[string]interface{}), workingDir, lookupEnv)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := mergo.Merge(&baseService, &serviceConfig, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(service_specials)); err != nil {
+				return nil, errors.Wrapf(err, "cannot merge service %s", name)
+			}
+		}
+
 		services = append(services, *serviceConfig)
 	}
 

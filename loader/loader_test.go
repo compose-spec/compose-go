@@ -32,17 +32,17 @@ func buildConfigDetails(source map[string]interface{}, env map[string]string) ty
 	}
 }
 
-func loadYAML(yaml string) (*types.Config, error) {
-	return loadYAMLWithEnv(yaml, nil)
+func loadYAML(yaml string, options ...func(*Options)) (*types.Config, error) {
+	return loadYAMLWithEnv(yaml, nil, options...)
 }
 
-func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Config, error) {
+func loadYAMLWithEnv(yaml string, env map[string]string, options ...func(*Options)) (*types.Config, error) {
 	dict, err := ParseYAML([]byte(yaml))
 	if err != nil {
 		return nil, err
 	}
 
-	return Load(buildConfigDetails(dict, env))
+	return Load(buildConfigDetails(dict, env), options...)
 }
 
 var sampleYAML = `
@@ -259,6 +259,24 @@ services:
 		"x-foo": "bar",
 	}
 	assert.Check(t, is.DeepEqual(extras, service.Extras))
+}
+
+func TestLoadExtends(t *testing.T) {
+	actual, err := loadYAML(`
+version: "3"
+services:
+  foo:
+    image: busybox
+    extends: bar
+  bar:
+    image: alpine
+    command: echo`)
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(actual.Services, 2))
+	service, err := actual.GetService("foo")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("busybox", service.Image))
+	assert.Check(t, is.Equal("echo", service.Command))
 }
 
 func TestLoadv39(t *testing.T) {
