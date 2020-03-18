@@ -43,9 +43,9 @@ func (c Config) ServiceNames() []string {
 }
 
 // VolumeNames return names for all volumes in this Compose config
-func (p Config) VolumeNames() []string {
+func (c Config) VolumeNames() []string {
 	names := []string{}
-	for k := range p.Volumes {
+	for k := range c.Volumes {
 		names = append(names, k)
 	}
 	sort.Strings(names)
@@ -53,9 +53,9 @@ func (p Config) VolumeNames() []string {
 }
 
 // NetworkNames return names for all volumes in this Compose config
-func (p Config) NetworkNames() []string {
+func (c Config) NetworkNames() []string {
 	names := []string{}
-	for k := range p.Networks {
+	for k := range c.Networks {
 		names = append(names, k)
 	}
 	sort.Strings(names)
@@ -63,9 +63,9 @@ func (p Config) NetworkNames() []string {
 }
 
 // SecretNames return names for all secrets in this Compose config
-func (p Config) SecretNames() []string {
+func (c Config) SecretNames() []string {
 	names := []string{}
-	for k := range p.Secrets {
+	for k := range c.Secrets {
 		names = append(names, k)
 	}
 	sort.Strings(names)
@@ -73,9 +73,9 @@ func (p Config) SecretNames() []string {
 }
 
 // ConfigNames return names for all configs in this Compose config
-func (p Config) ConfigNames() []string {
+func (c Config) ConfigNames() []string {
 	names := []string{}
-	for k := range p.Configs {
+	for k := range c.Configs {
 		names = append(names, k)
 	}
 	sort.Strings(names)
