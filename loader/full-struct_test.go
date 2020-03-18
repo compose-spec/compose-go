@@ -1466,6 +1466,6 @@ func fullExampleJSON(workingDir, homeDir string) string {
 		toPath(workingDir, "opt"))
 }
 
-func toPath(path...string) string {
+func toPath(path ...string) string {
 	return strings.ReplaceAll(filepath.Join(path...), "\\", "\\\\")
 }
