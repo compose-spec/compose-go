@@ -167,7 +167,7 @@ DEFINED_VAR
 		return "", false
 	})
 
-	if variables["DEFINED_VAR"]  == nil || *variables["DEFINED_VAR"]!= "VALUE" {
+	if variables["DEFINED_VAR"] == nil || *variables["DEFINED_VAR"] != "VALUE" {
 		t.Fatal("the DEFINED_VAR variable is not properly imported as the first variable (but it is the only one to import)")
 	}
 }
