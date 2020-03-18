@@ -34,6 +34,10 @@ build-validate-image:
 lint: build-validate-image
 	docker run --rm $(IMAGE_PREFIX)validate bash -c "golangci-lint run --config ./golangci.yml ./..."
 
+.PHONY: check-license
+check-license: build-validate-image
+	docker run --rm $(IMAGE_PREFIX)validate bash -c "./scripts/validate/fileheader"
+
 .PHONY: setup
 setup: ## Setup the precommit hook
 	@which pre-commit > /dev/null 2>&1 || (echo "pre-commit not installed see README." && false)

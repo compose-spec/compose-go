@@ -10,6 +10,8 @@ jobs:
         uses: actions/checkout@v2
       - name: Lint code
         run: DOCKER_BUILDKIT=1 make lint
+      - name: Check license
+        run: DOCKER_BUILDKIT=1 make check-license
 
   test:
     strategy:
