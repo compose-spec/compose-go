@@ -30,6 +30,12 @@ type ConfigDetails struct {
 	Environment map[string]string
 }
 
+// LookupEnv provides a lookup function for environment variables
+func (cd ConfigDetails) LookupEnv(key string) (string, bool) {
+	v, ok := cd.Environment[key]
+	return v, ok
+}
+
 // ConfigFile is a filename and the contents of the file as a Dict
 type ConfigFile struct {
 	Filename string

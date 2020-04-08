@@ -94,12 +94,6 @@ func (d Duration) MarshalYAML() (interface{}, error) {
 	return d.String(), nil
 }
 
-// LookupEnv provides a lookup function for environment variables
-func (cd ConfigDetails) LookupEnv(key string) (string, bool) {
-	v, ok := cd.Environment[key]
-	return v, ok
-}
-
 // Services is a list of ServiceConfig
 type Services []ServiceConfig
 
