@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"os"
-	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -741,9 +740,6 @@ services:
 
 	_, err = Load(configDetails)
 	assert.NilError(t, err)
-
-	unsupported := GetUnsupportedProperties(dict)
-	assert.Check(t, is.DeepEqual([]string{"build", "links", "pid"}, unsupported))
 }
 
 func TestDiscardEnvFileOption(t *testing.T) {
@@ -816,33 +812,6 @@ services:
 
 	_, err = Load(configDetails)
 	assert.NilError(t, err)
-
-	deprecated := GetDeprecatedProperties(dict)
-	assert.Check(t, is.Len(deprecated, 2))
-	assert.Check(t, is.Contains(deprecated, "container_name"))
-	assert.Check(t, is.Contains(deprecated, "expose"))
-}
-
-func TestForbiddenProperties(t *testing.T) {
-	_, err := loadYAML(`
-version: "3"
-services:
-  foo:
-    image: busybox
-    volumes:
-      - /data
-    volume_driver: some-driver
-  bar:
-    extends:
-      service: foo
-`)
-
-	assert.ErrorType(t, err, reflect.TypeOf(&ForbiddenPropertiesError{}))
-
-	props := err.(*ForbiddenPropertiesError).Properties
-	assert.Check(t, is.Len(props, 2))
-	assert.Check(t, is.Contains(props, "volume_driver"))
-	assert.Check(t, is.Contains(props, "extends"))
 }
 
 func TestInvalidResource(t *testing.T) {
