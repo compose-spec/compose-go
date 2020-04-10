@@ -106,10 +106,6 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			return nil, errors.Errorf("version mismatched between two composefiles : %v and %v", configDetails.Version, version)
 		}
 
-		if err := validateForbidden(configDict); err != nil {
-			return nil, err
-		}
-
 		if !opts.SkipInterpolation {
 			configDict, err = interpolateConfig(configDict, *opts.Interpolate)
 			if err != nil {
@@ -138,18 +134,6 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	return merge(configs)
-}
-
-func validateForbidden(configDict map[string]interface{}) error {
-	servicesDict, ok := configDict["services"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	forbidden := getProperties(servicesDict, types.ForbiddenProperties)
-	if len(forbidden) > 0 {
-		return &ForbiddenPropertiesError{Properties: forbidden}
-	}
-	return nil
 }
 
 func loadSections(config map[string]interface{}, configDetails types.ConfigDetails) (*types.Config, error) {
@@ -215,25 +199,6 @@ func getSection(config map[string]interface{}, key string) map[string]interface{
 	return section.(map[string]interface{})
 }
 
-// GetUnsupportedProperties returns the list of any unsupported properties that are
-// used in the Compose files.
-func GetUnsupportedProperties(configDicts ...map[string]interface{}) []string {
-	unsupported := map[string]bool{}
-
-	for _, configDict := range configDicts {
-		for _, service := range getServices(configDict) {
-			serviceDict := service.(map[string]interface{})
-			for _, property := range types.UnsupportedProperties {
-				if _, isSet := serviceDict[property]; isSet {
-					unsupported[property] = true
-				}
-			}
-		}
-	}
-
-	return sortedKeys(unsupported)
-}
-
 func sortedKeys(set map[string]bool) []string {
 	var keys []string
 	for key := range set {
@@ -241,21 +206,6 @@ func sortedKeys(set map[string]bool) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-// GetDeprecatedProperties returns the list of any deprecated properties that
-// are used in the compose files.
-func GetDeprecatedProperties(configDicts ...map[string]interface{}) map[string]string {
-	deprecated := map[string]string{}
-
-	for _, configDict := range configDicts {
-		deprecatedProperties := getProperties(getServices(configDict), types.DeprecatedProperties)
-		for key, value := range deprecatedProperties {
-			deprecated[key] = value
-		}
-	}
-
-	return deprecated
 }
 
 func getProperties(services map[string]interface{}, propertyMap map[string]string) map[string]string {
