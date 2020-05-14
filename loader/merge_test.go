@@ -226,9 +226,9 @@ func TestLoadLogging(t *testing.T) {
 			}
 			config, err := Load(configDetails)
 			assert.NilError(t, err)
-			assert.DeepEqual(t, &types.Config{
-				Filename: "base.yml",
-				Version:  "3.9",
+			assert.DeepEqual(t, &types.Project{
+				Name:       "",
+				WorkingDir: ".",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -236,10 +236,12 @@ func TestLoadLogging(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{},
-				Volumes:  map[string]types.VolumeConfig{},
-				Secrets:  map[string]types.SecretConfig{},
-				Configs:  map[string]types.ConfigObjConfig{},
+				Networks: map[string]types.NetworkConfig{
+					"default": {},
+				},
+				Volumes: map[string]types.VolumeConfig{},
+				Secrets: map[string]types.SecretConfig{},
+				Configs: map[string]types.ConfigObjConfig{},
 			}, config)
 		})
 	}
@@ -345,9 +347,9 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 			}
 			config, err := Load(configDetails)
 			assert.NilError(t, err)
-			assert.DeepEqual(t, &types.Config{
-				Filename: "base.yml",
-				Version:  "3.9",
+			assert.DeepEqual(t, &types.Project{
+				Name:       "",
+				WorkingDir: ".",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -355,10 +357,12 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{},
-				Volumes:  map[string]types.VolumeConfig{},
-				Secrets:  map[string]types.SecretConfig{},
-				Configs:  map[string]types.ConfigObjConfig{},
+				Networks: map[string]types.NetworkConfig{
+					"default": {},
+				},
+				Volumes: map[string]types.VolumeConfig{},
+				Secrets: map[string]types.SecretConfig{},
+				Configs: map[string]types.ConfigObjConfig{},
 			}, config)
 		})
 	}
@@ -471,9 +475,9 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 			}
 			config, err := Load(configDetails)
 			assert.NilError(t, err)
-			assert.DeepEqual(t, &types.Config{
-				Filename: "base.yml",
-				Version:  "3.9",
+			assert.DeepEqual(t, &types.Project{
+				Name:       "",
+				WorkingDir: ".",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -481,10 +485,12 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{},
-				Volumes:  map[string]types.VolumeConfig{},
-				Secrets:  map[string]types.SecretConfig{},
-				Configs:  map[string]types.ConfigObjConfig{},
+				Networks: map[string]types.NetworkConfig{
+					"default": {},
+				},
+				Volumes: map[string]types.VolumeConfig{},
+				Secrets: map[string]types.SecretConfig{},
+				Configs: map[string]types.ConfigObjConfig{},
 			}, config)
 		})
 	}
@@ -597,9 +603,9 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 			}
 			config, err := Load(configDetails)
 			assert.NilError(t, err)
-			assert.DeepEqual(t, &types.Config{
-				Filename: "base.yml",
-				Version:  "3.9",
+			assert.DeepEqual(t, &types.Project{
+				Name:       "",
+				WorkingDir: ".",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -607,10 +613,12 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{},
-				Volumes:  map[string]types.VolumeConfig{},
-				Secrets:  map[string]types.SecretConfig{},
-				Configs:  map[string]types.ConfigObjConfig{},
+				Networks: map[string]types.NetworkConfig{
+					"default": {},
+				},
+				Volumes: map[string]types.VolumeConfig{},
+				Secrets: map[string]types.SecretConfig{},
+				Configs: map[string]types.ConfigObjConfig{},
 			}, config)
 		})
 	}
@@ -713,9 +721,9 @@ func TestLoadMultipleUlimits(t *testing.T) {
 			}
 			config, err := Load(configDetails)
 			assert.NilError(t, err)
-			assert.DeepEqual(t, &types.Config{
-				Filename: "base.yml",
-				Version:  "3.9",
+			assert.DeepEqual(t, &types.Project{
+				Name:       "",
+				WorkingDir: ".",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -723,10 +731,12 @@ func TestLoadMultipleUlimits(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{},
-				Volumes:  map[string]types.VolumeConfig{},
-				Secrets:  map[string]types.SecretConfig{},
-				Configs:  map[string]types.ConfigObjConfig{},
+				Networks: map[string]types.NetworkConfig{
+					"default": {},
+				},
+				Volumes: map[string]types.VolumeConfig{},
+				Secrets: map[string]types.SecretConfig{},
+				Configs: map[string]types.ConfigObjConfig{},
 			}, config)
 		})
 	}
@@ -832,9 +842,9 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 			}
 			config, err := Load(configDetails)
 			assert.NilError(t, err)
-			assert.DeepEqual(t, &types.Config{
-				Filename: "base.yml",
-				Version:  "3.9",
+			assert.DeepEqual(t, &types.Project{
+				Name:       "",
+				WorkingDir: ".",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -842,10 +852,12 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{},
-				Volumes:  map[string]types.VolumeConfig{},
-				Secrets:  map[string]types.SecretConfig{},
-				Configs:  map[string]types.ConfigObjConfig{},
+				Networks: map[string]types.NetworkConfig{
+					"default": {},
+				},
+				Volumes: map[string]types.VolumeConfig{},
+				Secrets: map[string]types.SecretConfig{},
+				Configs: map[string]types.ConfigObjConfig{},
 			}, config)
 		})
 	}
@@ -920,9 +932,9 @@ func TestLoadMultipleConfigs(t *testing.T) {
 	}
 	config, err := Load(configDetails)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, &types.Config{
-		Filename: "base.yml",
-		Version:  "3.9",
+	assert.DeepEqual(t, &types.Project{
+		Name:       "",
+		WorkingDir: ".",
 		Services: []types.ServiceConfig{
 			{
 				Name:        "bar",
@@ -958,10 +970,12 @@ func TestLoadMultipleConfigs(t *testing.T) {
 				CapAdd:      []string{"NET_ADMIN", "SYS_ADMIN"},
 				Environment: types.MappingWithEquals{},
 			}},
-		Networks: map[string]types.NetworkConfig{},
-		Volumes:  map[string]types.VolumeConfig{},
-		Secrets:  map[string]types.SecretConfig{},
-		Configs:  map[string]types.ConfigObjConfig{},
+		Networks: map[string]types.NetworkConfig{
+			"default": {},
+		},
+		Volumes: map[string]types.VolumeConfig{},
+		Secrets: map[string]types.SecretConfig{},
+		Configs: map[string]types.ConfigObjConfig{},
 	}, config)
 }
 
@@ -1013,9 +1027,9 @@ func TestLoadMultipleNetworks(t *testing.T) {
 	}
 	config, err := Load(configDetails)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, &types.Config{
-		Filename: "base.yml",
-		Version:  "3.9",
+	assert.DeepEqual(t, &types.Project{
+		Name:       "",
+		WorkingDir: ".",
 		Services: []types.ServiceConfig{
 			{
 				Name:        "foo",

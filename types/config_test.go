@@ -23,7 +23,7 @@ import (
 )
 
 func Test_WithServices(t *testing.T) {
-	c := Config{
+	p := Project{
 		Services: append(Services{},
 			ServiceConfig{
 				Name:      "service_1",
@@ -41,7 +41,7 @@ func Test_WithServices(t *testing.T) {
 		return nil
 	}
 
-	err := c.WithServices(nil, fn)
+	err := p.WithServices(nil, fn)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, order, []string{"service_2", "service_3", "service_1"})
 }

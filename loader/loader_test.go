@@ -47,11 +47,11 @@ func buildConfigDetails(source map[string]interface{}, env map[string]string) ty
 	}
 }
 
-func loadYAML(yaml string) (*types.Config, error) {
+func loadYAML(yaml string) (*types.Project, error) {
 	return loadYAMLWithEnv(yaml, nil)
 }
 
-func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Config, error) {
+func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Project, error) {
 	dict, err := ParseYAML([]byte(yaml))
 	if err != nil {
 		return nil, err
@@ -253,7 +253,6 @@ func TestParseYAML(t *testing.T) {
 func TestLoad(t *testing.T) {
 	actual, err := Load(buildConfigDetails(sampleDict, nil))
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(sampleConfig.Version, actual.Version))
 	assert.Check(t, is.DeepEqual(serviceSort(sampleConfig.Services), serviceSort(actual.Services)))
 	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
 	assert.Check(t, is.DeepEqual(sampleConfig.Volumes, actual.Volumes))
@@ -633,9 +632,12 @@ networks:
 
 	config, err := Load(buildConfigDetails(dict, env))
 	assert.NilError(t, err)
-	expected := &types.Config{
-		Filename: "filename.yml",
-		Version:  "3.9",
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	expected := &types.Project{
+		Name:       "loader",
+		WorkingDir: workingDir,
 		Services: []types.ServiceConfig{
 			{
 				Name: "web",
@@ -1153,7 +1155,7 @@ networks:
 `)
 	assert.NilError(t, err)
 
-	expected := map[string]types.NetworkConfig{
+	expected := types.Networks{
 		"mynet1": {
 			Driver:     "overlay",
 			Attachable: true,
@@ -1451,9 +1453,12 @@ networks:
   network3:
 `)
 	assert.NilError(t, err)
-	expected := &types.Config{
-		Filename: "filename.yml",
-		Version:  "3.9",
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	expected := &types.Project{
+		Name:       "loader",
+		WorkingDir: workingDir,
 		Services: types.Services{
 			{
 				Name:  "hello-world",
@@ -1610,9 +1615,13 @@ secrets:
     template_driver: secret-driver
 `)
 	assert.NilError(t, err)
-	expected := &types.Config{
-		Filename: "filename.yml",
-		Version:  "3.9",
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+
+	expected := &types.Project{
+		Name:       "loader",
+		WorkingDir: workingDir,
 		Services: types.Services{
 			{
 				Name:  "hello-world",
@@ -1643,6 +1652,9 @@ secrets:
 				TemplateDriver: "secret-driver",
 			},
 		},
+		Networks: map[string]types.NetworkConfig{
+			"default": {},
+		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
 }
@@ -1672,9 +1684,13 @@ secrets:
       OptionB: value for driver option B
 `)
 	assert.NilError(t, err)
-	expected := &types.Config{
-		Filename: "filename.yml",
-		Version:  "3.9",
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+
+	expected := &types.Project{
+		Name:       "loader",
+		WorkingDir: workingDir,
 		Services: types.Services{
 			{
 				Name:  "hello-world",
@@ -1706,6 +1722,9 @@ secrets:
 					"OptionB": "value for driver option B",
 				},
 			},
+		},
+		Networks: map[string]types.NetworkConfig{
+			"default": {},
 		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())

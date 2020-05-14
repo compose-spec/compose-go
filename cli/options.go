@@ -1,0 +1,169 @@
+/*
+   Copyright 2020 The Compose Specification Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+package cli
+
+import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/compose-spec/compose-go/errdefs"
+	"github.com/pkg/errors"
+
+	"github.com/compose-spec/compose-go/loader"
+	"github.com/compose-spec/compose-go/types"
+	"github.com/sirupsen/logrus"
+)
+
+// ProjectOptions groups the command line options recommended for a Compose implementation
+type ProjectOptions struct {
+	ConfigPaths []string
+	Name        string
+}
+
+// SupportedFilenames defines the supported Compose file names for auto-discovery (in order of preference)
+var SupportedFilenames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
+
+const (
+	ComposeProjectName   = "COMPOSE_PROJECT_NAME"
+	ComposeFileSeparator = "COMPOSE_FILE_SEPARATOR"
+	ComposeFilePath      = "COMPOSE_FILE"
+)
+
+// ProjectFromOptions load a compose project based on command line options
+func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
+	configPaths, err := getConfigPathsFromOptions(options)
+	if err != nil {
+		return nil, err
+	}
+
+	configs, err := parseConfigs(configPaths)
+	if err != nil {
+		return nil, err
+	}
+
+	return loader.Load(types.ConfigDetails{
+		ConfigFiles: configs,
+		Environment: environment(),
+	}, func(opts *loader.Options) {
+		if options.Name != "" {
+			opts.Name = options.Name
+		} else if nameFromEnv, ok := os.LookupEnv(ComposeProjectName); ok {
+			opts.Name = nameFromEnv
+		}
+	})
+}
+
+// getConfigPathsFromOptions retrieve the config files for project based on project options
+func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
+	paths := []string{}
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(options.ConfigPaths) != 0 {
+		for _, f := range options.ConfigPaths {
+			if f == "-" {
+				paths = append(paths, f)
+				continue
+			}
+			if !filepath.IsAbs(f) {
+				f = filepath.Join(pwd, f)
+			}
+			if _, err := os.Stat(f); err != nil {
+				return nil, err
+			}
+			paths = append(paths, f)
+		}
+		return paths, nil
+	}
+
+	sep := os.Getenv(ComposeFileSeparator)
+	if sep == "" {
+		sep = string(os.PathListSeparator)
+	}
+	f := os.Getenv(ComposeFilePath)
+	if f != "" {
+		return strings.Split(f, sep), nil
+	}
+
+	for {
+		candidates := []string{}
+		for _, n := range SupportedFilenames {
+			f := filepath.Join(pwd, n)
+			if _, err := os.Stat(f); err == nil {
+				candidates = append(candidates, f)
+			}
+		}
+		if len(candidates) > 0 {
+			winner := candidates[0]
+			if len(candidates) > 1 {
+				logrus.Warnf("Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
+				logrus.Warnf("Using %s\n", winner)
+			}
+			return []string{winner}, nil
+		}
+		parent := filepath.Dir(pwd)
+		if parent == pwd {
+			return nil, errors.Wrap(errdefs.ErrNotFound, "can't find a suitable configuration file in this directory or any parent")
+		}
+		pwd = parent
+	}
+}
+
+func parseConfigs(configPaths []string) ([]types.ConfigFile, error) {
+	files := []types.ConfigFile{}
+	for _, f := range configPaths {
+		var (
+			b   []byte
+			err error
+		)
+		if f == "-" {
+			b, err = ioutil.ReadAll(os.Stdin)
+		} else {
+			if _, err := os.Stat(f); err != nil {
+				return nil, err
+			}
+			b, err = ioutil.ReadFile(f)
+		}
+		if err != nil {
+			return nil, err
+		}
+		config, err := loader.ParseYAML(b)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, types.ConfigFile{Filename: f, Config: config})
+	}
+	return files, nil
+}
+
+func environment() map[string]string {
+	return getAsEqualsMap(os.Environ())
+}
+
+// getAsEqualsMap split key=value formatted strings into a key : value map
+func getAsEqualsMap(em []string) map[string]string {
+	m := make(map[string]string)
+	for _, v := range em {
+		kv := strings.SplitN(v, "=", 2)
+		m[kv[0]] = kv[1]
+	}
+	return m
+}
