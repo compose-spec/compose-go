@@ -22,6 +22,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -49,6 +50,8 @@ type Options struct {
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
 	discardEnvFiles bool
+	// Set project name
+	Name string
 }
 
 // WithDiscardEnvFiles sets the Options to discard the `env_file` section after resolving to
@@ -76,9 +79,19 @@ func ParseYAML(source []byte) (map[string]interface{}, error) {
 }
 
 // Load reads a ConfigDetails and returns a fully loaded configuration
-func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.Config, error) {
+func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	if len(configDetails.ConfigFiles) < 1 {
 		return nil, errors.Errorf("No files specified")
+	}
+
+	workingDir := configDetails.WorkingDir
+	if workingDir == "" {
+		for _, path := range configDetails.ConfigFiles {
+			if path.Filename != "-" {
+				workingDir = filepath.Dir(path.Filename)
+				break
+			}
+		}
 	}
 
 	opts := &Options{
@@ -87,6 +100,8 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			LookupValue:     configDetails.LookupEnv,
 			TypeCastMapping: interpolateTypeCastMapping,
 		},
+		Name: regexp.MustCompile(`[^a-z0-9\\-_]+`).
+			ReplaceAllString(strings.ToLower(filepath.Base(workingDir)), ""),
 	}
 
 	for _, op := range options {
@@ -135,7 +150,33 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		configs = append(configs, cfg)
 	}
 
-	return merge(configs)
+	model, err := merge(configs)
+	if err != nil {
+		return nil, err
+	}
+
+	project := &types.Project{
+		Name:       opts.Name,
+		WorkingDir: workingDir,
+		Services:   model.Services,
+		Networks:   model.Networks,
+		Volumes:    model.Volumes,
+		Secrets:    model.Secrets,
+		Configs:    model.Configs,
+		Extensions: model.Extensions,
+	}
+
+	err = normalize(project)
+	if err != nil {
+		return nil, err
+	}
+
+	err = validate(project)
+	if err != nil {
+		return nil, err
+	}
+
+	return project, nil
 }
 
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {

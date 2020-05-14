@@ -18,8 +18,6 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
-	"sort"
 )
 
 // ConfigDetails are the details about a group of ConfigFiles
@@ -42,124 +40,29 @@ type ConfigFile struct {
 	Config   map[string]interface{}
 }
 
-// Config is a full compose file configuration
+// Config is a full compose file configuration and model
 type Config struct {
-	Filename   string                     `yaml:"-" json:"-"`
-	Version    string                     `json:"version"`
-	Services   Services                   `json:"services"`
-	Networks   map[string]NetworkConfig   `yaml:",omitempty" json:"networks,omitempty"`
-	Volumes    map[string]VolumeConfig    `yaml:",omitempty" json:"volumes,omitempty"`
-	Secrets    map[string]SecretConfig    `yaml:",omitempty" json:"secrets,omitempty"`
-	Configs    map[string]ConfigObjConfig `yaml:",omitempty" json:"configs,omitempty"`
-	Extensions map[string]interface{}     `yaml:",inline" json:"-"`
+	Filename   string                 `yaml:"-" json:"-"`
+	Version    string                 `json:"version"`
+	Services   Services               `json:"services"`
+	Networks   Networks               `yaml:",omitempty" json:"networks,omitempty"`
+	Volumes    Volumes                `yaml:",omitempty" json:"volumes,omitempty"`
+	Secrets    Secrets                `yaml:",omitempty" json:"secrets,omitempty"`
+	Configs    Configs                `yaml:",omitempty" json:"configs,omitempty"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
-// ServiceNames return names for all services in this Compose config
-func (c Config) ServiceNames() []string {
-	names := []string{}
-	for _, s := range c.Services {
-		names = append(names, s.Name)
-	}
-	sort.Strings(names)
-	return names
-}
+// Volumes is a map of VolumeConfig
+type Volumes map[string]VolumeConfig
 
-// VolumeNames return names for all volumes in this Compose config
-func (c Config) VolumeNames() []string {
-	names := []string{}
-	for k := range c.Volumes {
-		names = append(names, k)
-	}
-	sort.Strings(names)
-	return names
-}
+// Networks is a map of NetworkConfig
+type Networks map[string]NetworkConfig
 
-// NetworkNames return names for all volumes in this Compose config
-func (c Config) NetworkNames() []string {
-	names := []string{}
-	for k := range c.Networks {
-		names = append(names, k)
-	}
-	sort.Strings(names)
-	return names
-}
+// Secrets is a map of SecretConfig
+type Secrets map[string]SecretConfig
 
-// SecretNames return names for all secrets in this Compose config
-func (c Config) SecretNames() []string {
-	names := []string{}
-	for k := range c.Secrets {
-		names = append(names, k)
-	}
-	sort.Strings(names)
-	return names
-}
-
-// ConfigNames return names for all configs in this Compose config
-func (c Config) ConfigNames() []string {
-	names := []string{}
-	for k := range c.Configs {
-		names = append(names, k)
-	}
-	sort.Strings(names)
-	return names
-}
-
-// GetServices retrieve services by names, or return all services if no name specified
-func (c Config) GetServices(names []string) (Services, error) {
-	if len(names) == 0 {
-		return c.Services, nil
-	}
-	services := Services{}
-	for _, name := range names {
-		service, err := c.GetService(name)
-		if err != nil {
-			return nil, err
-		}
-		services = append(services, service)
-	}
-	return services, nil
-}
-
-// GetService retrieve a specific service by name
-func (c Config) GetService(name string) (ServiceConfig, error) {
-	for _, s := range c.Services {
-		if s.Name == name {
-			return s, nil
-		}
-	}
-	return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
-}
-
-type ServiceFunc func(service ServiceConfig) error
-
-// WithServices run ServiceFunc on each service and dependencies in dependency order
-func (c Config) WithServices(names []string, fn ServiceFunc) error {
-	return c.withServices(names, fn, map[string]bool{})
-}
-
-func (c Config) withServices(names []string, fn ServiceFunc, done map[string]bool) error {
-	services, err := c.GetServices(names)
-	if err != nil {
-		return err
-	}
-	for _, service := range services {
-		if done[service.Name] {
-			continue
-		}
-		dependencies := service.GetDependencies()
-		if len(dependencies) > 0 {
-			err := c.withServices(dependencies, fn, done)
-			if err != nil {
-				return err
-			}
-		}
-		if err := fn(service); err != nil {
-			return err
-		}
-		done[service.Name] = true
-	}
-	return nil
-}
+// Configs is a map of ConfigObjConfig
+type Configs map[string]ConfigObjConfig
 
 // MarshalJSON makes Config implement json.Marshaler
 func (c Config) MarshalJSON() ([]byte, error) {
