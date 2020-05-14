@@ -74,7 +74,10 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				},
 			},
 			ContainerName: "my-web-container",
-			DependsOn:     []string{"db", "redis"},
+			DependsOn: types.DependsOnConfig{
+				"db":    {Condition: types.ServiceConditionStarted},
+				"redis": {Condition: types.ServiceConditionStarted},
+			},
 			Deploy: &types.DeployConfig{
 				Mode:     "replicated",
 				Replicas: uint64Ptr(6),
@@ -587,8 +590,10 @@ func fullExampleYAML(workingDir, homeDir string) string {
       mode: 288
     container_name: my-web-container
     depends_on:
-    - db
-    - redis
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
     deploy:
       mode: replicated
       replicas: 6
@@ -1083,10 +1088,14 @@ func fullExampleJSON(workingDir, homeDir string) string {
         }
       ],
       "container_name": "my-web-container",
-      "depends_on": [
-        "db",
-        "redis"
-      ],
+      "depends_on": {
+        "db": {
+          "condition": "service_started"
+        },
+        "redis": {
+          "condition": "service_started"
+        }
+      },
       "deploy": {
         "mode": "replicated",
         "replicas": 6,
