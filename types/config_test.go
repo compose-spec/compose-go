@@ -26,13 +26,21 @@ func Test_WithServices(t *testing.T) {
 	p := Project{
 		Services: append(Services{},
 			ServiceConfig{
-				Name:      "service_1",
-				DependsOn: []string{"service_3"},
+				Name: "service_1",
+				DependsOn: map[string]ServiceDependency{
+					"service_3": {
+						Condition: ServiceConditionStarted,
+					},
+				},
 			}, ServiceConfig{
 				Name: "service_2",
 			}, ServiceConfig{
-				Name:  "service_3",
-				Links: []string{"service_2"},
+				Name: "service_3",
+				DependsOn: map[string]ServiceDependency{
+					"service_2": {
+						Condition: ServiceConditionStarted,
+					},
+				},
 			}),
 	}
 	order := []string{}
