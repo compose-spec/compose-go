@@ -46,6 +46,10 @@ type Options struct {
 	SkipValidation bool
 	// Skip interpolation
 	SkipInterpolation bool
+	// Skip normalization
+	SkipNormalization bool
+	// Skip consistency check
+	SkipConsistencyCheck bool
 	// Interpolation options
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
@@ -166,14 +170,18 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		Extensions: model.Extensions,
 	}
 
-	err = normalize(project)
-	if err != nil {
-		return nil, err
+	if !opts.SkipNormalization {
+		err = normalize(project)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	err = validate(project)
-	if err != nil {
-		return nil, err
+	if !opts.SkipConsistencyCheck {
+		err = checkConsistency(project)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return project, nil

@@ -224,7 +224,7 @@ func TestLoadLogging(t *testing.T) {
 					},
 				},
 			}
-			config, err := Load(configDetails)
+			config, err := loadTestProject(configDetails)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
@@ -236,15 +236,20 @@ func TestLoadLogging(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{
-					"default": {},
-				},
-				Volumes: map[string]types.VolumeConfig{},
-				Secrets: map[string]types.SecretConfig{},
-				Configs: map[string]types.ConfigObjConfig{},
+				Networks: types.Networks{},
+				Volumes:  types.Volumes{},
+				Secrets:  types.Secrets{},
+				Configs:  types.Configs{},
 			}, config)
 		})
 	}
+}
+
+func loadTestProject(configDetails types.ConfigDetails) (*types.Project, error) {
+	return Load(configDetails, func(options *Options) {
+		options.SkipNormalization = true
+		options.SkipConsistencyCheck = true
+	})
 }
 
 func TestLoadMultipleServicePorts(t *testing.T) {
@@ -345,7 +350,7 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 					},
 				},
 			}
-			config, err := Load(configDetails)
+			config, err := loadTestProject(configDetails)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
@@ -357,12 +362,10 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{
-					"default": {},
-				},
-				Volumes: map[string]types.VolumeConfig{},
-				Secrets: map[string]types.SecretConfig{},
-				Configs: map[string]types.ConfigObjConfig{},
+				Networks: types.Networks{},
+				Volumes:  types.Volumes{},
+				Secrets:  types.Secrets{},
+				Configs:  types.Configs{},
 			}, config)
 		})
 	}
@@ -473,7 +476,7 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 					},
 				},
 			}
-			config, err := Load(configDetails)
+			config, err := loadTestProject(configDetails)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
@@ -485,12 +488,10 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{
-					"default": {},
-				},
-				Volumes: map[string]types.VolumeConfig{},
-				Secrets: map[string]types.SecretConfig{},
-				Configs: map[string]types.ConfigObjConfig{},
+				Networks: types.Networks{},
+				Volumes:  types.Volumes{},
+				Secrets:  types.Secrets{},
+				Configs:  types.Configs{},
 			}, config)
 		})
 	}
@@ -601,7 +602,7 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 					},
 				},
 			}
-			config, err := Load(configDetails)
+			config, err := loadTestProject(configDetails)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
@@ -613,12 +614,10 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{
-					"default": {},
-				},
-				Volumes: map[string]types.VolumeConfig{},
-				Secrets: map[string]types.SecretConfig{},
-				Configs: map[string]types.ConfigObjConfig{},
+				Networks: types.Networks{},
+				Volumes:  types.Volumes{},
+				Secrets:  types.Secrets{},
+				Configs:  types.Configs{},
 			}, config)
 		})
 	}
@@ -719,7 +718,7 @@ func TestLoadMultipleUlimits(t *testing.T) {
 					},
 				},
 			}
-			config, err := Load(configDetails)
+			config, err := loadTestProject(configDetails)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
@@ -731,12 +730,10 @@ func TestLoadMultipleUlimits(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{
-					"default": {},
-				},
-				Volumes: map[string]types.VolumeConfig{},
-				Secrets: map[string]types.SecretConfig{},
-				Configs: map[string]types.ConfigObjConfig{},
+				Networks: types.Networks{},
+				Volumes:  types.Volumes{},
+				Secrets:  types.Secrets{},
+				Configs:  types.Configs{},
 			}, config)
 		})
 	}
@@ -840,7 +837,7 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 					},
 				},
 			}
-			config, err := Load(configDetails)
+			config, err := loadTestProject(configDetails)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
@@ -852,12 +849,10 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: map[string]types.NetworkConfig{
-					"default": {},
-				},
-				Volumes: map[string]types.VolumeConfig{},
-				Secrets: map[string]types.SecretConfig{},
-				Configs: map[string]types.ConfigObjConfig{},
+				Networks: types.Networks{},
+				Volumes:  types.Volumes{},
+				Secrets:  types.Secrets{},
+				Configs:  types.Configs{},
 			}, config)
 		})
 	}
@@ -930,7 +925,7 @@ func TestLoadMultipleConfigs(t *testing.T) {
 			{Filename: "override.yml", Config: override},
 		},
 	}
-	config, err := Load(configDetails)
+	config, err := loadTestProject(configDetails)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, &types.Project{
 		Name:       "",
@@ -970,12 +965,10 @@ func TestLoadMultipleConfigs(t *testing.T) {
 				CapAdd:      []string{"NET_ADMIN", "SYS_ADMIN"},
 				Environment: types.MappingWithEquals{},
 			}},
-		Networks: map[string]types.NetworkConfig{
-			"default": {},
-		},
-		Volumes: map[string]types.VolumeConfig{},
-		Secrets: map[string]types.SecretConfig{},
-		Configs: map[string]types.ConfigObjConfig{},
+		Networks: types.Networks{},
+		Volumes:  types.Volumes{},
+		Secrets:  types.Secrets{},
+		Configs:  types.Configs{},
 	}, config)
 }
 
@@ -1025,7 +1018,7 @@ func TestLoadMultipleNetworks(t *testing.T) {
 			{Filename: "override.yml", Config: override},
 		},
 	}
-	config, err := Load(configDetails)
+	config, err := loadTestProject(configDetails)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, &types.Project{
 		Name:       "",
@@ -1044,9 +1037,9 @@ func TestLoadMultipleNetworks(t *testing.T) {
 				},
 			},
 		},
-		Volumes: map[string]types.VolumeConfig{},
-		Secrets: map[string]types.SecretConfig{},
-		Configs: map[string]types.ConfigObjConfig{},
+		Volumes: types.Volumes{},
+		Secrets: types.Secrets{},
+		Configs: types.Configs{},
 	}, config)
 }
 
