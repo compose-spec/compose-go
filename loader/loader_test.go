@@ -57,7 +57,10 @@ func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Project, error)
 		return nil, err
 	}
 
-	return Load(buildConfigDetails(dict, env))
+	return Load(buildConfigDetails(dict, env), func(options *Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+	})
 }
 
 var sampleYAML = `
@@ -251,7 +254,10 @@ func TestParseYAML(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
-	actual, err := Load(buildConfigDetails(sampleDict, nil))
+	actual, err := Load(buildConfigDetails(sampleDict, nil), func(options *Options) {
+		options.SkipNormalization = true
+		options.SkipConsistencyCheck = true
+	})
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(serviceSort(sampleConfig.Services), serviceSort(actual.Services)))
 	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
@@ -630,7 +636,10 @@ networks:
 		"thebool":  "true",
 	}
 
-	config, err := Load(buildConfigDetails(dict, env))
+	config, err := Load(buildConfigDetails(dict, env), func(options *Options) {
+		options.SkipNormalization = true
+		options.SkipConsistencyCheck = true
+	})
 	assert.NilError(t, err)
 
 	workingDir, err := os.Getwd()
@@ -1652,9 +1661,6 @@ secrets:
 				TemplateDriver: "secret-driver",
 			},
 		},
-		Networks: map[string]types.NetworkConfig{
-			"default": {},
-		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
 }
@@ -1722,9 +1728,6 @@ secrets:
 					"OptionB": "value for driver option B",
 				},
 			},
-		},
-		Networks: map[string]types.NetworkConfig{
-			"default": {},
 		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())

@@ -8,6 +8,9 @@ var (
 
 	// ErrInvalid is returned when a compose project is invalid
 	ErrInvalid = errors.New("invalid compose project")
+
+	// ErrUnsupported is returned when a compose project uses an unsupported attribute
+	ErrUnsupported = errors.New("unsupported attribute")
 )
 
 // IsNotFoundError returns true if the unwrapped error is ErrNotFound
@@ -18,4 +21,9 @@ func IsNotFoundError(err error) bool {
 // IsInvalidError returns true if the unwrapped error is ErrInvalid
 func IsInvalidError(err error) bool {
 	return errors.Is(err, ErrInvalid)
+}
+
+// IsUnsupportedError returns true if the unwrapped error is ErrUnsupported
+func IsUnsupportedError(err error) bool {
+	return errors.Is(err, ErrUnsupported)
 }
