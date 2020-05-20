@@ -1,6 +1,6 @@
 module github.com/compose-spec/compose-go
 
-go 1.12
+go 1.13
 
 require (
 	github.com/docker/go-connections v0.4.0
