@@ -28,9 +28,9 @@ import (
 func TestWhiteList(t *testing.T) {
 	var checker Checker = &WhiteList{
 		Supported: []string{
-			"network_mode",
-			"privileged",
-			"networks",
+			"services.network_mode",
+			"services.privileged",
+			"services.networks",
 		},
 	}
 	dict, err := loader.ParseYAML([]byte(`
@@ -55,7 +55,7 @@ services:
 	errors := checker.Errors()
 	assert.Check(t, len(errors) == 1)
 	assert.Check(t, errdefs.IsUnsupportedError(errors[0]))
-	assert.Equal(t, errors[0].Error(), "mac_address: unsupported attribute")
+	assert.Equal(t, errors[0].Error(), "services.mac_address: unsupported attribute")
 
 	service, err := project.GetService("foo")
 	assert.NilError(t, err)
