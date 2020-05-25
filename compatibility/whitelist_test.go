@@ -26,11 +26,13 @@ import (
 )
 
 func TestWhiteList(t *testing.T) {
-	var checker Checker = &WhiteList{
-		Supported: []string{
-			"services.network_mode",
-			"services.privileged",
-			"services.networks",
+	var checker Checker = customChecker{
+		&WhiteList{
+			Supported: []string{
+				"services.network_mode",
+				"services.privileged",
+				"services.networks",
+			},
 		},
 	}
 	dict, err := loader.ParseYAML([]byte(`
@@ -51,13 +53,26 @@ services:
 	})
 	assert.NilError(t, err)
 
-	checker.Check(project)
+	Check(project, checker)
 	errors := checker.Errors()
-	assert.Check(t, len(errors) == 1)
+	assert.Check(t, len(errors) == 2)
 	assert.Check(t, errdefs.IsUnsupportedError(errors[0]))
 	assert.Equal(t, errors[0].Error(), "services.mac_address: unsupported attribute")
+
+	assert.Check(t, errdefs.IsUnsupportedError(errors[1]))
+	assert.Equal(t, errors[1].Error(), "services.network_mode=host: unsupported attribute")
 
 	service, err := project.GetService("foo")
 	assert.NilError(t, err)
 	assert.Check(t, service.MacAddress == "")
+}
+
+type customChecker struct {
+	*WhiteList
+}
+
+func (c customChecker) CheckNetworkMode(service *types.ServiceConfig) {
+	if service.NetworkMode == "host" {
+		c.error("services.network_mode=host")
+	}
 }

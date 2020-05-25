@@ -1,3 +1,19 @@
+/*
+   Copyright 2020 The Compose Specification Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package compatibility
 
 import (
@@ -6,24 +22,13 @@ import (
 	"github.com/compose-spec/compose-go/types"
 )
 
-func (c *WhiteList) CheckDeploy(service *types.ServiceConfig) {
-	if service.Deploy != nil {
-		if !c.supported("deploy") {
-			service.Deploy = nil
-			c.error("deploy")
-			return
-		}
-		c.CheckDeployEndpointMode(service.Deploy)
-		c.CheckDeployLabels(service.Deploy)
-		c.CheckDeployMode(service.Deploy)
-		c.CheckDeployPlacement(service.Deploy)
-		c.CheckDeployReplicas(service.Deploy)
-		c.CheckDeployResources(ResourceLimits, service.Deploy)
-		c.CheckDeployResources(ResourceReservations, service.Deploy)
-		c.CheckDeployRestartPolicy(service.Deploy)
-		c.CheckDeployRollbackConfig(service.Deploy)
-		c.CheckDeployUpdateConfig(service.Deploy)
+func (c *WhiteList) CheckDeploy(service *types.ServiceConfig) bool {
+	if !c.supported("deploy") && service.Deploy != nil {
+		service.Deploy = nil
+		c.error("deploy")
+		return false
 	}
+	return true
 }
 
 func (c *WhiteList) CheckDeployMode(config *types.DeployConfig) {
@@ -50,35 +55,22 @@ const (
 	UpdateConfigRollback = "rolback_config"
 )
 
-func (c *WhiteList) CheckDeployUpdateConfig(config *types.DeployConfig) {
-	if config.UpdateConfig != nil {
-		if !c.supported("services.deploy.update_config") {
-			config.UpdateConfig = nil
-			c.error("services.deploy.update_config")
-			return
-		}
-		c.CheckUpdateConfig(UpdateConfigUpdate, config)
+func (c *WhiteList) CheckDeployUpdateConfig(config *types.DeployConfig) bool {
+	if !c.supported("services.deploy.update_config") {
+		config.UpdateConfig = nil
+		c.error("services.deploy.update_config")
+		return false
 	}
+	return true
 }
 
-func (c *WhiteList) CheckDeployRollbackConfig(config *types.DeployConfig) {
-	if config.RollbackConfig != nil {
-		if !c.supported("services.deploy.rollback_config") {
-			config.RollbackConfig = nil
-			c.error("services.deploy.rollback_config")
-			return
-		}
-		c.CheckUpdateConfig(UpdateConfigRollback, config)
+func (c *WhiteList) CheckDeployRollbackConfig(config *types.DeployConfig) bool {
+	if !c.supported("services.deploy.rollback_config") {
+		config.RollbackConfig = nil
+		c.error("services.deploy.rollback_config")
+		return false
 	}
-}
-
-func (c *WhiteList) CheckUpdateConfig(update string, config *types.DeployConfig) {
-	c.CheckUpdateConfigDelay(update, config.UpdateConfig)
-	c.CheckUpdateConfigFailureAction(update, config.UpdateConfig)
-	c.CheckUpdateConfigMaxFailureRatio(update, config.UpdateConfig)
-	c.CheckUpdateConfigMonitor(update, config.UpdateConfig)
-	c.CheckUpdateConfigOrder(update, config.UpdateConfig)
-	c.CheckUpdateConfigParallelism(update, config.UpdateConfig)
+	return true
 }
 
 func (c *WhiteList) CheckUpdateConfigParallelism(s string, config *types.UpdateConfig) {
@@ -129,10 +121,22 @@ const (
 	ResourceReservations = "reservations"
 )
 
-func (c *WhiteList) CheckDeployResources(s string, config *types.DeployConfig) {
-	c.CheckDeployResourcesNanoCPUs(s, config.Resources.Limits)
-	c.CheckDeployResourcesMemoryBytes(s, config.Resources.Limits)
-	c.CheckDeployResourcesGenericResources(s, config.Resources.Limits)
+func (c *WhiteList) CheckDeployResourcesLimits(config *types.DeployConfig) bool {
+	if !c.supported("services.deploy.resources.limits") {
+		config.Resources.Limits = nil
+		c.error("services.deploy.resources.limits")
+		return false
+	}
+	return true
+}
+
+func (c *WhiteList) CheckDeployResourcesReservations(config *types.DeployConfig) bool {
+	if !c.supported("services.deploy.resources.reservations") {
+		config.Resources.Reservations = nil
+		c.error("services.deploy.resources.reservations")
+		return false
+	}
+	return true
 }
 
 func (c *WhiteList) CheckDeployResourcesNanoCPUs(s string, r *types.Resource) {
@@ -157,18 +161,13 @@ func (c *WhiteList) CheckDeployResourcesGenericResources(s string, r *types.Reso
 	}
 }
 
-func (c *WhiteList) CheckDeployRestartPolicy(config *types.DeployConfig) {
-	if config.RestartPolicy != nil {
-		if !c.supported("services.deploy.restart_policy") {
-			config.RestartPolicy = nil
-			c.error("services.deploy.restart_policy")
-			return
-		}
-		c.CheckRestartPolicyCondition(config.RestartPolicy)
-		c.CheckRestartPolicyDelay(config.RestartPolicy)
-		c.CheckRestartPolicyMaxAttempts(config.RestartPolicy)
-		c.CheckRestartPolicyWindow(config.RestartPolicy)
+func (c *WhiteList) CheckDeployRestartPolicy(config *types.DeployConfig) bool {
+	if !c.supported("services.deploy.restart_policy") {
+		config.RestartPolicy = nil
+		c.error("services.deploy.restart_policy")
+		return false
 	}
+	return true
 }
 
 func (c *WhiteList) CheckRestartPolicyCondition(p *types.RestartPolicy) {
@@ -196,28 +195,22 @@ func (c *WhiteList) CheckRestartPolicyWindow(p *types.RestartPolicy) {
 	}
 }
 
-func (c *WhiteList) CheckDeployPlacement(config *types.DeployConfig) {
-	c.CheckPlacementConstraints(&config.Placement)
-	c.CheckPlacementMaxReplicas(&config.Placement)
-	c.CheckPlacementPreferences(&config.Placement)
-}
-
 func (c *WhiteList) CheckPlacementConstraints(p *types.Placement) {
-	if !c.supported("services.deploy.placement.constraints") && len(p.Constraints) != 0 {
+	if !c.supported("services.deploy.placement", "services.deploy.placement.constraints") && len(p.Constraints) != 0 {
 		p.Constraints = nil
 		c.error("services.deploy.restart_policy.constraints")
 	}
 }
 
 func (c *WhiteList) CheckPlacementPreferences(p *types.Placement) {
-	if !c.supported("services.deploy.placement.preferences") && p.Preferences != nil {
+	if !c.supported("services.deploy.placement", "services.deploy.placement.preferences") && p.Preferences != nil {
 		p.Preferences = nil
 		c.error("services.deploy.restart_policy.preferences")
 	}
 }
 
 func (c *WhiteList) CheckPlacementMaxReplicas(p *types.Placement) {
-	if !c.supported("services.deploy.placement.max_replicas_per_node") && p.MaxReplicas != 0 {
+	if !c.supported("services.deploy.placement", "services.deploy.placement.max_replicas_per_node") && p.MaxReplicas != 0 {
 		p.MaxReplicas = 0
 		c.error("services.deploy.restart_policy.max_replicas_per_node")
 	}

@@ -1,3 +1,19 @@
+/*
+   Copyright 2020 The Compose Specification Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package compatibility
 
 import (
@@ -5,75 +21,6 @@ import (
 
 	"github.com/compose-spec/compose-go/types"
 )
-
-func (c *WhiteList) CheckServiceConfig(service *types.ServiceConfig) {
-	c.CheckBuild(service)
-	c.CheckCapAdd(service)
-	c.CheckCapDrop(service)
-	c.CheckCgroupParent(service)
-	c.CheckCPUQuota(service)
-	c.CheckCPUSet(service)
-	c.CheckCPUShares(service)
-	c.CheckCommand(service)
-	c.CheckConfigs(service)
-	c.CheckContainerName(service)
-	c.CheckCredentialSpec(service)
-	c.CheckDependsOn(service)
-	c.CheckDeploy(service)
-	c.CheckDevices(service)
-	c.CheckDNS(service)
-	c.CheckDNSOpts(service)
-	c.CheckDNSSearch(service)
-	c.CheckDomainName(service)
-	c.CheckEntrypoint(service)
-	c.CheckEnvironment(service)
-	c.CheckEnvFile(service)
-	c.CheckExpose(service)
-	c.CheckExtends(service)
-	c.CheckExternalLinks(service)
-	c.CheckExtraHosts(service)
-	c.CheckGroupAdd(service)
-	c.CheckHostname(service)
-	c.CheckHealthCheck(service)
-	c.CheckInit(service)
-	c.CheckIpc(service)
-	c.CheckIsolation(service)
-	c.CheckLabels(service)
-	c.CheckLinks(service)
-	c.CheckLogging(service)
-	c.CheckMemLimit(service)
-	c.CheckMemReservation(service)
-	c.CheckMemSwapLimit(service)
-	c.CheckMemSwappiness(service)
-	c.CheckMacAddress(service)
-	c.CheckNet(service)
-	c.CheckNetworkMode(service)
-	c.CheckNetworks(service)
-	c.CheckOomKillDisable(service)
-	c.CheckOomScoreAdj(service)
-	c.CheckPid(service)
-	c.CheckPorts(service)
-	c.CheckPrivileged(service)
-	c.CheckReadOnly(service)
-	c.CheckRestart(service)
-	c.CheckSecrets(service)
-	c.CheckSecurityOpt(service)
-	c.CheckShmSize(service)
-	c.CheckStdinOpen(service)
-	c.CheckStopGracePeriod(service)
-	c.CheckStopSignal(service)
-	c.CheckSysctls(service)
-	c.CheckTmpfs(service)
-	c.CheckTty(service)
-	c.CheckUlimits(service)
-	c.CheckUser(service)
-	c.CheckUserNSMode(service)
-	c.CheckUts(service)
-	c.CheckVolumeDriver(service)
-	c.CheckVolumes(service)
-	c.CheckVolumesFrom(service)
-	c.CheckWorkingDir(service)
-}
 
 func (c *WhiteList) CheckCapAdd(service *types.ServiceConfig) {
 	if !c.supported("services.cap_add") && len(service.CapAdd) != 0 {
@@ -258,19 +205,13 @@ func (c *WhiteList) CheckHostname(service *types.ServiceConfig) {
 	}
 }
 
-func (c *WhiteList) CheckHealthCheck(service *types.ServiceConfig) {
-	if service.HealthCheck != nil {
-		if !c.supported("services.healthcheck") {
-			service.HealthCheck = nil
-			c.error("services.healthcheck")
-			return
-		}
-		c.CheckHealthCheckInterval(service.HealthCheck)
-		c.CheckHealthCheckRetries(service.HealthCheck)
-		c.CheckHealthCheckStartPeriod(service.HealthCheck)
-		c.CheckHealthCheckTest(service.HealthCheck)
-		c.CheckHealthCheckTimeout(service.HealthCheck)
+func (c *WhiteList) CheckHealthCheck(service *types.ServiceConfig) bool {
+	if !c.supported("services.healthcheck") {
+		service.HealthCheck = nil
+		c.error("services.healthcheck")
+		return false
 	}
+	return true
 }
 
 func (c *WhiteList) CheckHealthCheckTest(h *types.HealthCheckConfig) {
@@ -343,16 +284,13 @@ func (c *WhiteList) CheckLinks(service *types.ServiceConfig) {
 	}
 }
 
-func (c *WhiteList) CheckLogging(service *types.ServiceConfig) {
-	if service.Logging != nil {
-		if !c.supported("services.logging") {
-			service.Logging = nil
-			c.error("services.logging")
-			return
-		}
-		c.CheckLoggingDriver(service.Logging)
-		c.CheckLoggingOptions(service.Logging)
+func (c *WhiteList) CheckLogging(service *types.ServiceConfig) bool {
+	if !c.supported("services.logging") {
+		service.Logging = nil
+		c.error("services.logging")
+		return false
 	}
+	return true
 }
 
 func (c *WhiteList) CheckLoggingDriver(logging *types.LoggingConfig) {
@@ -418,20 +356,13 @@ func (c *WhiteList) CheckNetworkMode(service *types.ServiceConfig) {
 	}
 }
 
-func (c *WhiteList) CheckNetworks(service *types.ServiceConfig) {
-	if len(service.Networks) != 0 {
-		if !c.supported("services.networks") {
-			service.Networks = nil
-			c.error("services.networks")
-		}
-		for _, n := range service.Networks {
-			if n != nil {
-				c.CheckNetworkAliases(n)
-				c.CheckNetworkIpv4Address(n)
-				c.CheckNetworkIpv6Address(n)
-			}
-		}
+func (c *WhiteList) CheckNetworks(service *types.ServiceConfig) bool {
+	if !c.supported("services.networks") {
+		service.Networks = nil
+		c.error("services.networks")
+		return false
 	}
+	return true
 }
 
 func (c *WhiteList) CheckNetworkAliases(n *types.ServiceNetworkConfig) {
@@ -476,20 +407,13 @@ func (c *WhiteList) CheckPid(service *types.ServiceConfig) {
 	}
 }
 
-func (c *WhiteList) CheckPorts(service *types.ServiceConfig) {
-	if len(service.Ports) != 0 {
-		if !c.supported("services.ports") {
-			service.Ports = nil
-			c.error("services.ports")
-		}
-		for i, p := range service.Ports {
-			c.CheckPortsMode(&p)
-			c.CheckPortsTarget(&p)
-			c.CheckPortsProtocol(&p)
-			c.CheckPortsProtocol(&p)
-			service.Ports[i] = p
-		}
+func (c *WhiteList) CheckPorts(service *types.ServiceConfig) bool {
+	if !c.supported("services.ports") {
+		service.Ports = nil
+		c.error("services.ports")
+		return false
 	}
+	return true
 }
 
 func (c *WhiteList) CheckPortsMode(p *types.ServicePortConfig) {
@@ -694,27 +618,13 @@ func (c *WhiteList) CheckVolumeDriver(service *types.ServiceConfig) {
 	}
 }
 
-func (c *WhiteList) CheckVolumes(service *types.ServiceConfig) {
-	if len(service.Volumes) != 0 {
-		if !c.supported("services.volumes") {
-			service.Volumes = nil
-			c.error("services.volumes")
-		}
-		for i, v := range service.Volumes {
-			c.CheckVolumesSource(&v)
-			c.CheckVolumesTarget(&v)
-			c.CheckVolumesReadOnly(&v)
-			switch v.Type {
-			case types.VolumeTypeBind:
-				c.CheckVolumesBind(v.Bind)
-			case types.VolumeTypeVolume:
-				c.CheckVolumesVolume(v.Volume)
-			case types.VolumeTypeTmpfs:
-				c.CheckVolumesTmpfs(v.Tmpfs)
-			}
-			service.Volumes[i] = v
-		}
+func (c *WhiteList) CheckServiceVolumes(service *types.ServiceConfig) bool {
+	if !c.supported("services.volumes") {
+		service.Volumes = nil
+		c.error("services.volumes")
+		return false
 	}
+	return true
 }
 
 func (c *WhiteList) CheckVolumesSource(config *types.ServiceVolumeConfig) {

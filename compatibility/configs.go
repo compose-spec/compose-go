@@ -1,3 +1,19 @@
+/*
+   Copyright 2020 The Compose Specification Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package compatibility
 
 import (
@@ -5,25 +21,6 @@ import (
 
 	"github.com/compose-spec/compose-go/types"
 )
-
-func (c *WhiteList) CheckConfigsConfig(config *types.ConfigObjConfig) {
-	ref := types.FileObjectConfig(*config)
-	c.CheckFileObjectConfig("configs", &ref)
-}
-
-func (c *WhiteList) CheckSecretsConfig(config *types.SecretConfig) {
-	ref := types.FileObjectConfig(*config)
-	c.CheckFileObjectConfig("secrets", &ref)
-}
-
-func (c *WhiteList) CheckFileObjectConfig(s string, config *types.FileObjectConfig) {
-	c.CheckFileObjectConfigDriver(s, config)
-	c.CheckFileObjectConfigDriverOpts(s, config)
-	c.CheckFileObjectConfigExternal(s, config)
-	c.CheckFileObjectConfigFile(s, config)
-	c.CheckFileObjectConfigLabels(s, config)
-	c.CheckFileObjectConfigTemplateDriver(s, config)
-}
 
 func (c *WhiteList) CheckFileObjectConfigFile(s string, config *types.FileObjectConfig) {
 	k := fmt.Sprintf("%s.file", s)
