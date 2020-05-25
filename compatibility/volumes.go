@@ -1,13 +1,22 @@
+/*
+   Copyright 2020 The Compose Specification Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package compatibility
 
 import "github.com/compose-spec/compose-go/types"
-
-func (c *WhiteList) CheckVolumeConfig(config *types.VolumeConfig) {
-	c.CheckVolumeConfigDriver(config)
-	c.CheckVolumeConfigDriverOpts(config)
-	c.CheckVolumeConfigExternal(config)
-	c.CheckVolumeConfigLabels(config)
-}
 
 func (c *WhiteList) CheckVolumeConfigDriver(config *types.VolumeConfig) {
 	if !c.supported("volumes.driver") && config.Driver != "" {

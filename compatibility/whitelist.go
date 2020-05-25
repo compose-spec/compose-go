@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/compose-spec/compose-go/errdefs"
-	"github.com/compose-spec/compose-go/types"
 	"github.com/pkg/errors"
 )
 
@@ -34,37 +33,12 @@ func (c *WhiteList) Errors() []error {
 	return c.errors
 }
 
-func (c *WhiteList) Check(project *types.Project) {
-	for i, service := range project.Services {
-		c.CheckServiceConfig(&service)
-		project.Services[i] = service
-	}
-
-	for i, network := range project.Networks {
-		c.CheckNetworkConfig(&network)
-		project.Networks[i] = network
-	}
-
-	for i, volume := range project.Volumes {
-		c.CheckVolumeConfig(&volume)
-		project.Volumes[i] = volume
-	}
-
-	for i, config := range project.Configs {
-		c.CheckConfigsConfig(&config)
-		project.Configs[i] = config
-	}
-
-	for i, secret := range project.Secrets {
-		c.CheckSecretsConfig(&secret)
-		project.Secrets[i] = secret
-	}
-}
-
-func (c *WhiteList) supported(attribute string) bool {
-	for _, s := range c.Supported {
-		if s == attribute {
-			return true
+func (c *WhiteList) supported(attributes ...string) bool {
+	for _, a := range attributes {
+		for _, s := range c.Supported {
+			if s == a {
+				return true
+			}
 		}
 	}
 	return false

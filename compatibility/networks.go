@@ -1,3 +1,19 @@
+/*
+   Copyright 2020 The Compose Specification Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package compatibility
 
 import "github.com/compose-spec/compose-go/types"
@@ -13,24 +29,24 @@ func (c *WhiteList) CheckNetworkConfig(network *types.NetworkConfig) {
 }
 
 func (c *WhiteList) CheckNetworkConfigDriver(config *types.NetworkConfig) {
-	if !c.supported("_networks.driver") && config.Driver != "" {
+	if !c.supported("networks.driver") && config.Driver != "" {
 		config.Driver = ""
-		c.error("_networks.driver")
+		c.error("networks.driver")
 	}
 }
 
 func (c *WhiteList) CheckNetworkConfigDriverOpts(config *types.NetworkConfig) {
-	if !c.supported("_networks.driver_opts") && len(config.DriverOpts) != 0 {
+	if !c.supported("networks.driver_opts") && len(config.DriverOpts) != 0 {
 		config.DriverOpts = nil
-		c.error("_networks.driver_opts")
+		c.error("networks.driver_opts")
 	}
 }
 
 func (c *WhiteList) CheckNetworkConfigIpam(config *types.NetworkConfig) {
 	c.CheckNetworkConfigIpamDriver(&config.Ipam)
 	if len(config.Ipam.Config) != 0 {
-		if !c.supported("_networks.ipam.config") {
-			c.error("_networks.ipam.config")
+		if !c.supported("networks.ipam.config") {
+			c.error("networks.ipam.config")
 			return
 		}
 		for _, p := range config.Ipam.Config {
@@ -40,44 +56,44 @@ func (c *WhiteList) CheckNetworkConfigIpam(config *types.NetworkConfig) {
 }
 
 func (c *WhiteList) CheckNetworkConfigIpamDriver(config *types.IPAMConfig) {
-	if !c.supported("_networks.ipam.driver") && config.Driver != "" {
+	if !c.supported("networks.ipam.driver") && config.Driver != "" {
 		config.Driver = ""
-		c.error("_networks.ipam.driver")
+		c.error("networks.ipam.driver")
 	}
 }
 
 func (c *WhiteList) CheckNetworkConfigIpamSubnet(config *types.IPAMPool) {
-	if !c.supported("_networks.ipam.config.subnet") && config.Subnet != "" {
+	if !c.supported("networks.ipam.config.subnet") && config.Subnet != "" {
 		config.Subnet = ""
-		c.error("_networks.ipam.config.subnet")
+		c.error("networks.ipam.config.subnet")
 	}
 
 }
 
 func (c *WhiteList) CheckNetworkConfigExternal(config *types.NetworkConfig) {
-	if !c.supported("_networks.external") && config.External.External {
+	if !c.supported("networks.external") && config.External.External {
 		config.External.External = false
-		c.error("_networks.external")
+		c.error("networks.external")
 	}
 }
 
 func (c *WhiteList) CheckNetworkConfigInternal(config *types.NetworkConfig) {
-	if !c.supported("_networks.internal") && config.Internal {
+	if !c.supported("networks.internal") && config.Internal {
 		config.Internal = false
-		c.error("_networks.internal")
+		c.error("networks.internal")
 	}
 }
 
 func (c *WhiteList) CheckNetworkConfigAttachable(config *types.NetworkConfig) {
-	if !c.supported("_networks.attachable") && config.Attachable {
+	if !c.supported("networks.attachable") && config.Attachable {
 		config.Attachable = false
-		c.error("_networks.attachable")
+		c.error("networks.attachable")
 	}
 }
 
 func (c *WhiteList) CheckNetworkConfigLabels(config *types.NetworkConfig) {
-	if !c.supported("_networks.labels") && len(config.Labels) != 0 {
+	if !c.supported("networks.labels") && len(config.Labels) != 0 {
 		config.Labels = nil
-		c.error("_networks.labels")
+		c.error("networks.labels")
 	}
 }
