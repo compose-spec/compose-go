@@ -69,7 +69,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 	})
 }
 
-// getConfigPathsFromOptions retrieve the config files for project based on project options
+// getConfigPathsFromOptions retrieves the config files for project based on project options
 func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 	paths := []string{}
 	pwd, err := os.Getwd()
@@ -137,9 +137,6 @@ func parseConfigs(configPaths []string) ([]types.ConfigFile, error) {
 		if f == "-" {
 			b, err = ioutil.ReadAll(os.Stdin)
 		} else {
-			if _, err := os.Stat(f); err != nil {
-				return nil, err
-			}
 			b, err = ioutil.ReadFile(f)
 		}
 		if err != nil {
