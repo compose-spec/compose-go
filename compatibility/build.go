@@ -48,6 +48,20 @@ func (c *WhiteList) CheckBuildCacheFrom(build *types.BuildConfig) {
 	}
 }
 
+func (c *WhiteList) CheckBuildExtraHosts(build *types.BuildConfig) {
+	if !c.supported("services.build.extra_hosts") && len(build.ExtraHosts) != 0 {
+		build.ExtraHosts = nil
+		c.error("services.build.extra_hosts")
+	}
+}
+
+func (c *WhiteList) CheckBuildIsolation(build *types.BuildConfig) {
+	if !c.supported("services.build.isolation") && build.Isolation != "" {
+		build.Isolation = ""
+		c.error("services.build.isolation")
+	}
+}
+
 func (c *WhiteList) CheckBuildNetwork(build *types.BuildConfig) {
 	if !c.supported("services.build.network") && build.Network != "" {
 		build.Network = ""
