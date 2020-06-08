@@ -22,6 +22,13 @@ import (
 	"github.com/compose-spec/compose-go/types"
 )
 
+func (c *WhiteList) CheckBlkioConfig(service *types.ServiceConfig) {
+	if !c.supported("services.blkio_config") && service.BlkioConfig != "" {
+		service.BlkioConfig = ""
+		c.error("services.blkio_config")
+	}
+}
+
 func (c *WhiteList) CheckCapAdd(service *types.ServiceConfig) {
 	if !c.supported("services.cap_add") && len(service.CapAdd) != 0 {
 		service.CapAdd = nil
@@ -47,6 +54,48 @@ func (c *WhiteList) CheckCPUQuota(service *types.ServiceConfig) {
 	if !c.supported("services.cpu_quota") && service.CPUQuota != 0 {
 		service.CPUQuota = 0
 		c.error("services.cpu_quota")
+	}
+}
+
+func (c *WhiteList) CheckCPUCount(service *types.ServiceConfig) {
+	if !c.supported("services.cpu_count") && service.CPUCount != 0 {
+		service.CPUCount = 0
+		c.error("services.cpu_count")
+	}
+}
+
+func (c *WhiteList) CheckCPUPercent(service *types.ServiceConfig) {
+	if !c.supported("services.cpu_percent") && service.CPUPercent != 0 {
+		service.CPUPercent = 0
+		c.error("services.cpu_percent")
+	}
+}
+
+func (c *WhiteList) CheckCPUPeriod(service *types.ServiceConfig) {
+	if !c.supported("services.cpu_period") && service.CPUPeriod != 0 {
+		service.CPUPeriod = 0
+		c.error("services.cpu_period")
+	}
+}
+
+func (c *WhiteList) CheckCPURTRuntime(service *types.ServiceConfig) {
+	if !c.supported("services.cpu_rt_runtime") && service.CPURTRuntime != 0 {
+		service.CPURTRuntime = 0
+		c.error("services.cpu_rt_period")
+	}
+}
+
+func (c *WhiteList) CheckCPURTPeriod(service *types.ServiceConfig) {
+	if !c.supported("services.cpu_rt_period") && service.CPURTPeriod != 0 {
+		service.CPURTPeriod = 0
+		c.error("services.cpu_rt_period")
+	}
+}
+
+func (c *WhiteList) CheckCPUs(service *types.ServiceConfig) {
+	if !c.supported("services.cpus") && service.CPUS != 0 {
+		service.CPUS = 0
+		c.error("services.cpus")
 	}
 }
 
@@ -407,6 +456,20 @@ func (c *WhiteList) CheckPid(service *types.ServiceConfig) {
 	}
 }
 
+func (c *WhiteList) CheckPidLimit(service *types.ServiceConfig) {
+	if !c.supported("services.pid_limit") && service.PidLimit != 0 {
+		service.PidLimit = 0
+		c.error("services.pid_limit")
+	}
+}
+
+func (c *WhiteList) CheckPlatform(service *types.ServiceConfig) {
+	if !c.supported("services.platform") && service.Platform != "" {
+		service.Platform = ""
+		c.error("services.platform")
+	}
+}
+
 func (c *WhiteList) CheckPorts(service *types.ServiceConfig) bool {
 	if !c.supported("services.ports") {
 		service.Ports = nil
@@ -462,6 +525,20 @@ func (c *WhiteList) CheckRestart(service *types.ServiceConfig) {
 	if !c.supported("services.restart") && service.Restart != "" {
 		service.Restart = ""
 		c.error("services.restart")
+	}
+}
+
+func (c *WhiteList) CheckRuntime(service *types.ServiceConfig) {
+	if !c.supported("services.runtime") && service.Runtime != "" {
+		service.Runtime = ""
+		c.error("services.runtime")
+	}
+}
+
+func (c *WhiteList) CheckScale(service *types.ServiceConfig) {
+	if !c.supported("services.scale") && service.Scale != 0 {
+		service.Scale = 0
+		c.error("services.scale")
 	}
 }
 

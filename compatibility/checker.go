@@ -20,16 +20,25 @@ import "github.com/compose-spec/compose-go/types"
 
 type Checker interface {
 	Errors() []error
+	CheckBlkioConfig(build *types.ServiceConfig)
 	CheckBuild(build *types.ServiceConfig) bool
 	CheckBuildArgs(build *types.BuildConfig)
 	CheckBuildLabels(build *types.BuildConfig)
 	CheckBuildCacheFrom(build *types.BuildConfig)
+	CheckBuildExtraHosts(build *types.BuildConfig)
+	CheckBuildIsolation(build *types.BuildConfig)
 	CheckBuildNetwork(build *types.BuildConfig)
 	CheckBuildTarget(build *types.BuildConfig)
 	CheckCapAdd(service *types.ServiceConfig)
 	CheckCapDrop(service *types.ServiceConfig)
 	CheckCgroupParent(service *types.ServiceConfig)
+	CheckCPUCount(service *types.ServiceConfig)
+	CheckCPUPercent(service *types.ServiceConfig)
+	CheckCPUPeriod(service *types.ServiceConfig)
 	CheckCPUQuota(service *types.ServiceConfig)
+	CheckCPURTRuntime(service *types.ServiceConfig)
+	CheckCPURTPeriod(service *types.ServiceConfig)
+	CheckCPUs(service *types.ServiceConfig)
 	CheckCPUSet(service *types.ServiceConfig)
 	CheckCPUShares(service *types.ServiceConfig)
 	CheckCommand(service *types.ServiceConfig)
@@ -76,6 +85,8 @@ type Checker interface {
 	CheckOomKillDisable(service *types.ServiceConfig)
 	CheckOomScoreAdj(service *types.ServiceConfig)
 	CheckPid(service *types.ServiceConfig)
+	CheckPidLimit(service *types.ServiceConfig)
+	CheckPlatform(service *types.ServiceConfig)
 	CheckPortsMode(p *types.ServicePortConfig)
 	CheckPortsTarget(p *types.ServicePortConfig)
 	CheckPortsPublished(p *types.ServicePortConfig)
@@ -83,6 +94,8 @@ type Checker interface {
 	CheckPrivileged(service *types.ServiceConfig)
 	CheckReadOnly(service *types.ServiceConfig)
 	CheckRestart(service *types.ServiceConfig)
+	CheckRuntime(service *types.ServiceConfig)
+	CheckScale(service *types.ServiceConfig)
 	CheckSecrets(service *types.ServiceConfig)
 	CheckFileReferenceSource(s string, config *types.FileReferenceConfig)
 	CheckFileReferenceTarget(s string, config *types.FileReferenceConfig)
@@ -189,6 +202,7 @@ func Check(project *types.Project, c Checker) {
 }
 
 func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
+	c.CheckBlkioConfig(service)
 	if service.Build != nil && c.CheckBuild(service) {
 		c.CheckBuildArgs(service.Build)
 		c.CheckBuildLabels(service.Build)
@@ -199,7 +213,13 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 	c.CheckCapAdd(service)
 	c.CheckCapDrop(service)
 	c.CheckCgroupParent(service)
+	c.CheckCPUCount(service)
+	c.CheckCPUPercent(service)
+	c.CheckCPUPeriod(service)
 	c.CheckCPUQuota(service)
+	c.CheckCPURTPeriod(service)
+	c.CheckCPURTRuntime(service)
+	c.CheckCPUs(service)
 	c.CheckCPUSet(service)
 	c.CheckCPUShares(service)
 	c.CheckCommand(service)
@@ -297,6 +317,8 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 	c.CheckOomKillDisable(service)
 	c.CheckOomScoreAdj(service)
 	c.CheckPid(service)
+	c.CheckPidLimit(service)
+	c.CheckPlatform(service)
 	if len(service.Ports) > 0 && c.CheckPorts(service) {
 		for i, p := range service.Ports {
 			c.CheckPortsMode(&p)
@@ -309,6 +331,8 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 	c.CheckPrivileged(service)
 	c.CheckReadOnly(service)
 	c.CheckRestart(service)
+	c.CheckRuntime(service)
+	c.CheckScale(service)
 	c.CheckSecrets(service)
 	c.CheckSecurityOpt(service)
 	c.CheckShmSize(service)

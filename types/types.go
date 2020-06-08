@@ -78,10 +78,17 @@ type ServiceConfig struct {
 	Name string `yaml:"-" json:"-"`
 
 	Build           *BuildConfig                     `yaml:",omitempty" json:"build,omitempty"`
+	BlkioConfig     string                           `yaml:",omitempty" json:"blkio_config,omitempty"`
 	CapAdd          []string                         `mapstructure:"cap_add" yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
 	CapDrop         []string                         `mapstructure:"cap_drop" yaml:"cap_drop,omitempty" json:"cap_drop,omitempty"`
 	CgroupParent    string                           `mapstructure:"cgroup_parent" yaml:"cgroup_parent,omitempty" json:"cgroup_parent,omitempty"`
+	CPUCount        int64                            `mapstructure:"cpu_count" yaml:"cpu_count,omitempty" json:"cpu_count,omitempty"`
+	CPUPercent      float32                          `mapstructure:"cpu_percent" yaml:"cpu_percent,omitempty" json:"cpu_percent,omitempty"`
+	CPUPeriod       int64                            `mapstructure:"cpu_period" yaml:"cpu_period,omitempty" json:"cpu_period,omitempty"`
 	CPUQuota        int64                            `mapstructure:"cpu_quota" yaml:"cpu_quota,omitempty" json:"cpu_quota,omitempty"`
+	CPURTPeriod     int64                            `mapstructure:"cpu_rt_period" yaml:"cpu_rt_period,omitempty" json:"cpu_rt_period,omitempty"`
+	CPURTRuntime    int64                            `mapstructure:"cpu_rt_runtime" yaml:"cpu_rt_runtime,omitempty" json:"cpu_rt_runtime,omitempty"`
+	CPUS            float32                          `mapstructure:"cpus" yaml:"cpus,omitempty" json:"cpus,omitempty"`
 	CPUSet          string                           `mapstructure:"cpuset" yaml:"cpuset,omitempty" json:"cpuset,omitempty"`
 	CPUShares       int64                            `mapstructure:"cpu_shares" yaml:"cpu_shares,omitempty" json:"cpu_shares,omitempty"`
 	Command         ShellCommand                     `yaml:",omitempty" json:"command,omitempty"`
@@ -126,10 +133,14 @@ type ServiceConfig struct {
 	OomKillDisable  bool                             `mapstructure:"oom_kill_disable" yaml:"oom_kill_disable,omitempty" json:"oom_kill_disable,omitempty"`
 	OomScoreAdj     int64                            `mapstructure:"oom_score_adj" yaml:"oom_score_adj,omitempty" json:"oom_score_adj,omitempty"`
 	Pid             string                           `yaml:",omitempty" json:"pid,omitempty"`
+	PidLimit        int64                            `mapstructure:"pid_limit" yaml:"pid_limit,omitempty" json:"pid_limit,omitempty"`
+	Platform        string                           `yaml:",omitempty" json:"platform,omitempty"`
 	Ports           []ServicePortConfig              `yaml:",omitempty" json:"ports,omitempty"`
 	Privileged      bool                             `yaml:",omitempty" json:"privileged,omitempty"`
 	ReadOnly        bool                             `mapstructure:"read_only" yaml:"read_only,omitempty" json:"read_only,omitempty"`
 	Restart         string                           `yaml:",omitempty" json:"restart,omitempty"`
+	Runtime         string                           `yaml:",omitempty" json:"runtime,omitempty"`
+	Scale           int                              `yaml:",omitempty" json:"scale,omitempty"`
 	Secrets         []ServiceSecretConfig            `yaml:",omitempty" json:"secrets,omitempty"`
 	SecurityOpt     []string                         `mapstructure:"security_opt" yaml:"security_opt,omitempty" json:"security_opt,omitempty"`
 	ShmSize         string                           `mapstructure:"shm_size" yaml:"shm_size,omitempty" json:"shm_size,omitempty"`
@@ -186,6 +197,8 @@ type BuildConfig struct {
 	Args       MappingWithEquals `yaml:",omitempty" json:"args,omitempty"`
 	Labels     Labels            `yaml:",omitempty" json:"labels,omitempty"`
 	CacheFrom  StringList        `mapstructure:"cache_from" yaml:"cache_from,omitempty" json:"cache_from,omitempty"`
+	ExtraHosts HostsList         `mapstructure:"extra_hosts" yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
+	Isolation  string            `yaml:",omitempty" json:"isolation,omitempty"`
 	Network    string            `yaml:",omitempty" json:"network,omitempty"`
 	Target     string            `yaml:",omitempty" json:"target,omitempty"`
 
