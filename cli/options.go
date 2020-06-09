@@ -36,8 +36,8 @@ type ProjectOptions struct {
 	Name        string
 }
 
-// SupportedFilenames defines the supported Compose file names for auto-discovery (in order of preference)
-var SupportedFilenames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
+// DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
+var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
 
 const (
 	ComposeProjectName   = "COMPOSE_PROJECT_NAME"
@@ -105,7 +105,7 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 
 	for {
 		candidates := []string{}
-		for _, n := range SupportedFilenames {
+		for _, n := range DefaultFileNames {
 			f := filepath.Join(pwd, n)
 			if _, err := os.Stat(f); err == nil {
 				candidates = append(candidates, f)
