@@ -27,7 +27,7 @@ import (
 
 func TestWhiteList(t *testing.T) {
 	var checker Checker = customChecker{
-		&WhiteList{
+		&AllowList{
 			Supported: []string{
 				"services.network_mode",
 				"services.privileged",
@@ -68,7 +68,7 @@ services:
 }
 
 type customChecker struct {
-	*WhiteList
+	*AllowList
 }
 
 func (c customChecker) CheckNetworkMode(service *types.ServiceConfig) {

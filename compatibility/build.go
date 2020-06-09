@@ -18,7 +18,7 @@ package compatibility
 
 import "github.com/compose-spec/compose-go/types"
 
-func (c *WhiteList) CheckBuild(service *types.ServiceConfig) bool {
+func (c *AllowList) CheckBuild(service *types.ServiceConfig) bool {
 	if !c.supported("services.build") && service.Build != nil {
 		service.Build = nil
 		c.error("services.build")
@@ -27,49 +27,49 @@ func (c *WhiteList) CheckBuild(service *types.ServiceConfig) bool {
 	return true
 }
 
-func (c *WhiteList) CheckBuildArgs(build *types.BuildConfig) {
+func (c *AllowList) CheckBuildArgs(build *types.BuildConfig) {
 	if !c.supported("services.build.args") && len(build.Args) != 0 {
 		build.Args = nil
 		c.error("services.build.args")
 	}
 }
 
-func (c *WhiteList) CheckBuildLabels(build *types.BuildConfig) {
+func (c *AllowList) CheckBuildLabels(build *types.BuildConfig) {
 	if !c.supported("services.build.labels") && len(build.Labels) != 0 {
 		build.Labels = nil
 		c.error("services.build.labels")
 	}
 }
 
-func (c *WhiteList) CheckBuildCacheFrom(build *types.BuildConfig) {
+func (c *AllowList) CheckBuildCacheFrom(build *types.BuildConfig) {
 	if !c.supported("services.build.cache_from") && len(build.CacheFrom) != 0 {
 		build.CacheFrom = nil
 		c.error("services.build.cache_from")
 	}
 }
 
-func (c *WhiteList) CheckBuildExtraHosts(build *types.BuildConfig) {
+func (c *AllowList) CheckBuildExtraHosts(build *types.BuildConfig) {
 	if !c.supported("services.build.extra_hosts") && len(build.ExtraHosts) != 0 {
 		build.ExtraHosts = nil
 		c.error("services.build.extra_hosts")
 	}
 }
 
-func (c *WhiteList) CheckBuildIsolation(build *types.BuildConfig) {
+func (c *AllowList) CheckBuildIsolation(build *types.BuildConfig) {
 	if !c.supported("services.build.isolation") && build.Isolation != "" {
 		build.Isolation = ""
 		c.error("services.build.isolation")
 	}
 }
 
-func (c *WhiteList) CheckBuildNetwork(build *types.BuildConfig) {
+func (c *AllowList) CheckBuildNetwork(build *types.BuildConfig) {
 	if !c.supported("services.build.network") && build.Network != "" {
 		build.Network = ""
 		c.error("services.build.network")
 	}
 }
 
-func (c *WhiteList) CheckBuildTarget(build *types.BuildConfig) {
+func (c *AllowList) CheckBuildTarget(build *types.BuildConfig) {
 	if !c.supported("services.build.target") && build.Target != "" {
 		build.Target = ""
 		c.error("services.build.target")
