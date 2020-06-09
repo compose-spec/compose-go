@@ -18,7 +18,7 @@ package compatibility
 
 import "github.com/compose-spec/compose-go/types"
 
-func (c *WhiteList) CheckNetworkConfig(network *types.NetworkConfig) {
+func (c *AllowList) CheckNetworkConfig(network *types.NetworkConfig) {
 	c.CheckNetworkConfigDriver(network)
 	c.CheckNetworkConfigDriverOpts(network)
 	c.CheckNetworkConfigIpam(network)
@@ -28,21 +28,21 @@ func (c *WhiteList) CheckNetworkConfig(network *types.NetworkConfig) {
 	c.CheckNetworkConfigLabels(network)
 }
 
-func (c *WhiteList) CheckNetworkConfigDriver(config *types.NetworkConfig) {
+func (c *AllowList) CheckNetworkConfigDriver(config *types.NetworkConfig) {
 	if !c.supported("networks.driver") && config.Driver != "" {
 		config.Driver = ""
 		c.error("networks.driver")
 	}
 }
 
-func (c *WhiteList) CheckNetworkConfigDriverOpts(config *types.NetworkConfig) {
+func (c *AllowList) CheckNetworkConfigDriverOpts(config *types.NetworkConfig) {
 	if !c.supported("networks.driver_opts") && len(config.DriverOpts) != 0 {
 		config.DriverOpts = nil
 		c.error("networks.driver_opts")
 	}
 }
 
-func (c *WhiteList) CheckNetworkConfigIpam(config *types.NetworkConfig) {
+func (c *AllowList) CheckNetworkConfigIpam(config *types.NetworkConfig) {
 	c.CheckNetworkConfigIpamDriver(&config.Ipam)
 	if len(config.Ipam.Config) != 0 {
 		if !c.supported("networks.ipam.config") {
@@ -55,14 +55,14 @@ func (c *WhiteList) CheckNetworkConfigIpam(config *types.NetworkConfig) {
 	}
 }
 
-func (c *WhiteList) CheckNetworkConfigIpamDriver(config *types.IPAMConfig) {
+func (c *AllowList) CheckNetworkConfigIpamDriver(config *types.IPAMConfig) {
 	if !c.supported("networks.ipam.driver") && config.Driver != "" {
 		config.Driver = ""
 		c.error("networks.ipam.driver")
 	}
 }
 
-func (c *WhiteList) CheckNetworkConfigIpamSubnet(config *types.IPAMPool) {
+func (c *AllowList) CheckNetworkConfigIpamSubnet(config *types.IPAMPool) {
 	if !c.supported("networks.ipam.config.subnet") && config.Subnet != "" {
 		config.Subnet = ""
 		c.error("networks.ipam.config.subnet")
@@ -70,28 +70,28 @@ func (c *WhiteList) CheckNetworkConfigIpamSubnet(config *types.IPAMPool) {
 
 }
 
-func (c *WhiteList) CheckNetworkConfigExternal(config *types.NetworkConfig) {
+func (c *AllowList) CheckNetworkConfigExternal(config *types.NetworkConfig) {
 	if !c.supported("networks.external") && config.External.External {
 		config.External.External = false
 		c.error("networks.external")
 	}
 }
 
-func (c *WhiteList) CheckNetworkConfigInternal(config *types.NetworkConfig) {
+func (c *AllowList) CheckNetworkConfigInternal(config *types.NetworkConfig) {
 	if !c.supported("networks.internal") && config.Internal {
 		config.Internal = false
 		c.error("networks.internal")
 	}
 }
 
-func (c *WhiteList) CheckNetworkConfigAttachable(config *types.NetworkConfig) {
+func (c *AllowList) CheckNetworkConfigAttachable(config *types.NetworkConfig) {
 	if !c.supported("networks.attachable") && config.Attachable {
 		config.Attachable = false
 		c.error("networks.attachable")
 	}
 }
 
-func (c *WhiteList) CheckNetworkConfigLabels(config *types.NetworkConfig) {
+func (c *AllowList) CheckNetworkConfigLabels(config *types.NetworkConfig) {
 	if !c.supported("networks.labels") && len(config.Labels) != 0 {
 		config.Labels = nil
 		c.error("networks.labels")

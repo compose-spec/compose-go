@@ -23,17 +23,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-// WhiteList implement Checker interface by rejecting all attributes but those listed in a whitelist.
-type WhiteList struct {
+// AllowList implement Checker interface by rejecting all attributes but those listed as "supported".
+type AllowList struct {
 	Supported []string
 	errors    []error
 }
 
-func (c *WhiteList) Errors() []error {
+func (c *AllowList) Errors() []error {
 	return c.errors
 }
 
-func (c *WhiteList) supported(attributes ...string) bool {
+func (c *AllowList) supported(attributes ...string) bool {
 	for _, a := range attributes {
 		for _, s := range c.Supported {
 			if s == a {
@@ -44,6 +44,6 @@ func (c *WhiteList) supported(attributes ...string) bool {
 	return false
 }
 
-func (c *WhiteList) error(message string, args ...interface{}) {
+func (c *AllowList) error(message string, args ...interface{}) {
 	c.errors = append(c.errors, errors.Wrap(errdefs.ErrUnsupported, fmt.Sprintf(message, args...)))
 }

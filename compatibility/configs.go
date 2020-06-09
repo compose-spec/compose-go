@@ -22,7 +22,7 @@ import (
 	"github.com/compose-spec/compose-go/types"
 )
 
-func (c *WhiteList) CheckFileObjectConfigFile(s string, config *types.FileObjectConfig) {
+func (c *AllowList) CheckFileObjectConfigFile(s string, config *types.FileObjectConfig) {
 	k := fmt.Sprintf("%s.file", s)
 	if !c.supported(k) && config.File != "" {
 		config.File = ""
@@ -30,7 +30,7 @@ func (c *WhiteList) CheckFileObjectConfigFile(s string, config *types.FileObject
 	}
 }
 
-func (c *WhiteList) CheckFileObjectConfigExternal(s string, config *types.FileObjectConfig) {
+func (c *AllowList) CheckFileObjectConfigExternal(s string, config *types.FileObjectConfig) {
 	k := fmt.Sprintf("%s.external", s)
 	if !c.supported(k) && config.External.External {
 		config.External.External = false
@@ -38,7 +38,7 @@ func (c *WhiteList) CheckFileObjectConfigExternal(s string, config *types.FileOb
 	}
 }
 
-func (c *WhiteList) CheckFileObjectConfigLabels(s string, config *types.FileObjectConfig) {
+func (c *AllowList) CheckFileObjectConfigLabels(s string, config *types.FileObjectConfig) {
 	k := fmt.Sprintf("%s.labels", s)
 	if !c.supported(k) && len(config.Labels) != 0 {
 		config.Labels = nil
@@ -46,7 +46,7 @@ func (c *WhiteList) CheckFileObjectConfigLabels(s string, config *types.FileObje
 	}
 }
 
-func (c *WhiteList) CheckFileObjectConfigDriver(s string, config *types.FileObjectConfig) {
+func (c *AllowList) CheckFileObjectConfigDriver(s string, config *types.FileObjectConfig) {
 	k := fmt.Sprintf("%s.driver", s)
 	if !c.supported(k) && config.Driver != "" {
 		config.Driver = ""
@@ -54,7 +54,7 @@ func (c *WhiteList) CheckFileObjectConfigDriver(s string, config *types.FileObje
 	}
 }
 
-func (c *WhiteList) CheckFileObjectConfigDriverOpts(s string, config *types.FileObjectConfig) {
+func (c *AllowList) CheckFileObjectConfigDriverOpts(s string, config *types.FileObjectConfig) {
 	k := fmt.Sprintf("%s.driver_opts", s)
 	if !c.supported(k) && len(config.DriverOpts) != 0 {
 		config.DriverOpts = nil
@@ -62,7 +62,7 @@ func (c *WhiteList) CheckFileObjectConfigDriverOpts(s string, config *types.File
 	}
 }
 
-func (c *WhiteList) CheckFileObjectConfigTemplateDriver(s string, config *types.FileObjectConfig) {
+func (c *AllowList) CheckFileObjectConfigTemplateDriver(s string, config *types.FileObjectConfig) {
 	k := fmt.Sprintf("%s.template_driver", s)
 	if !c.supported(k) && config.TemplateDriver != "" {
 		config.TemplateDriver = ""
