@@ -25,7 +25,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestWhiteList(t *testing.T) {
+func TestAllowList(t *testing.T) {
 	var checker Checker = customChecker{
 		&AllowList{
 			Supported: []string{

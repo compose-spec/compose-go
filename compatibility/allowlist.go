@@ -23,12 +23,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-// AllowList implement Checker interface by rejecting all attributes but those listed as "supported".
+// AllowList implements the Checker interface by rejecting all attributes that are not listed as "supported".
 type AllowList struct {
 	Supported []string
 	errors    []error
 }
 
+// Errors returns the list of errors encountered when checking against the allow list
 func (c *AllowList) Errors() []error {
 	return c.errors
 }
