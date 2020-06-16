@@ -23,10 +23,9 @@ import (
 	"strings"
 
 	"github.com/compose-spec/compose-go/errdefs"
-	"github.com/pkg/errors"
-
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -115,7 +114,7 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 			winner := candidates[0]
 			if len(candidates) > 1 {
 				logrus.Warnf("Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
-				logrus.Warnf("Using %s\n", winner)
+				logrus.Warnf("Using %s", winner)
 			}
 			return []string{winner}, nil
 		}

@@ -23,7 +23,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func Test_project_name(t *testing.T) {
+func TestProjectName(t *testing.T) {
 	p, err := ProjectFromOptions(&ProjectOptions{
 		Name:        "my_project",
 		ConfigPaths: []string{"testdata/simple/compose.yaml"},
@@ -38,6 +38,7 @@ func Test_project_name(t *testing.T) {
 	assert.Equal(t, p.Name, "simple")
 
 	os.Setenv("COMPOSE_PROJECT_NAME", "my_project_from_env")
+	defer os.Unsetenv("COMPOSE_PROJECT_NAME")
 	p, err = ProjectFromOptions(&ProjectOptions{
 		ConfigPaths: []string{"testdata/simple/compose.yaml"},
 	})
@@ -45,7 +46,7 @@ func Test_project_name(t *testing.T) {
 	assert.Equal(t, p.Name, "my_project_from_env")
 }
 
-func Test_project_from_set_of_files(t *testing.T) {
+func TestProjectFromSetOfFiles(t *testing.T) {
 	p, err := ProjectFromOptions(&ProjectOptions{
 		Name: "my_project",
 		ConfigPaths: []string{
