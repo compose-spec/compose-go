@@ -45,6 +45,6 @@ func (c *AllowList) supported(attributes ...string) bool {
 	return false
 }
 
-func (c *AllowList) error(message string, args ...interface{}) {
+func (c *AllowList) Error(message string, args ...interface{}) {
 	c.errors = append(c.errors, errors.Wrap(errdefs.ErrUnsupported, fmt.Sprintf(message, args...)))
 }

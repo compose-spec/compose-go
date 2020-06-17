@@ -31,14 +31,14 @@ func (c *AllowList) CheckNetworkConfig(network *types.NetworkConfig) {
 func (c *AllowList) CheckNetworkConfigDriver(config *types.NetworkConfig) {
 	if !c.supported("networks.driver") && config.Driver != "" {
 		config.Driver = ""
-		c.error("networks.driver")
+		c.Error("networks.driver")
 	}
 }
 
 func (c *AllowList) CheckNetworkConfigDriverOpts(config *types.NetworkConfig) {
 	if !c.supported("networks.driver_opts") && len(config.DriverOpts) != 0 {
 		config.DriverOpts = nil
-		c.error("networks.driver_opts")
+		c.Error("networks.driver_opts")
 	}
 }
 
@@ -46,7 +46,7 @@ func (c *AllowList) CheckNetworkConfigIpam(config *types.NetworkConfig) {
 	c.CheckNetworkConfigIpamDriver(&config.Ipam)
 	if len(config.Ipam.Config) != 0 {
 		if !c.supported("networks.ipam.config") {
-			c.error("networks.ipam.config")
+			c.Error("networks.ipam.config")
 			return
 		}
 		for _, p := range config.Ipam.Config {
@@ -58,14 +58,14 @@ func (c *AllowList) CheckNetworkConfigIpam(config *types.NetworkConfig) {
 func (c *AllowList) CheckNetworkConfigIpamDriver(config *types.IPAMConfig) {
 	if !c.supported("networks.ipam.driver") && config.Driver != "" {
 		config.Driver = ""
-		c.error("networks.ipam.driver")
+		c.Error("networks.ipam.driver")
 	}
 }
 
 func (c *AllowList) CheckNetworkConfigIpamSubnet(config *types.IPAMPool) {
 	if !c.supported("networks.ipam.config.subnet") && config.Subnet != "" {
 		config.Subnet = ""
-		c.error("networks.ipam.config.subnet")
+		c.Error("networks.ipam.config.subnet")
 	}
 
 }
@@ -73,27 +73,27 @@ func (c *AllowList) CheckNetworkConfigIpamSubnet(config *types.IPAMPool) {
 func (c *AllowList) CheckNetworkConfigExternal(config *types.NetworkConfig) {
 	if !c.supported("networks.external") && config.External.External {
 		config.External.External = false
-		c.error("networks.external")
+		c.Error("networks.external")
 	}
 }
 
 func (c *AllowList) CheckNetworkConfigInternal(config *types.NetworkConfig) {
 	if !c.supported("networks.internal") && config.Internal {
 		config.Internal = false
-		c.error("networks.internal")
+		c.Error("networks.internal")
 	}
 }
 
 func (c *AllowList) CheckNetworkConfigAttachable(config *types.NetworkConfig) {
 	if !c.supported("networks.attachable") && config.Attachable {
 		config.Attachable = false
-		c.error("networks.attachable")
+		c.Error("networks.attachable")
 	}
 }
 
 func (c *AllowList) CheckNetworkConfigLabels(config *types.NetworkConfig) {
 	if !c.supported("networks.labels") && len(config.Labels) != 0 {
 		config.Labels = nil
-		c.error("networks.labels")
+		c.Error("networks.labels")
 	}
 }
