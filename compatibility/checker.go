@@ -324,7 +324,7 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 			c.CheckPortsMode(&p)
 			c.CheckPortsTarget(&p)
 			c.CheckPortsProtocol(&p)
-			c.CheckPortsProtocol(&p)
+			c.CheckPortsPublished(&p)
 			service.Ports[i] = p
 		}
 	}
