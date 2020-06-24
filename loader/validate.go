@@ -33,8 +33,11 @@ func checkConsistency(project *types.Project) error {
 			}
 		}
 		for _, volume := range s.Volumes {
-			if _, ok := project.Volumes[volume.Source]; !ok {
-				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined volume %s", s.Name, volume.Source))
+			switch volume.Type {
+			case types.VolumeTypeVolume:
+				if _, ok := project.Volumes[volume.Source]; !ok {
+					return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined volume %s", s.Name, volume.Source))
+				}
 			}
 		}
 		for _, secret := range s.Secrets {
