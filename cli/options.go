@@ -17,6 +17,7 @@
 package cli
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -33,9 +34,26 @@ import (
 // ProjectOptions groups the command line options recommended for a Compose implementation
 type ProjectOptions struct {
 	Name        string
-	WorkingDir     string
+	WorkingDir  string
 	ConfigPaths []string
 	Environment []string
+}
+
+// WithOsEnv imports environment variables from OS until those have been overridden by ProjectOptions.Environment
+func (o ProjectOptions) WithOsEnv() ProjectOptions {
+	env := getAsEqualsMap(o.Environment)
+	for k, v := range getAsEqualsMap(os.Environ()) {
+		if _, ok := env[k]; !ok {
+			env[k] = v
+		}
+	}
+
+	return ProjectOptions{
+		Name:        o.Name,
+		WorkingDir:  o.WorkingDir,
+		ConfigPaths: o.ConfigPaths,
+		Environment: getAsStringList(env),
+	}
 }
 
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
@@ -75,7 +93,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 
 	return loader.Load(types.ConfigDetails{
 		ConfigFiles: configs,
-		WorkingDir: workingDir,
+		WorkingDir:  workingDir,
 		Environment: getAsEqualsMap(options.Environment),
 	}, func(opts *loader.Options) {
 		if options.Name != "" {
@@ -181,6 +199,15 @@ func getAsEqualsMap(em []string) map[string]string {
 	for _, v := range em {
 		kv := strings.SplitN(v, "=", 2)
 		m[kv[0]] = kv[1]
+	}
+	return m
+}
+
+// getAsEqualsMap format a key : value map into key=value strings
+func getAsStringList(em map[string]string) []string {
+	m := make([]string, 0, len(em))
+	for k, v := range em {
+		m = append(m, fmt.Sprintf("%s=%s", k, v))
 	}
 	return m
 }
