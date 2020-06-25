@@ -22,7 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -88,24 +87,12 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		return nil, errors.Errorf("No files specified")
 	}
 
-	workingDir := configDetails.WorkingDir
-	if workingDir == "" {
-		for _, path := range configDetails.ConfigFiles {
-			if path.Filename != "-" {
-				workingDir = filepath.Dir(path.Filename)
-				break
-			}
-		}
-	}
-
 	opts := &Options{
 		Interpolate: &interp.Options{
 			Substitute:      template.Substitute,
 			LookupValue:     configDetails.LookupEnv,
 			TypeCastMapping: interpolateTypeCastMapping,
 		},
-		Name: regexp.MustCompile(`[^a-z0-9\\-_]+`).
-			ReplaceAllString(strings.ToLower(filepath.Base(workingDir)), ""),
 	}
 
 	for _, op := range options {
@@ -113,8 +100,6 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	configs := []*types.Config{}
-	var err error
-
 	for _, file := range configDetails.ConfigFiles {
 		configDict := file.Config
 		version := schema.Version(configDict)
@@ -126,6 +111,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		}
 
 		if !opts.SkipInterpolation {
+			var err error
 			configDict, err = interpolateConfig(configDict, *opts.Interpolate)
 			if err != nil {
 				return nil, err
@@ -161,7 +147,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 	project := &types.Project{
 		Name:       opts.Name,
-		WorkingDir: workingDir,
+		WorkingDir: configDetails.WorkingDir,
 		Services:   model.Services,
 		Networks:   model.Networks,
 		Volumes:    model.Volumes,

@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/compose-spec/compose-go/errdefs"
@@ -31,8 +32,10 @@ import (
 
 // ProjectOptions groups the command line options recommended for a Compose implementation
 type ProjectOptions struct {
-	ConfigPaths []string
 	Name        string
+	WorkingDir     string
+	ConfigPaths []string
+	Environment []string
 }
 
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
@@ -56,14 +59,32 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		return nil, err
 	}
 
+	workingDir := options.WorkingDir
+	if workingDir == "" {
+		for _, path := range options.ConfigPaths {
+			if path != "-" {
+				absPath, err := filepath.Abs(path)
+				if err != nil {
+					return nil, err
+				}
+				workingDir = filepath.Dir(absPath)
+				break
+			}
+		}
+	}
+
 	return loader.Load(types.ConfigDetails{
 		ConfigFiles: configs,
-		Environment: environment(),
+		WorkingDir: workingDir,
+		Environment: getAsEqualsMap(options.Environment),
 	}, func(opts *loader.Options) {
 		if options.Name != "" {
 			opts.Name = options.Name
 		} else if nameFromEnv, ok := os.LookupEnv(ComposeProjectName); ok {
 			opts.Name = nameFromEnv
+		} else {
+			opts.Name = regexp.MustCompile(`[^a-z0-9\\-_]+`).
+				ReplaceAllString(strings.ToLower(filepath.Base(workingDir)), "")
 		}
 	})
 }
@@ -71,9 +92,13 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 // getConfigPathsFromOptions retrieves the config files for project based on project options
 func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 	paths := []string{}
-	pwd, err := os.Getwd()
-	if err != nil {
-		return nil, err
+	pwd := options.WorkingDir
+	if pwd == "" {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		pwd = wd
 	}
 
 	if len(options.ConfigPaths) != 0 {
@@ -148,10 +173,6 @@ func parseConfigs(configPaths []string) ([]types.ConfigFile, error) {
 		files = append(files, types.ConfigFile{Filename: f, Config: config})
 	}
 	return files, nil
-}
-
-func environment() map[string]string {
-	return getAsEqualsMap(os.Environ())
 }
 
 // getAsEqualsMap split key=value formatted strings into a key : value map

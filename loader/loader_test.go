@@ -645,7 +645,7 @@ networks:
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	expected := &types.Project{
-		Name:       "loader",
+		Name:       "",
 		WorkingDir: workingDir,
 		Services: []types.ServiceConfig{
 			{
@@ -1466,7 +1466,7 @@ networks:
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	expected := &types.Project{
-		Name:       "loader",
+		Name:       "",
 		WorkingDir: workingDir,
 		Services: types.Services{
 			{
@@ -1629,7 +1629,7 @@ secrets:
 	assert.NilError(t, err)
 
 	expected := &types.Project{
-		Name:       "loader",
+		Name:       "",
 		WorkingDir: workingDir,
 		Services: types.Services{
 			{
@@ -1695,7 +1695,7 @@ secrets:
 	assert.NilError(t, err)
 
 	expected := &types.Project{
-		Name:       "loader",
+		Name:       "",
 		WorkingDir: workingDir,
 		Services: types.Services{
 			{
