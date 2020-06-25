@@ -228,7 +228,7 @@ func TestLoadLogging(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
-				WorkingDir: ".",
+				WorkingDir: "",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -354,7 +354,7 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
-				WorkingDir: ".",
+				WorkingDir: "",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -480,7 +480,7 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
-				WorkingDir: ".",
+				WorkingDir: "",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -606,7 +606,7 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
-				WorkingDir: ".",
+				WorkingDir: "",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -722,7 +722,7 @@ func TestLoadMultipleUlimits(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
-				WorkingDir: ".",
+				WorkingDir: "",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -841,7 +841,7 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 			assert.NilError(t, err)
 			assert.DeepEqual(t, &types.Project{
 				Name:       "",
-				WorkingDir: ".",
+				WorkingDir: "",
 				Services: []types.ServiceConfig{
 					{
 						Name:        "foo",
@@ -929,7 +929,7 @@ func TestLoadMultipleConfigs(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, &types.Project{
 		Name:       "",
-		WorkingDir: ".",
+		WorkingDir: "",
 		Services: []types.ServiceConfig{
 			{
 				Name:        "bar",
@@ -1022,7 +1022,7 @@ func TestLoadMultipleNetworks(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, &types.Project{
 		Name:       "",
-		WorkingDir: ".",
+		WorkingDir: "",
 		Services: []types.ServiceConfig{
 			{
 				Name:        "foo",
