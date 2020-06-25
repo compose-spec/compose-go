@@ -59,3 +59,12 @@ func TestProjectFromSetOfFiles(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, service.Image, "haproxy")
 }
+
+func TestEnvMap(t *testing.T) {
+	m := map[string]string{}
+	m["foo"] = "bar"
+	l := getAsStringList(m)
+	assert.Equal(t, l[0], "foo=bar")
+	m = getAsEqualsMap(l)
+	assert.Equal(t, m["foo"], "bar")
+}
