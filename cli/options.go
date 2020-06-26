@@ -27,6 +27,7 @@ import (
 	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
+	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -56,6 +57,35 @@ func (o ProjectOptions) WithOsEnv() ProjectOptions {
 	}
 }
 
+// WithDotEnv imports environment variables from .env file until those have been overridden by ProjectOptions.Environment
+func (o ProjectOptions) WithDotEnv() (ProjectOptions, error) {
+	dir, err := o.GetWorkingDir()
+	if err != nil {
+		return o, err
+	}
+	dotEnvFile := filepath.Join(dir, ".env")
+	if _, err := os.Stat(dotEnvFile); os.IsNotExist(err) {
+		return o, nil
+	}
+	file, err := os.Open(dotEnvFile)
+	if err != nil {
+		return o, err
+	}
+	defer file.Close()
+
+	env, err := godotenv.Parse(file)
+	if err != nil {
+		return o, err
+	}
+
+	return ProjectOptions{
+		Name:        o.Name,
+		WorkingDir:  o.WorkingDir,
+		ConfigPaths: o.ConfigPaths,
+		Environment: getAsStringList(env),
+	}, nil
+}
+
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
 var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
 
@@ -64,6 +94,22 @@ const (
 	ComposeFileSeparator = "COMPOSE_FILE_SEPARATOR"
 	ComposeFilePath      = "COMPOSE_FILE"
 )
+
+func (o ProjectOptions) GetWorkingDir() (string, error) {
+	if o.WorkingDir != "" {
+		return o.WorkingDir, nil
+	}
+	for _, path := range o.ConfigPaths {
+		if path != "-" {
+			absPath, err := filepath.Abs(path)
+			if err != nil {
+				return "", err
+			}
+			return filepath.Dir(absPath), nil
+		}
+	}
+	return os.Getwd()
+}
 
 // ProjectFromOptions load a compose project based on command line options
 func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
@@ -77,18 +123,9 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		return nil, err
 	}
 
-	workingDir := options.WorkingDir
-	if workingDir == "" {
-		for _, path := range options.ConfigPaths {
-			if path != "-" {
-				absPath, err := filepath.Abs(path)
-				if err != nil {
-					return nil, err
-				}
-				workingDir = filepath.Dir(absPath)
-				break
-			}
-		}
+	workingDir, err := options.GetWorkingDir()
+	if err != nil {
+		return nil, err
 	}
 
 	return loader.Load(types.ConfigDetails{
