@@ -60,6 +60,21 @@ func TestProjectFromSetOfFiles(t *testing.T) {
 	assert.Equal(t, service.Image, "haproxy")
 }
 
+func TestProjectWithDotEnv(t *testing.T) {
+	options, err := ProjectOptions{
+		Name: "my_project",
+		ConfigPaths: []string{
+			"testdata/simple/compose-with-variables.yaml",
+		},
+	}.WithDotEnv()
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(&options)
+	assert.NilError(t, err)
+	service, err := p.GetService("simple")
+	assert.NilError(t, err)
+	assert.Equal(t, service.Ports[0].Published, uint32(8000))
+}
+
 func TestEnvMap(t *testing.T) {
 	m := map[string]string{}
 	m["foo"] = "bar"
