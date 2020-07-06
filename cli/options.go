@@ -127,6 +127,10 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 	if err != nil {
 		return nil, err
 	}
+	absWorkingDir, err := filepath.Abs(workingDir)
+	if err != nil {
+		return nil, err
+	}
 
 	return loader.Load(types.ConfigDetails{
 		ConfigFiles: configs,
@@ -139,7 +143,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 			opts.Name = nameFromEnv
 		} else {
 			opts.Name = regexp.MustCompile(`[^a-z0-9\\-_]+`).
-				ReplaceAllString(strings.ToLower(filepath.Base(workingDir)), "")
+				ReplaceAllString(strings.ToLower(filepath.Base(absWorkingDir)), "")
 		}
 	})
 }
