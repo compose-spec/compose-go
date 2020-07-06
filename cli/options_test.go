@@ -32,6 +32,13 @@ func TestProjectName(t *testing.T) {
 	assert.Equal(t, p.Name, "my_project")
 
 	p, err = ProjectFromOptions(&ProjectOptions{
+		WorkingDir:  ".",
+		ConfigPaths: []string{"testdata/simple/compose.yaml"},
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Name, "cli")
+
+	p, err = ProjectFromOptions(&ProjectOptions{
 		ConfigPaths: []string{"testdata/simple/compose.yaml"},
 	})
 	assert.NilError(t, err)
