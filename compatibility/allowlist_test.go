@@ -73,6 +73,6 @@ type customChecker struct {
 
 func (c customChecker) CheckNetworkMode(service *types.ServiceConfig) {
 	if service.NetworkMode == "host" {
-		c.Error("services.network_mode=host")
+		c.Unsupported("services.network_mode=host")
 	}
 }

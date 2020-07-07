@@ -21,27 +21,27 @@ import "github.com/compose-spec/compose-go/types"
 func (c *AllowList) CheckVolumeConfigDriver(config *types.VolumeConfig) {
 	if !c.supported("volumes.driver") && config.Driver != "" {
 		config.Driver = ""
-		c.Error("volumes.driver")
+		c.Unsupported("volumes.driver")
 	}
 }
 
 func (c *AllowList) CheckVolumeConfigDriverOpts(config *types.VolumeConfig) {
 	if !c.supported("volumes.driver_opts") && len(config.DriverOpts) != 0 {
 		config.DriverOpts = nil
-		c.Error("volumes.driver_opts")
+		c.Unsupported("volumes.driver_opts")
 	}
 }
 
 func (c *AllowList) CheckVolumeConfigExternal(config *types.VolumeConfig) {
 	if !c.supported("volumes.external") && config.External.External {
 		config.External.External = false
-		c.Error("volumes.external")
+		c.Unsupported("volumes.external")
 	}
 }
 
 func (c *AllowList) CheckVolumeConfigLabels(config *types.VolumeConfig) {
 	if !c.supported("volumes.labels") && len(config.Labels) != 0 {
 		config.Labels = nil
-		c.Error("volumes.labels")
+		c.Unsupported("volumes.labels")
 	}
 }

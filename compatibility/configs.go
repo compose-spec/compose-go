@@ -26,7 +26,7 @@ func (c *AllowList) CheckFileObjectConfigFile(s string, config *types.FileObject
 	k := fmt.Sprintf("%s.file", s)
 	if !c.supported(k) && config.File != "" {
 		config.File = ""
-		c.Error(k)
+		c.Unsupported(k)
 	}
 }
 
@@ -34,7 +34,7 @@ func (c *AllowList) CheckFileObjectConfigExternal(s string, config *types.FileOb
 	k := fmt.Sprintf("%s.external", s)
 	if !c.supported(k) && config.External.External {
 		config.External.External = false
-		c.Error(k)
+		c.Unsupported(k)
 	}
 }
 
@@ -42,7 +42,7 @@ func (c *AllowList) CheckFileObjectConfigLabels(s string, config *types.FileObje
 	k := fmt.Sprintf("%s.labels", s)
 	if !c.supported(k) && len(config.Labels) != 0 {
 		config.Labels = nil
-		c.Error(k)
+		c.Unsupported(k)
 	}
 }
 
@@ -50,7 +50,7 @@ func (c *AllowList) CheckFileObjectConfigDriver(s string, config *types.FileObje
 	k := fmt.Sprintf("%s.driver", s)
 	if !c.supported(k) && config.Driver != "" {
 		config.Driver = ""
-		c.Error(k)
+		c.Unsupported(k)
 	}
 }
 
@@ -58,7 +58,7 @@ func (c *AllowList) CheckFileObjectConfigDriverOpts(s string, config *types.File
 	k := fmt.Sprintf("%s.driver_opts", s)
 	if !c.supported(k) && len(config.DriverOpts) != 0 {
 		config.DriverOpts = nil
-		c.Error(k)
+		c.Unsupported(k)
 	}
 }
 
@@ -66,6 +66,6 @@ func (c *AllowList) CheckFileObjectConfigTemplateDriver(s string, config *types.
 	k := fmt.Sprintf("%s.template_driver", s)
 	if !c.supported(k) && config.TemplateDriver != "" {
 		config.TemplateDriver = ""
-		c.Error(k)
+		c.Unsupported(k)
 	}
 }
