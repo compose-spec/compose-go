@@ -48,3 +48,7 @@ func (c *AllowList) supported(attributes ...string) bool {
 func (c *AllowList) Error(message string, args ...interface{}) {
 	c.errors = append(c.errors, errors.Wrap(errdefs.ErrUnsupported, fmt.Sprintf(message, args...)))
 }
+
+func (c *AllowList) Incompatible(message string, args ...interface{}) {
+	c.errors = append(c.errors, errors.Wrap(errdefs.ErrIncompatible, fmt.Sprintf(message, args...)))
+}

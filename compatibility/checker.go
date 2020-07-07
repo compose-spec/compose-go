@@ -16,7 +16,10 @@
 
 package compatibility
 
-import "github.com/compose-spec/compose-go/types"
+import (
+	"github.com/compose-spec/compose-go/errdefs"
+	"github.com/compose-spec/compose-go/types"
+)
 
 type Checker interface {
 	Errors() []error
@@ -199,6 +202,16 @@ func Check(project *types.Project, c Checker) {
 		CheckSecretsConfig(&secret, c)
 		project.Secrets[i] = secret
 	}
+}
+
+// IsCompatible return true if the checker didn't reported any incompatibility error
+func IsCompatible(c Checker) bool {
+	for _, err := range c.Errors() {
+		if errdefs.IsIncompatibleError(err) {
+			return false
+		}
+	}
+	return true
 }
 
 func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
