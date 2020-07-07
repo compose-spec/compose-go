@@ -21,7 +21,7 @@ import "github.com/compose-spec/compose-go/types"
 func (c *AllowList) CheckBuild(service *types.ServiceConfig) bool {
 	if !c.supported("services.build") && service.Build != nil {
 		service.Build = nil
-		c.Error("services.build")
+		c.Unsupported("services.build")
 		return false
 	}
 	return true
@@ -30,48 +30,48 @@ func (c *AllowList) CheckBuild(service *types.ServiceConfig) bool {
 func (c *AllowList) CheckBuildArgs(build *types.BuildConfig) {
 	if !c.supported("services.build.args") && len(build.Args) != 0 {
 		build.Args = nil
-		c.Error("services.build.args")
+		c.Unsupported("services.build.args")
 	}
 }
 
 func (c *AllowList) CheckBuildLabels(build *types.BuildConfig) {
 	if !c.supported("services.build.labels") && len(build.Labels) != 0 {
 		build.Labels = nil
-		c.Error("services.build.labels")
+		c.Unsupported("services.build.labels")
 	}
 }
 
 func (c *AllowList) CheckBuildCacheFrom(build *types.BuildConfig) {
 	if !c.supported("services.build.cache_from") && len(build.CacheFrom) != 0 {
 		build.CacheFrom = nil
-		c.Error("services.build.cache_from")
+		c.Unsupported("services.build.cache_from")
 	}
 }
 
 func (c *AllowList) CheckBuildExtraHosts(build *types.BuildConfig) {
 	if !c.supported("services.build.extra_hosts") && len(build.ExtraHosts) != 0 {
 		build.ExtraHosts = nil
-		c.Error("services.build.extra_hosts")
+		c.Unsupported("services.build.extra_hosts")
 	}
 }
 
 func (c *AllowList) CheckBuildIsolation(build *types.BuildConfig) {
 	if !c.supported("services.build.isolation") && build.Isolation != "" {
 		build.Isolation = ""
-		c.Error("services.build.isolation")
+		c.Unsupported("services.build.isolation")
 	}
 }
 
 func (c *AllowList) CheckBuildNetwork(build *types.BuildConfig) {
 	if !c.supported("services.build.network") && build.Network != "" {
 		build.Network = ""
-		c.Error("services.build.network")
+		c.Unsupported("services.build.network")
 	}
 }
 
 func (c *AllowList) CheckBuildTarget(build *types.BuildConfig) {
 	if !c.supported("services.build.target") && build.Target != "" {
 		build.Target = ""
-		c.Error("services.build.target")
+		c.Unsupported("services.build.target")
 	}
 }
