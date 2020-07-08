@@ -68,6 +68,7 @@ type Checker interface {
 	CheckHealthCheckInterval(h *types.HealthCheckConfig)
 	CheckHealthCheckRetries(h *types.HealthCheckConfig)
 	CheckHealthCheckStartPeriod(h *types.HealthCheckConfig)
+	CheckImage(service *types.ServiceConfig)
 	CheckInit(service *types.ServiceConfig)
 	CheckIpc(service *types.ServiceConfig)
 	CheckIsolation(service *types.ServiceConfig)
@@ -302,6 +303,7 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 		c.CheckHealthCheckTest(service.HealthCheck)
 		c.CheckHealthCheckTimeout(service.HealthCheck)
 	}
+	c.CheckImage(service)
 	c.CheckInit(service)
 	c.CheckIpc(service)
 	c.CheckIsolation(service)

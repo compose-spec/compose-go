@@ -29,6 +29,7 @@ func TestAllowList(t *testing.T) {
 	var checker Checker = customChecker{
 		&AllowList{
 			Supported: []string{
+				"services.image",
 				"services.network_mode",
 				"services.privileged",
 				"services.networks",
