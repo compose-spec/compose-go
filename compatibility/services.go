@@ -298,6 +298,13 @@ func (c *AllowList) CheckHealthCheckStartPeriod(h *types.HealthCheckConfig) {
 	}
 }
 
+func (c *AllowList) CheckImage(service *types.ServiceConfig) {
+	if !c.supported("services.image") && service.Image != "" {
+		service.Image = ""
+		c.Unsupported("services.image")
+	}
+}
+
 func (c *AllowList) CheckInit(service *types.ServiceConfig) {
 	if !c.supported("services.init") && service.Init != nil {
 		service.Init = nil
