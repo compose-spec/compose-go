@@ -23,9 +23,9 @@ import (
 )
 
 func (c *AllowList) CheckDeploy(service *types.ServiceConfig) bool {
-	if !c.supported("deploy") && service.Deploy != nil {
+	if !c.supported("services.deploy") && service.Deploy != nil {
 		service.Deploy = nil
-		c.Unsupported("deploy")
+		c.Unsupported("services.deploy")
 		return false
 	}
 	return true
