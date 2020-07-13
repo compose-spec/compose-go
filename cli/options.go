@@ -38,6 +38,7 @@ type ProjectOptions struct {
 	WorkingDir  string
 	ConfigPaths []string
 	Environment map[string]string
+	loadOptions []func(*loader.Options)
 }
 
 type ProjectOptionsFn func(*ProjectOptions) error
@@ -117,6 +118,18 @@ func WithDotEnv(o *ProjectOptions) error {
 	return nil
 }
 
+// WithDiscardEnvFiles sets discards the `env_file` section after resolving to
+// the `environment` section
+func (o ProjectOptions) WithDiscardEnvFile() (ProjectOptions, error) {
+	return ProjectOptions{
+		Name:        o.Name,
+		WorkingDir:  o.WorkingDir,
+		ConfigPaths: o.ConfigPaths,
+		Environment: o.Environment,
+		loadOptions: append(o.loadOptions, loader.WithDiscardEnvFiles),
+	}, nil
+}
+
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
 var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
 
@@ -163,11 +176,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		return nil, err
 	}
 
-	return loader.Load(types.ConfigDetails{
-		ConfigFiles: configs,
-		WorkingDir:  workingDir,
-		Environment: options.Environment,
-	}, func(opts *loader.Options) {
+	var nameLoadOpt = func(opts *loader.Options) {
 		if options.Name != "" {
 			opts.Name = options.Name
 		} else if nameFromEnv, ok := os.LookupEnv(ComposeProjectName); ok {
@@ -176,7 +185,14 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 			opts.Name = regexp.MustCompile(`[^a-z0-9\\-_]+`).
 				ReplaceAllString(strings.ToLower(filepath.Base(absWorkingDir)), "")
 		}
-	})
+	}
+	options.loadOptions = append(options.loadOptions, nameLoadOpt)
+
+	return loader.Load(types.ConfigDetails{
+		ConfigFiles: configs,
+		WorkingDir:  workingDir,
+		Environment: options.Environment,
+	}, options.loadOptions...)
 }
 
 // getConfigPathsFromOptions retrieves the config files for project based on project options
