@@ -112,7 +112,7 @@ func (o ProjectOptions) GetWorkingDir() (string, error) {
 }
 
 // ProjectFromOptions load a compose project based on command line options
-func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
+func ProjectFromOptions(options ProjectOptions) (*types.Project, error) {
 	configPaths, err := getConfigPathsFromOptions(options)
 	if err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 }
 
 // getConfigPathsFromOptions retrieves the config files for project based on project options
-func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
+func getConfigPathsFromOptions(options ProjectOptions) ([]string, error) {
 	paths := []string{}
 	pwd := options.WorkingDir
 	if pwd == "" {
