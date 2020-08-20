@@ -19,9 +19,6 @@ package loader
 import (
 	"fmt"
 	"io/ioutil"
-	"os"
-	"path"
-	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
@@ -432,11 +429,11 @@ func LoadServices(servicesDict map[string]interface{}, workingDir string, lookup
 				// extends a service from same file
 				source = servicesDict[*service]
 			} else {
-				if !filepath.IsAbs(*file) {
-					absolute := filepath.Join(workingDir, *file)
-					file = &absolute
+				absolute, err := ExpandPath(workingDir, *file)
+				if err != nil {
+					return nil, err
 				}
-				bytes, err := ioutil.ReadFile(*file)
+				bytes, err := ioutil.ReadFile(absolute)
 				if err != nil {
 					return nil, err
 				}
@@ -487,7 +484,10 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 
 	if len(serviceConfig.EnvFile) > 0 {
 		for _, file := range serviceConfig.EnvFile {
-			filePath := absPath(workingDir, file)
+			filePath, err := ExpandPath(workingDir, file)
+			if err != nil {
+				return err
+			}
 			fileVars, err := envfile.Parse(filePath)
 			if err != nil {
 				return err
@@ -510,34 +510,14 @@ func resolveVolumePaths(volumes []types.ServiceVolumeConfig, workingDir string, 
 		if volume.Source == "" {
 			return errors.New(`invalid mount config for type "bind": field Source must not be empty`)
 		}
-
-		filePath := expandUser(volume.Source, lookupEnv)
-		// Check if source is an absolute path (either Unix or Windows), to
-		// handle a Windows client with a Unix daemon or vice-versa.
-		//
-		// Note that this is not required for Docker for Windows when specifying
-		// a local Windows path, because Docker for Windows translates the Windows
-		// path into a valid path within the VM.
-		if !path.IsAbs(filePath) && !isAbs(filePath) {
-			filePath = absPath(workingDir, filePath)
+		filePath, err := ExpandPath(workingDir, volume.Source)
+		if err != nil {
+			return err
 		}
 		volume.Source = filePath
 		volumes[i] = volume
 	}
 	return nil
-}
-
-// TODO: make this more robust
-func expandUser(path string, lookupEnv template.Mapping) string {
-	if strings.HasPrefix(path, "~") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			logrus.Warn("cannot expand '~', because the environment lacks HOME")
-			return path
-		}
-		return filepath.Join(home, path[1:])
-	}
-	return path
 }
 
 func transformUlimits(data interface{}) (interface{}, error) {
@@ -685,17 +665,14 @@ func loadFileObjectConfig(name string, objType string, obj types.FileObjectConfi
 			return obj, errors.Errorf("%[1]s %[2]s: %[1]s.driver and %[1]s.file conflict; only use %[1]s.driver", objType, name)
 		}
 	default:
-		obj.File = absPath(details.WorkingDir, obj.File)
+		path, err := ExpandPath(details.WorkingDir, obj.File)
+		if err != nil {
+			return obj, err
+		}
+		obj.File = path
 	}
 
 	return obj, nil
-}
-
-func absPath(workingDir string, filePath string) string {
-	if filepath.IsAbs(filePath) {
-		return filePath
-	}
-	return filepath.Join(workingDir, filePath)
 }
 
 var transformMapStringString TransformerFunc = func(data interface{}) (interface{}, error) {

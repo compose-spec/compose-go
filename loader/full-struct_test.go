@@ -518,7 +518,6 @@ func configs(workingDir string) map[string]types.ConfigObjConfig {
 		},
 		"config4": {
 			Name: "foo",
-			File: workingDir,
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
 				"x-foo": "bar",
@@ -545,7 +544,6 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 		},
 		"secret4": {
 			Name: "bar",
-			File: workingDir,
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
 				"x-foo": "bar",
@@ -915,7 +913,6 @@ secrets:
     external: true
   secret4:
     name: bar
-    file: %s
     x-bar: baz
     x-foo: bar
 configs:
@@ -931,7 +928,6 @@ configs:
     external: true
   config4:
     name: foo
-    file: %s
     x-bar: baz
     x-foo: bar
 x-bar: baz
@@ -945,9 +941,7 @@ x-nested:
 		filepath.Join(homeDir, "configs"),
 		filepath.Join(workingDir, "opt"),
 		filepath.Join(workingDir, "secret_data"),
-		filepath.Join(workingDir),
-		filepath.Join(workingDir, "config_data"),
-		filepath.Join(workingDir))
+		filepath.Join(workingDir, "config_data"))
 }
 
 func fullExampleJSON(workingDir, homeDir string) string {
@@ -970,7 +964,6 @@ func fullExampleJSON(workingDir, homeDir string) string {
     },
     "config4": {
       "name": "foo",
-      "file": "%s",
       "external": false
     }
   },
@@ -1038,7 +1031,6 @@ func fullExampleJSON(workingDir, homeDir string) string {
     },
     "secret4": {
       "name": "bar",
-      "file": "%s",
       "external": false
     }
   },
@@ -1506,9 +1498,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
   }
 }`,
 		toPath(workingDir, "config_data"),
-		toPath(workingDir),
 		toPath(workingDir, "secret_data"),
-		toPath(workingDir),
 		toPath(workingDir),
 		toPath(workingDir, "static"),
 		toPath(homeDir, "configs"),

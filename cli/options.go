@@ -68,6 +68,10 @@ func WithName(name string) ProjectOptionsFn {
 // WithWorkingDirectory defines ProjectOptions' working directory
 func WithWorkingDirectory(wd string) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
+		_, err := loader.ExpandPath("", wd)
+		if err != nil {
+			return err
+		}
 		o.WorkingDir = wd
 		return nil
 	}
@@ -197,13 +201,14 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 				paths = append(paths, f)
 				continue
 			}
-			if !filepath.IsAbs(f) {
-				f = filepath.Join(pwd, f)
-			}
-			if _, err := os.Stat(f); err != nil {
+			path, err := loader.ExpandPath(pwd, f)
+			if err != nil {
 				return nil, err
 			}
-			paths = append(paths, f)
+			if _, err := os.Stat(path); err != nil {
+				return nil, err
+			}
+			paths = append(paths, path)
 		}
 		return paths, nil
 	}

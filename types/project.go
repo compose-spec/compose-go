@@ -18,8 +18,6 @@ package types
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"sort"
 )
 
@@ -140,16 +138,4 @@ func (p Project) withServices(names []string, fn ServiceFunc, done map[string]bo
 		done[service.Name] = true
 	}
 	return nil
-}
-
-// RelativePath resolve a relative path based project's working directory
-func (p *Project) RelativePath(path string) string {
-	if path[0] == '~' {
-		home, _ := os.UserHomeDir()
-		path = filepath.Join(home, path[1:])
-	}
-	if filepath.IsAbs(path) {
-		return path
-	}
-	return filepath.Join(p.WorkingDir, path)
 }
