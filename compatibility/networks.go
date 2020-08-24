@@ -51,6 +51,9 @@ func (c *AllowList) CheckNetworkConfigIpam(config *types.NetworkConfig) {
 		}
 		for _, p := range config.Ipam.Config {
 			c.CheckNetworkConfigIpamSubnet(p)
+			c.CheckNetworkConfigIpamGateway(p)
+			c.CheckNetworkConfigIpamIPRange(p)
+			c.CheckNetworkConfigIpamAuxiliaryAddresses(p)
 		}
 	}
 }
@@ -67,7 +70,27 @@ func (c *AllowList) CheckNetworkConfigIpamSubnet(config *types.IPAMPool) {
 		config.Subnet = ""
 		c.Unsupported("networks.ipam.config.subnet")
 	}
+}
 
+func (c *AllowList) CheckNetworkConfigIpamGateway(config *types.IPAMPool) {
+	if !c.supported("networks.ipam.config.gateway") && config.Gateway != "" {
+		config.Gateway = ""
+		c.Unsupported("networks.ipam.config.gateway")
+	}
+}
+
+func (c *AllowList) CheckNetworkConfigIpamIPRange(config *types.IPAMPool) {
+	if !c.supported("networks.ipam.config.ip_range") && config.IPRange != "" {
+		config.IPRange = ""
+		c.Unsupported("networks.ipam.config.ip_range")
+	}
+}
+
+func (c *AllowList) CheckNetworkConfigIpamAuxiliaryAddresses(config *types.IPAMPool) {
+	if !c.supported("networks.ipam.config.aux_addresses") && len(config.AuxiliaryAddresses) > 0 {
+		config.AuxiliaryAddresses = nil
+		c.Unsupported("networks.ipam.config.aux_addresses")
+	}
 }
 
 func (c *AllowList) CheckNetworkConfigExternal(config *types.NetworkConfig) {

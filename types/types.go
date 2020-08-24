@@ -595,8 +595,11 @@ type IPAMConfig struct {
 
 // IPAMPool for a network
 type IPAMPool struct {
-	Subnet     string                 `yaml:",omitempty" json:"subnet,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Subnet             string                 `yaml:",omitempty" json:"subnet,omitempty"`
+	Gateway            string                 `yaml:",omitempty" json:"gateway,omitempty"`
+	IPRange            string                 `mapstructure:"ip_range" yaml:"ip_range,omitempty" json:"ip_range,omitempty"`
+	AuxiliaryAddresses map[string]string      `mapstructure:"aux_addresses" yaml:"aux_addresses,omitempty" json:"aux_addresses,omitempty"`
+	Extensions         map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // VolumeConfig for a volume
