@@ -107,7 +107,7 @@ type ServiceConfig struct {
 	Environment     MappingWithEquals                `yaml:",omitempty" json:"environment,omitempty"`
 	EnvFile         StringList                       `mapstructure:"env_file" yaml:"env_file,omitempty" json:"env_file,omitempty"`
 	Expose          StringOrNumberList               `yaml:",omitempty" json:"expose,omitempty"`
-	Extends         MappingWithEquals                `yaml:"extends,omitempty" json:"extends,omitempty"`
+	Extends         ExtendsConfig                    `yaml:"extends,omitempty" json:"extends,omitempty"`
 	ExternalLinks   []string                         `mapstructure:"external_links" yaml:"external_links,omitempty" json:"external_links,omitempty"`
 	ExtraHosts      HostsList                        `mapstructure:"extra_hosts" yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
 	GroupAdd        []string                         `mapstructure:"group_app" yaml:"group_add,omitempty" json:"group_add,omitempty"`
@@ -675,6 +675,8 @@ type ServiceDependency struct {
 	Condition  string                 `yaml:",omitempty" json:"condition,omitempty"`
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
+
+type ExtendsConfig MappingWithEquals
 
 // SecretConfig for a secret
 type SecretConfig FileObjectConfig

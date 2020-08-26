@@ -350,6 +350,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.BuildConfig{}):                      transformBuildConfig,
 		reflect.TypeOf(types.Duration(0)):                        transformStringToDuration,
 		reflect.TypeOf(types.DependsOnConfig{}):                  transformDependsOnConfig,
+		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
 	}
 
 	for _, transformer := range additionalTransformers {
@@ -796,6 +797,16 @@ var transformDependsOnConfig TransformerFunc = func(data interface{}) (interface
 	default:
 		return data, errors.Errorf("invalid type %T for service depends_on", value)
 	}
+}
+
+var transformExtendsConfig TransformerFunc = func(data interface{}) (interface{}, error) {
+	switch data.(type) {
+	case string:
+		data = map[string]interface{}{
+			"service": data,
+		}
+	}
+	return transformMappingOrListFunc("=", true)(data)
 }
 
 var transformServiceVolumeConfig TransformerFunc = func(data interface{}) (interface{}, error) {
