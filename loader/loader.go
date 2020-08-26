@@ -60,6 +60,42 @@ type Options struct {
 	Name string
 }
 
+// serviceRef identifies a reference to a service. It's used to detect cyclic
+// references in "extends".
+type serviceRef struct {
+	filename string
+	service  string
+}
+
+type cycleTracker struct {
+	loaded []serviceRef
+}
+
+func (ct *cycleTracker) Add(filename, service string) error {
+	toAdd := serviceRef{filename: filename, service: service}
+	for _, loaded := range ct.loaded {
+		if toAdd == loaded {
+			// Create an error message of the form:
+			// Circular reference:
+			//   service-a in docker-compose.yml
+			//   extends service-b in docker-compose.yml
+			//   extends service-a in docker-compose.yml
+			errLines := []string{
+				"Circular reference:",
+				fmt.Sprintf("  %s in %s", ct.loaded[0].service, ct.loaded[0].filename),
+			}
+			for _, service := range append(ct.loaded[1:], toAdd) {
+				errLines = append(errLines, fmt.Sprintf("  extends %s in %s", service.service, service.filename))
+			}
+
+			return errors.New(strings.Join(errLines, "\n"))
+		}
+	}
+
+	ct.loaded = append(ct.loaded, toAdd)
+	return nil
+}
+
 // WithDiscardEnvFiles sets the Options to discard the `env_file` section after resolving to
 // the `environment` section
 func WithDiscardEnvFiles(opts *Options) {
@@ -122,11 +158,10 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 		configDict = groupXFieldsIntoExtensions(configDict)
 
-		cfg, err := loadSections(configDict, configDetails)
+		cfg, err := loadSections(file.Filename, configDict, configDetails)
 		if err != nil {
 			return nil, err
 		}
-		cfg.Filename = file.Filename
 		if opts.discardEnvFiles {
 			for i := range cfg.Services {
 				cfg.Services[i].EnvFile = nil
@@ -186,9 +221,11 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 	return dict
 }
 
-func loadSections(config map[string]interface{}, configDetails types.ConfigDetails) (*types.Config, error) {
+func loadSections(filename string, config map[string]interface{}, configDetails types.ConfigDetails) (*types.Config, error) {
 	var err error
-	cfg := types.Config{}
+	cfg := types.Config{
+		Filename: filename,
+	}
 
 	var loaders = []struct {
 		key string
@@ -197,7 +234,7 @@ func loadSections(config map[string]interface{}, configDetails types.ConfigDetai
 		{
 			key: "services",
 			fnc: func(config map[string]interface{}) error {
-				cfg.Services, err = LoadServices(config, configDetails.WorkingDir, configDetails.LookupEnv)
+				cfg.Services, err = LoadServices(filename, config, configDetails.WorkingDir, configDetails.LookupEnv)
 				return err
 			},
 		},
@@ -416,52 +453,67 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 
 // LoadServices produces a ServiceConfig map from a compose file Dict
 // the servicesDict is not validated if directly used. Use Load() to enable validation
-func LoadServices(servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
+func LoadServices(filename string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
-	for name, serviceDef := range servicesDict {
-		serviceConfig, err := LoadService(name, serviceDef.(map[string]interface{}), workingDir, lookupEnv)
+	for name := range servicesDict {
+		serviceConfig, err := loadServiceWithExtends(filename, name, servicesDict, workingDir, lookupEnv, &cycleTracker{})
 		if err != nil {
 			return nil, err
-		}
-
-		if serviceConfig.Extends != nil {
-			file := serviceConfig.Extends["file"]
-			service := serviceConfig.Extends["service"]
-			var source interface{}
-			if file == nil {
-				// extends a service from same file
-				source = servicesDict[*service]
-			} else {
-				if !filepath.IsAbs(*file) {
-					absolute := filepath.Join(workingDir, *file)
-					file = &absolute
-				}
-				bytes, err := ioutil.ReadFile(*file)
-				if err != nil {
-					return nil, err
-				}
-				parsedFile, err := ParseYAML(bytes)
-				if err != nil {
-					return nil, err
-				}
-				source = getSection(parsedFile, "services")[*service]
-			}
-			baseService, err := LoadService(name, source.(map[string]interface{}), workingDir, lookupEnv)
-			if err != nil {
-				return nil, err
-			}
-
-			if err := mergo.Merge(baseService, serviceConfig, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
-				return nil, errors.Wrapf(err, "cannot merge service %s", name)
-			}
-			serviceConfig = baseService
 		}
 
 		services = append(services, *serviceConfig)
 	}
 
 	return services, nil
+}
+
+func loadServiceWithExtends(filename, name string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, ct *cycleTracker) (*types.ServiceConfig, error) {
+	if err := ct.Add(filename, name); err != nil {
+		return nil, err
+	}
+
+	serviceConfig, err := LoadService(name, servicesDict[name].(map[string]interface{}), workingDir, lookupEnv)
+	if err != nil {
+		return nil, err
+	}
+
+	if serviceConfig.Extends != nil {
+		sourceFileWorkingDir := workingDir
+		sourceFileServices := servicesDict
+		sourceFilename := filename
+		if file := serviceConfig.Extends["file"]; file != nil {
+			if !filepath.IsAbs(*file) {
+				absolute := filepath.Join(workingDir, *file)
+				file = &absolute
+			}
+			sourceFilename = *file
+
+			bytes, err := ioutil.ReadFile(*file)
+			if err != nil {
+				return nil, err
+			}
+			sourceFile, err := ParseYAML(bytes)
+			if err != nil {
+				return nil, err
+			}
+			sourceFileServices = getSection(sourceFile, "services")
+			sourceFileWorkingDir = filepath.Dir(*file)
+		}
+
+		service := serviceConfig.Extends["service"]
+		baseService, err := loadServiceWithExtends(sourceFilename, *service, sourceFileServices, sourceFileWorkingDir, lookupEnv, ct)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := mergo.Merge(baseService, serviceConfig, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
+			return nil, errors.Wrapf(err, "cannot merge service %s", name)
+		}
+		serviceConfig = baseService
+	}
+
+	return serviceConfig, nil
 }
 
 // LoadService produces a single ServiceConfig from a compose file Dict

@@ -1665,3 +1665,35 @@ func TestComposeFileWithVersion(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expectedConfig.Networks, config.Networks))
 	assert.Check(t, is.DeepEqual(expectedConfig.Volumes, config.Volumes))
 }
+
+func TestLoadWithExtends(t *testing.T) {
+	bytes, err := ioutil.ReadFile("testdata/compose-test-extends.yaml")
+	assert.NilError(t, err)
+
+	dict, err := ParseYAML(bytes)
+	assert.NilError(t, err)
+
+	configDetails := types.ConfigDetails{
+		WorkingDir: "testdata",
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "testdata/compose-test-extends.yaml", Config: dict},
+		},
+	}
+
+	actual, err := Load(configDetails)
+	assert.NilError(t, err)
+
+	expServices := types.Services{
+		{
+			Name:  "importer",
+			Image: "nginx",
+			Extends: types.ExtendsConfig{
+				"file":    strPtr("compose-test-extends-imported.yaml"),
+				"service": strPtr("imported"),
+			},
+			Environment: types.MappingWithEquals{},
+			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
+		},
+	}
+	assert.Check(t, is.DeepEqual(expServices, actual.Services))
+}
