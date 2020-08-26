@@ -441,10 +441,11 @@ func LoadServices(servicesDict map[string]interface{}, workingDir string, lookup
 				if err != nil {
 					return nil, err
 				}
-				source, err = ParseYAML(bytes)
+				parsedFile, err := ParseYAML(bytes)
 				if err != nil {
 					return nil, err
 				}
+				source = getSection(parsedFile, "services")[*service]
 			}
 			baseService, err := LoadService(name, source.(map[string]interface{}), workingDir, lookupEnv)
 			if err != nil {
