@@ -158,7 +158,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 		configDict = groupXFieldsIntoExtensions(configDict)
 
-		cfg, err := loadSections(file.Filename, configDict, configDetails)
+		cfg, err := loadSections(file.Filename, configDict, configDetails, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +221,7 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 	return dict
 }
 
-func loadSections(filename string, config map[string]interface{}, configDetails types.ConfigDetails) (*types.Config, error) {
+func loadSections(filename string, config map[string]interface{}, configDetails types.ConfigDetails, opts *Options) (*types.Config, error) {
 	var err error
 	cfg := types.Config{
 		Filename: filename,
@@ -234,7 +234,7 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 		{
 			key: "services",
 			fnc: func(config map[string]interface{}) error {
-				cfg.Services, err = LoadServices(filename, config, configDetails.WorkingDir, configDetails.LookupEnv)
+				cfg.Services, err = LoadServices(filename, config, configDetails.WorkingDir, configDetails.LookupEnv, opts)
 				return err
 			},
 		},
@@ -453,11 +453,11 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 
 // LoadServices produces a ServiceConfig map from a compose file Dict
 // the servicesDict is not validated if directly used. Use Load() to enable validation
-func LoadServices(filename string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping) ([]types.ServiceConfig, error) {
+func LoadServices(filename string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
 	for name := range servicesDict {
-		serviceConfig, err := loadServiceWithExtends(filename, name, servicesDict, workingDir, lookupEnv, &cycleTracker{})
+		serviceConfig, err := loadServiceWithExtends(filename, name, servicesDict, workingDir, lookupEnv, opts, &cycleTracker{})
 		if err != nil {
 			return nil, err
 		}
@@ -468,7 +468,7 @@ func LoadServices(filename string, servicesDict map[string]interface{}, workingD
 	return services, nil
 }
 
-func loadServiceWithExtends(filename, name string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, ct *cycleTracker) (*types.ServiceConfig, error) {
+func loadServiceWithExtends(filename, name string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options, ct *cycleTracker) (*types.ServiceConfig, error) {
 	if err := ct.Add(filename, name); err != nil {
 		return nil, err
 	}
@@ -482,7 +482,7 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 		baseServiceName := *serviceConfig.Extends["service"]
 		var baseService *types.ServiceConfig
 		if file := serviceConfig.Extends["file"]; file == nil {
-			baseService, err = loadServiceWithExtends(filename, baseServiceName, servicesDict, workingDir, lookupEnv, ct)
+			baseService, err = loadServiceWithExtends(filename, baseServiceName, servicesDict, workingDir, lookupEnv, opts, ct)
 			if err != nil {
 				return nil, err
 			}
@@ -502,8 +502,15 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 				return nil, err
 			}
 
+			if !opts.SkipInterpolation {
+				baseFile, err = interpolateConfig(baseFile, *opts.Interpolate)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			baseFileServices := getSection(baseFile, "services")
-			baseService, err = loadServiceWithExtends(baseFilePath, baseServiceName, baseFileServices, filepath.Dir(baseFilePath), lookupEnv, ct)
+			baseService, err = loadServiceWithExtends(baseFilePath, baseServiceName, baseFileServices, filepath.Dir(baseFilePath), lookupEnv, opts, ct)
 			if err != nil {
 				return nil, err
 			}
