@@ -76,6 +76,20 @@ func TestProjectWithDotEnv(t *testing.T) {
 	assert.Equal(t, service.Ports[0].Published, uint32(8000))
 }
 
+func TestProjectWithDiscardEnvFile(t *testing.T) {
+	opts, err := NewProjectOptions([]string{
+		"testdata/env-file/compose-with-env-file.yaml",
+	}, WithDiscardEnvFile)
+
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(opts)
+	assert.NilError(t, err)
+	service, err := p.GetService("simple")
+	assert.NilError(t, err)
+	assert.Equal(t, *service.Environment["DEFAULT_PORT"], "8080")
+	assert.Assert(t, service.EnvFile == nil)
+}
+
 func TestEnvMap(t *testing.T) {
 	m := map[string]string{}
 	m["foo"] = "bar"
