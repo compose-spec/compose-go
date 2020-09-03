@@ -84,6 +84,13 @@ func WithEnv(env []string) ProjectOptionsFn {
 	}
 }
 
+// WithDiscardEnvFiles sets discards the `env_file` section after resolving to
+// the `environment` section
+func WithDiscardEnvFile(o *ProjectOptions) error {
+	o.loadOptions = append(o.loadOptions, loader.WithDiscardEnvFiles)
+	return nil
+}
+
 // WithOsEnv imports environment variables from OS
 func WithOsEnv(o *ProjectOptions) error {
 	for k, v := range getAsEqualsMap(os.Environ()) {
@@ -116,18 +123,6 @@ func WithDotEnv(o *ProjectOptions) error {
 		o.Environment[k] = v
 	}
 	return nil
-}
-
-// WithDiscardEnvFiles sets discards the `env_file` section after resolving to
-// the `environment` section
-func (o ProjectOptions) WithDiscardEnvFile() (ProjectOptions, error) {
-	return ProjectOptions{
-		Name:        o.Name,
-		WorkingDir:  o.WorkingDir,
-		ConfigPaths: o.ConfigPaths,
-		Environment: o.Environment,
-		loadOptions: append(o.loadOptions, loader.WithDiscardEnvFiles),
-	}, nil
 }
 
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)

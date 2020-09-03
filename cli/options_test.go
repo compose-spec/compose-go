@@ -77,14 +77,12 @@ func TestProjectWithDotEnv(t *testing.T) {
 }
 
 func TestProjectWithDiscardEnvFile(t *testing.T) {
-	options, err := ProjectOptions{
-		Name: "my_project",
-		ConfigPaths: []string{
-			"testdata/env-file/compose-with-env-file.yaml",
-		},
-	}.WithDiscardEnvFile()
+	opts, err := NewProjectOptions([]string{
+		"testdata/env-file/compose-with-env-file.yaml",
+	}, WithDiscardEnvFile)
+
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(&options)
+	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
