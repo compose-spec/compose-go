@@ -89,7 +89,7 @@ func TestProjectWithDiscardEnvFile(t *testing.T) {
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
 	assert.Equal(t, *service.Environment["DEFAULT_PORT"], "8080")
-	assert.Assert(t, service.EnvFile == nil )
+	assert.Assert(t, service.EnvFile == nil)
 }
 
 func TestEnvMap(t *testing.T) {
