@@ -64,7 +64,6 @@ func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Project, error)
 }
 
 var sampleYAML = `
-version: "3"
 services:
   foo:
     image: busybox
@@ -94,7 +93,6 @@ networks:
 `
 
 var sampleDict = map[string]interface{}{
-	"version": "3",
 	"services": map[string]interface{}{
 		"foo": map[string]interface{}{
 			"image":    "busybox",
@@ -200,7 +198,6 @@ func strPtr(val string) *string {
 }
 
 var sampleConfig = types.Config{
-	Version: "3.9",
 	Services: []types.ServiceConfig{
 		{
 			Name:        "foo",
@@ -266,7 +263,6 @@ func TestLoad(t *testing.T) {
 
 func TestLoadExtensions(t *testing.T) {
 	actual, err := loadYAML(`
-version: "3"
 services:
   foo:
     image: busybox
@@ -281,9 +277,26 @@ services:
 	assert.Check(t, is.DeepEqual(extras, service.Extensions))
 }
 
-func TestLoadv39(t *testing.T) {
+func TestLoadExtends(t *testing.T) {
 	actual, err := loadYAML(`
-version: "3.9"
+services:
+  foo:
+    image: busybox
+    extends: 
+      service: bar
+  bar:
+    image: alpine
+    command: echo`)
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(actual.Services, 2))
+	service, err := actual.GetService("foo")
+	assert.NilError(t, err)
+	assert.Check(t, service.Image == "busybox")
+	assert.Check(t, service.Command[0] == "echo")
+}
+
+func TestLoadCredentialSpec(t *testing.T) {
+	actual, err := loadYAML(`
 services:
   foo:
     image: busybox
@@ -316,7 +329,6 @@ func TestInvalidTopLevelObjectType(t *testing.T) {
 
 func TestNonStringKeys(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 123:
   foo:
     image: busybox
@@ -324,7 +336,6 @@ version: "3"
 	assert.ErrorContains(t, err, "Non-string key at top level: 123")
 
 	_, err = loadYAML(`
-version: "3"
 services:
   foo:
     image: busybox
@@ -334,7 +345,6 @@ services:
 	assert.ErrorContains(t, err, "Non-string key in services: 123")
 
 	_, err = loadYAML(`
-version: "3"
 services:
   foo:
     image: busybox
@@ -347,7 +357,6 @@ networks:
 	assert.ErrorContains(t, err, "Non-string key in networks.default.ipam.config[0]: 123")
 
 	_, err = loadYAML(`
-version: "3"
 services:
   dict-env:
     image: busybox
@@ -357,63 +366,16 @@ services:
 	assert.ErrorContains(t, err, "Non-string key in services.dict-env.environment: 1")
 }
 
-func TestSupportedVersion(t *testing.T) {
-	_, err := loadYAML(`
-version: "3"
-services:
-  foo:
-    image: busybox
-`)
-	assert.NilError(t, err)
-
-	_, err = loadYAML(`
-version: "3.9"
-services:
-  foo:
-    image: busybox
-`)
-	assert.NilError(t, err)
-}
-
-func TestUnsupportedVersion(t *testing.T) {
-	_, err := loadYAML(`
-version: "2"
-services:
-  foo:
-    image: busybox
-`)
-	assert.ErrorContains(t, err, "version")
-
-	_, err = loadYAML(`
-version: "2.0"
-services:
-  foo:
-    image: busybox
-`)
-	assert.ErrorContains(t, err, "version")
-}
-
-func TestInvalidVersion(t *testing.T) {
-	_, err := loadYAML(`
-version: 3
-services:
-  foo:
-    image: busybox
-`)
-	assert.ErrorContains(t, err, "version must be a string")
-}
-
 func TestV1Unsupported(t *testing.T) {
 	_, err := loadYAML(`
 foo:
   image: busybox
 `)
-	assert.ErrorContains(t, err, "unsupported Compose file version: 1.0")
+	assert.Check(t, err != nil)
 }
 
 func TestNonMappingObject(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 services:
   - foo:
       image: busybox
@@ -421,14 +383,12 @@ services:
 	assert.ErrorContains(t, err, "services must be a mapping")
 
 	_, err = loadYAML(`
-version: "3"
 services:
   foo: busybox
 `)
 	assert.ErrorContains(t, err, "services.foo must be a mapping")
 
 	_, err = loadYAML(`
-version: "3"
 networks:
   - default:
       driver: bridge
@@ -436,14 +396,12 @@ networks:
 	assert.ErrorContains(t, err, "networks must be a mapping")
 
 	_, err = loadYAML(`
-version: "3"
 networks:
   default: bridge
 `)
 	assert.ErrorContains(t, err, "networks.default must be a mapping")
 
 	_, err = loadYAML(`
-version: "3"
 volumes:
   - data:
       driver: local
@@ -451,7 +409,6 @@ volumes:
 	assert.ErrorContains(t, err, "volumes must be a mapping")
 
 	_, err = loadYAML(`
-version: "3"
 volumes:
   data: local
 `)
@@ -460,7 +417,6 @@ volumes:
 
 func TestNonStringImage(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 services:
   foo:
     image: ["busybox", "latest"]
@@ -470,7 +426,6 @@ services:
 
 func TestLoadWithEnvironment(t *testing.T) {
 	config, err := loadYAMLWithEnv(`
-version: "3"
 services:
   dict-env:
     image: busybox
@@ -508,7 +463,6 @@ services:
 
 func TestInvalidEnvironmentValue(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 services:
   dict-env:
     image: busybox
@@ -520,7 +474,6 @@ services:
 
 func TestInvalidEnvironmentObject(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 services:
   dict-env:
     image: busybox
@@ -532,7 +485,6 @@ services:
 func TestLoadWithEnvironmentInterpolation(t *testing.T) {
 	home := "/home/foo"
 	config, err := loadYAMLWithEnv(`
-version: "3"
 services:
   test:
     image: busybox
@@ -568,7 +520,6 @@ volumes:
 
 func TestLoadWithInterpolationCastFull(t *testing.T) {
 	dict, err := ParseYAML([]byte(`
-version: "3"
 services:
   web:
     configs:
@@ -731,7 +682,6 @@ networks:
 
 func TestUnsupportedProperties(t *testing.T) {
 	dict, err := ParseYAML([]byte(`
-version: "3"
 services:
   web:
     image: web
@@ -754,8 +704,7 @@ services:
 }
 
 func TestDiscardEnvFileOption(t *testing.T) {
-	dict, err := ParseYAML([]byte(`version: "3"
-services:
+	dict, err := ParseYAML([]byte(`services:
   web:
     image: nginx
     env_file:
@@ -787,7 +736,6 @@ services:
 
 func TestBuildProperties(t *testing.T) {
 	dict, err := ParseYAML([]byte(`
-version: "3"
 services:
   web:
     image: web
@@ -807,7 +755,6 @@ services:
 
 func TestDeprecatedProperties(t *testing.T) {
 	dict, err := ParseYAML([]byte(`
-version: "3"
 services:
   web:
     image: web
@@ -827,7 +774,6 @@ services:
 
 func TestInvalidResource(t *testing.T) {
 	_, err := loadYAML(`
-        version: "3"
         services:
           foo:
             image: busybox
@@ -841,7 +787,6 @@ func TestInvalidResource(t *testing.T) {
 
 func TestInvalidExternalAndDriverCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 volumes:
   external_volume:
     external: true
@@ -854,7 +799,6 @@ volumes:
 
 func TestInvalidExternalAndDirverOptsCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 volumes:
   external_volume:
     external: true
@@ -868,7 +812,6 @@ volumes:
 
 func TestInvalidExternalAndLabelsCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 volumes:
   external_volume:
     external: true
@@ -882,7 +825,6 @@ volumes:
 
 func TestLoadVolumeInvalidExternalNameAndNameCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 volumes:
   external_volume:
     name: user_specified_name
@@ -932,7 +874,6 @@ func TestFullExample(t *testing.T) {
 
 func TestLoadTmpfsVolume(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -959,7 +900,6 @@ services:
 
 func TestLoadTmpfsVolumeAdditionalPropertyNotAllowed(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -974,7 +914,6 @@ services:
 
 func TestLoadBindMountSourceMustNotBeEmpty(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -994,8 +933,6 @@ func TestLoadBindMountSourceIsWindowsAbsolute(t *testing.T) {
 		{
 			doc: "Z-drive lowercase",
 			yaml: `
-version: "3"
-
 services:
   windows:
     image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2019
@@ -1009,8 +946,6 @@ services:
 		{
 			doc: "Z-drive uppercase",
 			yaml: `
-version: "3"
-
 services:
   windows:
     image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2019
@@ -1024,8 +959,6 @@ services:
 		{
 			doc: "Z-drive subdirectory",
 			yaml: `
-version: "3"
-
 services:
   windows:
     image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2019
@@ -1039,8 +972,6 @@ services:
 		{
 			doc: "forward-slashes",
 			yaml: `
-version: "3"
-
 services:
   app:
     image: app:latest
@@ -1065,7 +996,6 @@ services:
 
 func TestLoadBindMountWithSource(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   bind:
     image: nginx:latest
@@ -1092,7 +1022,6 @@ services:
 
 func TestLoadTmpfsVolumeSizeCanBeZero(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -1117,7 +1046,6 @@ services:
 
 func TestLoadTmpfsVolumeSizeMustBeGTEQZero(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -1132,7 +1060,6 @@ services:
 
 func TestLoadTmpfsVolumeSizeMustBeInteger(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 services:
   tmpfs:
     image: nginx:latest
@@ -1154,7 +1081,6 @@ func serviceSort(services []types.ServiceConfig) []types.ServiceConfig {
 
 func TestLoadAttachableNetwork(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 networks:
   mynet1:
     driver: overlay
@@ -1180,7 +1106,6 @@ networks:
 
 func TestLoadExpandedPortFormat(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   web:
     image: busybox
@@ -1204,7 +1129,6 @@ services:
 
 func TestLoadExpandedMountFormat(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   web:
     image: busybox
@@ -1232,7 +1156,6 @@ volumes:
 
 func TestLoadExtraHostsMap(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   web:
     image: busybox
@@ -1253,7 +1176,6 @@ services:
 
 func TestLoadExtraHostsList(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   web:
     image: busybox
@@ -1331,7 +1253,6 @@ func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
 func TestLoadInvalidIsolation(t *testing.T) {
 	// validation should be done only on the daemon side
 	actual, err := loadYAML(`
-version: "3"
 services:
   foo:
     image: busybox
@@ -1347,7 +1268,6 @@ configs:
 
 func TestLoadSecretInvalidExternalNameAndNameCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 secrets:
   external_secret:
     name: user_specified_name
@@ -1370,9 +1290,7 @@ func TestLoadSecretsWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 			},
 		},
 	}
-	details := types.ConfigDetails{
-		Version: "3.5",
-	}
+	details := types.ConfigDetails{}
 	secrets, err := LoadSecrets(source, details)
 	assert.NilError(t, err)
 	expected := map[string]types.SecretConfig{
@@ -1434,7 +1352,6 @@ func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
 
 func TestLoadNetworkInvalidExternalNameAndNameCombination(t *testing.T) {
 	_, err := loadYAML(`
-version: "3"
 networks:
   foo:
     name: user_specified_name
@@ -1448,7 +1365,6 @@ networks:
 
 func TestLoadNetworkWithName(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   hello-world:
     image: redis:alpine
@@ -1498,7 +1414,6 @@ func TestLoadInit(t *testing.T) {
 		{
 			doc: "no init defined",
 			yaml: `
-version: "3"
 services:
   foo:
     image: alpine`,
@@ -1506,7 +1421,6 @@ services:
 		{
 			doc: "has true init",
 			yaml: `
-version: "3"
 services:
   foo:
     image: alpine
@@ -1516,7 +1430,6 @@ services:
 		{
 			doc: "has false init",
 			yaml: `
-version: "3"
 services:
   foo:
     image: alpine
@@ -1537,7 +1450,6 @@ services:
 
 func TestLoadSysctls(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   web:
     image: busybox
@@ -1560,7 +1472,6 @@ services:
 	assert.Check(t, is.DeepEqual(expected, config.Services[0].Sysctls))
 
 	config, err = loadYAML(`
-version: "3"
 services:
   web:
     image: busybox
@@ -1602,7 +1513,6 @@ func TestTransform(t *testing.T) {
 
 func TestLoadTemplateDriver(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   hello-world:
     image: redis:alpine
@@ -1667,7 +1577,6 @@ secrets:
 
 func TestLoadSecretDriver(t *testing.T) {
 	config, err := loadYAML(`
-version: "3"
 services:
   hello-world:
     image: redis:alpine
@@ -1731,4 +1640,27 @@ secrets:
 		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+}
+
+func TestComposeFileWithVersion(t *testing.T) {
+	bytes, err := ioutil.ReadFile("testdata/compose-test-with-version.yaml")
+	assert.NilError(t, err)
+
+	homeDir, err := os.UserHomeDir()
+	assert.NilError(t, err)
+	env := map[string]string{"HOME": homeDir, "QUX": "qux_from_environment"}
+	config, err := loadYAMLWithEnv(string(bytes), env)
+	assert.NilError(t, err)
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+
+	expectedConfig := withVersionExampleConfig(workingDir, homeDir)
+
+	sort.Slice(config.Services, func(i, j int) bool {
+		return config.Services[i].Name > config.Services[j].Name
+	})
+	assert.Check(t, is.DeepEqual(expectedConfig.Services, config.Services))
+	assert.Check(t, is.DeepEqual(expectedConfig.Networks, config.Networks))
+	assert.Check(t, is.DeepEqual(expectedConfig.Volumes, config.Volumes))
 }

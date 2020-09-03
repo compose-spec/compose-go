@@ -37,7 +37,6 @@ func TestAllowList(t *testing.T) {
 		},
 	}
 	dict, err := loader.ParseYAML([]byte(`
-version: "3"
 services:
   foo:
     image: busybox

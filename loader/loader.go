@@ -18,6 +18,7 @@ package loader
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -25,6 +26,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/imdario/mergo"
 
 	"github.com/compose-spec/compose-go/envfile"
 	interp "github.com/compose-spec/compose-go/interpolation"
@@ -102,13 +105,6 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	configs := []*types.Config{}
 	for _, file := range configDetails.ConfigFiles {
 		configDict := file.Config
-		version := schema.Version(configDict)
-		if configDetails.Version == "" {
-			configDetails.Version = version
-		}
-		if configDetails.Version != version {
-			return nil, errors.Errorf("version mismatched between two composefiles : %v and %v", configDetails.Version, version)
-		}
 
 		if !opts.SkipInterpolation {
 			var err error
@@ -119,7 +115,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		}
 
 		if !opts.SkipValidation {
-			if err := schema.Validate(configDict, configDetails.Version); err != nil {
+			if err := schema.Validate(configDict); err != nil {
 				return nil, err
 			}
 		}
@@ -192,9 +188,7 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 
 func loadSections(config map[string]interface{}, configDetails types.ConfigDetails) (*types.Config, error) {
 	var err error
-	cfg := types.Config{
-		Version: schema.Version(config),
-	}
+	cfg := types.Config{}
 
 	var loaders = []struct {
 		key string
@@ -355,6 +349,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.ServiceVolumeConfig{}):              transformServiceVolumeConfig,
 		reflect.TypeOf(types.BuildConfig{}):                      transformBuildConfig,
 		reflect.TypeOf(types.Duration(0)):                        transformStringToDuration,
+		reflect.TypeOf(types.DependsOnConfig{}):                  transformDependsOnConfig,
 	}
 
 	for _, transformer := range additionalTransformers {
@@ -428,6 +423,39 @@ func LoadServices(servicesDict map[string]interface{}, workingDir string, lookup
 		if err != nil {
 			return nil, err
 		}
+
+		if serviceConfig.Extends != nil {
+			file := serviceConfig.Extends["file"]
+			service := serviceConfig.Extends["service"]
+			var source interface{}
+			if file == nil {
+				// extends a service from same file
+				source = servicesDict[*service]
+			} else {
+				if !filepath.IsAbs(*file) {
+					absolute := filepath.Join(workingDir, *file)
+					file = &absolute
+				}
+				bytes, err := ioutil.ReadFile(*file)
+				if err != nil {
+					return nil, err
+				}
+				source, err = ParseYAML(bytes)
+				if err != nil {
+					return nil, err
+				}
+			}
+			baseService, err := LoadService(name, source.(map[string]interface{}), workingDir, lookupEnv)
+			if err != nil {
+				return nil, err
+			}
+
+			if err := mergo.Merge(baseService, serviceConfig, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
+				return nil, errors.Wrapf(err, "cannot merge service %s", name)
+			}
+			serviceConfig = baseService
+		}
+
 		services = append(services, *serviceConfig)
 	}
 
@@ -748,6 +776,25 @@ var transformBuildConfig TransformerFunc = func(data interface{}) (interface{}, 
 		return data, nil
 	default:
 		return data, errors.Errorf("invalid type %T for service build", value)
+	}
+}
+
+var transformDependsOnConfig TransformerFunc = func(data interface{}) (interface{}, error) {
+	switch value := data.(type) {
+	case []interface{}:
+		transformed := map[string]interface{}{}
+		for _, serviceIntf := range value {
+			service, ok := serviceIntf.(string)
+			if !ok {
+				return data, errors.Errorf("invalid type %T for service depends_on element. Expected string.", value)
+			}
+			transformed[service] = map[string]interface{}{"condition": types.ServiceConditionStarted}
+		}
+		return transformed, nil
+	case map[string]interface{}:
+		return data, nil
+	default:
+		return data, errors.Errorf("invalid type %T for service depends_on", value)
 	}
 }
 

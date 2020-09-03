@@ -95,7 +95,7 @@ type ServiceConfig struct {
 	Configs         []ServiceConfigObjConfig         `yaml:",omitempty" json:"configs,omitempty"`
 	ContainerName   string                           `mapstructure:"container_name" yaml:"container_name,omitempty" json:"container_name,omitempty"`
 	CredentialSpec  *CredentialSpecConfig            `mapstructure:"credential_spec" yaml:"credential_spec,omitempty" json:"credential_spec,omitempty"`
-	DependsOn       []string                         `mapstructure:"depends_on" yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
+	DependsOn       DependsOnConfig                  `mapstructure:"depends_on" yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
 	Deploy          *DeployConfig                    `yaml:",omitempty" json:"deploy,omitempty"`
 	Devices         []string                         `yaml:",omitempty" json:"devices,omitempty"`
 	DNS             StringList                       `yaml:",omitempty" json:"dns,omitempty"`
@@ -165,7 +165,9 @@ type ServiceConfig struct {
 // GetDependencies retrieve all services this service depends on
 func (s ServiceConfig) GetDependencies() []string {
 	dependencies := make(set)
-	dependencies.append(s.DependsOn...)
+	for dependency := range s.DependsOn {
+		dependencies.append(dependency)
+	}
 	dependencies.append(s.Links...)
 	if strings.HasPrefix(s.NetworkMode, "service:") {
 		dependencies.append(s.NetworkMode[8:])
@@ -595,8 +597,11 @@ type IPAMConfig struct {
 
 // IPAMPool for a network
 type IPAMPool struct {
-	Subnet     string                 `yaml:",omitempty" json:"subnet,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Subnet             string                 `yaml:",omitempty" json:"subnet,omitempty"`
+	Gateway            string                 `yaml:",omitempty" json:"gateway,omitempty"`
+	IPRange            string                 `mapstructure:"ip_range" yaml:"ip_range,omitempty" json:"ip_range,omitempty"`
+	AuxiliaryAddresses map[string]string      `mapstructure:"aux_addresses" yaml:"aux_addresses,omitempty" json:"aux_addresses,omitempty"`
+	Extensions         map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // VolumeConfig for a volume
@@ -652,6 +657,23 @@ type FileObjectConfig struct {
 	DriverOpts     map[string]string      `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
 	TemplateDriver string                 `mapstructure:"template_driver" yaml:"template_driver,omitempty" json:"template_driver,omitempty"`
 	Extensions     map[string]interface{} `yaml:",inline" json:"-"`
+}
+
+const (
+	// TypeServiceConditionHealthy is the type for waiting until a service is
+	// healthy.
+	ServiceConditionHealthy = "service_healthy"
+
+	// TypeServiceConditionHealthy is the type for waiting until a service has
+	// started.
+	ServiceConditionStarted = "service_started"
+)
+
+type DependsOnConfig map[string]ServiceDependency
+
+type ServiceDependency struct {
+	Condition  string                 `yaml:",omitempty" json:"condition,omitempty"`
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // SecretConfig for a secret

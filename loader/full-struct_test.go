@@ -27,7 +27,6 @@ import (
 
 func fullExampleConfig(workingDir, homeDir string) *types.Config {
 	return &types.Config{
-		Version:  "3.9",
 		Services: services(workingDir, homeDir),
 		Networks: networks(),
 		Volumes:  volumes(),
@@ -75,7 +74,10 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				},
 			},
 			ContainerName: "my-web-container",
-			DependsOn:     []string{"db", "redis"},
+			DependsOn: types.DependsOnConfig{
+				"db":    {Condition: types.ServiceConditionStarted},
+				"redis": {Condition: types.ServiceConditionStarted},
+			},
 			Deploy: &types.DeployConfig{
 				Mode:     "replicated",
 				Replicas: uint64Ptr(6),
@@ -421,8 +423,20 @@ func networks() map[string]types.NetworkConfig {
 			Ipam: types.IPAMConfig{
 				Driver: "overlay",
 				Config: []*types.IPAMPool{
-					{Subnet: "172.16.238.0/24"},
-					{Subnet: "2001:3984:3989::/64"},
+					{
+						Subnet:  "172.28.0.0/16",
+						IPRange: "172.28.5.0/24",
+						Gateway: "172.28.5.254",
+						AuxiliaryAddresses: map[string]string{
+							"host1": "172.28.1.5",
+							"host2": "172.28.1.6",
+							"host3": "172.28.1.7",
+						},
+					},
+					{
+						Subnet:  "2001:3984:3989::/64",
+						Gateway: "2001:3984:3989::1",
+					},
 				},
 			},
 			Labels: map[string]string{
@@ -541,8 +555,7 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 }
 
 func fullExampleYAML(workingDir, homeDir string) string {
-	return fmt.Sprintf(`version: "3.9"
-services:
+	return fmt.Sprintf(`services:
   foo:
     build:
       context: ./dir
@@ -577,8 +590,10 @@ services:
       mode: 288
     container_name: my-web-container
     depends_on:
-    - db
-    - redis
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
     deploy:
       mode: replicated
       replicas: 6
@@ -849,8 +864,15 @@ networks:
     ipam:
       driver: overlay
       config:
-      - subnet: 172.16.238.0/24
+      - subnet: 172.28.0.0/16
+        gateway: 172.28.5.254
+        ip_range: 172.28.5.0/24
+        aux_addresses:
+          host1: 172.28.1.5
+          host2: 172.28.1.6
+          host3: 172.28.1.7
       - subnet: 2001:3984:3989::/64
+        gateway: 2001:3984:3989::1
     labels:
       foo: bar
   some-network: {}
@@ -973,10 +995,18 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "driver": "overlay",
         "config": [
           {
-            "subnet": "172.16.238.0/24"
+            "subnet": "172.28.0.0/16",
+            "gateway": "172.28.5.254",
+            "ip_range": "172.28.5.0/24",
+            "aux_addresses": {
+              "host1": "172.28.1.5",
+              "host2": "172.28.1.6",
+              "host3": "172.28.1.7"
+            }
           },
           {
-            "subnet": "2001:3984:3989::/64"
+            "subnet": "2001:3984:3989::/64",
+            "gateway": "2001:3984:3989::1"
           }
         ]
       },
@@ -1058,10 +1088,14 @@ func fullExampleJSON(workingDir, homeDir string) string {
         }
       ],
       "container_name": "my-web-container",
-      "depends_on": [
-        "db",
-        "redis"
-      ],
+      "depends_on": {
+        "db": {
+          "condition": "service_started"
+        },
+        "redis": {
+          "condition": "service_started"
+        }
+      },
       "deploy": {
         "mode": "replicated",
         "replicas": 6,
@@ -1427,7 +1461,6 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "working_dir": "/code"
     }
   },
-  "version": "3.9",
   "volumes": {
     "another-volume": {
       "name": "user_specified_name",

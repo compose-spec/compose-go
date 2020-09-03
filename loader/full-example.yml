@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   foo:
 
@@ -307,10 +305,15 @@ networks:
       #   com.docker.network.enable_ipv6: "true"
       #   com.docker.network.numeric_value: 1
       config:
-      - subnet: 172.16.238.0/24
-        # gateway: 172.16.238.1
+      - subnet: 172.28.0.0/16
+        ip_range: 172.28.5.0/24
+        gateway: 172.28.5.254
+        aux_addresses:
+          host1: 172.28.1.5
+          host2: 172.28.1.6
+          host3: 172.28.1.7
       - subnet: 2001:3984:3989::/64
-        # gateway: 2001:3984:3989::1
+        gateway: 2001:3984:3989::1
 
     labels:
       foo: bar

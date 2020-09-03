@@ -24,43 +24,40 @@ import (
 )
 
 func TestProjectName(t *testing.T) {
-	p, err := ProjectFromOptions(&ProjectOptions{
-		Name:        "my_project",
-		ConfigPaths: []string{"testdata/simple/compose.yaml"},
-	})
+	opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("my_project"))
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	assert.Equal(t, p.Name, "my_project")
 
-	p, err = ProjectFromOptions(&ProjectOptions{
-		WorkingDir:  ".",
-		ConfigPaths: []string{"testdata/simple/compose.yaml"},
-	})
+	opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithWorkingDirectory("."))
+	assert.NilError(t, err)
+	p, err = ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	assert.Equal(t, p.Name, "cli")
 
-	p, err = ProjectFromOptions(&ProjectOptions{
-		ConfigPaths: []string{"testdata/simple/compose.yaml"},
-	})
+	opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"})
+	assert.NilError(t, err)
+	p, err = ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	assert.Equal(t, p.Name, "simple")
 
 	os.Setenv("COMPOSE_PROJECT_NAME", "my_project_from_env")
 	defer os.Unsetenv("COMPOSE_PROJECT_NAME")
-	p, err = ProjectFromOptions(&ProjectOptions{
-		ConfigPaths: []string{"testdata/simple/compose.yaml"},
-	})
+	opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithOsEnv)
+	assert.NilError(t, err)
+	p, err = ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	assert.Equal(t, p.Name, "my_project_from_env")
 }
 
 func TestProjectFromSetOfFiles(t *testing.T) {
-	p, err := ProjectFromOptions(&ProjectOptions{
-		Name: "my_project",
-		ConfigPaths: []string{
-			"testdata/simple/compose.yaml",
-			"testdata/simple/compose-with-overrides.yaml",
-		},
-	})
+	opts, err := NewProjectOptions([]string{
+		"testdata/simple/compose.yaml",
+		"testdata/simple/compose-with-overrides.yaml",
+	}, WithName("my_project"))
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
@@ -68,14 +65,11 @@ func TestProjectFromSetOfFiles(t *testing.T) {
 }
 
 func TestProjectWithDotEnv(t *testing.T) {
-	options, err := ProjectOptions{
-		Name: "my_project",
-		ConfigPaths: []string{
-			"testdata/simple/compose-with-variables.yaml",
-		},
-	}.WithDotEnv()
+	opts, err := NewProjectOptions([]string{
+		"testdata/simple/compose-with-variables.yaml",
+	}, WithName("my_project"), WithDotEnv)
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(&options)
+	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)

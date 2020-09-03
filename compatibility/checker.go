@@ -170,6 +170,10 @@ type Checker interface {
 	CheckPorts(service *types.ServiceConfig) bool
 	CheckServiceVolumes(service *types.ServiceConfig) bool
 	CheckNetworkConfigIpam(network *types.NetworkConfig)
+	CheckNetworkConfigIpamSubnet(config *types.IPAMPool)
+	CheckNetworkConfigIpamGateway(config *types.IPAMPool)
+	CheckNetworkConfigIpamIPRange(config *types.IPAMPool)
+	CheckNetworkConfigIpamAuxiliaryAddresses(config *types.IPAMPool)
 	CheckNetworkConfigDriver(network *types.NetworkConfig)
 	CheckNetworkConfigDriverOpts(network *types.NetworkConfig)
 	CheckNetworkConfigExternal(network *types.NetworkConfig)
