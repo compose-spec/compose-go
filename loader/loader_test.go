@@ -548,6 +548,7 @@ services:
       - "34567"
       - target: $theint
         published: $theint
+        x-foo-bar: true
     ulimits:
       nproc: $theint
       nofile:
@@ -637,7 +638,7 @@ networks:
 				Ports: []types.ServicePortConfig{
 					{Target: 555, Mode: "ingress", Protocol: "tcp"},
 					{Target: 34567, Mode: "ingress", Protocol: "tcp"},
-					{Target: 555, Published: 555},
+					{Target: 555, Published: 555, Extensions: map[string]interface{}{"x-foo-bar": true}},
 				},
 				Ulimits: map[string]*types.UlimitsConfig{
 					"nproc":  {Single: 555},
