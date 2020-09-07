@@ -746,7 +746,7 @@ var transformServicePort TransformerFunc = func(data interface{}) (interface{}, 
 					ports = append(ports, v)
 				}
 			case map[string]interface{}:
-				ports = append(ports, value)
+				ports = append(ports, groupXFieldsIntoExtensions(value))
 			default:
 				return data, errors.Errorf("invalid type %T for port", value)
 			}
@@ -762,7 +762,7 @@ var transformStringSourceMap TransformerFunc = func(data interface{}) (interface
 	case string:
 		return map[string]interface{}{"source": value}, nil
 	case map[string]interface{}:
-		return data, nil
+		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
 	default:
 		return data, errors.Errorf("invalid type %T for secret", value)
 	}
@@ -773,7 +773,7 @@ var transformBuildConfig TransformerFunc = func(data interface{}) (interface{}, 
 	case string:
 		return map[string]interface{}{"context": value}, nil
 	case map[string]interface{}:
-		return data, nil
+		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
 	default:
 		return data, errors.Errorf("invalid type %T for service build", value)
 	}
@@ -792,7 +792,7 @@ var transformDependsOnConfig TransformerFunc = func(data interface{}) (interface
 		}
 		return transformed, nil
 	case map[string]interface{}:
-		return data, nil
+		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
 	default:
 		return data, errors.Errorf("invalid type %T for service depends_on", value)
 	}
@@ -803,7 +803,7 @@ var transformServiceVolumeConfig TransformerFunc = func(data interface{}) (inter
 	case string:
 		return ParseVolume(value)
 	case map[string]interface{}:
-		return data, nil
+		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
 	default:
 		return data, errors.Errorf("invalid type %T for service volume", value)
 	}
