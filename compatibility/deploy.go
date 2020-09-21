@@ -153,6 +153,57 @@ func (c *AllowList) CheckDeployResourcesMemoryBytes(s string, r *types.Resource)
 		c.Unsupported(k)
 	}
 }
+
+func (c *AllowList) CheckDeployResourcesDevices(s string, r *types.Resource) {
+	if len(r.Devices) == 0 {
+		return
+	}
+	k := fmt.Sprintf("services.deploy.resources.%s.devices", s)
+	if !c.supported(k) {
+		r.Devices = nil
+		c.Unsupported(k)
+		return
+	}
+	for _, d := range r.Devices {
+		c.CheckDeployResourcesDevicesCapabilities(s, d)
+		c.CheckDeployResourcesDevicesCount(s, d)
+		c.CheckDeployResourcesDevicesIDs(s, d)
+		c.CheckDeployResourcesDevicesDriver(s, d)
+	}
+}
+
+func (c *AllowList) CheckDeployResourcesDevicesCapabilities(s string, r types.DeviceRequest) {
+	k := fmt.Sprintf("services.deploy.resources.%s.devices.capabilities", s)
+	if !c.supported(k) && len(r.Capabilities) != 0 {
+		r.Capabilities = nil
+		c.Unsupported(k)
+	}
+}
+
+func (c *AllowList) CheckDeployResourcesDevicesCount(s string, r types.DeviceRequest) {
+	k := fmt.Sprintf("services.deploy.resources.%s.devices.count", s)
+	if !c.supported(k) && r.Count != 0 {
+		r.Count = 0
+		c.Unsupported(k)
+	}
+}
+
+func (c *AllowList) CheckDeployResourcesDevicesIDs(s string, r types.DeviceRequest) {
+	k := fmt.Sprintf("services.deploy.resources.%s.devices.device_ids", s)
+	if !c.supported(k) && len(r.IDs) != 0 {
+		r.IDs = nil
+		c.Unsupported(k)
+	}
+}
+
+func (c *AllowList) CheckDeployResourcesDevicesDriver(s string, r types.DeviceRequest) {
+	k := fmt.Sprintf("services.deploy.resources.%s.devices.driver", s)
+	if !c.supported(k) && r.Diver != "" {
+		r.Diver = ""
+		c.Unsupported(k)
+	}
+}
+
 func (c *AllowList) CheckDeployResourcesGenericResources(s string, r *types.Resource) {
 	k := fmt.Sprintf("services.deploy.resources.%s.generic_resources", s)
 	if !c.supported(k) && len(r.GenericResources) != 0 {

@@ -340,9 +340,17 @@ type Resource struct {
 	// TODO: types to convert from units and ratios
 	NanoCPUs         string            `mapstructure:"cpus" yaml:"cpus,omitempty" json:"cpus,omitempty"`
 	MemoryBytes      UnitBytes         `mapstructure:"memory" yaml:"memory,omitempty" json:"memory,omitempty"`
+	Devices          []DeviceRequest   `mapstructure:"devices" yaml:"devices,omitempty" json:"devices,omitempty"`
 	GenericResources []GenericResource `mapstructure:"generic_resources" yaml:"generic_resources,omitempty" json:"generic_resources,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+}
+
+type DeviceRequest struct {
+	Capabilities []string `mapstructure:"capabilities" yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
+	Diver        string   `mapstructure:"driver" yaml:"driver,omitempty" json:"driver,omitempty"`
+	Count        int      `mapstructure:"count" yaml:"count,omitempty" json:"count,omitempty"`
+	IDs          []string `mapstructure:"device_ids" yaml:"device_ids,omitempty" json:"device_ids,omitempty"`
 }
 
 // GenericResource represents a "user defined" resource which can
