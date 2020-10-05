@@ -12,7 +12,7 @@ require (
 	github.com/mitchellh/mapstructure v1.3.3
 	github.com/mjibson/esc v0.2.0 // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.6.0
+	github.com/sirupsen/logrus v1.7.0
 	github.com/xeipuuv/gojsonschema v1.2.0
 	golang.org/x/tools v0.0.0-20200717024301-6ddee64345a6 // indirect
 	gopkg.in/yaml.v2 v2.3.0
