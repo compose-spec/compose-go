@@ -52,6 +52,16 @@ func (d Duration) MarshalYAML() (interface{}, error) {
 	return d.String(), nil
 }
 
+func (d *Duration) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), "\"")
+	timeDuration, err := time.ParseDuration(s)
+	if err != nil {
+		return err
+	}
+	*d = Duration(timeDuration)
+	return nil
+}
+
 // Services is a list of ServiceConfig
 type Services []ServiceConfig
 
