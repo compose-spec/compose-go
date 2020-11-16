@@ -163,7 +163,7 @@
         "cpu_period": {"type": ["number", "string"]},
         "cpu_rt_period": {"type": ["number", "string"]},
         "cpu_rt_runtime": {"type": ["number", "string"]},
-        "cpus": {"type": "number", "minimum": 0},
+        "cpus": {"type": ["number", "string"]},
         "cpuset": {"type": "string"},
         "credential_spec": {
           "type": "object",
@@ -328,6 +328,7 @@
           "uniqueItems": true
         },
         "privileged": {"type": "boolean"},
+        "profiles": {"$ref": "#/definitions/list_of_strings"},
         "pull_policy": {"type": "string", "enum": [
           "always", "never", "if_not_present"
         ]},
@@ -435,9 +436,9 @@
                 "additionalProperties": false,
                 "patternProperties": {"^x-": {}}
               }
-            ],
-            "uniqueItems": true
-          }
+            ]
+          },
+          "uniqueItems": true
         },
         "volumes_from": {
           "type": "array",
@@ -513,7 +514,7 @@
             "limits": {
               "type": "object",
               "properties": {
-                "cpus": {"type": "string"},
+                "cpus": {"type": ["number", "string"]},
                 "memory": {"type": "string"}
               },
               "additionalProperties": false,
@@ -522,9 +523,10 @@
             "reservations": {
               "type": "object",
               "properties": {
-                "cpus": {"type": "string"},
+                "cpus": {"type": ["number", "string"]},
                 "memory": {"type": "string"},
-                "generic_resources": {"$ref": "#/definitions/generic_resources"}
+                "generic_resources": {"$ref": "#/definitions/generic_resources"},
+                "devices": {"$ref": "#/definitions/devices"}
               },
               "additionalProperties": false,
               "patternProperties": {"^x-": {}}
@@ -590,6 +592,23 @@
       }
     },
 
+    "devices": {
+      "id": "#/definitions/devices",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "capabilities": {"$ref": "#/definitions/list_of_strings"},
+          "count": {"type": ["string", "integer"]},
+          "device_ids": {"$ref": "#/definitions/list_of_strings"},
+          "driver":{"type": "string"},
+          "options":{"$ref": "#/definitions/list_or_dict"}
+        },
+        "additionalProperties": false,
+        "patternProperties": {"^x-": {}}
+      }
+    },
+
     "network": {
       "id": "#/definitions/network",
       "type": ["object", "null"],
@@ -619,10 +638,10 @@
                     "additionalProperties": false,
                     "patternProperties": {"^.+$": {"type": "string"}}
                   }
-                }
-              },
-              "additionalProperties": false,
-              "patternProperties": {"^x-": {}}
+                },
+                "additionalProperties": false,
+                "patternProperties": {"^x-": {}}
+              }
             },
             "options": {
               "type": "object",
@@ -645,6 +664,7 @@
           "patternProperties": {"^x-": {}}
         },
         "internal": {"type": "boolean"},
+        "enable_ipv6": {"type": "boolean"},
         "attachable": {"type": "boolean"},
         "labels": {"$ref": "#/definitions/list_or_dict"}
       },
