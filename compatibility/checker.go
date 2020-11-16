@@ -264,9 +264,10 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 			c.CheckDeployResourcesGenericResources(ResourceLimits, service.Deploy.Resources.Limits)
 		}
 		if service.Deploy.Resources.Reservations != nil && c.CheckDeployResourcesReservations(service.Deploy) {
-			c.CheckDeployResourcesNanoCPUs(ResourceReservations, service.Deploy.Resources.Limits)
-			c.CheckDeployResourcesMemoryBytes(ResourceReservations, service.Deploy.Resources.Limits)
-			c.CheckDeployResourcesGenericResources(ResourceReservations, service.Deploy.Resources.Limits)
+			c.CheckDeployResourcesNanoCPUs(ResourceReservations, service.Deploy.Resources.Reservations)
+			c.CheckDeployResourcesMemoryBytes(ResourceReservations, service.Deploy.Resources.Reservations)
+			c.CheckDeployResourcesGenericResources(ResourceReservations, service.Deploy.Resources.Reservations)
+			c.CheckDeployResourcesDevices(ResourceReservations, service.Deploy.Resources.Reservations)
 		}
 		if service.Deploy.RestartPolicy != nil && c.CheckDeployRestartPolicy(service.Deploy) {
 			c.CheckRestartPolicyCondition(service.Deploy.RestartPolicy)
