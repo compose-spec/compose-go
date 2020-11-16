@@ -161,6 +161,11 @@ type Checker interface {
 	CheckUpdateConfigParallelism(rollback string, config *types.UpdateConfig)
 	CheckDeployResourcesNanoCPUs(s string, resource *types.Resource)
 	CheckDeployResourcesMemoryBytes(s string, resource *types.Resource)
+	CheckDeployResourcesDevices(s string, resource *types.Resource)
+	CheckDeployResourcesDevicesCapabilities(s string, r types.DeviceRequest)
+	CheckDeployResourcesDevicesCount(s string, r types.DeviceRequest)
+	CheckDeployResourcesDevicesIDs(s string, r types.DeviceRequest)
+	CheckDeployResourcesDevicesDriver(s string, r types.DeviceRequest)
 	CheckDeployResourcesGenericResources(s string, resource *types.Resource)
 	CheckDeployResourcesLimits(deploy *types.DeployConfig) bool
 	CheckDeployResourcesReservations(deploy *types.DeployConfig) bool
