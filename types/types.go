@@ -178,7 +178,14 @@ func (s ServiceConfig) GetDependencies() []string {
 	for dependency := range s.DependsOn {
 		dependencies.append(dependency)
 	}
-	dependencies.append(s.Links...)
+	for _, link := range s.Links {
+		parts := strings.Split(link, ":")
+		if len(parts) == 2 {
+			dependencies.append(parts[0])
+		} else {
+			dependencies.append(link)
+		}
+	}
 	if strings.HasPrefix(s.NetworkMode, "service:") {
 		dependencies.append(s.NetworkMode[8:])
 	}
