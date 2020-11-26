@@ -18,6 +18,7 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -62,6 +63,25 @@ func TestProjectFromSetOfFiles(t *testing.T) {
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
 	assert.Equal(t, service.Image, "haproxy")
+}
+
+func TestProjectComposefilesFromSetOfFiles(t *testing.T) {
+	opts, err := NewProjectOptions([]string{}, WithWorkingDirectory("testdata/simple/"), WithName("my_project"))
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(opts)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.ComposeFiles, []string{filepath.Join("testdata", "simple", "compose.yaml")})
+}
+
+func TestProjectComposefilesFromWorkingDir(t *testing.T) {
+	opts, err := NewProjectOptions([]string{
+		"testdata/simple/compose.yaml",
+		"testdata/simple/compose-with-overrides.yaml",
+	}, WithName("my_project"))
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(opts)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.ComposeFiles, []string{"testdata/simple/compose.yaml", "testdata/simple/compose-with-overrides.yaml"})
 }
 
 func TestProjectWithDotEnv(t *testing.T) {
