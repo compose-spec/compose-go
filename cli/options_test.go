@@ -110,6 +110,16 @@ func TestProjectWithDiscardEnvFile(t *testing.T) {
 	assert.Assert(t, service.EnvFile == nil)
 }
 
+func TestProjectNameFromWorkingDir(t *testing.T) {
+	opts, err := NewProjectOptions([]string{
+		"testdata/env-file/compose-with-env-file.yaml",
+	})
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(opts)
+	assert.NilError(t, err)
+	assert.Equal(t, p.Name, "env-file")
+}
+
 func TestEnvMap(t *testing.T) {
 	m := map[string]string{}
 	m["foo"] = "bar"
