@@ -177,7 +177,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		} else if nameFromEnv, ok := os.LookupEnv(ComposeProjectName); ok {
 			opts.Name = nameFromEnv
 		} else {
-			opts.Name = regexp.MustCompile(`[^a-z0-9\\-_]+`).
+			opts.Name = regexp.MustCompile(`[^-_a-z0-9]+`).
 				ReplaceAllString(strings.ToLower(filepath.Base(absWorkingDir)), "")
 		}
 	}
