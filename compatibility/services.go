@@ -521,6 +521,13 @@ func (c *AllowList) CheckPrivileged(service *types.ServiceConfig) {
 	}
 }
 
+func (c *AllowList) CheckPullPolicy(service *types.ServiceConfig) {
+	if !c.supported("services.pull_policy") && service.PullPolicy != "" {
+		service.PullPolicy = "false"
+		c.Unsupported("services.pull_policy")
+	}
+}
+
 func (c *AllowList) CheckReadOnly(service *types.ServiceConfig) {
 	if !c.supported("services.read_only") && service.ReadOnly {
 		service.ReadOnly = false

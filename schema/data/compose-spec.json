@@ -330,7 +330,7 @@
         "privileged": {"type": "boolean"},
         "profiles": {"$ref": "#/definitions/list_of_strings"},
         "pull_policy": {"type": "string", "enum": [
-          "always", "never", "if_not_present"
+          "always", "never", "if_not_present", "build"
         ]},
         "read_only": {"type": "boolean"},
         "restart": {"type": "string"},
@@ -598,12 +598,12 @@
       "items": {
         "type": "object",
         "properties": {
-          "capabilities": {"$ref": "#/definitions/list_of_strings"},
-          "count": {"type": ["string", "integer"]},
-          "device_ids": {"$ref": "#/definitions/list_of_strings"},
-          "driver":{"type": "string"},
-          "options":{"$ref": "#/definitions/list_or_dict"}
-        },
+            "capabilities": {"$ref": "#/definitions/list_of_strings"},
+            "count": {"type": ["string", "integer"]},
+            "device_ids": {"$ref": "#/definitions/list_of_strings"},
+            "driver":{"type": "string"},
+            "options":{"$ref": "#/definitions/list_or_dict"}
+          },
         "additionalProperties": false,
         "patternProperties": {"^x-": {}}
       }

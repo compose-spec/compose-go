@@ -147,6 +147,7 @@ type ServiceConfig struct {
 	Platform        string                           `yaml:",omitempty" json:"platform,omitempty"`
 	Ports           []ServicePortConfig              `yaml:",omitempty" json:"ports,omitempty"`
 	Privileged      bool                             `yaml:",omitempty" json:"privileged,omitempty"`
+	PullPolicy      string                           `yaml:",omitempty" json:"pull_policy,omitempty"`
 	ReadOnly        bool                             `mapstructure:"read_only" yaml:"read_only,omitempty" json:"read_only,omitempty"`
 	Restart         string                           `yaml:",omitempty" json:"restart,omitempty"`
 	Runtime         string                           `yaml:",omitempty" json:"runtime,omitempty"`
@@ -171,6 +172,17 @@ type ServiceConfig struct {
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
+
+const (
+	//PullPolicyAlways always pull images
+	PullPolicyAlways = "always"
+	//PullPolicyNever never pull images
+	PullPolicyNever = "never"
+	//PullPolicyIfNotPresent pull missing images
+	PullPolicyIfNotPresent = "if_not_present"
+	//PullPolicyBuild force building images
+	PullPolicyBuild = "build"
+)
 
 // GetDependencies retrieve all services this service depends on
 func (s ServiceConfig) GetDependencies() []string {
