@@ -95,6 +95,7 @@ type Checker interface {
 	CheckPortsTarget(p *types.ServicePortConfig)
 	CheckPortsPublished(p *types.ServicePortConfig)
 	CheckPortsProtocol(p *types.ServicePortConfig)
+	CheckPullPolicy(service *types.ServiceConfig)
 	CheckPrivileged(service *types.ServiceConfig)
 	CheckReadOnly(service *types.ServiceConfig)
 	CheckRestart(service *types.ServiceConfig)
@@ -354,6 +355,7 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 		}
 	}
 	c.CheckPrivileged(service)
+	c.CheckPullPolicy(service)
 	c.CheckReadOnly(service)
 	c.CheckRestart(service)
 	c.CheckRuntime(service)
