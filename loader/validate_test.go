@@ -27,7 +27,8 @@ func TestValidateAnonymousVolume(t *testing.T) {
 	project := &types.Project{
 		Services: types.Services([]types.ServiceConfig{
 			{
-				Name: "myservice",
+				Name:  "myservice",
+				Image: "my/service",
 				Volumes: []types.ServiceVolumeConfig{
 					{
 						Type:   types.VolumeTypeVolume,
@@ -45,7 +46,8 @@ func TestValidateNamedVolume(t *testing.T) {
 	project := &types.Project{
 		Services: types.Services([]types.ServiceConfig{
 			{
-				Name: "myservice",
+				Name:  "myservice",
+				Image: "my/service",
 				Volumes: []types.ServiceVolumeConfig{
 					{
 						Type:   types.VolumeTypeVolume,
@@ -66,5 +68,16 @@ func TestValidateNamedVolume(t *testing.T) {
 	})
 	err = checkConsistency(project)
 	assert.NilError(t, err)
+}
 
+func TestValidateNoBuildNoImage(t *testing.T) {
+	project := &types.Project{
+		Services: types.Services([]types.ServiceConfig{
+			{
+				Name: "myservice",
+			},
+		}),
+	}
+	err := checkConsistency(project)
+	assert.Error(t, err, `service "myservice" has neither an image nor a build context specified: invalid compose project`)
 }
