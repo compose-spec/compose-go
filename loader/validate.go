@@ -27,6 +27,10 @@ import (
 // checkConsistency validate a compose model is consistent
 func checkConsistency(project *types.Project) error {
 	for _, s := range project.Services {
+		if s.Build == nil && s.Image == "" {
+			return errors.Wrapf(errdefs.ErrInvalid, "service %q has neither an image nor a build context specified", s.Name)
+		}
+
 		for network := range s.Networks {
 			if _, ok := project.Networks[network]; !ok {
 				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined network %s", s.Name, network))
