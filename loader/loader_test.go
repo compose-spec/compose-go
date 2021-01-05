@@ -1697,3 +1697,35 @@ func TestLoadWithExtends(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
 }
+
+func TestServiceDeviceRequestCount(t *testing.T) {
+	_, err := loadYAML(`
+services:
+  hello-world:
+    image: redis:alpine
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              count: all
+`)
+	assert.NilError(t, err)
+}
+
+func TestServiceDeviceRequestCountType(t *testing.T) {
+	_, err := loadYAML(`
+services:
+  hello-world:
+    image: redis:alpine
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              count: somestring
+`)
+	assert.ErrorContains(t, err, "invalid string value for 'count' (the only value allowed is 'all')")
+}

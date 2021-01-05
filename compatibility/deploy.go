@@ -198,8 +198,8 @@ func (c *AllowList) CheckDeployResourcesDevicesIDs(s string, r types.DeviceReque
 
 func (c *AllowList) CheckDeployResourcesDevicesDriver(s string, r types.DeviceRequest) {
 	k := fmt.Sprintf("services.deploy.resources.%s.devices.driver", s)
-	if !c.supported(k) && r.Diver != "" {
-		r.Diver = ""
+	if !c.supported(k) && r.Driver != "" {
+		r.Driver = ""
 		c.Unsupported(k)
 	}
 }
