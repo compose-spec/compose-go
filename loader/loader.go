@@ -390,6 +390,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.Duration(0)):                        transformStringToDuration,
 		reflect.TypeOf(types.DependsOnConfig{}):                  transformDependsOnConfig,
 		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
+		reflect.TypeOf(types.DeviceRequest{}):                    transformServiceDeviceRequest,
 	}
 
 	for _, transformer := range additionalTransformers {
@@ -840,6 +841,30 @@ var transformServicePort TransformerFunc = func(data interface{}) (interface{}, 
 		return ports, nil
 	default:
 		return data, errors.Errorf("invalid type %T for port", entries)
+	}
+}
+
+var transformServiceDeviceRequest TransformerFunc = func(data interface{}) (interface{}, error) {
+	switch value := data.(type) {
+	case map[string]interface{}:
+		count, ok := value["count"]
+		if ok {
+			switch val := count.(type) {
+			case int:
+				return value, nil
+			case string:
+				if strings.ToLower(val) == "all" {
+					value["count"] = -1
+					return value, nil
+				}
+				return data, errors.Errorf("invalid string value for 'count' (the only value allowed is 'all')")
+			default:
+				return data, errors.Errorf("invalid type %T for device count", val)
+			}
+		}
+		return data, nil
+	default:
+		return data, errors.Errorf("invalid type %T for resource reservation", value)
 	}
 }
 

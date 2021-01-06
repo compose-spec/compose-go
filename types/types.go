@@ -377,8 +377,8 @@ type Resource struct {
 
 type DeviceRequest struct {
 	Capabilities []string `mapstructure:"capabilities" yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
-	Diver        string   `mapstructure:"driver" yaml:"driver,omitempty" json:"driver,omitempty"`
-	Count        int      `mapstructure:"count" yaml:"count,omitempty" json:"count,omitempty"`
+	Driver       string   `mapstructure:"driver" yaml:"driver,omitempty" json:"driver,omitempty"`
+	Count        int64    `mapstructure:"count" yaml:"count,omitempty" json:"count,omitempty"`
 	IDs          []string `mapstructure:"device_ids" yaml:"device_ids,omitempty" json:"device_ids,omitempty"`
 }
 
