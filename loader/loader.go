@@ -269,31 +269,6 @@ func getSection(config map[string]interface{}, key string) map[string]interface{
 	return section.(map[string]interface{})
 }
 
-func sortedKeys(set map[string]bool) []string {
-	var keys []string
-	for key := range set {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func getProperties(services map[string]interface{}, propertyMap map[string]string) map[string]string {
-	output := map[string]string{}
-
-	for _, service := range services {
-		if serviceDict, ok := service.(map[string]interface{}); ok {
-			for property, description := range propertyMap {
-				if _, isSet := serviceDict[property]; isSet {
-					output[property] = description
-				}
-			}
-		}
-	}
-
-	return output
-}
-
 // ForbiddenPropertiesError is returned when there are properties in the Compose
 // file that are forbidden.
 type ForbiddenPropertiesError struct {
@@ -302,16 +277,6 @@ type ForbiddenPropertiesError struct {
 
 func (e *ForbiddenPropertiesError) Error() string {
 	return "Configuration contains forbidden properties"
-}
-
-func getServices(configDict map[string]interface{}) map[string]interface{} {
-	if services, ok := configDict["services"]; ok {
-		if servicesDict, ok := services.(map[string]interface{}); ok {
-			return servicesDict
-		}
-	}
-
-	return map[string]interface{}{}
 }
 
 // Transform converts the source into the target struct with compose types transformer
