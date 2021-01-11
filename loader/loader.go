@@ -229,60 +229,35 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 		Filename: filename,
 	}
 
-	var loaders = []struct {
-		key string
-		fnc func(config map[string]interface{}) error
-	}{
-		{
-			key: "services",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Services, err = LoadServices(filename, config, configDetails.WorkingDir, configDetails.LookupEnv, opts)
-				return err
-			},
-		},
-		{
-			key: "networks",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Networks, err = LoadNetworks(config, configDetails.Version)
-				return err
-			},
-		},
-		{
-			key: "volumes",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Volumes, err = LoadVolumes(config)
-				return err
-			},
-		},
-		{
-			key: "secrets",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Secrets, err = LoadSecrets(config, configDetails)
-				return err
-			},
-		},
-		{
-			key: "configs",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Configs, err = LoadConfigObjs(config, configDetails)
-				return err
-			},
-		},
-		{
-			key: "extensions",
-			fnc: func(config map[string]interface{}) error {
-				if len(config) > 0 {
-					cfg.Extensions = config
-				}
-				return err
-			},
-		},
+	cfg.Services, err = LoadServices(filename, getSection(config, "services"), configDetails.WorkingDir, configDetails.LookupEnv, opts)
+	if err != nil {
+		return nil, err
 	}
-	for _, loader := range loaders {
-		if err := loader.fnc(getSection(config, loader.key)); err != nil {
-			return nil, err
-		}
+
+	cfg.Networks, err = LoadNetworks(getSection(config, "networks"), configDetails.Version)
+	if err != nil {
+		return nil, err
 	}
+	cfg.Volumes, err = LoadVolumes(getSection(config, "volumes"))
+	if err != nil {
+		return nil, err
+	}
+	cfg.Secrets, err = LoadSecrets(getSection(config, "secrets"), configDetails)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Configs, err = LoadConfigObjs(getSection(config, "configs"), configDetails)
+	if err != nil {
+		return nil, err
+	}
+	extensions := getSection(config, "extensions")
+	if len(extensions) > 0 {
+		cfg.Extensions = extensions
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
 }
 
