@@ -282,7 +282,7 @@ func TestLoadExtends(t *testing.T) {
 services:
   foo:
     image: busybox
-    extends: 
+    extends:
       service: bar
   bar:
     image: alpine
@@ -579,7 +579,7 @@ networks:
     external: $thebool
     internal: $thebool
     attachable: $thebool
-
+  back:
 `))
 	assert.NilError(t, err)
 	env := map[string]string{
@@ -669,6 +669,7 @@ networks:
 			"data": {External: types.External{External: true}, Name: "data"},
 		},
 		Networks: map[string]types.NetworkConfig{
+			"back": {},
 			"front": {
 				External:   types.External{External: true},
 				Name:       "front",

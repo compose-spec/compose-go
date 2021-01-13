@@ -229,60 +229,35 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 		Filename: filename,
 	}
 
-	var loaders = []struct {
-		key string
-		fnc func(config map[string]interface{}) error
-	}{
-		{
-			key: "services",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Services, err = LoadServices(filename, config, configDetails.WorkingDir, configDetails.LookupEnv, opts)
-				return err
-			},
-		},
-		{
-			key: "networks",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Networks, err = LoadNetworks(config, configDetails.Version)
-				return err
-			},
-		},
-		{
-			key: "volumes",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Volumes, err = LoadVolumes(config)
-				return err
-			},
-		},
-		{
-			key: "secrets",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Secrets, err = LoadSecrets(config, configDetails)
-				return err
-			},
-		},
-		{
-			key: "configs",
-			fnc: func(config map[string]interface{}) error {
-				cfg.Configs, err = LoadConfigObjs(config, configDetails)
-				return err
-			},
-		},
-		{
-			key: "extensions",
-			fnc: func(config map[string]interface{}) error {
-				if len(config) > 0 {
-					cfg.Extensions = config
-				}
-				return err
-			},
-		},
+	cfg.Services, err = LoadServices(filename, getSection(config, "services"), configDetails.WorkingDir, configDetails.LookupEnv, opts)
+	if err != nil {
+		return nil, err
 	}
-	for _, loader := range loaders {
-		if err := loader.fnc(getSection(config, loader.key)); err != nil {
-			return nil, err
-		}
+
+	cfg.Networks, err = LoadNetworks(getSection(config, "networks"), configDetails.Version)
+	if err != nil {
+		return nil, err
 	}
+	cfg.Volumes, err = LoadVolumes(getSection(config, "volumes"))
+	if err != nil {
+		return nil, err
+	}
+	cfg.Secrets, err = LoadSecrets(getSection(config, "secrets"), configDetails)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Configs, err = LoadConfigObjs(getSection(config, "configs"), configDetails)
+	if err != nil {
+		return nil, err
+	}
+	extensions := getSection(config, "extensions")
+	if len(extensions) > 0 {
+		cfg.Extensions = extensions
+	}
+	if err != nil {
+		return nil, err
+	}
+
 	return &cfg, nil
 }
 
@@ -294,31 +269,6 @@ func getSection(config map[string]interface{}, key string) map[string]interface{
 	return section.(map[string]interface{})
 }
 
-func sortedKeys(set map[string]bool) []string {
-	var keys []string
-	for key := range set {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return keys
-}
-
-func getProperties(services map[string]interface{}, propertyMap map[string]string) map[string]string {
-	output := map[string]string{}
-
-	for _, service := range services {
-		if serviceDict, ok := service.(map[string]interface{}); ok {
-			for property, description := range propertyMap {
-				if _, isSet := serviceDict[property]; isSet {
-					output[property] = description
-				}
-			}
-		}
-	}
-
-	return output
-}
-
 // ForbiddenPropertiesError is returned when there are properties in the Compose
 // file that are forbidden.
 type ForbiddenPropertiesError struct {
@@ -327,16 +277,6 @@ type ForbiddenPropertiesError struct {
 
 func (e *ForbiddenPropertiesError) Error() string {
 	return "Configuration contains forbidden properties"
-}
-
-func getServices(configDict map[string]interface{}) map[string]interface{} {
-	if services, ok := configDict["services"]; ok {
-		if servicesDict, ok := services.(map[string]interface{}); ok {
-			return servicesDict
-		}
-	}
-
-	return map[string]interface{}{}
 }
 
 // Transform converts the source into the target struct with compose types transformer
