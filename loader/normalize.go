@@ -17,6 +17,8 @@
 package loader
 
 import (
+	"fmt"
+
 	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/pkg/errors"
@@ -68,28 +70,28 @@ func normalize(project *types.Project) error {
 func setNameFromKey(project *types.Project) {
 	for i, n := range project.Networks {
 		if n.Name == "" {
-			n.Name = i
+			n.Name = fmt.Sprintf("%s_%s", project.Name, i)
 			project.Networks[i] = n
 		}
 	}
 
 	for i, v := range project.Volumes {
 		if v.Name == "" {
-			v.Name = i
+			v.Name = fmt.Sprintf("%s_%s", project.Name, i)
 			project.Volumes[i] = v
 		}
 	}
 
 	for i, c := range project.Configs {
 		if c.Name == "" {
-			c.Name = i
+			c.Name = fmt.Sprintf("%s_%s", project.Name, i)
 			project.Configs[i] = c
 		}
 	}
 
 	for i, s := range project.Secrets {
 		if s.Name == "" {
-			s.Name = i
+			s.Name = fmt.Sprintf("%s_%s", project.Name, i)
 			project.Secrets[i] = s
 		}
 	}
