@@ -38,6 +38,7 @@ type ProjectOptions struct {
 	WorkingDir  string
 	ConfigPaths []string
 	Environment map[string]string
+	EnvFile     string
 	loadOptions []func(*loader.Options)
 }
 
@@ -101,11 +102,17 @@ func WithOsEnv(o *ProjectOptions) error {
 
 // WithDotEnv imports environment variables from .env file
 func WithDotEnv(o *ProjectOptions) error {
-	dir, err := o.GetWorkingDir()
-	if err != nil {
-		return err
+	dotEnvFile := o.EnvFile
+	if dotEnvFile == "" {
+		dotEnvFile = ".env"
 	}
-	dotEnvFile := filepath.Join(dir, ".env")
+	if !filepath.IsAbs(dotEnvFile) {
+		dir, err := o.GetWorkingDir()
+		if err != nil {
+			return err
+		}
+		dotEnvFile = filepath.Join(dir, dotEnvFile)
+	}
 	if _, err := os.Stat(dotEnvFile); os.IsNotExist(err) {
 		return nil
 	}
