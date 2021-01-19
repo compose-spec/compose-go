@@ -100,6 +100,14 @@ func WithOsEnv(o *ProjectOptions) error {
 	return nil
 }
 
+// WithEnvFile set an alternate env file
+func WithEnvFile(file string) ProjectOptionsFn {
+	return func(options *ProjectOptions) error {
+		options.EnvFile = file
+		return nil
+	}
+}
+
 // WithDotEnv imports environment variables from .env file
 func WithDotEnv(o *ProjectOptions) error {
 	dotEnvFile := o.EnvFile
