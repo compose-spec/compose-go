@@ -81,7 +81,11 @@ func TestProjectComposefilesFromWorkingDir(t *testing.T) {
 	assert.NilError(t, err)
 	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.ComposeFiles, []string{"testdata/simple/compose.yaml", "testdata/simple/compose-with-overrides.yaml"})
+	currentDir, _ := os.Getwd()
+	assert.DeepEqual(t, p.ComposeFiles, []string{
+		filepath.Join(currentDir, "testdata/simple/compose.yaml"),
+		filepath.Join(currentDir, "testdata/simple/compose-with-overrides.yaml"),
+	})
 }
 
 func TestProjectWithDotEnv(t *testing.T) {
