@@ -43,6 +43,10 @@ func normalize(project *types.Project) error {
 			s.Networks = map[string]*types.ServiceNetworkConfig{"default": nil}
 		}
 
+		if s.PullPolicy == types.PullPolicyIfNotPresent {
+			s.PullPolicy = types.PullPolicyMissing
+		}
+
 		err := relocateLogDriver(s)
 		if err != nil {
 			return err
