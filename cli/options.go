@@ -167,7 +167,7 @@ func (o ProjectOptions) GetWorkingDir() (string, error) {
 
 // ProjectFromOptions load a compose project based on command line options
 func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
-	configPaths, specifiedComposeFiles, err := getConfigPathsFromOptions(options)
+	configPaths, err := getConfigPathsFromOptions(options)
 	if err != nil {
 		return nil, err
 	}
@@ -207,18 +207,18 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		return nil, err
 	}
 
-	project.ComposeFiles = specifiedComposeFiles
+	project.ComposeFiles = configPaths
 	return project, nil
 }
 
 // getConfigPathsFromOptions retrieves the config files for project based on project options
-func getConfigPathsFromOptions(options *ProjectOptions) ([]string, []string, error) {
+func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 	paths := []string{}
 	pwd := options.WorkingDir
 	if pwd == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		pwd = wd
 	}
@@ -233,11 +233,18 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, []string, err
 				f = filepath.Join(pwd, f)
 			}
 			if _, err := os.Stat(f); err != nil {
-				return nil, nil, err
+				return nil, err
+			}
+			if !filepath.IsAbs(f) {
+				fAbs, err := filepath.Abs(f)
+				if err != nil {
+					return nil, err
+				}
+				f = fAbs
 			}
 			paths = append(paths, f)
 		}
-		return paths, options.ConfigPaths, nil
+		return paths, nil
 	}
 
 	sep := os.Getenv(ComposeFileSeparator)
@@ -246,7 +253,7 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, []string, err
 	}
 	f := os.Getenv(ComposeFilePath)
 	if f != "" {
-		return strings.Split(f, sep), strings.Split(f, sep), nil
+		return strings.Split(f, sep), nil
 	}
 
 	for {
@@ -263,11 +270,11 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, []string, err
 				logrus.Warnf("Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
 				logrus.Warnf("Using %s", winner)
 			}
-			return []string{winner}, []string{winner}, nil
+			return []string{winner}, nil
 		}
 		parent := filepath.Dir(pwd)
 		if parent == pwd {
-			return nil, nil, errors.Wrap(errdefs.ErrNotFound, "can't find a suitable configuration file in this directory or any parent")
+			return nil, errors.Wrap(errdefs.ErrNotFound, "can't find a suitable configuration file in this directory or any parent")
 		}
 		pwd = parent
 	}
@@ -291,6 +298,13 @@ func parseConfigs(configPaths []string) ([]types.ConfigFile, error) {
 		config, err := loader.ParseYAML(b)
 		if err != nil {
 			return nil, err
+		}
+		if !filepath.IsAbs(f) {
+			fAbs, err := filepath.Abs(f)
+			if err != nil {
+				return nil, err
+			}
+			f = fAbs
 		}
 		files = append(files, types.ConfigFile{Filename: f, Config: config})
 	}
