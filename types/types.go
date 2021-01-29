@@ -180,6 +180,8 @@ const (
 	PullPolicyNever = "never"
 	//PullPolicyIfNotPresent pull missing images
 	PullPolicyIfNotPresent = "if_not_present"
+	//PullPolicyIfNotPresent pull missing images
+	PullPolicyMissing = "missing"
 	//PullPolicyBuild force building images
 	PullPolicyBuild = "build"
 )
