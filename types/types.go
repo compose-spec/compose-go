@@ -85,7 +85,8 @@ func (s Services) MarshalJSON() ([]byte, error) {
 
 // ServiceConfig is the configuration of one service
 type ServiceConfig struct {
-	Name string `yaml:"-" json:"-"`
+	Name     string   `yaml:"-" json:"-"`
+	Profiles []string `mapstructure:"profiles" yaml:"profiles,omitempty" json:"profiles,omitempty"`
 
 	Build           *BuildConfig                     `yaml:",omitempty" json:"build,omitempty"`
 	BlkioConfig     string                           `yaml:",omitempty" json:"blkio_config,omitempty"`
