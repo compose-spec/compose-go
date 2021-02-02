@@ -34,6 +34,9 @@ type Project struct {
 	Configs      Configs                `yaml:",omitempty" json:"configs,omitempty"`
 	Extensions   map[string]interface{} `yaml:",inline" json:"-"`
 	ComposeFiles []string               `yaml:",omitempty" json:"composefiles,omitempty"`
+
+	// DisabledServices track services which have been disable as profile is not active
+	DisabledServices Services
 }
 
 // ServiceNames return names for all services in this Compose config
@@ -112,6 +115,13 @@ func (p Project) GetService(name string) (ServiceConfig, error) {
 	return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
 }
 
+func (p Project) AllServices() Services {
+	var all Services
+	all = append(all, p.Services...)
+	all = append(all, p.DisabledServices...)
+	return all
+}
+
 type ServiceFunc func(service ServiceConfig) error
 
 // WithServices run ServiceFunc on each service and dependencies in dependency order
@@ -153,4 +163,77 @@ func (p *Project) RelativePath(path string) string {
 		return path
 	}
 	return filepath.Join(p.WorkingDir, path)
+}
+
+// HasProfile return true if service has no profile declared or has at least one profile matching
+func (service ServiceConfig) HasProfile(profiles []string) bool {
+	if len(service.Profiles) == 0 {
+		return true
+	}
+	for _, p := range profiles {
+		for _, sp := range service.Profiles {
+			if sp == p {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// GetProfiles retrieve the profiles implicitly enabled by explicitly targeting selected services
+func (s Services) GetProfiles() []string {
+	set := map[string]struct{}{}
+	for _, service := range s {
+		for _, p := range service.Profiles {
+			set[p] = struct{}{}
+		}
+	}
+	var profiles []string
+	for k := range set {
+		profiles = append(profiles, k)
+	}
+	return profiles
+}
+
+// ApplyProfiles disables service which don't match selected profiles
+func (p *Project) ApplyProfiles(profiles []string) {
+	var enabled, disabled Services
+	for _, service := range p.Services {
+		if service.HasProfile(profiles) {
+			enabled = append(enabled, service)
+		} else {
+			disabled = append(disabled, service)
+		}
+	}
+	p.Services = enabled
+	p.DisabledServices = disabled
+}
+
+// ForServices restrict the project model to a subset of services
+func (p *Project) ForServices(names []string) error {
+	if len(names) == 0 {
+		// All services
+		return nil
+	}
+
+	set := map[string]struct{}{}
+	err := p.WithServices(names, func(service ServiceConfig) error {
+		set[service.Name] = struct{}{}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Disable all services which are not explicit target or dependencies
+	var enabled Services
+	for _, s := range p.Services {
+		if _, ok := set[s.Name]; ok {
+			enabled = append(enabled, s)
+		} else {
+			p.DisabledServices = append(p.DisabledServices, s)
+		}
+	}
+	p.Services = enabled
+	return nil
 }
