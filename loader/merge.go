@@ -72,6 +72,10 @@ func merge(configs []*types.Config) (*types.Config, error) {
 		if err != nil {
 			return base, errors.Wrapf(err, "cannot merge configs from %s", override.Filename)
 		}
+		base.Extensions, err = mergeExtensions(base.Extensions, override.Extensions)
+		if err != nil {
+			return base, errors.Wrapf(err, "cannot merge extensions from %s", override.Filename)
+		}
 	}
 	return base, nil
 }
@@ -271,6 +275,14 @@ func mergeSecrets(base, override map[string]types.SecretConfig) (map[string]type
 }
 
 func mergeConfigs(base, override map[string]types.ConfigObjConfig) (map[string]types.ConfigObjConfig, error) {
+	err := mergo.Map(&base, &override, mergo.WithOverride)
+	return base, err
+}
+
+func mergeExtensions(base, override map[string]interface{}) (map[string]interface{}, error) {
+	if base == nil {
+		base = map[string]interface{}{}
+	}
 	err := mergo.Map(&base, &override, mergo.WithOverride)
 	return base, err
 }
