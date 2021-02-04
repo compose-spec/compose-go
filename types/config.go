@@ -18,6 +18,8 @@ package types
 
 import (
 	"encoding/json"
+
+	"github.com/mitchellh/mapstructure"
 )
 
 // ConfigDetails are the details about a group of ConfigFiles
@@ -42,13 +44,13 @@ type ConfigFile struct {
 
 // Config is a full compose file configuration and model
 type Config struct {
-	Filename   string                 `yaml:"-" json:"-"`
-	Services   Services               `json:"services"`
-	Networks   Networks               `yaml:",omitempty" json:"networks,omitempty"`
-	Volumes    Volumes                `yaml:",omitempty" json:"volumes,omitempty"`
-	Secrets    Secrets                `yaml:",omitempty" json:"secrets,omitempty"`
-	Configs    Configs                `yaml:",omitempty" json:"configs,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Filename   string     `yaml:"-" json:"-"`
+	Services   Services   `json:"services"`
+	Networks   Networks   `yaml:",omitempty" json:"networks,omitempty"`
+	Volumes    Volumes    `yaml:",omitempty" json:"volumes,omitempty"`
+	Secrets    Secrets    `yaml:",omitempty" json:"secrets,omitempty"`
+	Configs    Configs    `yaml:",omitempty" json:"configs,omitempty"`
+	Extensions Extensions `yaml:",inline" json:"-"`
 }
 
 // Volumes is a map of VolumeConfig
@@ -62,6 +64,9 @@ type Secrets map[string]SecretConfig
 
 // Configs is a map of ConfigObjConfig
 type Configs map[string]ConfigObjConfig
+
+// Extensions is a map of custom extension
+type Extensions map[string]interface{}
 
 // MarshalJSON makes Config implement json.Marshaler
 func (c Config) MarshalJSON() ([]byte, error) {
@@ -85,4 +90,12 @@ func (c Config) MarshalJSON() ([]byte, error) {
 		m[k] = v
 	}
 	return json.Marshal(m)
+}
+
+func (e Extensions) Get(name string, target interface{}) (bool, error) {
+	if v, ok := e[name]; ok {
+		err := mapstructure.Decode(v, target)
+		return true, err
+	}
+	return false, nil
 }

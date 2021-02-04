@@ -214,3 +214,24 @@ func TestSet(t *testing.T) {
 	s.append("two")
 	assert.Equal(t, len(s.toSlice()), 3)
 }
+
+type foo struct {
+	Bar string
+}
+
+func TestExtension(t *testing.T) {
+	x := Extensions{
+		"foo": map[string]interface{}{
+			"bar": "zot",
+		},
+	}
+	var foo foo
+	ok, err := x.Get("foo", &foo)
+	assert.NilError(t, err)
+	assert.Check(t, ok == true)
+	assert.Check(t, foo.Bar == "zot")
+
+	ok, err = x.Get("qiz", &foo)
+	assert.NilError(t, err)
+	assert.Check(t, ok == false)
+}
