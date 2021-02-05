@@ -25,15 +25,15 @@ import (
 
 // Project is the result of loading a set of compose files
 type Project struct {
-	Name         string                 `yaml:"-" json:"-"`
-	WorkingDir   string                 `yaml:"-" json:"-"`
-	Services     Services               `json:"services"`
-	Networks     Networks               `yaml:",omitempty" json:"networks,omitempty"`
-	Volumes      Volumes                `yaml:",omitempty" json:"volumes,omitempty"`
-	Secrets      Secrets                `yaml:",omitempty" json:"secrets,omitempty"`
-	Configs      Configs                `yaml:",omitempty" json:"configs,omitempty"`
-	Extensions   map[string]interface{} `yaml:",inline" json:"-"` // https://github.com/golang/go/issues/6213
-	ComposeFiles []string               `yaml:"-" json:"-"`
+	Name         string     `yaml:"-" json:"-"`
+	WorkingDir   string     `yaml:"-" json:"-"`
+	Services     Services   `json:"services"`
+	Networks     Networks   `yaml:",omitempty" json:"networks,omitempty"`
+	Volumes      Volumes    `yaml:",omitempty" json:"volumes,omitempty"`
+	Secrets      Secrets    `yaml:",omitempty" json:"secrets,omitempty"`
+	Configs      Configs    `yaml:",omitempty" json:"configs,omitempty"`
+	Extensions   Extensions `yaml:",inline" json:"-"` // https://github.com/golang/go/issues/6213
+	ComposeFiles []string   `yaml:"-" json:"-"`
 
 	// DisabledServices track services which have been disable as profile is not active
 	DisabledServices Services `yaml:"-" json:"-"`

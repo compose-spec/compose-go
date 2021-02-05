@@ -217,10 +217,11 @@ func TestLoadLogging(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: types.Networks{},
-				Volumes:  types.Volumes{},
-				Secrets:  types.Secrets{},
-				Configs:  types.Configs{},
+				Networks:   types.Networks{},
+				Volumes:    types.Volumes{},
+				Secrets:    types.Secrets{},
+				Configs:    types.Configs{},
+				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -341,10 +342,11 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: types.Networks{},
-				Volumes:  types.Volumes{},
-				Secrets:  types.Secrets{},
-				Configs:  types.Configs{},
+				Networks:   types.Networks{},
+				Volumes:    types.Volumes{},
+				Secrets:    types.Secrets{},
+				Configs:    types.Configs{},
+				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -465,10 +467,11 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: types.Networks{},
-				Volumes:  types.Volumes{},
-				Secrets:  types.Secrets{},
-				Configs:  types.Configs{},
+				Networks:   types.Networks{},
+				Volumes:    types.Volumes{},
+				Secrets:    types.Secrets{},
+				Configs:    types.Configs{},
+				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -589,10 +592,11 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: types.Networks{},
-				Volumes:  types.Volumes{},
-				Secrets:  types.Secrets{},
-				Configs:  types.Configs{},
+				Networks:   types.Networks{},
+				Volumes:    types.Volumes{},
+				Secrets:    types.Secrets{},
+				Configs:    types.Configs{},
+				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -703,10 +707,11 @@ func TestLoadMultipleUlimits(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: types.Networks{},
-				Volumes:  types.Volumes{},
-				Secrets:  types.Secrets{},
-				Configs:  types.Configs{},
+				Networks:   types.Networks{},
+				Volumes:    types.Volumes{},
+				Secrets:    types.Secrets{},
+				Configs:    types.Configs{},
+				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -820,10 +825,11 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 						Environment: types.MappingWithEquals{},
 					},
 				},
-				Networks: types.Networks{},
-				Volumes:  types.Volumes{},
-				Secrets:  types.Secrets{},
-				Configs:  types.Configs{},
+				Networks:   types.Networks{},
+				Volumes:    types.Volumes{},
+				Secrets:    types.Secrets{},
+				Configs:    types.Configs{},
+				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -934,10 +940,11 @@ func TestLoadMultipleConfigs(t *testing.T) {
 				CapAdd:      []string{"NET_ADMIN", "SYS_ADMIN"},
 				Environment: types.MappingWithEquals{},
 			}},
-		Networks: types.Networks{},
-		Volumes:  types.Volumes{},
-		Secrets:  types.Secrets{},
-		Configs:  types.Configs{},
+		Networks:   types.Networks{},
+		Volumes:    types.Volumes{},
+		Secrets:    types.Secrets{},
+		Configs:    types.Configs{},
+		Extensions: types.Extensions{},
 	}, config)
 }
 
@@ -1004,9 +1011,10 @@ func TestLoadMultipleNetworks(t *testing.T) {
 				},
 			},
 		},
-		Volumes: types.Volumes{},
-		Secrets: types.Secrets{},
-		Configs: types.Configs{},
+		Volumes:    types.Volumes{},
+		Secrets:    types.Secrets{},
+		Configs:    types.Configs{},
+		Extensions: types.Extensions{},
 	}, config)
 }
 
@@ -1099,4 +1107,43 @@ func TestMergeServiceNetworkConfig(t *testing.T) {
 			},
 		},
 	)
+}
+
+func TestMergeTopLevelExtensions(t *testing.T) {
+	base := map[string]interface{}{
+		"x-foo": "foo",
+		"x-bar": map[string]interface{}{
+			"base": map[string]interface{}{},
+		},
+	}
+	override := map[string]interface{}{
+		"x-bar": map[string]interface{}{
+			"base": "qix",
+		},
+		"x-zot": "zot",
+	}
+	configDetails := types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "base.yml", Config: base},
+			{Filename: "override.yml", Config: override},
+		},
+	}
+	config, err := loadTestProject(configDetails)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, &types.Project{
+		Name:       "",
+		WorkingDir: "",
+		Services:   types.Services{},
+		Networks:   types.Networks{},
+		Volumes:    types.Volumes{},
+		Secrets:    types.Secrets{},
+		Configs:    types.Configs{},
+		Extensions: types.Extensions{
+			"x-foo": "foo",
+			"x-bar": map[string]interface{}{
+				"base": "qix",
+			},
+			"x-zot": "zot",
+		},
+	}, config)
 }
