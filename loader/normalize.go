@@ -38,7 +38,7 @@ func normalize(project *types.Project) error {
 	}
 
 	for i, s := range project.Services {
-		if len(s.Networks) == 0 {
+		if len(s.Networks) == 0 && s.NetworkMode == "" {
 			// Service without explicit network attachment are implicitly exposed on default network
 			s.Networks = map[string]*types.ServiceNetworkConfig{"default": nil}
 		}
