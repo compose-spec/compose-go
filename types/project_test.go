@@ -17,8 +17,11 @@
 package types
 
 import (
+	_ "crypto/sha256"
 	"testing"
 
+	"github.com/distribution/distribution/v3/reference"
+	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
 )
 
@@ -72,5 +75,45 @@ func makeProject() Project {
 				Name:     "service_3",
 				Profiles: []string{"bar"},
 			}),
+	}
+}
+
+func Test_ResolveImages(t *testing.T) {
+	p := makeProject()
+	resolver := func(named reference.Named) (digest.Digest, error) {
+		return "sha256:1234567890123456789012345678901234567890123456789012345678901234", nil
+	}
+
+	tests := []struct {
+		image    string
+		resolved string
+	}{
+		{
+			image:    "com.acme/long:tag",
+			resolved: "com.acme/long:tag@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		},
+		{
+			image:    "com.acme/long",
+			resolved: "com.acme/long:latest@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		},
+		{
+			image:    "short",
+			resolved: "docker.io/library/short:latest@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		},
+		{
+			image:    "com.acme/digested:tag@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+			resolved: "com.acme/digested@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		},
+		{
+			image:    "com.acme/digested@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+			resolved: "com.acme/digested@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+		},
+	}
+
+	for _, test := range tests {
+		p.Services[0].Image = test.image
+		err := p.ResolveImages(resolver)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Services[0].Image, test.resolved)
 	}
 }
