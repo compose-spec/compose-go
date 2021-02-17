@@ -16,14 +16,15 @@
 
 package schema
 
-//go:generate esc -o bindata.go -pkg schema -ignore .*\.go -private -modtime=1518458244 data
-
 import (
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/xeipuuv/gojsonschema"
+
+	// Enable support for embedded static resources
+	_ "embed"
 )
 
 const (
@@ -55,14 +56,13 @@ func init() {
 	gojsonschema.FormatCheckers.Add("duration", durationFormatChecker{})
 }
 
+// Schema is the compose-spec JSON schema
+//go:embed compose-spec.json
+var Schema string
+
 // Validate uses the jsonschema to validate the configuration
 func Validate(config map[string]interface{}) error {
-	schemaData, err := _escFSByte(false, "/data/compose-spec.json")
-	if err != nil {
-		return err
-	}
-
-	schemaLoader := gojsonschema.NewStringLoader(string(schemaData))
+	schemaLoader := gojsonschema.NewStringLoader(Schema)
 	dataLoader := gojsonschema.NewGoLoader(config)
 
 	result, err := gojsonschema.Validate(schemaLoader, dataLoader)
