@@ -21,6 +21,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/distribution/distribution/v3/reference"
+	"github.com/opencontainers/go-digest"
+	"golang.org/x/sync/errgroup"
 )
 
 // Project is the result of loading a set of compose files
@@ -236,4 +240,41 @@ func (p *Project) ForServices(names []string) error {
 	}
 	p.Services = enabled
 	return nil
+}
+
+// ResolveImages updates services images to include digest computed by a resolver function
+func (p *Project) ResolveImages(resolver func(named reference.Named) (digest.Digest, error)) error {
+	eg := errgroup.Group{}
+	for i, s := range p.Services {
+		idx := i
+		service := s
+
+		if service.Image == "" {
+			continue
+		}
+		eg.Go(func() error {
+			named, err := reference.ParseDockerRef(service.Image)
+			if err != nil {
+				return err
+			}
+
+			if _, ok := named.(reference.Canonical); !ok {
+				// image is named but not digested reference
+				digest, err := resolver(named)
+				if err != nil {
+					return err
+				}
+
+				named, err = reference.WithDigest(named, digest)
+				if err != nil {
+					return err
+				}
+			}
+
+			service.Image = named.String()
+			p.Services[idx] = service
+			return nil
+		})
+	}
+	return eg.Wait()
 }
