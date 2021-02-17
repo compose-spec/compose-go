@@ -20,7 +20,7 @@ build: ## Run tests
 
 .PHONY: test
 test: ## Run tests
-	go test ./... -v
+	gotestsum ./...
 
 .PHONY: fmt
 fmt: ## Format go files
