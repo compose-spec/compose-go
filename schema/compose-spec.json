@@ -87,7 +87,7 @@
                 "dockerfile": {"type": "string"},
                 "args": {"$ref": "#/definitions/list_or_dict"},
                 "labels": {"$ref": "#/definitions/list_or_dict"},
-                "cache_from": {"$ref": "#/definitions/list_of_strings"},
+                "cache_from": {"type": "array", "items": {"type": "string"}},
                 "network": {"type": "string"},
                 "target": {"type": "string"},
                 "shm_size": {"type": ["integer", "string"]},
@@ -188,7 +188,7 @@
                   "properties": {
                     "condition": {
                       "type": "string",
-                      "enum": ["service_started", "service_healthy"]
+                      "enum": ["service_started", "service_healthy", "service_completed_successfully"]
                     }
                   },
                   "required": ["condition"]
@@ -335,7 +335,6 @@
         "read_only": {"type": "boolean"},
         "restart": {"type": "string"},
         "runtime": {
-          "deprecated": true,
           "type": "string"
         },
         "scale": {
@@ -598,12 +597,12 @@
       "items": {
         "type": "object",
         "properties": {
-            "capabilities": {"$ref": "#/definitions/list_of_strings"},
-            "count": {"type": ["string", "integer"]},
-            "device_ids": {"$ref": "#/definitions/list_of_strings"},
-            "driver":{"type": "string"},
-            "options":{"$ref": "#/definitions/list_or_dict"}
-          },
+          "capabilities": {"$ref": "#/definitions/list_of_strings"},
+          "count": {"type": ["string", "integer"]},
+          "device_ids": {"$ref": "#/definitions/list_of_strings"},
+          "driver":{"type": "string"},
+          "options":{"$ref": "#/definitions/list_or_dict"}
+        },
         "additionalProperties": false,
         "patternProperties": {"^x-": {}}
       }
