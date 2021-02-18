@@ -45,7 +45,7 @@ func Test_NoProfiles(t *testing.T) {
 
 func Test_ServiceProfiles(t *testing.T) {
 	p := makeProject()
-	services, err := p.GetServices([]string{"service_1", "service_2"})
+	services, err := p.GetServices("service_1", "service_2")
 	assert.NilError(t, err)
 
 	profiles := services.GetProfiles()
