@@ -19,8 +19,9 @@ package loader
 import (
 	"testing"
 
-	"github.com/compose-spec/compose-go/types"
 	"gotest.tools/v3/assert"
+
+	"github.com/compose-spec/compose-go/types"
 )
 
 func TestValidateAnonymousVolume(t *testing.T) {
@@ -80,4 +81,79 @@ func TestValidateNoBuildNoImage(t *testing.T) {
 	}
 	err := checkConsistency(project)
 	assert.Error(t, err, `service "myservice" has neither an image nor a build context specified: invalid compose project`)
+}
+
+func TestValidateNetworkMode(t *testing.T) {
+	t.Run("network_mode service fail", func(t *testing.T) {
+		project := &types.Project{
+			Services: types.Services([]types.ServiceConfig{
+				{
+					Name:  "myservice1",
+					Image: "scratch",
+				},
+				{
+					Name:        "myservice2",
+					Image:       "scratch",
+					NetworkMode: "service:myservice1",
+				},
+			}),
+		}
+		err := checkConsistency(project)
+		assert.NilError(t, err)
+	})
+
+	t.Run("network_mode service fail", func(t *testing.T) {
+		project := &types.Project{
+			Services: types.Services([]types.ServiceConfig{
+				{
+					Name:  "myservice1",
+					Image: "scratch",
+				},
+				{
+					Name:        "myservice2",
+					Image:       "scratch",
+					NetworkMode: "service:nonexistentservice",
+				},
+			}),
+		}
+		err := checkConsistency(project)
+		assert.Error(t, err, `service "nonexistentservice" not found for network_mode 'service:nonexistentservice'`)
+	})
+
+	t.Run("network_mode container", func(t *testing.T) {
+		project := &types.Project{
+			Services: types.Services([]types.ServiceConfig{
+				{
+					Name:          "myservice1",
+					ContainerName: "mycontainer_name",
+					Image:         "scratch",
+				},
+				{
+					Name:        "myservice2",
+					Image:       "scratch",
+					NetworkMode: "container:mycontainer_name",
+				},
+			}),
+		}
+		err := checkConsistency(project)
+		assert.NilError(t, err)
+	})
+
+	t.Run("network_mode container fail", func(t *testing.T) {
+		project := &types.Project{
+			Services: types.Services([]types.ServiceConfig{
+				{
+					Name:  "myservice1",
+					Image: "scratch",
+				},
+				{
+					Name:        "myservice2",
+					Image:       "scratch",
+					NetworkMode: "container:nonexistentcontainer",
+				},
+			}),
+		}
+		err := checkConsistency(project)
+		assert.Error(t, err, `service with container_name "nonexistentcontainer" not found for network_mode 'container:nonexistentcontainer'`)
+	})
 }

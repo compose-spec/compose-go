@@ -93,30 +93,56 @@ func (p Project) ConfigNames() []string {
 	return names
 }
 
+func (p Project) GetByContainerName(names ...string) (Services, error) {
+	if len(names) == 0 {
+		return p.Services, nil
+	}
+	services := Services{}
+outLoop:
+	for _, name := range names {
+		for _, s := range p.Services {
+			if name == s.ContainerName {
+				services = append(services, s)
+				continue outLoop
+			}
+		}
+		return nil, fmt.Errorf("service with container_name %q could not be found", name)
+	}
+	return services, nil
+}
+
 // GetServices retrieve services by names, or return all services if no name specified
-func (p Project) GetServices(names []string) (Services, error) {
+func (p Project) GetServices(names ...string) (Services, error) {
 	if len(names) == 0 {
 		return p.Services, nil
 	}
 	services := Services{}
 	for _, name := range names {
-		service, err := p.GetService(name)
-		if err != nil {
-			return nil, err
+		var serviceConfig *ServiceConfig
+		for _, s := range p.Services {
+			if s.Name == name {
+				serviceConfig = &s
+				break
+			}
 		}
-		services = append(services, service)
+		if serviceConfig == nil {
+			return services, fmt.Errorf("no such service: %s", name)
+		}
+		services = append(services, *serviceConfig)
 	}
 	return services, nil
 }
 
 // GetService retrieve a specific service by name
 func (p Project) GetService(name string) (ServiceConfig, error) {
-	for _, s := range p.Services {
-		if s.Name == name {
-			return s, nil
-		}
+	services, err := p.GetServices(name)
+	if err != nil {
+		return ServiceConfig{}, err
 	}
-	return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
+	if len(services) == 0 {
+		return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
+	}
+	return services[0], nil
 }
 
 func (p Project) AllServices() Services {
@@ -134,7 +160,7 @@ func (p Project) WithServices(names []string, fn ServiceFunc) error {
 }
 
 func (p Project) withServices(names []string, fn ServiceFunc, done map[string]bool) error {
-	services, err := p.GetServices(names)
+	services, err := p.GetServices(names...)
 	if err != nil {
 		return err
 	}

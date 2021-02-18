@@ -18,6 +18,7 @@ package loader
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/types"
@@ -36,6 +37,21 @@ func checkConsistency(project *types.Project) error {
 				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined network %s", s.Name, network))
 			}
 		}
+
+		if strings.HasPrefix(s.NetworkMode, types.NetworkModeServicePrefix) {
+			serviceName := s.NetworkMode[len(types.NetworkModeServicePrefix):]
+			if _, err := project.GetServices(serviceName); err != nil {
+				return fmt.Errorf("service %q not found for network_mode 'service:%s'", serviceName, serviceName)
+			}
+		}
+
+		if strings.HasPrefix(s.NetworkMode, types.NetworkModeContainerPrefix) {
+			containerName := s.NetworkMode[len(types.NetworkModeContainerPrefix):]
+			if _, err := project.GetByContainerName(containerName); err != nil {
+				return fmt.Errorf("service with container_name %q not found for network_mode 'container:%s'", containerName, containerName)
+			}
+		}
+
 		for _, volume := range s.Volumes {
 			switch volume.Type {
 			case types.VolumeTypeVolume:

@@ -187,6 +187,13 @@ const (
 	PullPolicyBuild = "build"
 )
 
+const (
+	// NetworkModeServicePrefix is the prefix for network_mode pointing to a service
+	NetworkModeServicePrefix = "service:"
+	// NetworkModeContainerPrefix is the prefix for network_mode pointing to a container
+	NetworkModeContainerPrefix = "container:"
+)
+
 // GetDependencies retrieve all services this service depends on
 func (s ServiceConfig) GetDependencies() []string {
 	dependencies := make(set)
@@ -201,8 +208,8 @@ func (s ServiceConfig) GetDependencies() []string {
 			dependencies.append(link)
 		}
 	}
-	if strings.HasPrefix(s.NetworkMode, "service:") {
-		dependencies.append(s.NetworkMode[8:])
+	if strings.HasPrefix(s.NetworkMode, NetworkModeServicePrefix) {
+		dependencies.append(s.NetworkMode[len(NetworkModeServicePrefix):])
 	}
 	return dependencies.toSlice()
 }
