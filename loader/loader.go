@@ -178,6 +178,18 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		return nil, err
 	}
 
+	for _, s := range model.Services {
+		var newEnvFiles types.StringList
+		for _, ef := range s.EnvFile {
+			envFile := ef
+			if !filepath.IsAbs(ef) {
+				envFile = filepath.Join(configDetails.WorkingDir, ef)
+			}
+			newEnvFiles = append(newEnvFiles, envFile)
+		}
+		s.EnvFile = newEnvFiles
+	}
+
 	project := &types.Project{
 		Name:       opts.Name,
 		WorkingDir: configDetails.WorkingDir,
