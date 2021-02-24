@@ -41,6 +41,7 @@ func TestNormalizeNetworkNames(t *testing.T) {
 	expected := types.Project{
 		Name: "myProject",
 		Networks: types.Networks{
+			"default": {Name: "myProject_default"},
 			"myExternalnet": {
 				Name:     "myExternalnet",
 				External: types.External{External: true},

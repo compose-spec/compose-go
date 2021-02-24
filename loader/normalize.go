@@ -27,8 +27,8 @@ import (
 
 // normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
 func normalize(project *types.Project) error {
-	// If none defined, Compose model involves an implicit "default" network
-	if len(project.Networks) == 0 {
+	// If not declared explicitly, Compose model involves an implicit "default" network
+	if _, ok := project.Networks["default"]; !ok {
 		project.Networks["default"] = types.NetworkConfig{}
 	}
 
