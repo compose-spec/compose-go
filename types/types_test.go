@@ -235,3 +235,22 @@ func TestExtension(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, ok == false)
 }
+
+func TestNewMapping(t *testing.T) {
+	m := NewMapping([]string{
+		"FOO=BAR",
+		"ZOT=",
+		"QIX",
+	})
+	mw := NewMappingWithEquals([]string{
+		"FOO=BAR",
+		"ZOT=",
+		"QIX",
+	})
+	assert.Check(t, m["FOO"] == "BAR")
+	assert.Check(t, m["ZOT"] == "")
+	assert.Check(t, m["QIX"] == "")
+	assert.Check(t, *mw["FOO"] == "BAR")
+	assert.Check(t, *mw["ZOT"] == "")
+	assert.Check(t, mw["QIX"] == nil)
+}
