@@ -7,7 +7,7 @@ require (
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-units v0.4.0
 	github.com/google/go-cmp v0.5.4
-	github.com/imdario/mergo v0.3.11
+	github.com/imdario/mergo v0.3.12-0.20210303221052-29fb3d3bdc55
 	github.com/joho/godotenv v1.3.0
 	github.com/mattn/go-shellwords v1.0.11
 	github.com/mitchellh/mapstructure v1.4.1
