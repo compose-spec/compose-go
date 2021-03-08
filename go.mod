@@ -6,7 +6,7 @@ require (
 	github.com/distribution/distribution/v3 v3.0.0-20210209042832-22c074842eaa
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-units v0.4.0
-	github.com/google/go-cmp v0.5.4
+	github.com/google/go-cmp v0.5.5
 	github.com/imdario/mergo v0.3.12-0.20210303221052-29fb3d3bdc55
 	github.com/joho/godotenv v1.3.0
 	github.com/mattn/go-shellwords v1.0.11
