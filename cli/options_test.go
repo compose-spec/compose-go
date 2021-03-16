@@ -50,6 +50,13 @@ func TestProjectName(t *testing.T) {
 	p, err = ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	assert.Equal(t, p.Name, "my_project_from_env")
+
+	opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithDotEnv)
+	assert.NilError(t, err)
+	p, err = ProjectFromOptions(opts)
+	assert.NilError(t, err)
+	assert.Equal(t, p.Name, "my_project_from_dot_env")
+
 }
 
 func TestProjectFromSetOfFiles(t *testing.T) {
