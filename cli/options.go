@@ -140,6 +140,16 @@ func WithDotEnv(o *ProjectOptions) error {
 	return nil
 }
 
+// WithInterpolation set ProjectOptions to enable/skip interpolation
+func WithInterpolation(interpolation bool) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
+			options.SkipInterpolation = !interpolation
+		})
+		return nil
+	}
+}
+
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
 var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
 
