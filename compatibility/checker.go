@@ -89,7 +89,7 @@ type Checker interface {
 	CheckOomKillDisable(service *types.ServiceConfig)
 	CheckOomScoreAdj(service *types.ServiceConfig)
 	CheckPid(service *types.ServiceConfig)
-	CheckPidLimit(service *types.ServiceConfig)
+	CheckPidsLimit(service *types.ServiceConfig)
 	CheckPlatform(service *types.ServiceConfig)
 	CheckPortsMode(p *types.ServicePortConfig)
 	CheckPortsTarget(p *types.ServicePortConfig)
@@ -343,7 +343,7 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 	c.CheckOomKillDisable(service)
 	c.CheckOomScoreAdj(service)
 	c.CheckPid(service)
-	c.CheckPidLimit(service)
+	c.CheckPidsLimit(service)
 	c.CheckPlatform(service)
 	if len(service.Ports) > 0 && c.CheckPorts(service) {
 		for i, p := range service.Ports {

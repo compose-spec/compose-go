@@ -144,7 +144,7 @@ type ServiceConfig struct {
 	OomKillDisable  bool                             `mapstructure:"oom_kill_disable" yaml:"oom_kill_disable,omitempty" json:"oom_kill_disable,omitempty"`
 	OomScoreAdj     int64                            `mapstructure:"oom_score_adj" yaml:"oom_score_adj,omitempty" json:"oom_score_adj,omitempty"`
 	Pid             string                           `yaml:",omitempty" json:"pid,omitempty"`
-	PidLimit        int64                            `mapstructure:"pid_limit" yaml:"pid_limit,omitempty" json:"pid_limit,omitempty"`
+	PidsLimit       int64                            `mapstructure:"pids_limit" yaml:"pids_limit,omitempty" json:"pids_limit,omitempty"`
 	Platform        string                           `yaml:",omitempty" json:"platform,omitempty"`
 	Ports           []ServicePortConfig              `yaml:",omitempty" json:"ports,omitempty"`
 	Privileged      bool                             `yaml:",omitempty" json:"privileged,omitempty"`
