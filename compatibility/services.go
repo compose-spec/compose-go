@@ -463,10 +463,10 @@ func (c *AllowList) CheckPid(service *types.ServiceConfig) {
 	}
 }
 
-func (c *AllowList) CheckPidLimit(service *types.ServiceConfig) {
-	if !c.supported("services.pid_limit") && service.PidLimit != 0 {
-		service.PidLimit = 0
-		c.Unsupported("services.pid_limit")
+func (c *AllowList) CheckPidsLimit(service *types.ServiceConfig) {
+	if !c.supported("services.pids_limit") && service.PidsLimit != 0 {
+		service.PidsLimit = 0
+		c.Unsupported("services.pids_limit")
 	}
 }
 
