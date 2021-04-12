@@ -23,9 +23,51 @@ import (
 )
 
 func (c *AllowList) CheckBlkioConfig(service *types.ServiceConfig) {
-	if !c.supported("services.blkio_config") && service.BlkioConfig != "" {
-		service.BlkioConfig = ""
+	if !c.supported("services.blkio_config") && service.BlkioConfig != nil {
+		service.BlkioConfig = nil
 		c.Unsupported("services.blkio_config")
+	}
+}
+
+func (c *AllowList) CheckBlkioWeight(config *types.BlkioConfig) {
+	if !c.supported("services.blkio_config.weight") && config.Weight != 0 {
+		config.Weight = 0
+		c.Unsupported("services.blkio_config.weight")
+	}
+}
+
+func (c *AllowList) CheckBlkioWeightDevice(config *types.BlkioConfig) {
+	if !c.supported("services.blkio_config.weight_device") && len(config.WeightDevice) != 0 {
+		config.WeightDevice = nil
+		c.Unsupported("services.blkio_config.weight_device")
+	}
+}
+
+func (c *AllowList) CheckBlkioDeviceReadBps(config *types.BlkioConfig) {
+	if !c.supported("services.blkio_config.device_read_bps") && len(config.DeviceWriteBps) != 0 {
+		config.DeviceWriteBps = nil
+		c.Unsupported("services.blkio_config.device_read_bps")
+	}
+}
+
+func (c *AllowList) CheckBlkioDeviceReadIOps(config *types.BlkioConfig) {
+	if !c.supported("services.blkio_config.device_read_iops") && len(config.DeviceReadIOps) != 0 {
+		config.DeviceReadIOps = nil
+		c.Unsupported("services.blkio_config.device_read_iops")
+	}
+}
+
+func (c *AllowList) CheckBlkioDeviceWriteBps(config *types.BlkioConfig) {
+	if !c.supported("services.blkio_config.device_write_bps") && len(config.DeviceWriteBps) != 0 {
+		config.DeviceWriteBps = nil
+		c.Unsupported("services.blkio_config.device_write_bps")
+	}
+}
+
+func (c *AllowList) CheckBlkioDeviceWriteIOps(config *types.BlkioConfig) {
+	if !c.supported("services.blkio_config.device_write_iops") && len(config.DeviceWriteIOps) != 0 {
+		config.DeviceWriteIOps = nil
+		c.Unsupported("services.blkio_config.device_write_iops")
 	}
 }
 

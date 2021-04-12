@@ -24,6 +24,12 @@ import (
 type Checker interface {
 	Errors() []error
 	CheckBlkioConfig(build *types.ServiceConfig)
+	CheckBlkioWeight(build *types.BlkioConfig)
+	CheckBlkioWeightDevice(build *types.BlkioConfig)
+	CheckBlkioDeviceReadBps(build *types.BlkioConfig)
+	CheckBlkioDeviceReadIOps(build *types.BlkioConfig)
+	CheckBlkioDeviceWriteBps(build *types.BlkioConfig)
+	CheckBlkioDeviceWriteIOps(build *types.BlkioConfig)
 	CheckBuild(build *types.ServiceConfig) bool
 	CheckBuildArgs(build *types.BuildConfig)
 	CheckBuildLabels(build *types.BuildConfig)
