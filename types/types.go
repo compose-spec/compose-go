@@ -89,7 +89,7 @@ type ServiceConfig struct {
 	Profiles []string `mapstructure:"profiles" yaml:"profiles,omitempty" json:"profiles,omitempty"`
 
 	Build           *BuildConfig                     `yaml:",omitempty" json:"build,omitempty"`
-	BlkioConfig     string                           `yaml:",omitempty" json:"blkio_config,omitempty"`
+	BlkioConfig     *BlkioConfig                     `yaml:",omitempty" json:"blkio_config,omitempty"`
 	CapAdd          []string                         `mapstructure:"cap_add" yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
 	CapDrop         []string                         `mapstructure:"cap_drop" yaml:"cap_drop,omitempty" json:"cap_drop,omitempty"`
 	CgroupParent    string                           `mapstructure:"cgroup_parent" yaml:"cgroup_parent,omitempty" json:"cgroup_parent,omitempty"`
@@ -231,7 +231,6 @@ func (s set) toSlice() []string {
 }
 
 // BuildConfig is a type for build
-// using the same format at libcompose: https://github.com/docker/libcompose/blob/master/yaml/build.go#L12
 type BuildConfig struct {
 	Context    string            `yaml:",omitempty" json:"context,omitempty"`
 	Dockerfile string            `yaml:",omitempty" json:"dockerfile,omitempty"`
@@ -242,6 +241,34 @@ type BuildConfig struct {
 	Isolation  string            `yaml:",omitempty" json:"isolation,omitempty"`
 	Network    string            `yaml:",omitempty" json:"network,omitempty"`
 	Target     string            `yaml:",omitempty" json:"target,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+}
+
+// BlkioConfig define blkio config
+type BlkioConfig struct {
+	Weight          uint16           `yaml:",omitempty" json:"weight,omitempty"`
+	WeightDevice    []WeightDevice   `yaml:",omitempty" json:"weight_device,omitempty"`
+	DeviceReadBps   []ThrottleDevice `yaml:",omitempty" json:"device_read_bps,omitempty"`
+	DeviceReadIOps  []ThrottleDevice `yaml:",omitempty" json:"device_read_iops,omitempty"`
+	DeviceWriteBps  []ThrottleDevice `yaml:",omitempty" json:"device_write_bps,omitempty"`
+	DeviceWriteIOps []ThrottleDevice `yaml:",omitempty" json:"device_write_iops,omitempty"`
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+}
+
+// WeightDevice is a structure that holds device:weight pair
+type WeightDevice struct {
+	Path   string
+	Weight uint16
+
+	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+}
+
+// ThrottleDevice is a structure that holds device:rate_per_second pair
+type ThrottleDevice struct {
+	Path string
+	Rate uint64
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
