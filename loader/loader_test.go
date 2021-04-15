@@ -1730,3 +1730,16 @@ services:
 `)
 	assert.ErrorContains(t, err, "invalid string value for 'count' (the only value allowed is 'all')")
 }
+
+func TestServicePullPolicy(t *testing.T) {
+	actual, err := loadYAML(`
+services:
+  hello-world:
+    image: redis:alpine
+    pull_policy: always
+`)
+	assert.NilError(t, err)
+	svc, err := actual.GetService("hello-world")
+	assert.NilError(t, err)
+	assert.Equal(t, "always", svc.PullPolicy)
+}
