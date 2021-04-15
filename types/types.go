@@ -148,7 +148,7 @@ type ServiceConfig struct {
 	Platform        string                           `yaml:",omitempty" json:"platform,omitempty"`
 	Ports           []ServicePortConfig              `yaml:",omitempty" json:"ports,omitempty"`
 	Privileged      bool                             `yaml:",omitempty" json:"privileged,omitempty"`
-	PullPolicy      string                           `yaml:",omitempty" json:"pull_policy,omitempty"`
+	PullPolicy      string                           `mapstructure:"pull_policy" yaml:"pull_policy,omitempty" json:"pull_policy,omitempty"`
 	ReadOnly        bool                             `mapstructure:"read_only" yaml:"read_only,omitempty" json:"read_only,omitempty"`
 	Restart         string                           `yaml:",omitempty" json:"restart,omitempty"`
 	Runtime         string                           `yaml:",omitempty" json:"runtime,omitempty"`
