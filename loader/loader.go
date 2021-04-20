@@ -191,14 +191,15 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	project := &types.Project{
-		Name:       opts.Name,
-		WorkingDir: configDetails.WorkingDir,
-		Services:   model.Services,
-		Networks:   model.Networks,
-		Volumes:    model.Volumes,
-		Secrets:    model.Secrets,
-		Configs:    model.Configs,
-		Extensions: model.Extensions,
+		Name:        opts.Name,
+		WorkingDir:  configDetails.WorkingDir,
+		Services:    model.Services,
+		Networks:    model.Networks,
+		Volumes:     model.Volumes,
+		Secrets:     model.Secrets,
+		Configs:     model.Configs,
+		Environment: configDetails.Environment,
+		Extensions:  model.Extensions,
 	}
 
 	if !opts.SkipNormalization {

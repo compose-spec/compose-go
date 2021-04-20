@@ -597,8 +597,9 @@ networks:
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	expected := &types.Project{
-		Name:       "",
-		WorkingDir: workingDir,
+		Name:        "",
+		Environment: map[string]string{"thebool": "true", "thefloat": "3.14", "theint": "555"},
+		WorkingDir:  workingDir,
 		Services: []types.ServiceConfig{
 			{
 				Name: "web",
