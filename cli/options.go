@@ -121,9 +121,14 @@ func WithDotEnv(o *ProjectOptions) error {
 		}
 		dotEnvFile = filepath.Join(dir, dotEnvFile)
 	}
-	if _, err := os.Stat(dotEnvFile); os.IsNotExist(err) {
+	s, err := os.Stat(dotEnvFile)
+	if os.IsNotExist(err) {
 		return nil
 	}
+	if s.IsDir() {
+		return nil
+	}
+
 	file, err := os.Open(dotEnvFile)
 	if err != nil {
 		return err
