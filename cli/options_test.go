@@ -25,37 +25,47 @@ import (
 )
 
 func TestProjectName(t *testing.T) {
-	opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("my_project"))
-	assert.NilError(t, err)
-	p, err := ProjectFromOptions(opts)
-	assert.NilError(t, err)
-	assert.Equal(t, p.Name, "my_project")
+	t.Run("by name", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("my_project"))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "my_project")
+	})
 
-	opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithWorkingDirectory("."))
-	assert.NilError(t, err)
-	p, err = ProjectFromOptions(opts)
-	assert.NilError(t, err)
-	assert.Equal(t, p.Name, "cli")
+	t.Run("by working dir", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithWorkingDirectory("."))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "cli")
+	})
 
-	opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"})
-	assert.NilError(t, err)
-	p, err = ProjectFromOptions(opts)
-	assert.NilError(t, err)
-	assert.Equal(t, p.Name, "simple")
+	t.Run("by compose file parent dir", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"})
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "simple")
+	})
 
-	os.Setenv("COMPOSE_PROJECT_NAME", "my_project_from_env")
-	defer os.Unsetenv("COMPOSE_PROJECT_NAME")
-	opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithOsEnv)
-	assert.NilError(t, err)
-	p, err = ProjectFromOptions(opts)
-	assert.NilError(t, err)
-	assert.Equal(t, p.Name, "my_project_from_env")
+	t.Run("by COMPOSE_PROJECT_NAME", func(t *testing.T) {
+		os.Setenv("COMPOSE_PROJECT_NAME", "my_project_from_env")
+		defer os.Unsetenv("COMPOSE_PROJECT_NAME")
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithOsEnv)
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "my_project_from_env")
+	})
 
-	opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithDotEnv)
-	assert.NilError(t, err)
-	p, err = ProjectFromOptions(opts)
-	assert.NilError(t, err)
-	assert.Equal(t, p.Name, "my_project_from_dot_env")
+	t.Run("by .env", func(t *testing.T) {
+		opts, err := NewProjectOptions(nil, WithWorkingDirectory("testdata/env-file"), WithDotEnv)
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "my_project_from_dot_env")
+	})
 
 }
 
