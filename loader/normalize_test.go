@@ -61,7 +61,7 @@ func TestNormalizeNetworkNames(t *testing.T) {
   foo:
     build:
       context: /some/path/foo
-      dockerfile: /some/path/some/path/foo/Dockerfile
+      dockerfile: /some/path/foo/Dockerfile
       args:
         FOO: BAR
         ZOT: null
