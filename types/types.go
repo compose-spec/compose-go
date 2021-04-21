@@ -764,12 +764,13 @@ type FileObjectConfig struct {
 }
 
 const (
-	// TypeServiceConditionHealthy is the type for waiting until a service is
-	// healthy.
+	// ServiceConditionCompletedSuccessfully is the type for waiting until a service has completed successfully (exit code 0).
+	ServiceConditionCompletedSuccessfully = "service_completed_successfully"
+
+	// ServiceConditionHealthy is the type for waiting until a service is healthy.
 	ServiceConditionHealthy = "service_healthy"
 
-	// TypeServiceConditionHealthy is the type for waiting until a service has
-	// started.
+	// ServiceConditionStarted is the type for waiting until a service has started (default).
 	ServiceConditionStarted = "service_started"
 )
 

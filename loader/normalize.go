@@ -18,6 +18,8 @@ package loader
 
 import (
 	"fmt"
+	"net/url"
+	"path/filepath"
 
 	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/types"
@@ -46,6 +48,24 @@ func normalize(project *types.Project) error {
 		if s.PullPolicy == types.PullPolicyIfNotPresent {
 			s.PullPolicy = types.PullPolicyMissing
 		}
+
+		fn := func(s string) (string, bool) {
+			v, ok := project.Environment[s]
+			return v, ok
+		}
+
+		if s.Build != nil {
+			if s.Build.Dockerfile == "" {
+				s.Build.Dockerfile = "Dockerfile"
+			}
+			_, err := url.ParseRequestURI(s.Build.Context)
+			if err != nil {
+				s.Build.Context = filepath.Join(project.WorkingDir, s.Build.Context)
+				s.Build.Dockerfile = filepath.Join(project.WorkingDir, s.Build.Context, s.Build.Dockerfile)
+			}
+			s.Build.Args = s.Build.Args.Resolve(fn)
+		}
+		s.Environment = s.Environment.Resolve(fn)
 
 		err := relocateLogDriver(s)
 		if err != nil {
