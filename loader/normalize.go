@@ -60,8 +60,12 @@ func normalize(project *types.Project) error {
 			}
 			_, err := url.ParseRequestURI(s.Build.Context)
 			if err != nil {
-				s.Build.Context = filepath.Join(project.WorkingDir, s.Build.Context)
-				s.Build.Dockerfile = filepath.Join(project.WorkingDir, s.Build.Context, s.Build.Dockerfile)
+				if !filepath.IsAbs(s.Build.Context) {
+					s.Build.Context = filepath.Join(project.WorkingDir, s.Build.Context)
+				}
+				if !filepath.IsAbs(s.Build.Dockerfile) {
+					s.Build.Dockerfile = filepath.Join(s.Build.Context, s.Build.Dockerfile)
+				}
 			}
 			s.Build.Args = s.Build.Args.Resolve(fn)
 		}
