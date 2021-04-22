@@ -77,7 +77,8 @@ func TestProjectComposefilesFromSetOfFiles(t *testing.T) {
 	assert.NilError(t, err)
 	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.ComposeFiles, []string{filepath.Join("testdata", "simple", "compose.yaml")})
+	absPath, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose.yaml"))
+	assert.DeepEqual(t, p.ComposeFiles, []string{absPath})
 }
 
 func TestProjectComposefilesFromWorkingDir(t *testing.T) {

@@ -57,7 +57,8 @@ func TestNormalizeNetworkNames(t *testing.T) {
 		},
 	}
 
-	expected := strings.ReplaceAll(`services:
+	absFolder, _ := filepath.Abs("/some/path/foo")
+	expected := strings.ReplaceAll(strings.ReplaceAll(`services:
   foo:
     build:
       context: /some/path/foo
@@ -77,12 +78,34 @@ networks:
     name: CustomName
   mynet:
     name: myProject_mynet
-`, "/", string(filepath.Separator))
+`, "/some/path/foo", absFolder), "/", string(filepath.Separator))
 	err := normalize(&project)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, string(marshal))
+}
+
+func TestNormalizeAbsolutePaths(t *testing.T) {
+	project := types.Project{
+		Name:         "myProject",
+		WorkingDir:   "testdata",
+		Networks:     types.Networks{},
+		ComposeFiles: []string{filepath.Join("testdata", "simple", "compose.yaml"), filepath.Join("testdata", "simple", "compose-with-overrides.yaml")},
+	}
+	absWorkingDir, _ := filepath.Abs("testdata")
+	absComposeFile, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose.yaml"))
+	absOverrideFile, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose-with-overrides.yaml"))
+
+	expected := types.Project{
+		Name:         "myProject",
+		Networks:     types.Networks{"default": {Name: "myProject_default"}},
+		WorkingDir:   absWorkingDir,
+		ComposeFiles: []string{absComposeFile, absOverrideFile},
+	}
+	err := normalize(&project)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expected, project)
 }
 
 func TestNormalizeVolumes(t *testing.T) {
@@ -101,6 +124,7 @@ func TestNormalizeVolumes(t *testing.T) {
 		},
 	}
 
+	absCwd, _ := filepath.Abs(".")
 	expected := types.Project{
 		Name:     "myProject",
 		Networks: types.Networks{"default": {Name: "myProject_default"}},
@@ -114,6 +138,8 @@ func TestNormalizeVolumes(t *testing.T) {
 				Name: "CustomName",
 			},
 		},
+		WorkingDir:   absCwd,
+		ComposeFiles: []string{},
 	}
 	err := normalize(&project)
 	assert.NilError(t, err)
