@@ -27,14 +27,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/imdario/mergo"
-
-	"github.com/compose-spec/compose-go/envfile"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/types"
 	units "github.com/docker/go-units"
+	"github.com/imdario/mergo"
+	"github.com/joho/godotenv"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -528,11 +527,21 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 	if len(serviceConfig.EnvFile) > 0 {
 		for _, file := range serviceConfig.EnvFile {
 			filePath := absPath(workingDir, file)
-			fileVars, err := envfile.Parse(filePath)
+			file, err := os.Open(filePath)
 			if err != nil {
 				return err
 			}
-			environment.OverrideBy(fileVars.Resolve(lookupEnv).RemoveEmpty())
+			defer file.Close()
+			fileVars, err := godotenv.Parse(file)
+			if err != nil {
+				return err
+			}
+			env := types.MappingWithEquals{}
+			for k, v := range fileVars {
+				v := v
+				env[k] = &v
+			}
+			environment.OverrideBy(env.Resolve(lookupEnv).RemoveEmpty())
 		}
 	}
 
