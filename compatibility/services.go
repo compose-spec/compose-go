@@ -668,8 +668,8 @@ func (c *AllowList) CheckSecurityOpt(service *types.ServiceConfig) {
 }
 
 func (c *AllowList) CheckShmSize(service *types.ServiceConfig) {
-	if !c.supported("services.shm_size") && service.ShmSize != "" {
-		service.ShmSize = ""
+	if !c.supported("services.shm_size") && service.ShmSize != 0 {
+		service.ShmSize = 0
 		c.Unsupported("services.shm_size")
 	}
 }
