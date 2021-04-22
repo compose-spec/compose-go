@@ -228,7 +228,6 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 
 // getConfigPathsFromOptions retrieves the config files for project based on project options
 func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
-	paths := []string{}
 	pwd := options.WorkingDir
 	if pwd == "" {
 		wd, err := os.Getwd()
@@ -239,36 +238,16 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 	}
 
 	if len(options.ConfigPaths) != 0 {
-		for _, f := range options.ConfigPaths {
-			if f == "-" {
-				paths = append(paths, f)
-				continue
-			}
-			if !filepath.IsAbs(f) {
-				f = filepath.Join(pwd, f)
-			}
-			if _, err := os.Stat(f); err != nil {
-				return nil, err
-			}
-			if !filepath.IsAbs(f) {
-				fAbs, err := filepath.Abs(f)
-				if err != nil {
-					return nil, err
-				}
-				f = fAbs
-			}
-			paths = append(paths, f)
-		}
-		return paths, nil
+		return absolutePaths(options.ConfigPaths, pwd)
 	}
 
-	sep := os.Getenv(ComposeFileSeparator)
+	sep := options.Environment[ComposeFileSeparator]
 	if sep == "" {
 		sep = string(os.PathListSeparator)
 	}
-	f := os.Getenv(ComposeFilePath)
+	f := options.Environment[ComposeFilePath]
 	if f != "" {
-		return strings.Split(f, sep), nil
+		return absolutePaths(strings.Split(f, sep), pwd)
 	}
 
 	for {
@@ -300,6 +279,24 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 		}
 		pwd = parent
 	}
+}
+
+func absolutePaths(p []string, pwd string) ([]string, error) {
+	var paths []string
+	for _, f := range p {
+		if f == "-" {
+			paths = append(paths, f)
+			continue
+		}
+		if !filepath.IsAbs(f) {
+			f = filepath.Join(pwd, f)
+		}
+		if _, err := os.Stat(f); err != nil {
+			return paths, err
+		}
+		paths = append(paths, f)
+	}
+	return paths, nil
 }
 
 func parseConfigs(configPaths []string) ([]types.ConfigFile, error) {
