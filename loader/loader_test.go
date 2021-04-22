@@ -556,6 +556,7 @@ services:
         soft: $theint
     privileged: $thebool
     read_only: $thebool
+    shm_size: 2gb
     stdin_open: ${thebool}
     tty: $thebool
     volumes:
@@ -647,6 +648,7 @@ networks:
 				},
 				Privileged: true,
 				ReadOnly:   true,
+				ShmSize:    types.UnitBytes(2 * 1024 * 1024 * 1024),
 				StdinOpen:  true,
 				Tty:        true,
 				Volumes: []types.ServiceVolumeConfig{
