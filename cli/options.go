@@ -285,6 +285,13 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 				logrus.Warnf("Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
 				logrus.Warnf("Using %s", winner)
 			}
+			if !filepath.IsAbs(winner) {
+				fAbs, err := filepath.Abs(winner)
+				if err != nil {
+					return nil, err
+				}
+				winner = fAbs
+			}
 			return []string{winner}, nil
 		}
 		parent := filepath.Dir(pwd)

@@ -29,12 +29,24 @@ import (
 
 // normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
 func normalize(project *types.Project) error {
+	absWorkingDir, err := filepath.Abs(project.WorkingDir)
+	if err != nil {
+		return err
+	}
+	project.WorkingDir = absWorkingDir
+
+	absComposeFiles, err := absComposeFiles(project.ComposeFiles)
+	if err != nil {
+		return err
+	}
+	project.ComposeFiles = absComposeFiles
+
 	// If not declared explicitly, Compose model involves an implicit "default" network
 	if _, ok := project.Networks["default"]; !ok {
 		project.Networks["default"] = types.NetworkConfig{}
 	}
 
-	err := relocateExternalName(project)
+	err = relocateExternalName(project)
 	if err != nil {
 		return err
 	}
@@ -92,6 +104,18 @@ func normalize(project *types.Project) error {
 	setNameFromKey(project)
 
 	return nil
+}
+
+func absComposeFiles(composeFiles []string) ([]string, error) {
+	absComposeFiles := make([]string, len(composeFiles))
+	for i, composeFile := range composeFiles {
+		absComposefile, err := filepath.Abs(composeFile)
+		if err != nil {
+			return nil, err
+		}
+		absComposeFiles[i] = absComposefile
+	}
+	return absComposeFiles, nil
 }
 
 // Resources with no explicit name are actually named by their key in map
