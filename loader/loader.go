@@ -180,11 +180,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	for _, s := range model.Services {
 		var newEnvFiles types.StringList
 		for _, ef := range s.EnvFile {
-			envFile := ef
-			if !filepath.IsAbs(ef) {
-				envFile = filepath.Join(configDetails.WorkingDir, ef)
-			}
-			newEnvFiles = append(newEnvFiles, envFile)
+			newEnvFiles = append(newEnvFiles, absPath(configDetails.WorkingDir, ef))
 		}
 		s.EnvFile = newEnvFiles
 	}
@@ -443,10 +439,7 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			}
 		} else {
 			// Resolve the path to the imported file, and load it.
-			baseFilePath := *file
-			if !filepath.IsAbs(*file) {
-				baseFilePath = filepath.Join(workingDir, *file)
-			}
+			baseFilePath := absPath(workingDir, *file)
 
 			bytes, err := ioutil.ReadFile(baseFilePath)
 			if err != nil {
@@ -475,20 +468,17 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			// that the resulting paths won't be absolute if `*file` isn't an
 			// absolute path.
 			baseFileParent := filepath.Dir(*file)
-			if baseService.Build != nil && !filepath.IsAbs(baseService.Build.Context) {
+			if baseService.Build != nil {
 				// Note that the Dockerfile is always defined relative to the
 				// build context, so there's no need to update the Dockerfile field.
-				baseService.Build.Context = filepath.Join(baseFileParent, baseService.Build.Context)
+				baseService.Build.Context = absPath(baseFileParent, baseService.Build.Context)
 			}
 
 			for i, vol := range baseService.Volumes {
 				if vol.Type != types.VolumeTypeBind {
 					continue
 				}
-
-				if !filepath.IsAbs(baseService.Volumes[i].Source) {
-					baseService.Volumes[i].Source = filepath.Join(baseFileParent, vol.Source)
-				}
+				baseService.Volumes[i].Source = absPath(baseFileParent, vol.Source)
 			}
 		}
 
@@ -741,6 +731,10 @@ func loadFileObjectConfig(name string, objType string, obj types.FileObjectConfi
 }
 
 func absPath(workingDir string, filePath string) string {
+	if strings.HasPrefix(filePath, "~") {
+		home, _ := os.UserHomeDir()
+		return filepath.Join(home, filePath[1:])
+	}
 	if filepath.IsAbs(filePath) {
 		return filePath
 	}
