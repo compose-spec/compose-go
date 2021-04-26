@@ -83,7 +83,11 @@ func TestProjectFromSetOfFiles(t *testing.T) {
 }
 
 func TestProjectComposefilesFromSetOfFiles(t *testing.T) {
-	opts, err := NewProjectOptions([]string{}, WithWorkingDirectory("testdata/simple/"), WithName("my_project"))
+	opts, err := NewProjectOptions([]string{},
+		WithWorkingDirectory("testdata/simple/"),
+		WithName("my_project"),
+		WithDefaultConfigPath,
+	)
 	assert.NilError(t, err)
 	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
