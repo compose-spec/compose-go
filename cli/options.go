@@ -70,8 +70,49 @@ func WithName(name string) ProjectOptionsFn {
 // WithWorkingDirectory defines ProjectOptions' working directory
 func WithWorkingDirectory(wd string) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
-		o.WorkingDir = wd
+		if wd == "" {
+			return nil
+		}
+		abs, err := filepath.Abs(wd)
+		if err != nil {
+			return err
+		}
+		o.WorkingDir = abs
 		return nil
+	}
+}
+
+// WithDefaultConfigPath searches for default config files from working directory
+func WithDefaultConfigPath(o *ProjectOptions) error {
+	if len(o.ConfigPaths) > 0 {
+		return nil
+	}
+	pwd := o.WorkingDir
+	for {
+		candidates := findFiles(DefaultFileNames, pwd)
+		if len(candidates) > 0 {
+			winner := candidates[0]
+			if len(candidates) > 1 {
+				logrus.Warnf("Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
+				logrus.Warnf("Using %s", winner)
+			}
+			o.ConfigPaths = append(o.ConfigPaths, winner)
+
+			overrides := findFiles(DefaultOverrideFileNames, pwd)
+			if len(overrides) > 0 {
+				if len(overrides) > 1 {
+					logrus.Warnf("Found multiple override files with supported names: %s", strings.Join(overrides, ", "))
+					logrus.Warnf("Using %s", overrides[0])
+				}
+				o.ConfigPaths = append(o.ConfigPaths, overrides[0])
+			}
+			return nil
+		}
+		parent := filepath.Dir(pwd)
+		if parent == pwd {
+			return errors.Wrap(errdefs.ErrNotFound, "can't find a suitable configuration file in this directory or any parent")
+		}
+		pwd = parent
 	}
 }
 
@@ -157,6 +198,9 @@ func WithInterpolation(interpolation bool) ProjectOptionsFn {
 
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
 var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
+
+// DefaultOverrideFileNames defines the Compose override file names for auto-discovery (in order of preference)
+var DefaultOverrideFileNames = []string{"compose.override.yml", "compose.override.yaml", "docker-compose.override.yml", "docker-compose.override.yaml"}
 
 const (
 	ComposeProjectName   = "COMPOSE_PROJECT_NAME"
@@ -250,35 +294,18 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 		return absolutePaths(strings.Split(f, sep), pwd)
 	}
 
-	for {
-		candidates := []string{}
-		for _, n := range DefaultFileNames {
-			f := filepath.Join(pwd, n)
-			if _, err := os.Stat(f); err == nil {
-				candidates = append(candidates, f)
-			}
+	return nil, errors.New("no configuration file provided")
+}
+
+func findFiles(names []string, pwd string) []string {
+	candidates := []string{}
+	for _, n := range names {
+		f := filepath.Join(pwd, n)
+		if _, err := os.Stat(f); err == nil {
+			candidates = append(candidates, f)
 		}
-		if len(candidates) > 0 {
-			winner := candidates[0]
-			if len(candidates) > 1 {
-				logrus.Warnf("Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
-				logrus.Warnf("Using %s", winner)
-			}
-			if !filepath.IsAbs(winner) {
-				fAbs, err := filepath.Abs(winner)
-				if err != nil {
-					return nil, err
-				}
-				winner = fAbs
-			}
-			return []string{winner}, nil
-		}
-		parent := filepath.Dir(pwd)
-		if parent == pwd {
-			return nil, errors.Wrap(errdefs.ErrNotFound, "can't find a suitable configuration file in this directory or any parent")
-		}
-		pwd = parent
 	}
+	return candidates
 }
 
 func absolutePaths(p []string, pwd string) ([]string, error) {
