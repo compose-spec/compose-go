@@ -28,7 +28,7 @@ import (
 func TestParseVolumeAnonymousVolume(t *testing.T) {
 	for _, path := range []string{"/path", "/path/foo"} {
 		volume, err := ParseVolume(path)
-		expected := types.ServiceVolumeConfig{Type: "volume", Target: path}
+		expected := types.ServiceVolumeConfig{Type: "volume", Target: path, Volume: &types.ServiceVolumeVolume{}}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
 	}
@@ -37,7 +37,7 @@ func TestParseVolumeAnonymousVolume(t *testing.T) {
 func TestParseVolumeAnonymousVolumeWindows(t *testing.T) {
 	for _, path := range []string{"C:\\path", "Z:\\path\\foo"} {
 		volume, err := ParseVolume(path)
-		expected := types.ServiceVolumeConfig{Type: "volume", Target: path}
+		expected := types.ServiceVolumeConfig{Type: "volume", Target: path, Volume: &types.ServiceVolumeVolume{}}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
 	}
@@ -71,6 +71,7 @@ func TestParseVolumeBindMount(t *testing.T) {
 			Type:   "bind",
 			Source: path,
 			Target: "/target",
+			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
 		}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -89,6 +90,7 @@ func TestParseVolumeRelativeBindMountWindows(t *testing.T) {
 			Type:   "bind",
 			Source: path,
 			Target: "d:\\target",
+			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
 		}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -101,7 +103,10 @@ func TestParseVolumeWithBindOptions(t *testing.T) {
 		Type:   "bind",
 		Source: "/source",
 		Target: "/target",
-		Bind:   &types.ServiceVolumeBind{Propagation: "slave"},
+		Bind: &types.ServiceVolumeBind{
+			CreateHostPath: true,
+			Propagation:    "slave",
+		},
 	}
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(expected, volume))
@@ -114,7 +119,10 @@ func TestParseVolumeWithBindOptionsWindows(t *testing.T) {
 		Source:   "C:\\source\\foo",
 		Target:   "D:\\target",
 		ReadOnly: true,
-		Bind:     &types.ServiceVolumeBind{Propagation: "rprivate"},
+		Bind: &types.ServiceVolumeBind{
+			CreateHostPath: true,
+			Propagation:    "rprivate",
+		},
 	}
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(expected, volume))
@@ -145,6 +153,7 @@ func TestParseVolumeWithReadOnly(t *testing.T) {
 			Source:   path,
 			Target:   "/target",
 			ReadOnly: true,
+			Bind:     &types.ServiceVolumeBind{CreateHostPath: true},
 		}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -159,6 +168,7 @@ func TestParseVolumeWithRW(t *testing.T) {
 			Source:   path,
 			Target:   "/target",
 			ReadOnly: false,
+			Bind:     &types.ServiceVolumeBind{CreateHostPath: true},
 		}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -172,6 +182,7 @@ func TestParseVolumeWindowsNamedPipe(t *testing.T) {
 		Type:   "bind",
 		Source: `\\.\pipe\docker_engine`,
 		Target: `\\.\pipe\inside`,
+		Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
 	}
 	assert.Check(t, is.DeepEqual(expected, volume))
 }

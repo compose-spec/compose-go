@@ -50,7 +50,7 @@ func withVersionServices(workingDir, homeDir string) []types.ServiceConfig {
 			Command:     []string{"top"},
 			Environment: types.MappingWithEquals{},
 			Volumes: []types.ServiceVolumeConfig{
-				{Target: "/data", Type: "volume"},
+				{Target: "/data", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
 			},
 		},
 	}
