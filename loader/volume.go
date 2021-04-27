@@ -119,18 +119,26 @@ func isBindOption(option string) bool {
 }
 
 func populateType(volume *types.ServiceVolumeConfig) {
-	switch {
-	// Anonymous volume
-	case volume.Source == "":
-		volume.Type = string(types.VolumeTypeVolume)
-	case isFilePath(volume.Source):
-		volume.Type = string(types.VolumeTypeBind)
-	default:
-		volume.Type = string(types.VolumeTypeVolume)
+	if isFilePath(volume.Source) {
+		volume.Type = types.VolumeTypeBind
+		if volume.Bind == nil {
+			volume.Bind = &types.ServiceVolumeBind{}
+		}
+		// For backward compatibility with docker-compose legacy, using short notation involves
+		// bind will create missing host path
+		volume.Bind.CreateHostPath = true
+	} else {
+		volume.Type = types.VolumeTypeVolume
+		if volume.Volume == nil {
+			volume.Volume = &types.ServiceVolumeVolume{}
+		}
 	}
 }
 
 func isFilePath(source string) bool {
+	if source == "" {
+		return false
+	}
 	switch source[0] {
 	case '.', '/', '~':
 		return true

@@ -601,7 +601,8 @@ const (
 
 // ServiceVolumeBind are options for a service volume of type bind
 type ServiceVolumeBind struct {
-	Propagation string `yaml:",omitempty" json:"propagation,omitempty"`
+	Propagation    string `yaml:",omitempty" json:"propagation,omitempty"`
+	CreateHostPath bool   `mapstructure:"create_host_path" yaml:"create_host_path,omitempty" json:"create_host_path,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
