@@ -1147,3 +1147,29 @@ func TestMergeTopLevelExtensions(t *testing.T) {
 		},
 	}, config)
 }
+
+func TestMergeCommands(t *testing.T) {
+	configDetails := types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "base.yml", Config: map[string]interface{}{
+				"services": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"image":   "alpine",
+						"command": "/bin/bash -c \"echo 'hello'\"",
+					},
+				},
+			}},
+			{Filename: "override.yml", Config: map[string]interface{}{
+				"services": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"image":   "alpine",
+						"command": "/bin/ash -c \"echo 'world'\"",
+					},
+				},
+			}},
+		},
+	}
+	merged, err := loadTestProject(configDetails)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, merged.Services[0].Command, types.ShellCommand{"/bin/ash", "-c", "echo 'world'"})
+}
