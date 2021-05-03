@@ -174,6 +174,33 @@ type ServiceConfig struct {
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
+// NetworksByPriority return the service networks IDs sorted according to Priority
+func (s *ServiceConfig) NetworksByPriority() []string {
+	type key struct {
+		name     string
+		priority int
+	}
+	var keys []key
+	for k, v := range s.Networks {
+		priority := 0
+		if v != nil {
+			priority = v.Priority
+		}
+		keys = append(keys, key{
+			name:     k,
+			priority: priority,
+		})
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i].priority > keys[j].priority
+	})
+	var sorted []string
+	for _, k := range keys {
+		sorted = append(sorted, k.name)
+	}
+	return sorted
+}
+
 const (
 	//PullPolicyAlways always pull images
 	PullPolicyAlways = "always"
@@ -509,6 +536,7 @@ type PlacementPreferences struct {
 
 // ServiceNetworkConfig is the network configuration for a service
 type ServiceNetworkConfig struct {
+	Priority    int      `yaml:",omitempty" json:"priotirt,omitempty"`
 	Aliases     []string `yaml:",omitempty" json:"aliases,omitempty"`
 	Ipv4Address string   `mapstructure:"ipv4_address" yaml:"ipv4_address,omitempty" json:"ipv4_address,omitempty"`
 	Ipv6Address string   `mapstructure:"ipv6_address" yaml:"ipv6_address,omitempty" json:"ipv6_address,omitempty"`

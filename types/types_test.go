@@ -254,3 +254,21 @@ func TestNewMapping(t *testing.T) {
 	assert.Check(t, *mw["ZOT"] == "")
 	assert.Check(t, mw["QIX"] == nil)
 }
+
+func TestNetworksByPriority(t *testing.T) {
+	s := ServiceConfig{
+		Networks: map[string]*ServiceNetworkConfig{
+			"foo": nil,
+			"bar": {
+				Priority: 10,
+			},
+			"zot": {
+				Priority: 100,
+			},
+			"qix": {
+				Priority: 1000,
+			},
+		},
+	}
+	assert.DeepEqual(t, s.NetworksByPriority(), []string{"qix", "zot", "bar", "foo"})
+}
