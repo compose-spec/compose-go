@@ -248,7 +248,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 	var nameLoadOpt = func(opts *loader.Options) {
 		if options.Name != "" {
 			opts.Name = options.Name
-		} else if nameFromEnv, ok := options.Environment[ComposeProjectName]; ok {
+		} else if nameFromEnv, ok := options.Environment[ComposeProjectName]; ok && nameFromEnv != "" {
 			opts.Name = nameFromEnv
 		} else {
 			opts.Name = regexp.MustCompile(`[^-_a-z0-9]+`).
