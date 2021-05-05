@@ -70,8 +70,8 @@ func normalize(project *types.Project) error {
 			if s.Build.Dockerfile == "" {
 				s.Build.Dockerfile = "Dockerfile"
 			}
-			_, err := url.ParseRequestURI(s.Build.Context)
-			if err != nil {
+			url, err := url.ParseRequestURI(s.Build.Context)
+			if err != nil || url.Scheme == "" {
 				s.Build.Context = absPath(project.WorkingDir, s.Build.Context)
 				s.Build.Dockerfile = absPath(s.Build.Context, s.Build.Dockerfile)
 			}
