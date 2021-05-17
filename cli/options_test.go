@@ -60,7 +60,7 @@ func TestProjectName(t *testing.T) {
 	})
 
 	t.Run("by .env", func(t *testing.T) {
-		opts, err := NewProjectOptions(nil, WithWorkingDirectory("testdata/env-file"), WithDotEnv)
+		opts, err := NewProjectOptions(nil, WithWorkingDirectory("testdata/env-file"), WithDotEnv, WithConfigFileEnv)
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
 		assert.NilError(t, err)
