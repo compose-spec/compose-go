@@ -82,6 +82,24 @@ func WithWorkingDirectory(wd string) ProjectOptionsFn {
 	}
 }
 
+// WithConfigFileEnv allow to set compose config file paths by COMPOSE_FILE environment variable
+func WithConfigFileEnv(o *ProjectOptions) error {
+	if len(o.ConfigPaths) > 0 {
+		return nil
+	}
+	sep := o.Environment[ComposeFileSeparator]
+	if sep == "" {
+		sep = string(os.PathListSeparator)
+	}
+	f, ok := o.Environment[ComposeFilePath]
+	if ok {
+		paths, err := absolutePaths(strings.Split(f, sep), o.WorkingDir)
+		o.ConfigPaths = paths
+		return err
+	}
+	return nil
+}
+
 // WithDefaultConfigPath searches for default config files from working directory
 func WithDefaultConfigPath(o *ProjectOptions) error {
 	if len(o.ConfigPaths) > 0 {
@@ -283,15 +301,6 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 
 	if len(options.ConfigPaths) != 0 {
 		return absolutePaths(options.ConfigPaths, pwd)
-	}
-
-	sep := options.Environment[ComposeFileSeparator]
-	if sep == "" {
-		sep = string(os.PathListSeparator)
-	}
-	f := options.Environment[ComposeFilePath]
-	if f != "" {
-		return absolutePaths(strings.Split(f, sep), pwd)
 	}
 
 	return nil, errors.New("no configuration file provided")
