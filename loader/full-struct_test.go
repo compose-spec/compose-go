@@ -741,50 +741,62 @@ func fullExampleYAML(workingDir, homeDir string) string {
       published: 49100
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 8001
       published: 8001
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5000
       published: 5000
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5001
       published: 5001
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5002
       published: 5002
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5003
       published: 5003
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5004
       published: 5004
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5005
       published: 5005
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5006
       published: 5006
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5007
       published: 5007
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5008
       published: 5008
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5009
       published: 5009
       protocol: tcp
     - mode: ingress
+      host_ip: 127.0.0.1
       target: 5010
       published: 5010
       protocol: tcp
@@ -1313,72 +1325,84 @@ func fullExampleJSON(workingDir, homeDir string) string {
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 8001,
           "published": 8001,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5000,
           "published": 5000,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5001,
           "published": 5001,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5002,
           "published": 5002,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5003,
           "published": 5003,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5004,
           "published": 5004,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5005,
           "published": 5005,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5006,
           "published": 5006,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5007,
           "published": 5007,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5008,
           "published": 5008,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5009,
           "published": 5009,
           "protocol": "tcp"
         },
         {
           "mode": "ingress",
+          "host_ip": "127.0.0.1",
           "target": 5010,
           "published": 5010,
           "protocol": "tcp"
