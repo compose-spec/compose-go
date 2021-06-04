@@ -38,8 +38,12 @@ func (cd ConfigDetails) LookupEnv(key string) (string, bool) {
 
 // ConfigFile is a filename and the contents of the file as a Dict
 type ConfigFile struct {
+	// Filename is the name of the yaml configuration file
 	Filename string
-	Config   map[string]interface{}
+	// Content is the raw yaml content. Will be loaded from Filename if not set
+	Content []byte
+	// Config if the yaml tree for this config file. Will be parsed from Content if not set
+	Config map[string]interface{}
 }
 
 // Config is a full compose file configuration and model

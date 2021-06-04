@@ -249,9 +249,28 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		return nil, err
 	}
 
-	configs, err := parseConfigs(configPaths)
-	if err != nil {
-		return nil, err
+	var configs []types.ConfigFile
+	for _, f := range configPaths {
+		var b []byte
+		if f == "-" {
+			b, err = ioutil.ReadAll(os.Stdin)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			f, err := filepath.Abs(f)
+			if err != nil {
+				return nil, err
+			}
+			b, err = ioutil.ReadFile(f)
+			if err != nil {
+				return nil, err
+			}
+		}
+		configs = append(configs, types.ConfigFile{
+			Filename: f,
+			Content:  b,
+		})
 	}
 
 	workingDir, err := options.GetWorkingDir()
@@ -333,37 +352,6 @@ func absolutePaths(p []string, pwd string) ([]string, error) {
 		paths = append(paths, f)
 	}
 	return paths, nil
-}
-
-func parseConfigs(configPaths []string) ([]types.ConfigFile, error) {
-	files := []types.ConfigFile{}
-	for _, f := range configPaths {
-		var (
-			b   []byte
-			err error
-		)
-		if f == "-" {
-			b, err = ioutil.ReadAll(os.Stdin)
-		} else {
-			b, err = ioutil.ReadFile(f)
-		}
-		if err != nil {
-			return nil, err
-		}
-		config, err := loader.ParseYAML(b)
-		if err != nil {
-			return nil, err
-		}
-		if !filepath.IsAbs(f) {
-			fAbs, err := filepath.Abs(f)
-			if err != nil {
-				return nil, err
-			}
-			f = fAbs
-		}
-		files = append(files, types.ConfigFile{Filename: f, Config: config})
-	}
-	return files, nil
 }
 
 // getAsEqualsMap split key=value formatted strings into a key : value map
