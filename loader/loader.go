@@ -140,15 +140,16 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	configs := []*types.Config{}
-	for _, file := range configDetails.ConfigFiles {
+	for i, file := range configDetails.ConfigFiles {
 		configDict := file.Config
-
-		if !opts.SkipInterpolation {
-			var err error
-			configDict, err = interpolateConfig(configDict, *opts.Interpolate)
+		if configDict == nil {
+			dict, err := parseConfig(file.Content, opts)
 			if err != nil {
 				return nil, err
 			}
+			configDict = dict
+			file.Config = dict
+			configDetails.ConfigFiles[i] = file
 		}
 
 		if !opts.SkipValidation {
@@ -212,6 +213,18 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	return project, nil
+}
+
+func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
+	if !opts.SkipInterpolation {
+		substitute, err := opts.Interpolate.Substitute(string(b), template.Mapping(opts.Interpolate.LookupValue))
+		if err != nil {
+			return nil, err
+		}
+		b = []byte(substitute)
+	}
+
+	return ParseYAML(b)
 }
 
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
@@ -445,16 +458,18 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			if err != nil {
 				return nil, err
 			}
-			baseFile, err := ParseYAML(bytes)
-			if err != nil {
-				return nil, err
-			}
 
 			if !opts.SkipInterpolation {
-				baseFile, err = interpolateConfig(baseFile, *opts.Interpolate)
+				substitute, err := opts.Interpolate.Substitute(string(bytes), template.Mapping(opts.Interpolate.LookupValue))
 				if err != nil {
 					return nil, err
 				}
+				bytes = []byte(substitute)
+			}
+
+			baseFile, err := ParseYAML(bytes)
+			if err != nil {
+				return nil, err
 			}
 
 			baseFileServices := getSection(baseFile, "services")

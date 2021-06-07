@@ -82,7 +82,3 @@ func toBoolean(value string) (interface{}, error) {
 		return nil, errors.Errorf("invalid boolean: %s", value)
 	}
 }
-
-func interpolateConfig(configDict map[string]interface{}, opts interp.Options) (map[string]interface{}, error) {
-	return interp.Interpolate(configDict, opts)
-}

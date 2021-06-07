@@ -32,7 +32,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func buildConfigDetails(source map[string]interface{}, env map[string]string) types.ConfigDetails {
+func buildConfigDetails(yaml string, env map[string]string) types.ConfigDetails {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
@@ -41,7 +41,7 @@ func buildConfigDetails(source map[string]interface{}, env map[string]string) ty
 	return types.ConfigDetails{
 		WorkingDir: workingDir,
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "filename.yml", Config: source},
+			{Filename: "filename.yml", Content: []byte(yaml)},
 		},
 		Environment: env,
 	}
@@ -52,12 +52,7 @@ func loadYAML(yaml string) (*types.Project, error) {
 }
 
 func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Project, error) {
-	dict, err := ParseYAML([]byte(yaml))
-	if err != nil {
-		return nil, err
-	}
-
-	return Load(buildConfigDetails(dict, env), func(options *Options) {
+	return Load(buildConfigDetails(yaml, env), func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 	})
@@ -251,7 +246,7 @@ func TestParseYAML(t *testing.T) {
 }
 
 func TestLoad(t *testing.T) {
-	actual, err := Load(buildConfigDetails(sampleDict, nil), func(options *Options) {
+	actual, err := Load(buildConfigDetails(sampleYAML, nil), func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 	})
@@ -519,7 +514,7 @@ volumes:
 }
 
 func TestLoadWithInterpolationCastFull(t *testing.T) {
-	dict, err := ParseYAML([]byte(`
+	dict := `
 services:
   web:
     configs:
@@ -581,8 +576,7 @@ networks:
     internal: $thebool
     attachable: $thebool
   back:
-`))
-	assert.NilError(t, err)
+`
 	env := map[string]string{
 		"theint":   "555",
 		"thefloat": "3.14",
@@ -686,7 +680,7 @@ networks:
 }
 
 func TestUnsupportedProperties(t *testing.T) {
-	dict, err := ParseYAML([]byte(`
+	dict := `
 services:
   web:
     image: web
@@ -699,30 +693,27 @@ services:
     image: db
     build:
      context: ./db
-`))
-	assert.NilError(t, err)
-
+`
 	configDetails := buildConfigDetails(dict, nil)
 
-	_, err = Load(configDetails)
+	_, err := Load(configDetails)
 	assert.NilError(t, err)
 }
 
 func TestDiscardEnvFileOption(t *testing.T) {
-	dict, err := ParseYAML([]byte(`services:
+	dict := `services:
   web:
     image: nginx
     env_file:
      - example1.env
      - example2.env
-`))
+`
 	expectedEnvironmentMap := types.MappingWithEquals{
 		"FOO": strPtr("foo_from_env_file"),
 		"BAZ": strPtr("baz_from_env_file"),
 		"BAR": strPtr("bar_from_env_file_2"), // Original value is overwritten by example2.env
 		"QUX": strPtr("quz_from_env_file_2"),
 	}
-	assert.NilError(t, err)
 	configDetails := buildConfigDetails(dict, nil)
 
 	// Default behavior keeps the `env_file` entries
@@ -740,7 +731,7 @@ func TestDiscardEnvFileOption(t *testing.T) {
 }
 
 func TestBuildProperties(t *testing.T) {
-	dict, err := ParseYAML([]byte(`
+	dict := `
 services:
   web:
     image: web
@@ -751,15 +742,14 @@ services:
     image: db
     build:
      context: ./db
-`))
-	assert.NilError(t, err)
+`
 	configDetails := buildConfigDetails(dict, nil)
-	_, err = Load(configDetails)
+	_, err := Load(configDetails)
 	assert.NilError(t, err)
 }
 
 func TestDeprecatedProperties(t *testing.T) {
-	dict, err := ParseYAML([]byte(`
+	dict := `
 services:
   web:
     image: web
@@ -768,12 +758,10 @@ services:
     image: db
     container_name: db
     expose: ["5434"]
-`))
-	assert.NilError(t, err)
-
+`
 	configDetails := buildConfigDetails(dict, nil)
 
-	_, err = Load(configDetails)
+	_, err := Load(configDetails)
 	assert.NilError(t, err)
 }
 
@@ -839,6 +827,18 @@ volumes:
 
 	assert.ErrorContains(t, err, "volume.external.name and volume.name conflict; only use volume.name")
 	assert.ErrorContains(t, err, "external_volume")
+}
+
+func TestInterpolateInt(t *testing.T) {
+	project, err := loadYAMLWithEnv(`
+services:
+  foo:
+    image: foo
+    scale: ${FOO_SCALE}
+`, map[string]string{"FOO_SCALE": "2"})
+
+	assert.NilError(t, err)
+	assert.Equal(t, project.Services[0].Scale, 2)
 }
 
 func durationPtr(value time.Duration) *types.Duration {
@@ -1674,13 +1674,10 @@ func TestLoadWithExtends(t *testing.T) {
 	bytes, err := ioutil.ReadFile("testdata/compose-test-extends.yaml")
 	assert.NilError(t, err)
 
-	dict, err := ParseYAML(bytes)
-	assert.NilError(t, err)
-
 	configDetails := types.ConfigDetails{
 		WorkingDir: "testdata",
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "testdata/compose-test-extends.yaml", Config: dict},
+			{Filename: "testdata/compose-test-extends.yaml", Content: bytes},
 		},
 	}
 

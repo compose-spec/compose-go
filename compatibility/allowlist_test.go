@@ -36,19 +36,18 @@ func TestAllowList(t *testing.T) {
 			},
 		},
 	}
-	dict, err := loader.ParseYAML([]byte(`
+	dict := []byte(`
 services:
   foo:
     image: busybox
     network_mode: host
     privileged: true
     mac_address: "a:b:c:d"
-`))
-	assert.NilError(t, err)
+`)
 
 	project, err := loader.Load(types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "filename.yml", Config: dict},
+			{Filename: "filename.yml", Content: dict},
 		},
 	})
 	assert.NilError(t, err)
