@@ -123,7 +123,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 					},
 				},
 				RestartPolicy: &types.RestartPolicy{
-					Condition:   "on-failure",
+					Condition:   types.RestartPolicyOnFailure,
 					Delay:       durationPtr(5 * time.Second),
 					MaxAttempts: uint64Ptr(3),
 					Window:      durationPtr(2 * time.Minute),
@@ -357,7 +357,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			},
 			Privileged: true,
 			ReadOnly:   true,
-			Restart:    "always",
+			Restart:    types.RestartPolicyAlways,
 			Secrets: []types.ServiceSecretConfig{
 				{
 					Source: "secret1",
