@@ -215,6 +215,17 @@ const (
 )
 
 const (
+	//RestartPolicyAlways always restart the container if it stops
+	RestartPolicyAlways = "always"
+	//RestartPolicyOnFailure restart the container if it exits due to an error
+	RestartPolicyOnFailure = "on-failure"
+	//RestartPolicyNo do not automatically restart the container
+	RestartPolicyNo = "no"
+	//RestartPolicyUnlessStopped always restart the container unless the container is stopped (manually or otherwise)
+	RestartPolicyUnlessStopped = "unless-stopped"
+)
+
+const (
 	// NetworkModeServicePrefix is the prefix for network_mode pointing to a service
 	NetworkModeServicePrefix = "service:"
 	// NetworkModeContainerPrefix is the prefix for network_mode pointing to a container
