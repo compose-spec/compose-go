@@ -309,17 +309,13 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 
 // getConfigPathsFromOptions retrieves the config files for project based on project options
 func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
-	pwd := options.WorkingDir
-	if pwd == "" {
-		wd, err := os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-		pwd = wd
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
 	}
 
 	if len(options.ConfigPaths) != 0 {
-		return absolutePaths(options.ConfigPaths, pwd)
+		return absolutePaths(options.ConfigPaths, wd)
 	}
 
 	return nil, errors.New("no configuration file provided")
