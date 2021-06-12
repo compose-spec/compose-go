@@ -105,7 +105,10 @@ func WithDefaultConfigPath(o *ProjectOptions) error {
 	if len(o.ConfigPaths) > 0 {
 		return nil
 	}
-	pwd := o.WorkingDir
+	pwd, err := o.GetWorkingDir()
+	if err != nil {
+		return err
+	}
 	for {
 		candidates := findFiles(DefaultFileNames, pwd)
 		if len(candidates) > 0 {
