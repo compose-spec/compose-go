@@ -93,7 +93,7 @@ func WithConfigFileEnv(o *ProjectOptions) error {
 	}
 	f, ok := o.Environment[ComposeFilePath]
 	if ok {
-		paths, err := absolutePaths(strings.Split(f, sep), o.WorkingDir)
+		paths, err := absolutePaths(strings.Split(f, sep))
 		o.ConfigPaths = paths
 		return err
 	}
@@ -176,17 +176,20 @@ func WithDotEnv(o *ProjectOptions) error {
 	if dotEnvFile == "" {
 		dotEnvFile = ".env"
 	}
-	if !filepath.IsAbs(dotEnvFile) {
-		dir, err := o.GetWorkingDir()
-		if err != nil {
-			return err
-		}
-		dotEnvFile = filepath.Join(dir, dotEnvFile)
+	abs, err := filepath.Abs(dotEnvFile)
+	if err != nil {
+		return err
 	}
+	dotEnvFile = abs
+
 	s, err := os.Stat(dotEnvFile)
 	if os.IsNotExist(err) {
 		return nil
 	}
+	if err != nil {
+		return err
+	}
+
 	if s.IsDir() {
 		return nil
 	}
@@ -312,13 +315,8 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 
 // getConfigPathsFromOptions retrieves the config files for project based on project options
 func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-
 	if len(options.ConfigPaths) != 0 {
-		return absolutePaths(options.ConfigPaths, wd)
+		return absolutePaths(options.ConfigPaths)
 	}
 
 	return nil, errors.New("no configuration file provided")
@@ -335,18 +333,20 @@ func findFiles(names []string, pwd string) []string {
 	return candidates
 }
 
-func absolutePaths(p []string, pwd string) ([]string, error) {
+func absolutePaths(p []string) ([]string, error) {
 	var paths []string
 	for _, f := range p {
 		if f == "-" {
 			paths = append(paths, f)
 			continue
 		}
-		if !filepath.IsAbs(f) {
-			f = filepath.Join(pwd, f)
+		abs, err := filepath.Abs(f)
+		if err != nil {
+			return nil, err
 		}
+		f = abs
 		if _, err := os.Stat(f); err != nil {
-			return paths, err
+			return nil, err
 		}
 		paths = append(paths, f)
 	}

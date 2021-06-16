@@ -60,7 +60,13 @@ func TestProjectName(t *testing.T) {
 	})
 
 	t.Run("by .env", func(t *testing.T) {
-		opts, err := NewProjectOptions(nil, WithWorkingDirectory("testdata/env-file"), WithDotEnv, WithConfigFileEnv)
+		wd, err := os.Getwd()
+		assert.NilError(t, err)
+		err = os.Chdir("testdata/env-file")
+		assert.NilError(t, err)
+		defer os.Chdir(wd)
+
+		opts, err := NewProjectOptions(nil, WithDotEnv, WithConfigFileEnv)
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
 		assert.NilError(t, err)
@@ -111,8 +117,14 @@ func TestProjectComposefilesFromWorkingDir(t *testing.T) {
 }
 
 func TestProjectWithDotEnv(t *testing.T) {
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+	err = os.Chdir("testdata/simple")
+	assert.NilError(t, err)
+	defer os.Chdir(wd)
+
 	opts, err := NewProjectOptions([]string{
-		"testdata/simple/compose-with-variables.yaml",
+		"compose-with-variables.yaml",
 	}, WithName("my_project"), WithDotEnv)
 	assert.NilError(t, err)
 	p, err := ProjectFromOptions(opts)
