@@ -240,6 +240,55 @@ func (p *Project) ApplyProfiles(profiles []string) {
 	p.DisabledServices = disabled
 }
 
+// WithoutUnnecessaryResources drops networks/volumes/secrets/configs that are not referenced by active services
+func (p *Project) WithoutUnnecessaryResources() {
+	requiredNetworks := map[string]struct{}{}
+	requiredVolumes := map[string]struct{}{}
+	requiredSecrets := map[string]struct{}{}
+	requiredConfigs := map[string]struct{}{}
+	for _, s := range p.Services {
+		for k := range s.Networks {
+			requiredNetworks[k] = struct{}{}
+		}
+		for _, v := range s.Volumes {
+			if v.Type != VolumeTypeVolume || v.Source == "" {
+				continue
+			}
+			requiredVolumes[v.Source] = struct{}{}
+		}
+		for _, v := range s.Secrets {
+			requiredSecrets[v.Source] = struct{}{}
+		}
+		for _, v := range s.Configs {
+			requiredConfigs[v.Source] = struct{}{}
+		}
+	}
+
+	networks := Networks{}
+	for k := range requiredNetworks {
+		networks[k] = p.Networks[k]
+	}
+	p.Networks = networks
+
+	volumes := Volumes{}
+	for k := range requiredVolumes {
+		volumes[k] = p.Volumes[k]
+	}
+	p.Volumes = volumes
+
+	secrets := Secrets{}
+	for k := range requiredSecrets {
+		secrets[k] = p.Secrets[k]
+	}
+	p.Secrets = secrets
+
+	configs := Configs{}
+	for k := range requiredConfigs {
+		configs[k] = p.Configs[k]
+	}
+	p.Configs = configs
+}
+
 // ForServices restrict the project model to a subset of services
 func (p *Project) ForServices(names []string) error {
 	if len(names) == 0 {

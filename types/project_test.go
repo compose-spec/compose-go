@@ -35,6 +35,27 @@ func Test_ApplyProfiles(t *testing.T) {
 	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
 }
 
+func Test_WithoutUnnecessaryResources(t *testing.T) {
+	p := makeProject()
+	p.Networks["unused"] = NetworkConfig{}
+	p.Volumes["unused"] = VolumeConfig{}
+	p.Secrets["unused"] = SecretConfig{}
+	p.Configs["unused"] = ConfigObjConfig{}
+	p.WithoutUnnecessaryResources()
+	if _, ok := p.Networks["unused"]; ok {
+		t.Fail()
+	}
+	if _, ok := p.Volumes["unused"]; ok {
+		t.Fail()
+	}
+	if _, ok := p.Secrets["unused"]; ok {
+		t.Fail()
+	}
+	if _, ok := p.Configs["unused"]; ok {
+		t.Fail()
+	}
+}
+
 func Test_NoProfiles(t *testing.T) {
 	p := makeProject()
 	p.ApplyProfiles(nil)
@@ -75,6 +96,10 @@ func makeProject() Project {
 				Name:     "service_3",
 				Profiles: []string{"bar"},
 			}),
+		Networks: Networks{},
+		Volumes:  Volumes{},
+		Secrets:  Secrets{},
+		Configs:  Configs{},
 	}
 }
 
