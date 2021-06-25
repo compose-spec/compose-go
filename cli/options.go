@@ -87,7 +87,7 @@ func WithConfigFileEnv(o *ProjectOptions) error {
 	if len(o.ConfigPaths) > 0 {
 		return nil
 	}
-	sep := o.Environment[ComposeFileSeparator]
+	sep := o.Environment[ComposePathSeparator]
 	if sep == "" {
 		sep = string(os.PathListSeparator)
 	}
@@ -228,7 +228,7 @@ var DefaultOverrideFileNames = []string{"compose.override.yml", "compose.overrid
 
 const (
 	ComposeProjectName   = "COMPOSE_PROJECT_NAME"
-	ComposeFileSeparator = "COMPOSE_FILE_SEPARATOR"
+	ComposePathSeparator = "COMPOSE_PATH_SEPARATOR"
 	ComposeFilePath      = "COMPOSE_FILE"
 )
 
