@@ -391,7 +391,7 @@ func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interfac
 		return dict, nil
 	}
 	if list, ok := value.([]interface{}); ok {
-		var convertedList []interface{}
+		convertedList := []interface{}{}
 		for index, entry := range list {
 			newKeyPrefix := fmt.Sprintf("%s[%d]", keyPrefix, index)
 			convertedEntry, err := convertToStringKeysRecursive(entry, newKeyPrefix)
