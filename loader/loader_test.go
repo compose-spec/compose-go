@@ -1743,3 +1743,13 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, "always", svc.PullPolicy)
 }
+
+func TestEmptyList(t *testing.T) {
+	_, err := loadYAML(`
+services:
+  test:
+    image: nginx:latest
+    ports: []
+`)
+	assert.NilError(t, err)
+}
