@@ -18,7 +18,7 @@ package loader
 
 import (
 	"fmt"
-	"net/url"
+	"os"
 	"path/filepath"
 
 	"github.com/compose-spec/compose-go/errdefs"
@@ -70,10 +70,13 @@ func normalize(project *types.Project) error {
 			if s.Build.Dockerfile == "" {
 				s.Build.Dockerfile = "Dockerfile"
 			}
-			url, err := url.ParseRequestURI(s.Build.Context)
-			if err != nil || url.Scheme == "" {
-				s.Build.Context = absPath(project.WorkingDir, s.Build.Context)
-				s.Build.Dockerfile = absPath(s.Build.Context, s.Build.Dockerfile)
+			localContext := absPath(project.WorkingDir, s.Build.Context)
+			if _, err := os.Stat(localContext); err == nil {
+				s.Build.Context = localContext
+				s.Build.Dockerfile = absPath(localContext, s.Build.Dockerfile)
+			} else {
+				// might be a remote http/git context. Unfortunately supported "remote" syntax is highly ambiguous
+				// in moby/moby and not defined by compose-spec, so let's assume runtime will check
 			}
 			s.Build.Args = s.Build.Args.Resolve(fn)
 		}

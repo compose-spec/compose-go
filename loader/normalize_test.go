@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -27,9 +28,10 @@ import (
 )
 
 func TestNormalizeNetworkNames(t *testing.T) {
+	wd, _ := os.Getwd()
 	project := types.Project{
 		Name:       "myProject",
-		WorkingDir: "/some/path",
+		WorkingDir: wd,
 		Environment: map[string]string{
 			"FOO": "BAR",
 		},
@@ -47,7 +49,7 @@ func TestNormalizeNetworkNames(t *testing.T) {
 			{
 				Name: "foo",
 				Build: &types.BuildConfig{
-					Context: "foo",
+					Context: "./testdata",
 					Args: map[string]*string{
 						"FOO": nil,
 						"ZOT": nil,
@@ -57,12 +59,11 @@ func TestNormalizeNetworkNames(t *testing.T) {
 		},
 	}
 
-	absFolder, _ := filepath.Abs("/some/path/foo")
 	expected := strings.ReplaceAll(strings.ReplaceAll(`services:
   foo:
     build:
-      context: /some/path/foo
-      dockerfile: /some/path/foo/Dockerfile
+      context: /some/path/testdata
+      dockerfile: /some/path/testdata/Dockerfile
       args:
         FOO: BAR
         ZOT: null
@@ -78,7 +79,7 @@ networks:
     name: CustomName
   mynet:
     name: myProject_mynet
-`, "/some/path/foo", absFolder), "/", string(filepath.Separator))
+`, "/some/path", wd), "/", string(filepath.Separator))
 	err := normalize(&project)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
