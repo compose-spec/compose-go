@@ -707,7 +707,13 @@ func (u *UlimitsConfig) MarshalYAML() (interface{}, error) {
 	if u.Single != 0 {
 		return u.Single, nil
 	}
-	return u, nil
+	return struct {
+        Soft int
+        Hard int
+    }{
+        Soft: u.Soft,
+        Hard: u.Hard,
+    }, nil
 }
 
 // MarshalJSON makes UlimitsConfig implement json.Marshaller
