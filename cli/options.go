@@ -297,6 +297,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 			opts.Name = regexp.MustCompile(`[^-_a-z0-9]+`).
 				ReplaceAllString(strings.ToLower(filepath.Base(absWorkingDir)), "")
 		}
+		opts.Name = strings.ToLower(opts.Name)
 	}
 	options.loadOptions = append(options.loadOptions, nameLoadOpt)
 
