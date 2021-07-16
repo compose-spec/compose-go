@@ -174,7 +174,11 @@ func WithEnvFile(file string) ProjectOptionsFn {
 func WithDotEnv(o *ProjectOptions) error {
 	dotEnvFile := o.EnvFile
 	if dotEnvFile == "" {
-		dotEnvFile = ".env"
+		wd, err := o.GetWorkingDir()
+		if err != nil {
+			return err
+		}
+		dotEnvFile = filepath.Join(wd, ".env")
 	}
 	abs, err := filepath.Abs(dotEnvFile)
 	if err != nil {
