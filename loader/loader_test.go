@@ -480,6 +480,7 @@ services:
 func TestLoadWithEnvironmentInterpolation(t *testing.T) {
 	home := "/home/foo"
 	config, err := loadYAMLWithEnv(`
+# This is a comment, so using variable syntax here ${SHOULD_NOT_BREAK} parsing
 services:
   test:
     image: busybox
