@@ -20,3 +20,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.0.3
 )
+
+replace github.com/joho/godotenv => github.com/ulyssessouza/godotenv v1.3.1-0.20210720203245-d3051d55ab34

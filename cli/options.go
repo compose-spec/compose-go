@@ -204,11 +204,22 @@ func WithDotEnv(o *ProjectOptions) error {
 	}
 	defer file.Close()
 
-	env, err := godotenv.Parse(file)
+	notInEnvSet := make(map[string]interface{})
+	env, err := godotenv.ParseWithLookup(file, func(k string) (string, bool) {
+		v, ok := os.LookupEnv(k)
+		if !ok {
+			notInEnvSet[k] = nil
+			return "", true
+		}
+		return v, true
+	})
 	if err != nil {
 		return err
 	}
 	for k, v := range env {
+		if _, ok := notInEnvSet[k]; ok {
+			continue
+		}
 		o.Environment[k] = v
 	}
 	return nil
