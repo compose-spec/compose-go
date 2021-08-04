@@ -456,6 +456,29 @@ services:
 	}
 }
 
+func TestLoadEnvironmentWithBoolean(t *testing.T) {
+	config, err := loadYAML(`
+services:
+  dict-env:
+    image: busybox
+    environment:
+      FOO: true
+      BAR: false
+`)
+	assert.NilError(t, err)
+
+	expected := types.MappingWithEquals{
+		"FOO": strPtr("true"),
+		"BAR": strPtr("false"),
+	}
+
+	assert.Check(t, is.Equal(1, len(config.Services)))
+
+	for _, service := range config.Services {
+		assert.Check(t, is.DeepEqual(expected, service.Environment))
+	}
+}
+
 func TestInvalidEnvironmentValue(t *testing.T) {
 	_, err := loadYAML(`
 services:
@@ -464,7 +487,7 @@ services:
     environment:
       FOO: ["1"]
 `)
-	assert.ErrorContains(t, err, "services.dict-env.environment.FOO must be a string, number or null")
+	assert.ErrorContains(t, err, "services.dict-env.environment.FOO must be a string, number, boolean or null")
 }
 
 func TestInvalidEnvironmentObject(t *testing.T) {
