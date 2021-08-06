@@ -516,10 +516,14 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			}
 		}
 
+		commandBackup := serviceConfig.Command
 		if err := mergo.Merge(baseService, serviceConfig, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
 			return nil, errors.Wrapf(err, "cannot merge service %s", name)
 		}
 		serviceConfig = baseService
+		if len(commandBackup) > 0 {
+			serviceConfig.Command = commandBackup
+		}
 	}
 
 	return serviceConfig, nil
