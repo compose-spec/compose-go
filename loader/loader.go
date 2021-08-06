@@ -32,14 +32,13 @@ import (
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/types"
-	units "github.com/docker/go-units"
-	"github.com/imdario/mergo"
-	shellwords "github.com/mattn/go-shellwords"
+	"github.com/docker/go-units"
+	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/ulyssessouza/godotenv"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 // Options supported by Load
@@ -504,10 +503,10 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			}
 		}
 
-		if err := mergo.Merge(baseService, serviceConfig, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
-			return nil, errors.Wrapf(err, "cannot merge service %s", name)
+		serviceConfig, err = _merge(baseService, serviceConfig)
+		if err != nil {
+			return nil, err
 		}
-		serviceConfig = baseService
 	}
 
 	return serviceConfig, nil
