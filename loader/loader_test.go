@@ -290,6 +290,25 @@ services:
 	assert.Check(t, service.Command[0] == "echo")
 }
 
+func TestLoadExtendsOverrideCommand(t *testing.T) {
+	actual, err := loadYAML(`
+services:
+  foo:
+    image: busybox
+    extends:
+      service: bar
+    command: "/bin/ash -c \"rm -rf /tmp/might-not-exist\""
+  bar:
+    image: alpine
+    command: "/bin/ash -c \"echo Oh no...\""`)
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(actual.Services, 2))
+	service, err := actual.GetService("foo")
+	assert.NilError(t, err)
+	assert.Check(t, service.Image == "busybox")
+	assert.DeepEqual(t, service.Command, types.ShellCommand{"/bin/ash", "-c", "rm -rf /tmp/might-not-exist"})
+}
+
 func TestLoadCredentialSpec(t *testing.T) {
 	actual, err := loadYAML(`
 services:
