@@ -1149,27 +1149,67 @@ func TestMergeTopLevelExtensions(t *testing.T) {
 }
 
 func TestMergeCommands(t *testing.T) {
-	configDetails := types.ConfigDetails{
-		ConfigFiles: []types.ConfigFile{
-			{Filename: "base.yml", Config: map[string]interface{}{
-				"services": map[string]interface{}{
-					"foo": map[string]interface{}{
-						"image":   "alpine",
-						"command": "/bin/bash -c \"echo 'hello'\"",
-					},
+	testCases := []struct {
+		name          string
+		configDetails types.ConfigDetails
+		index         int
+		shellCommand  types.ShellCommand
+	}{
+		{
+			name: "Shell commands must not merge",
+			configDetails: types.ConfigDetails{
+				ConfigFiles: []types.ConfigFile{
+					{Filename: "base.yml", Config: map[string]interface{}{
+						"services": map[string]interface{}{
+							"foo": map[string]interface{}{
+								"image":   "alpine",
+								"command": "/bin/bash -c \"echo 'hello'\"",
+							},
+						},
+					}},
+					{Filename: "override.yml", Config: map[string]interface{}{
+						"services": map[string]interface{}{
+							"foo": map[string]interface{}{
+								"image":   "alpine",
+								"command": "/bin/ash -c \"echo 'world'\"",
+							},
+						},
+					}},
 				},
-			}},
-			{Filename: "override.yml", Config: map[string]interface{}{
-				"services": map[string]interface{}{
-					"foo": map[string]interface{}{
-						"image":   "alpine",
-						"command": "/bin/ash -c \"echo 'world'\"",
-					},
+			},
+			index:        0,
+			shellCommand: types.ShellCommand{"/bin/ash", "-c", "echo 'world'"},
+		},
+		{
+			name: "Shell commands must not merge (same file)",
+			configDetails: types.ConfigDetails{
+				ConfigFiles: []types.ConfigFile{
+					{Filename: "single-extends.yml", Config: map[string]interface{}{
+						"services": map[string]interface{}{
+							"foo": map[string]interface{}{
+								"image":   "alpine",
+								"command": "/bin/bash -c \"echo 'hello'\"",
+							},
+							"bar": map[string]interface{}{
+								"extends": map[string]interface{}{
+									"service": "foo",
+								},
+								"command": "/bin/ash -c \"echo 'world'\"",
+							},
+						},
+					}},
 				},
-			}},
+			},
+			index:        1,
+			shellCommand: types.ShellCommand{"/bin/ash", "-c", "echo 'world'"},
 		},
 	}
-	merged, err := loadTestProject(configDetails)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, merged.Services[0].Command, types.ShellCommand{"/bin/ash", "-c", "echo 'world'"})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			merged, err := loadTestProject(tc.configDetails)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, merged.Services[tc.index].Command, tc.shellCommand)
+		})
+	}
 }
