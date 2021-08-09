@@ -33,11 +33,11 @@ import (
 	"github.com/compose-spec/compose-go/types"
 	units "github.com/docker/go-units"
 	"github.com/imdario/mergo"
-	"github.com/joho/godotenv"
 	shellwords "github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/ulyssessouza/godotenv"
 	yaml "gopkg.in/yaml.v2"
 )
 
