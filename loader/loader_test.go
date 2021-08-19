@@ -503,7 +503,7 @@ services:
 func TestLoadWithEnvironmentInterpolation(t *testing.T) {
 	home := "/home/foo"
 	config, err := loadYAMLWithEnv(`
-# This is a comment, so using variable syntax here ${SHOULD_NOT_BREAK} parsing
+# $1 This is a comment should not break the parsing
 services:
   test:
     image: busybox
@@ -535,6 +535,20 @@ volumes:
 	assert.Check(t, is.DeepEqual(expectedLabels, config.Services[0].Labels))
 	assert.Check(t, is.Equal(home, config.Networks["test"].Driver))
 	assert.Check(t, is.Equal(home, config.Volumes["test"].Driver))
+}
+
+func TestLoadWithEnvironmentInterpolationVariableInComment(t *testing.T) {
+	config, err := loadYAMLWithEnv(`
+# $1 This is a comment should not break the parsing
+services:
+  test:
+    image: busybox
+    command: "$MYVAR"
+`, map[string]string{
+		"MYVAR": "",
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, len(config.Services[0].Command), 0)
 }
 
 func TestLoadWithInterpolationCastFull(t *testing.T) {

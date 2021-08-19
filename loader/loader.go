@@ -31,14 +31,15 @@ import (
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/types"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/imdario/mergo"
-	shellwords "github.com/mattn/go-shellwords"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/ulyssessouza/godotenv"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 // Options supported by Load
@@ -216,34 +217,33 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 }
 
 func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	if !opts.SkipInterpolation {
-		withoutComments, err := removeYamlComments(b)
+		var cfg map[string]interface{}
+		err := yaml.Unmarshal(b, &cfg)
 		if err != nil {
 			return nil, err
 		}
-
-		substituted, err := opts.Interpolate.Substitute(string(withoutComments), template.Mapping(opts.Interpolate.LookupValue))
+		b, err = json.Marshal(cfg)
 		if err != nil {
 			return nil, err
 		}
-		b = []byte(substituted)
+		// Substitute on JSON file
+		substituted, err := opts.Interpolate.Substitute(string(b), template.Mapping(opts.Interpolate.LookupValue))
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal([]byte(substituted), &cfg)
+		if err != nil {
+			return nil, err
+		}
+		b, err = yaml.Marshal(cfg)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return ParseYAML(b)
-}
-
-// removeYamlComments drop all comments from the yaml file, so we don't try to apply string substitutions on irrelevant places
-func removeYamlComments(b []byte) ([]byte, error) {
-	var cfg interface{}
-	err := yaml.Unmarshal(b, &cfg)
-	if err != nil {
-		return nil, err
-	}
-	b, err = yaml.Marshal(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
 }
 
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
