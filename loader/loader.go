@@ -23,6 +23,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -217,12 +218,8 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
 	if !opts.SkipInterpolation {
-		withoutComments, err := removeYamlComments(b)
-		if err != nil {
-			return nil, err
-		}
-
-		substituted, err := opts.Interpolate.Substitute(string(withoutComments), template.Mapping(opts.Interpolate.LookupValue))
+		withoutFullLineComments := removeYamlComments(string(b))
+		substituted, err := opts.Interpolate.Substitute(withoutFullLineComments, template.Mapping(opts.Interpolate.LookupValue))
 		if err != nil {
 			return nil, err
 		}
@@ -232,18 +229,9 @@ func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
 	return ParseYAML(b)
 }
 
-// removeYamlComments drop all comments from the yaml file, so we don't try to apply string substitutions on irrelevant places
-func removeYamlComments(b []byte) ([]byte, error) {
-	var cfg interface{}
-	err := yaml.Unmarshal(b, &cfg)
-	if err != nil {
-		return nil, err
-	}
-	b, err = yaml.Marshal(cfg)
-	if err != nil {
-		return nil, err
-	}
-	return b, nil
+// removeYamlComments drop all full line comments from the yaml file, so we don't try to apply string substitutions on most of the irrelevant places
+func removeYamlComments(content string) string {
+	return regexp.MustCompile(`(?m)^[ \t]*#.*\n*`).ReplaceAllString(content, "")
 }
 
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
