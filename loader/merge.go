@@ -87,13 +87,11 @@ func mergeServices(base, override []types.ServiceConfig) ([]types.ServiceConfig,
 	for name, overrideService := range overrideServices {
 		overrideService := overrideService
 		if baseService, ok := baseServices[name]; ok {
-			if err := mergo.Merge(&baseService, &overrideService, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
-				return base, errors.Wrapf(err, "cannot merge service %s", name)
+			merged, err := _merge(&baseService, &overrideService)
+			if err != nil {
+				return nil, errors.Wrapf(err, "cannot merge service %s", name)
 			}
-			if len(overrideService.Command) > 0 {
-				baseService.Command = overrideService.Command
-			}
-			baseServices[name] = baseService
+			baseServices[name] = *merged
 			continue
 		}
 		baseServices[name] = overrideService
@@ -104,6 +102,19 @@ func mergeServices(base, override []types.ServiceConfig) ([]types.ServiceConfig,
 	}
 	sort.Slice(services, func(i, j int) bool { return services[i].Name < services[j].Name })
 	return services, nil
+}
+
+func _merge(baseService *types.ServiceConfig, overrideService *types.ServiceConfig) (*types.ServiceConfig, error) {
+	if err := mergo.Merge(baseService, overrideService, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
+		return nil, err
+	}
+	if len(overrideService.Command) > 0 {
+		baseService.Command = overrideService.Command
+	}
+	if len(overrideService.Entrypoint) > 0 {
+		baseService.Entrypoint = overrideService.Entrypoint
+	}
+	return baseService, nil
 }
 
 func toServiceSecretConfigsMap(s interface{}) (map[interface{}]interface{}, error) {
