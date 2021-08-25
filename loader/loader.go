@@ -103,11 +103,6 @@ func WithDiscardEnvFiles(opts *Options) {
 	opts.discardEnvFiles = true
 }
 
-// WithSkipValidation sets the Options to skip validation when loading sections
-func WithSkipValidation(opts *Options) {
-	opts.SkipValidation = true
-}
-
 // ParseYAML reads the bytes from a file, parses the bytes into a mapping
 // structure, and returns it.
 func ParseYAML(source []byte) (map[string]interface{}, error) {

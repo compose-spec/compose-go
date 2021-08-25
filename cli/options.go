@@ -157,9 +157,7 @@ func WithDiscardEnvFile(o *ProjectOptions) error {
 // WithLoadOptions provides a hook to control how compose files are loaded
 func WithLoadOptions(loadOptions ...func(*loader.Options)) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
-		for _, f := range loadOptions {
-			o.loadOptions = append(o.loadOptions, f)
-		}
+		o.loadOptions = append(o.loadOptions, loadOptions...)
 		return nil
 	}
 }
