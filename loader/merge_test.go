@@ -306,6 +306,30 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "override_one_sided",
+			portBase: map[string]interface{}{
+				"ports": []interface{}{
+					"5000",
+					"6000",
+				},
+			},
+			portOverride: map[string]interface{}{},
+			expected: []types.ServicePortConfig{
+				{
+					Mode:      "ingress",
+					Published: 0,
+					Target:    5000,
+					Protocol:  "tcp",
+				},
+				{
+					Mode:      "ingress",
+					Published: 0,
+					Target:    6000,
+					Protocol:  "tcp",
+				},
+			},
+		},
 	}
 
 	for _, tc := range portsCases {
