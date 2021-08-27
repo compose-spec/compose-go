@@ -188,6 +188,9 @@ func WithDotEnv(o *ProjectOptions) error {
 
 	s, err := os.Stat(dotEnvFile)
 	if os.IsNotExist(err) {
+		if o.EnvFile != "" {
+			return errors.Errorf("Couldn't find env file: %s", o.EnvFile)
+		}
 		return nil
 	}
 	if err != nil {
@@ -195,7 +198,9 @@ func WithDotEnv(o *ProjectOptions) error {
 	}
 
 	if s.IsDir() {
-		return nil
+		if o.EnvFile != "" {
+			return errors.Errorf("%s is a directory", dotEnvFile)
+		}
 	}
 
 	file, err := os.Open(dotEnvFile)
