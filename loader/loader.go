@@ -258,7 +258,7 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 		return nil, err
 	}
 
-	cfg.Networks, err = LoadNetworks(getSection(config, "networks"), configDetails.Version)
+	cfg.Networks, err = LoadNetworks(getSection(config, "networks"))
 	if err != nil {
 		return nil, err
 	}
@@ -422,6 +422,14 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 // the servicesDict is not validated if directly used. Use Load() to enable validation
 func LoadServices(filename string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
+
+	x, ok := servicesDict["extensions"]
+	if ok {
+		// as a top-level attribute, "services" doesn't support extensions, and a service can be named `x-foo`
+		for k, v := range x.(map[string]interface{}) {
+			servicesDict[k] = v
+		}
+	}
 
 	for name := range servicesDict {
 		serviceConfig, err := loadServiceWithExtends(filename, name, servicesDict, workingDir, lookupEnv, opts, &cycleTracker{})
@@ -617,7 +625,7 @@ func transformUlimits(data interface{}) (interface{}, error) {
 
 // LoadNetworks produces a NetworkConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadNetworks(source map[string]interface{}, version string) (map[string]types.NetworkConfig, error) {
+func LoadNetworks(source map[string]interface{}) (map[string]types.NetworkConfig, error) {
 	networks := make(map[string]types.NetworkConfig)
 	err := Transform(source, &networks)
 	if err != nil {

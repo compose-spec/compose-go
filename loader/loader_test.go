@@ -1365,7 +1365,7 @@ func TestLoadNetworksWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 			},
 		},
 	}
-	networks, err := LoadNetworks(source, "3.5")
+	networks, err := LoadNetworks(source)
 	assert.NilError(t, err)
 	expected := map[string]types.NetworkConfig{
 		"foo": {
@@ -1389,7 +1389,7 @@ func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
 			},
 		},
 	}
-	networks, err := LoadNetworks(source, "3.4")
+	networks, err := LoadNetworks(source)
 	assert.NilError(t, err)
 	expected := map[string]types.NetworkConfig{
 		"foo": {
