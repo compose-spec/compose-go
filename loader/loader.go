@@ -23,7 +23,6 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -221,21 +220,14 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 }
 
 func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
-	if !opts.SkipInterpolation {
-		withoutFullLineComments := removeYamlComments(string(b))
-		substituted, err := opts.Interpolate.Substitute(withoutFullLineComments, template.Mapping(opts.Interpolate.LookupValue))
-		if err != nil {
-			return nil, err
-		}
-		b = []byte(substituted)
+	yaml, err := ParseYAML(b)
+	if err != nil {
+		return nil, err
 	}
-
-	return ParseYAML(b)
-}
-
-// removeYamlComments drop all full line comments from the yaml file, so we don't try to apply string substitutions on most of the irrelevant places
-func removeYamlComments(content string) string {
-	return regexp.MustCompile(`(?m)^[ \t]*#.*\n*`).ReplaceAllString(content, "")
+	if !opts.SkipInterpolation {
+		return interp.Interpolate(yaml, *opts.Interpolate)
+	}
+	return yaml, err
 }
 
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
