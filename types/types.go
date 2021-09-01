@@ -226,10 +226,17 @@ const (
 )
 
 const (
+	// ServicePrefix is the prefix for references pointing to a service
+	ServicePrefix = "service:"
+	// ContainerPrefix is the prefix for references pointing to a container
+	ContainerPrefix = "container:"
+
 	// NetworkModeServicePrefix is the prefix for network_mode pointing to a service
-	NetworkModeServicePrefix = "service:"
+	// Deprecated prefer ServicePrefix
+	NetworkModeServicePrefix = ServicePrefix
 	// NetworkModeContainerPrefix is the prefix for network_mode pointing to a container
-	NetworkModeContainerPrefix = "container:"
+	// Deprecated prefer ContainerPrefix
+	NetworkModeContainerPrefix = ContainerPrefix
 )
 
 // GetDependencies retrieve all services this service depends on
@@ -246,9 +253,21 @@ func (s ServiceConfig) GetDependencies() []string {
 			dependencies.append(link)
 		}
 	}
-	if strings.HasPrefix(s.NetworkMode, NetworkModeServicePrefix) {
-		dependencies.append(s.NetworkMode[len(NetworkModeServicePrefix):])
+	if strings.HasPrefix(s.NetworkMode, ServicePrefix) {
+		dependencies.append(s.NetworkMode[len(ServicePrefix):])
 	}
+	if strings.HasPrefix(s.Ipc, ServicePrefix) {
+		dependencies.append(s.Ipc[len(ServicePrefix):])
+	}
+	if strings.HasPrefix(s.Pid, ServicePrefix) {
+		dependencies.append(s.Pid[len(ServicePrefix):])
+	}
+	for _, vol := range s.VolumesFrom {
+		if !strings.HasPrefix(s.Pid, ContainerPrefix) {
+			dependencies.append(vol)
+		}
+	}
+
 	return dependencies.toSlice()
 }
 
