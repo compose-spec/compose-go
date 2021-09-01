@@ -446,26 +446,29 @@ services:
     environment:
       FOO: "1"
       BAR: 2
-      BAZ: 2.5
-      QUX:
-      QUUX:
+      GA: 2.5
+      BU: ""
+      ZO:
+      MEU:
   list-env:
     image: busybox
     environment:
       - FOO=1
       - BAR=2
-      - BAZ=2.5
-      - QUX=
-      - QUUX
-`, map[string]string{"QUX": "qux"})
+      - GA=2.5
+      - BU=
+      - ZO
+      - MEU
+`, map[string]string{"MEU": "Shadoks"})
 	assert.NilError(t, err)
 
 	expected := types.MappingWithEquals{
-		"FOO":  strPtr("1"),
-		"BAR":  strPtr("2"),
-		"BAZ":  strPtr("2.5"),
-		"QUX":  strPtr("qux"),
-		"QUUX": nil,
+		"FOO": strPtr("1"),
+		"BAR": strPtr("2"),
+		"GA":  strPtr("2.5"),
+		"BU":  strPtr(""),
+		"ZO":  nil,
+		"MEU": strPtr("Shadoks"),
 	}
 
 	assert.Check(t, is.Equal(2, len(config.Services)))

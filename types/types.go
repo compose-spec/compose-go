@@ -352,7 +352,7 @@ func (e MappingWithEquals) OverrideBy(other MappingWithEquals) MappingWithEquals
 // Resolve update a MappingWithEquals for keys without value (`key`, but not `key=`)
 func (e MappingWithEquals) Resolve(lookupFn func(string) (string, bool)) MappingWithEquals {
 	for k, v := range e {
-		if v == nil || *v == "" {
+		if v == nil {
 			if value, ok := lookupFn(k); ok {
 				e[k] = &value
 			}
