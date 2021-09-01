@@ -154,6 +154,14 @@ func WithDiscardEnvFile(o *ProjectOptions) error {
 	return nil
 }
 
+// WithLoadOptions provides a hook to control how compose files are loaded
+func WithLoadOptions(loadOptions ...func(*loader.Options)) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, loadOptions...)
+		return nil
+	}
+}
+
 // WithOsEnv imports environment variables from OS
 func WithOsEnv(o *ProjectOptions) error {
 	for k, v := range getAsEqualsMap(os.Environ()) {
