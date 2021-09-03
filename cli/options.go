@@ -240,6 +240,16 @@ func WithInterpolation(interpolation bool) ProjectOptionsFn {
 	}
 }
 
+// WithResolvedPaths set ProjectOptions to enable paths resolution
+func WithResolvedPaths(resolve bool) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
+			options.ResolvePaths = resolve
+		})
+		return nil
+	}
+}
+
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
 var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
 
