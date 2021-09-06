@@ -55,6 +55,7 @@ func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Project, error)
 	return Load(buildConfigDetails(yaml, env), func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
+		options.ResolvePaths = true
 	})
 }
 
@@ -1342,7 +1343,7 @@ func TestLoadSecretsWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 		},
 	}
 	details := types.ConfigDetails{}
-	secrets, err := LoadSecrets(source, details)
+	secrets, err := LoadSecrets(source, details, true)
 	assert.NilError(t, err)
 	expected := map[string]types.SecretConfig{
 		"foo": {

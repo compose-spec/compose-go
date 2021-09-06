@@ -19,7 +19,6 @@ package loader
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/types"
@@ -59,11 +58,11 @@ func TestNormalizeNetworkNames(t *testing.T) {
 		},
 	}
 
-	expected := strings.ReplaceAll(strings.ReplaceAll(`services:
+	expected := `services:
   foo:
     build:
-      context: /some/path/testdata
-      dockerfile: /some/path/testdata/Dockerfile
+      context: ./testdata
+      dockerfile: Dockerfile
       args:
         FOO: BAR
         ZOT: null
@@ -79,8 +78,8 @@ networks:
     name: CustomName
   mynet:
     name: myProject_mynet
-`, "/some/path", wd), "/", string(filepath.Separator))
-	err := normalize(&project)
+`
+	err := normalize(&project, false)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
 	assert.NilError(t, err)
@@ -104,7 +103,7 @@ func TestNormalizeAbsolutePaths(t *testing.T) {
 		WorkingDir:   absWorkingDir,
 		ComposeFiles: []string{absComposeFile, absOverrideFile},
 	}
-	err := normalize(&project)
+	err := normalize(&project, false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project)
 }
@@ -142,7 +141,7 @@ func TestNormalizeVolumes(t *testing.T) {
 		WorkingDir:   absCwd,
 		ComposeFiles: []string{},
 	}
-	err := normalize(&project)
+	err := normalize(&project, false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project)
 }
