@@ -147,12 +147,21 @@ func toServicePortConfigsMap(s interface{}) (map[interface{}]interface{}, error)
 		return nil, errors.Errorf("not a servicePortConfig slice: %v", s)
 	}
 	m := map[interface{}]interface{}{}
+	type port struct {
+		target    uint32
+		published uint32
+		ip        string
+		protocol  string
+	}
+
 	for _, p := range ports {
-		k := p.Published
-		if k == 0 {
-			k = p.Target
+		mergeKey := port{
+			target:    p.Target,
+			published: p.Published,
+			ip:        p.HostIP,
+			protocol:  p.Protocol,
 		}
-		m[k] = p
+		m[mergeKey] = p
 	}
 	return m, nil
 }
