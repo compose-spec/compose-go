@@ -138,22 +138,4 @@ func TestValidateNetworkMode(t *testing.T) {
 		err := checkConsistency(project)
 		assert.NilError(t, err)
 	})
-
-	t.Run("network_mode container fail", func(t *testing.T) {
-		project := &types.Project{
-			Services: types.Services([]types.ServiceConfig{
-				{
-					Name:  "myservice1",
-					Image: "scratch",
-				},
-				{
-					Name:        "myservice2",
-					Image:       "scratch",
-					NetworkMode: "container:nonexistentcontainer",
-				},
-			}),
-		}
-		err := checkConsistency(project)
-		assert.Error(t, err, `service with container_name "nonexistentcontainer" not found for network_mode 'container:nonexistentcontainer'`)
-	})
 }
