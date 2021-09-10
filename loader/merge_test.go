@@ -286,23 +286,29 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 			},
 		},
 		{
-			name: "override_same_published",
+			name: "override_distinct_protocols",
 			portBase: map[string]interface{}{
 				"ports": []interface{}{
-					"8080:80",
+					"8080:80/tcp",
 				},
 			},
 			portOverride: map[string]interface{}{
 				"ports": []interface{}{
-					"8080:81",
+					"8080:80/udp",
 				},
 			},
 			expected: []types.ServicePortConfig{
 				{
 					Mode:      "ingress",
 					Published: 8080,
-					Target:    81,
+					Target:    80,
 					Protocol:  "tcp",
+				},
+				{
+					Mode:      "ingress",
+					Published: 8080,
+					Target:    80,
+					Protocol:  "udp",
 				},
 			},
 		},
@@ -947,6 +953,12 @@ func TestLoadMultipleConfigs(t *testing.T) {
 					},
 				},
 				Ports: []types.ServicePortConfig{
+					{
+						Mode:      "ingress",
+						Target:    80,
+						Published: 8080,
+						Protocol:  "tcp",
+					},
 					{
 						Target:    81,
 						Published: 8080,
