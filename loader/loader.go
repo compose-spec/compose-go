@@ -472,15 +472,7 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 				return nil, err
 			}
 
-			if !opts.SkipInterpolation {
-				substitute, err := opts.Interpolate.Substitute(string(bytes), template.Mapping(opts.Interpolate.LookupValue))
-				if err != nil {
-					return nil, err
-				}
-				bytes = []byte(substitute)
-			}
-
-			baseFile, err := ParseYAML(bytes)
+			baseFile, err := parseConfig(bytes, opts)
 			if err != nil {
 				return nil, err
 			}
