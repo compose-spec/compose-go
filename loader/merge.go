@@ -203,7 +203,18 @@ func toServicePortConfigsSlice(dst reflect.Value, m map[interface{}]interface{})
 	for _, v := range m {
 		s = append(s, v.(types.ServicePortConfig))
 	}
-	sort.Slice(s, func(i, j int) bool { return s[i].Published < s[j].Published })
+	sort.Slice(s, func(i, j int) bool {
+		if s[i].Target != s[j].Target {
+			return s[i].Target < s[j].Target
+		}
+		if s[i].Published != s[j].Published {
+			return s[i].Published < s[j].Published
+		}
+		if s[i].HostIP != s[j].HostIP {
+			return s[i].HostIP < s[j].HostIP
+		}
+		return s[i].Protocol < s[j].Protocol
+	})
 	dst.Set(reflect.ValueOf(s))
 	return nil
 }
