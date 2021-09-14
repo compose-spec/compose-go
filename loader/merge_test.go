@@ -869,7 +869,9 @@ func TestLoadMultipleConfigs(t *testing.T) {
 	base := map[string]interface{}{
 		"services": map[string]interface{}{
 			"foo": map[string]interface{}{
-				"image": "foo",
+				"image":      "foo",
+				"entrypoint": "echo",
+				"command":    "hellow world",
 				"build": map[string]interface{}{
 					"context":    ".",
 					"dockerfile": "bar.Dockerfile",
@@ -894,7 +896,9 @@ func TestLoadMultipleConfigs(t *testing.T) {
 	override := map[string]interface{}{
 		"services": map[string]interface{}{
 			"foo": map[string]interface{}{
-				"image": "baz",
+				"image":      "baz",
+				"entrypoint": "ping",
+				"command":    "localhost",
 				"build": map[string]interface{}{
 					"dockerfile": "foo.Dockerfile",
 					"args": []interface{}{
@@ -942,8 +946,10 @@ func TestLoadMultipleConfigs(t *testing.T) {
 				Environment: types.MappingWithEquals{},
 			},
 			{
-				Name:  "foo",
-				Image: "baz",
+				Name:       "foo",
+				Image:      "baz",
+				Entrypoint: types.ShellCommand{"ping"},
+				Command:    types.ShellCommand{"localhost"},
 				Build: &types.BuildConfig{
 					Context:    ".",
 					Dockerfile: "foo.Dockerfile",

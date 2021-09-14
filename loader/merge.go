@@ -108,10 +108,10 @@ func _merge(baseService *types.ServiceConfig, overrideService *types.ServiceConf
 	if err := mergo.Merge(baseService, overrideService, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
 		return nil, err
 	}
-	if len(overrideService.Command) > 0 {
+	if overrideService.Command != nil {
 		baseService.Command = overrideService.Command
 	}
-	if len(overrideService.Entrypoint) > 0 {
+	if overrideService.Entrypoint != nil {
 		baseService.Entrypoint = overrideService.Entrypoint
 	}
 	return baseService, nil
