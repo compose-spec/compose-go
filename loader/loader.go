@@ -1005,10 +1005,13 @@ var transformSize TransformerFunc = func(value interface{}) (interface{}, error)
 	switch value := value.(type) {
 	case int:
 		return int64(value), nil
+	case int64, types.UnitBytes:
+		return value, nil
 	case string:
 		return units.RAMInBytes(value)
+	default:
+		return value, errors.Errorf("invalid type for size %T", value)
 	}
-	panic(errors.Errorf("invalid type for size %T", value))
 }
 
 var transformStringToDuration TransformerFunc = func(value interface{}) (interface{}, error) {
