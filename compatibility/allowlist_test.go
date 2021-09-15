@@ -33,6 +33,7 @@ func TestAllowList(t *testing.T) {
 				"services.network_mode",
 				"services.privileged",
 				"services.networks",
+				"services.scale",
 			},
 		},
 	}

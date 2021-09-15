@@ -514,7 +514,9 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 // LoadService produces a single ServiceConfig from a compose file Dict
 // the serviceDict is not validated if directly used. Use Load() to enable validation
 func LoadService(name string, serviceDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, resolvePaths bool) (*types.ServiceConfig, error) {
-	serviceConfig := &types.ServiceConfig{}
+	serviceConfig := &types.ServiceConfig{
+		Scale: 1,
+	}
 	if err := Transform(serviceDict, serviceConfig); err != nil {
 		return nil, err
 	}

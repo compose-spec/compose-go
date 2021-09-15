@@ -42,6 +42,7 @@ func withVersionServices(workingDir, homeDir string) []types.ServiceConfig {
 				"default": nil,
 			},
 			VolumesFrom: []string{"other"},
+			Scale:       1,
 		},
 		{
 			Name: "other",
@@ -52,6 +53,7 @@ func withVersionServices(workingDir, homeDir string) []types.ServiceConfig {
 			Volumes: []types.ServiceVolumeConfig{
 				{Target: "/data", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
 			},
+			Scale: 1,
 		},
 	}
 }

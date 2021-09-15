@@ -202,6 +202,7 @@ var sampleConfig = types.Config{
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_me": nil,
 			},
+			Scale: 1,
 		},
 		{
 			Name:        "bar",
@@ -210,6 +211,7 @@ var sampleConfig = types.Config{
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_ipam": nil,
 			},
+			Scale: 1,
 		},
 	},
 	Networks: map[string]types.NetworkConfig{
@@ -689,6 +691,7 @@ networks:
 				},
 				Privileged: true,
 				ReadOnly:   true,
+				Scale:      1,
 				ShmSize:    types.UnitBytes(2 * 1024 * 1024 * 1024),
 				StdinOpen:  true,
 				Tty:        true,
@@ -1440,6 +1443,7 @@ networks:
 			{
 				Name:  "hello-world",
 				Image: "redis:alpine",
+				Scale: 1,
 				Networks: map[string]*types.ServiceNetworkConfig{
 					"network1": nil,
 					"network3": nil,
@@ -1602,6 +1606,7 @@ secrets:
 						Source: "config",
 					},
 				},
+				Scale: 1,
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "secret",
@@ -1667,6 +1672,7 @@ secrets:
 						Source: "config",
 					},
 				},
+				Scale: 1,
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "secret",
@@ -1741,6 +1747,7 @@ func TestLoadWithExtends(t *testing.T) {
 			},
 			Environment: types.MappingWithEquals{},
 			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
+			Scale:       1,
 		},
 	}
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
