@@ -358,6 +358,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			Privileged: true,
 			ReadOnly:   true,
 			Restart:    types.RestartPolicyAlways,
+			Scale:      1,
 			Secrets: []types.ServiceSecretConfig{
 				{
 					Source: "secret1",
