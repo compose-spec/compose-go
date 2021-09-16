@@ -64,6 +64,13 @@ func TestInvalid(t *testing.T) {
 	}
 }
 
+// see https://github.com/docker/compose/issues/8601
+func TestNonBraced(t *testing.T) {
+	substituted, err := Substitute("$FOO-bar", defaultMapping)
+	assert.NilError(t, err)
+	assert.Equal(t, substituted, "first-bar")
+}
+
 func TestNoValueNoDefault(t *testing.T) {
 	for _, template := range []string{"This ${missing} var", "This ${BAR} var"} {
 		result, err := Substitute(template, defaultMapping)
