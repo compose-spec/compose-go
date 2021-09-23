@@ -17,6 +17,7 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -29,6 +30,54 @@ func TestProjectName(t *testing.T) {
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("my_project"))
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "my_project")
+	})
+
+	t.Run("by name start with number", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("42my_project_num"))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "42my_project_num")
+
+		opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
+			fmt.Sprintf("%s=%s", ComposeProjectName, "42my_project_env"),
+		}))
+		assert.NilError(t, err)
+		p, err = ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "42my_project_env")
+	})
+
+	t.Run("by name start with invalid char '-'", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("-my_project"))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "my_project")
+
+		opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
+			fmt.Sprintf("%s=%s", ComposeProjectName, "-my_project"),
+		}))
+		assert.NilError(t, err)
+		p, err = ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "my_project")
+	})
+
+	t.Run("by name start with invalid char '_'", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("_my_project"))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "my_project")
+
+		opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
+			fmt.Sprintf("%s=%s", ComposeProjectName, "_my_project"),
+		}))
+		assert.NilError(t, err)
+		p, err = ProjectFromOptions(opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "my_project")
 	})
