@@ -27,9 +27,9 @@ import (
 	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
+	"github.com/compose-spec/godotenv"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/ulyssessouza/godotenv"
 )
 
 // ProjectOptions groups the command line options recommended for a Compose implementation
