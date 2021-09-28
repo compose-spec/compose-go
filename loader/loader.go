@@ -31,12 +31,12 @@ import (
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/types"
+	"github.com/compose-spec/godotenv"
 	"github.com/docker/go-units"
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/ulyssessouza/godotenv"
 	"gopkg.in/yaml.v2"
 )
 
