@@ -690,7 +690,7 @@ type ServiceVolumeVolume struct {
 
 // ServiceVolumeTmpfs are options for a service volume of type tmpfs
 type ServiceVolumeTmpfs struct {
-	Size int64 `yaml:",omitempty" json:"size,omitempty"`
+	Size UnitBytes `yaml:",omitempty" json:"size,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }

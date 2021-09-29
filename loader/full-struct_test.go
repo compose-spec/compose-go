@@ -403,7 +403,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				{Source: "datavolume", Target: "/var/lib/mysql", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
 				{Source: filepath.Join(workingDir, "opt"), Target: "/opt", Consistency: "cached", Type: "bind"},
 				{Target: "/opt", Type: "tmpfs", Tmpfs: &types.ServiceVolumeTmpfs{
-					Size: int64(10000),
+					Size: types.UnitBytes(10000),
 				}},
 			},
 			WorkingDir: "/code",
@@ -866,7 +866,7 @@ func fullExampleYAML(workingDir, homeDir string) string {
     - type: tmpfs
       target: /opt
       tmpfs:
-        size: 10000
+        size: "10000"
     working_dir: /code
     x-bar: baz
     x-foo: bar
@@ -1503,7 +1503,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
           "type": "tmpfs",
           "target": "/opt",
           "tmpfs": {
-            "size": 10000
+            "size": "10000"
           }
         }
       ],
