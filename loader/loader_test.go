@@ -18,6 +18,7 @@ package loader
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"sort"
@@ -928,29 +929,32 @@ func TestFullExample(t *testing.T) {
 }
 
 func TestLoadTmpfsVolume(t *testing.T) {
-	config, err := loadYAML(`
+	for _, size := range []string{"1kb", "1024"} {
+		yaml := fmt.Sprintf(`
 services:
   tmpfs:
     image: nginx:latest
     volumes:
-      - type: tmpfs
-        target: /app
-        tmpfs:
-          size: 10000
-`)
-	assert.NilError(t, err)
+    - type: tmpfs
+      target: /app
+      tmpfs:
+        size: %s
+`, size)
+		config, err := loadYAML(yaml)
+		assert.NilError(t, err)
 
-	expected := types.ServiceVolumeConfig{
-		Target: "/app",
-		Type:   "tmpfs",
-		Tmpfs: &types.ServiceVolumeTmpfs{
-			Size: int64(10000),
-		},
+		expected := types.ServiceVolumeConfig{
+			Target: "/app",
+			Type:   "tmpfs",
+			Tmpfs: &types.ServiceVolumeTmpfs{
+				Size: types.UnitBytes(1024),
+			},
+		}
+
+		assert.Assert(t, is.Len(config.Services, 1))
+		assert.Check(t, is.Len(config.Services[0].Volumes, 1))
+		assert.Check(t, is.DeepEqual(expected, config.Services[0].Volumes[0]))
 	}
-
-	assert.Assert(t, is.Len(config.Services, 1))
-	assert.Check(t, is.Len(config.Services[0].Volumes, 1))
-	assert.Check(t, is.DeepEqual(expected, config.Services[0].Volumes[0]))
 }
 
 func TestLoadTmpfsVolumeAdditionalPropertyNotAllowed(t *testing.T) {

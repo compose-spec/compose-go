@@ -67,6 +67,7 @@ var interpolateTypeCastMapping = map[interp.Path]interp.Cast{
 	servicePath("ulimits", interp.PathMatchAll, "soft"):              toInt,
 	servicePath("volumes", interp.PathMatchList, "read_only"):        toBoolean,
 	servicePath("volumes", interp.PathMatchList, "volume", "nocopy"): toBoolean,
+	servicePath("volumes", interp.PathMatchList, "tmpfs", "size"):    toUnitBytes,
 	iPath("networks", interp.PathMatchAll, "external"):               toBoolean,
 	iPath("networks", interp.PathMatchAll, "internal"):               toBoolean,
 	iPath("networks", interp.PathMatchAll, "attachable"):             toBoolean,
