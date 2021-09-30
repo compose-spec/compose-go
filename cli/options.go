@@ -206,9 +206,10 @@ func WithDotEnv(o *ProjectOptions) error {
 	}
 
 	if s.IsDir() {
-		if o.EnvFile != "" {
-			return errors.Errorf("%s is a directory", dotEnvFile)
+		if o.EnvFile == "" {
+			return nil
 		}
+		return errors.Errorf("%s is a directory", dotEnvFile)
 	}
 
 	file, err := os.Open(dotEnvFile)
