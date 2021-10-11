@@ -450,7 +450,12 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 		return nil, err
 	}
 
-	serviceConfig, err := LoadService(name, servicesDict[name].(map[string]interface{}), workingDir, lookupEnv, opts.ResolvePaths)
+	target, ok := servicesDict[name]
+	if !ok {
+		return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, filename)
+	}
+
+	serviceConfig, err := LoadService(name, target.(map[string]interface{}), workingDir, lookupEnv, opts.ResolvePaths)
 	if err != nil {
 		return nil, err
 	}
