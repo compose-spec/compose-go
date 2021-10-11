@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -81,6 +82,41 @@ networks:
     name: myProject_mynet
 `
 	err := normalize(&project, false)
+	assert.NilError(t, err)
+	marshal, err := yaml.Marshal(project)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expected, string(marshal))
+}
+
+func TestNormalizeResolvePathsBuildContextPaths(t *testing.T) {
+	wd, _ := os.Getwd()
+	project := types.Project{
+		Name:       "myProject",
+		WorkingDir: wd,
+		Services: []types.ServiceConfig{
+			{
+				Name: "foo",
+				Build: &types.BuildConfig{
+					Context:    "./testdata",
+					Dockerfile: "Dockerfile-sample",
+				},
+				Scale: 1,
+			},
+		},
+	}
+
+	expected := fmt.Sprintf(`services:
+  foo:
+    build:
+      context: %s
+      dockerfile: Dockerfile-sample
+    networks:
+      default: null
+networks:
+  default:
+    name: myProject_default
+`, filepath.Join(wd, "testdata"))
+	err := normalize(&project, true)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
 	assert.NilError(t, err)
