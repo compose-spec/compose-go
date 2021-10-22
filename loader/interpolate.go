@@ -71,6 +71,7 @@ var interpolateTypeCastMapping = map[interp.Path]interp.Cast{
 	iPath("networks", interp.PathMatchAll, "external"):               toBoolean,
 	iPath("networks", interp.PathMatchAll, "internal"):               toBoolean,
 	iPath("networks", interp.PathMatchAll, "attachable"):             toBoolean,
+	iPath("networks", interp.PathMatchAll, "enable_ipv6"):            toBoolean,
 	iPath("volumes", interp.PathMatchAll, "external"):                toBoolean,
 	iPath("secrets", interp.PathMatchAll, "external"):                toBoolean,
 	iPath("configs", interp.PathMatchAll, "external"):                toBoolean,
