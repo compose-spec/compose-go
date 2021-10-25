@@ -20,3 +20,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.0.3
 )
+
+replace github.com/compose-spec/godotenv => github.com/tbocek/godotenv v1.0.1
