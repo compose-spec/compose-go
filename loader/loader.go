@@ -559,13 +559,9 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 				return err
 			}
 			defer file.Close()
-			//TODO:  template.Mapping from this library and LookupFn from the godotenv library
-			//have the same function signature. Is this the proper way to cast it?
-			var cast godotenv.LookupFn
-			cast = func(s string) (string, bool) {
+			fileVars, err := godotenv.ParseWithLookup(file, func(s string) (string, bool) {
 				return lookupEnv(s)
-			}
-			fileVars, err := godotenv.ParseWithLookup(file, cast)
+			})
 			if err != nil {
 				return err
 			}
