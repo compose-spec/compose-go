@@ -559,9 +559,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 				return err
 			}
 			defer file.Close()
-			fileVars, err := godotenv.ParseWithLookup(file, func(s string) (string, bool) {
-				return lookupEnv(s)
-			})
+			fileVars, err := godotenv.ParseWithLookup(file, godotenv.LookupFn(lookupEnv))
 			if err != nil {
 				return err
 			}
