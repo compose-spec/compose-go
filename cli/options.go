@@ -333,7 +333,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		} else if nameFromEnv, ok := options.Environment[ComposeProjectName]; ok && nameFromEnv != "" {
 			opts.Name = nameFromEnv
 		} else {
-			opts.Name = filepath.Base(absWorkingDir)
+			opts.Name = strings.ToLower(filepath.Base(absWorkingDir))
 		}
 		opts.Name = normalizeName(opts.Name)
 	}
