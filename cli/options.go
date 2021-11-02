@@ -333,7 +333,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		} else if nameFromEnv, ok := options.Environment[ComposeProjectName]; ok && nameFromEnv != "" {
 			opts.Name = nameFromEnv
 		} else {
-			opts.Name = strings.ToLower(filepath.Base(absWorkingDir))
+			opts.Name = filepath.Base(absWorkingDir)
 		}
 		opts.Name = normalizeName(opts.Name)
 	}
@@ -354,6 +354,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 
 func normalizeName(s string) string {
 	r := regexp.MustCompile("[a-z0-9_-]")
+	s = strings.ToLower(s)
 	s = strings.Join(r.FindAllString(s, -1), "")
 	return strings.TrimLeft(s, "_-")
 }

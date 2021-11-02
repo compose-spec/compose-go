@@ -90,6 +90,14 @@ func TestProjectName(t *testing.T) {
 		assert.Equal(t, p.Name, "wwwmyproject")
 	})
 
+	t.Run("by name uppercase", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("MY_PROJECT"))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "my_project")
+	})
+
 	t.Run("by working dir", func(t *testing.T) {
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithWorkingDirectory("."))
 		assert.NilError(t, err)
