@@ -3,7 +3,7 @@ module github.com/compose-spec/compose-go
 go 1.16
 
 require (
-	github.com/compose-spec/godotenv v1.0.0
+	github.com/compose-spec/godotenv v0.0.0-20211026074040-865524795bdc
 	github.com/distribution/distribution/v3 v3.0.0-20210316161203-a01c71e2477e
 	github.com/docker/go-connections v0.4.0
 	github.com/docker/go-units v0.4.0
@@ -20,5 +20,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	gotest.tools/v3 v3.0.3
 )
-
-replace github.com/compose-spec/godotenv => github.com/tbocek/godotenv v1.0.1

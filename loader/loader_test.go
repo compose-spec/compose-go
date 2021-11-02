@@ -1813,7 +1813,7 @@ services:
 }
 
 func TestLoadService(t *testing.T) {
-	file, err := os.CreateTemp(os.TempDir(), "test-compose-go")
+	file, err := os.CreateTemp("", "test-compose-go")
 	assert.NilError(t, err)
 	defer os.Remove(file.Name())
 
@@ -1824,10 +1824,8 @@ func TestLoadService(t *testing.T) {
 		"env_file": file.Name(),
 	}
 	s, err := LoadService("Test Name", m, ".", func(s string) (string, bool) {
-		if s == "TEST" {
-			return "YES", true
-		}
-		return "NO", false
+		assert.Equal(t, "TEST", s)
+		return "YES", true
 	}, true)
 	assert.NilError(t, err)
 	assert.Equal(t, "YES", *s.Environment["HALLO"])
