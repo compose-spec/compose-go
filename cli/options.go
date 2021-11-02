@@ -335,7 +335,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		} else {
 			opts.Name = filepath.Base(absWorkingDir)
 		}
-		opts.Name = regexp.MustCompile(`(?m)[a-z0-9]+[-_a-z0-9]*`).FindString(strings.ToLower(opts.Name))
+		opts.Name = normalizeName(opts.Name)
 	}
 	options.loadOptions = append(options.loadOptions, nameLoadOpt)
 
@@ -350,6 +350,13 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 
 	project.ComposeFiles = configPaths
 	return project, nil
+}
+
+func normalizeName(s string) string {
+	r := regexp.MustCompile("[a-z0-9_-]")
+	s = strings.ToLower(s)
+	s = strings.Join(r.FindAllString(s, -1), "")
+	return strings.TrimLeft(s, "_-")
 }
 
 // getConfigPathsFromOptions retrieves the config files for project based on project options
