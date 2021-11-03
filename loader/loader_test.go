@@ -1811,3 +1811,22 @@ services:
 `)
 	assert.NilError(t, err)
 }
+
+func TestLoadService(t *testing.T) {
+	file, err := os.CreateTemp("", "test-compose-go")
+	assert.NilError(t, err)
+	defer os.Remove(file.Name())
+
+	_, err = file.Write([]byte("HALLO=$TEST"))
+	assert.NilError(t, err)
+
+	m := map[string]interface{}{
+		"env_file": file.Name(),
+	}
+	s, err := LoadService("Test Name", m, ".", func(s string) (string, bool) {
+		assert.Equal(t, "TEST", s)
+		return "YES", true
+	}, true)
+	assert.NilError(t, err)
+	assert.Equal(t, "YES", *s.Environment["HALLO"])
+}
