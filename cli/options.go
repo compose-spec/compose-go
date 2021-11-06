@@ -24,7 +24,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/compose-spec/godotenv"
@@ -131,7 +130,8 @@ func WithDefaultConfigPath(o *ProjectOptions) error {
 		}
 		parent := filepath.Dir(pwd)
 		if parent == pwd {
-			return errors.Wrap(errdefs.ErrNotFound, "can't find a suitable configuration file in this directory or any parent")
+			// no config file found, but that's not a blocker if caller only needs project name
+			return nil
 		}
 		pwd = parent
 	}
@@ -364,7 +364,6 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 	if len(options.ConfigPaths) != 0 {
 		return absolutePaths(options.ConfigPaths)
 	}
-
 	return nil, errors.New("no configuration file provided")
 }
 
