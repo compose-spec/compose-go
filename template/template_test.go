@@ -119,6 +119,44 @@ func TestNonAlphanumericDefault(t *testing.T) {
 	assert.Check(t, is.Equal("ok /non:-alphanumeric", result))
 }
 
+func TestDefaultsWithNestedExpansion(t *testing.T) {
+	testCases := []struct {
+		template string
+		expected string
+	}{
+		{
+			template: "ok ${UNSET_VAR-$FOO}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${UNSET_VAR-${FOO}}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${UNSET_VAR-${FOO} ${FOO}}",
+			expected: "ok first first",
+		},
+		{
+			template: "ok ${BAR:-$FOO}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${BAR:-${FOO}}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${BAR:-${FOO} ${FOO}}",
+			expected: "ok first first",
+		},
+	}
+
+	for _, tc := range testCases {
+		result, err := Substitute(tc.template, defaultMapping)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(tc.expected, result))
+	}
+}
+
 func TestMandatoryVariableErrors(t *testing.T) {
 	testCases := []struct {
 		template      string
@@ -143,6 +181,28 @@ func TestMandatoryVariableErrors(t *testing.T) {
 		{
 			template:      "not ok ${UNSET_VAR?}",
 			expectedError: "required variable UNSET_VAR is missing a value",
+		},
+	}
+
+	for _, tc := range testCases {
+		_, err := Substitute(tc.template, defaultMapping)
+		assert.ErrorContains(t, err, tc.expectedError)
+		assert.ErrorType(t, err, reflect.TypeOf(&InvalidTemplateError{}))
+	}
+}
+
+func TestMandatoryVariableErrorsWithNestedExpansion(t *testing.T) {
+	testCases := []struct {
+		template      string
+		expectedError string
+	}{
+		{
+			template:      "not ok ${UNSET_VAR:?Mandatory Variable ${FOO}}",
+			expectedError: "required variable UNSET_VAR is missing a value: Mandatory Variable first",
+		},
+		{
+			template:      "not ok ${UNSET_VAR?Mandatory Variable ${FOO}}",
+			expectedError: "required variable UNSET_VAR is missing a value: Mandatory Variable first",
 		},
 	}
 
