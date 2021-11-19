@@ -249,6 +249,16 @@ func WithInterpolation(interpolation bool) ProjectOptionsFn {
 	}
 }
 
+// WithNormalization set ProjectOptions to enable/skip normalization
+func WithNormalization(normalization bool) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
+			options.SkipNormalization = !normalization
+		})
+		return nil
+	}
+}
+
 // WithResolvedPaths set ProjectOptions to enable paths resolution
 func WithResolvedPaths(resolve bool) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
