@@ -374,7 +374,7 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 	if len(options.ConfigPaths) != 0 {
 		return absolutePaths(options.ConfigPaths)
 	}
-	return nil, errors.New("no configuration file provided")
+	return nil, errors.Wrap(errdefs.ErrNotFound, "no configuration file provided")
 }
 
 func findFiles(names []string, pwd string) []string {
