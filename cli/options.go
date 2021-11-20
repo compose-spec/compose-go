@@ -24,6 +24,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/compose-spec/godotenv"
