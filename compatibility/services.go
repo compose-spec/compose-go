@@ -169,10 +169,10 @@ func (c *AllowList) CheckConfigs(service *types.ServiceConfig) {
 			c.Unsupported("services.configs")
 			return
 		}
-		for i, s := range service.Secrets {
-			ref := types.FileReferenceConfig(s)
+		for i, conf := range service.Configs {
+			ref := types.FileReferenceConfig(conf)
 			c.CheckFileReference("configs", &ref)
-			service.Secrets[i] = s
+			service.Configs[i] = conf
 		}
 	}
 }
