@@ -1224,3 +1224,37 @@ func TestMergeCommands(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, merged.Services[0].Command, types.ShellCommand{"/bin/ash", "-c", "echo 'world'"})
 }
+
+func TestMergeEnvironments(t *testing.T) {
+	configDetails := types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "base.yml", Config: map[string]interface{}{
+				"services": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"image": "alpine",
+						"environment": map[string]interface{}{
+							"NAME":  "BASE",
+							"VALUE": "BASE",
+						},
+					},
+				},
+			}},
+			{Filename: "override.yml", Config: map[string]interface{}{
+				"services": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"image": "alpine",
+						"environment": map[string]interface{}{
+							"NAME":  "DEV",
+							"VALUE": nil,
+						},
+					},
+				},
+			}},
+		},
+	}
+	merged, err := loadTestProject(configDetails)
+	assert.NilError(t, err)
+	env := merged.Services[0].Environment
+	assert.Assert(t, *env["NAME"] == "DEV")
+	assert.Assert(t, env["VALUE"] == nil)
+}

@@ -114,6 +114,11 @@ func _merge(baseService *types.ServiceConfig, overrideService *types.ServiceConf
 	if overrideService.Entrypoint != nil {
 		baseService.Entrypoint = overrideService.Entrypoint
 	}
+	if baseService.Environment != nil {
+		baseService.Environment.OverrideBy(overrideService.Environment)
+	} else {
+		baseService.Environment = overrideService.Environment
+	}
 	return baseService, nil
 }
 
