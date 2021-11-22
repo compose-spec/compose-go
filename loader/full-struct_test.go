@@ -399,7 +399,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				{Source: "/opt/data", Target: "/var/lib/mysql", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: workingDir, Target: "/code", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: filepath.Join(workingDir, "static"), Target: "/var/www/html", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
-				{Source: filepath.Join(homeDir, "/configs"), Target: "/etc/configs/", Type: "bind", ReadOnly: true, Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
+				{Source: filepath.Join(homeDir, "/configs"), Target: "/etc/configs", Type: "bind", ReadOnly: true, Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: "datavolume", Target: "/var/lib/mysql", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
 				{Source: filepath.Join(workingDir, "opt"), Target: "/opt", Consistency: "cached", Type: "bind"},
 				{Target: "/opt", Type: "tmpfs", Tmpfs: &types.ServiceVolumeTmpfs{
@@ -851,7 +851,7 @@ func fullExampleYAML(workingDir, homeDir string) string {
         create_host_path: true
     - type: bind
       source: %s
-      target: /etc/configs/
+      target: /etc/configs
       read_only: true
       bind:
         create_host_path: true
@@ -1481,7 +1481,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
         {
           "type": "bind",
           "source": "%s",
-          "target": "/etc/configs/",
+          "target": "/etc/configs",
           "read_only": true,
           "bind": {
             "create_host_path": true

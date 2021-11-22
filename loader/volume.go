@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"path"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -36,11 +37,11 @@ func ParseVolume(spec string) (types.ServiceVolumeConfig, error) {
 		return volume, errors.New("invalid empty volume spec")
 	case 1, 2:
 		volume.Target = spec
-		volume.Type = string(types.VolumeTypeVolume)
+		volume.Type = types.VolumeTypeVolume
 		return volume, nil
 	}
 
-	buffer := []rune{}
+	var buffer []rune
 	for _, char := range spec + string(endOfSpec) {
 		switch {
 		case isWindowsDrive(buffer, char):
@@ -50,12 +51,13 @@ func ParseVolume(spec string) (types.ServiceVolumeConfig, error) {
 				populateType(&volume)
 				return volume, errors.Wrapf(err, "invalid spec: %s", spec)
 			}
-			buffer = []rune{}
+			buffer = nil
 		default:
 			buffer = append(buffer, char)
 		}
 	}
 
+	volume.Target = path.Clean(volume.Target)
 	populateType(&volume)
 	return volume, nil
 }
