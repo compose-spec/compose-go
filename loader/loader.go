@@ -145,7 +145,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		op(opts)
 	}
 
-	configs := []*types.Config{}
+	var configs []*types.Config
 	for i, file := range configDetails.ConfigFiles {
 		configDict := file.Config
 		if configDict == nil {
@@ -222,14 +222,14 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 }
 
 func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
-	yaml, err := ParseYAML(b)
+	yml, err := ParseYAML(b)
 	if err != nil {
 		return nil, err
 	}
 	if !opts.SkipInterpolation {
-		return interp.Interpolate(yaml, *opts.Interpolate)
+		return interp.Interpolate(yml, *opts.Interpolate)
 	}
-	return yaml, err
+	return yml, err
 }
 
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
@@ -372,7 +372,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 	}
 }
 
-// keys needs to be converted to strings for jsonschema
+// keys need to be converted to strings for jsonschema
 func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interface{}, error) {
 	if mapping, ok := value.(map[interface{}]interface{}); ok {
 		dict := make(map[string]interface{})
@@ -396,7 +396,7 @@ func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interfac
 		return dict, nil
 	}
 	if list, ok := value.([]interface{}); ok {
-		convertedList := []interface{}{}
+		var convertedList []interface{}
 		for index, entry := range list {
 			newKeyPrefix := fmt.Sprintf("%s[%d]", keyPrefix, index)
 			convertedEntry, err := convertToStringKeysRecursive(entry, newKeyPrefix)
@@ -532,7 +532,7 @@ func LoadService(name string, serviceDict map[string]interface{}, workingDir str
 	}
 
 	for i, volume := range serviceConfig.Volumes {
-		if volume.Type != "bind" {
+		if volume.Type != types.VolumeTypeBind {
 			continue
 		}
 
@@ -552,8 +552,8 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 	environment := types.MappingWithEquals{}
 
 	if len(serviceConfig.EnvFile) > 0 {
-		for _, file := range serviceConfig.EnvFile {
-			filePath := absPath(workingDir, file)
+		for _, envFile := range serviceConfig.EnvFile {
+			filePath := absPath(workingDir, envFile)
 			file, err := os.Open(filePath)
 			if err != nil {
 				return err
@@ -797,7 +797,7 @@ var transformServicePort TransformerFunc = func(data interface{}) (interface{}, 
 		// We process the list instead of individual items here.
 		// The reason is that one entry might be mapped to multiple ServicePortConfig.
 		// Therefore we take an input of a list and return an output of a list.
-		ports := []interface{}{}
+		var ports []interface{}
 		for _, entry := range entries {
 			switch value := entry.(type) {
 			case int:
@@ -971,7 +971,7 @@ func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool
 	switch value := mappingOrList.(type) {
 	case map[string]interface{}:
 		return toMapStringString(value, allowNil)
-	case ([]interface{}):
+	case []interface{}:
 		result := make(map[string]interface{})
 		for _, value := range value {
 			parts := strings.SplitN(value.(string), sep, 2)
@@ -1054,7 +1054,7 @@ func toString(value interface{}, allowNil bool) interface{} {
 }
 
 func toStringList(value map[string]interface{}, separator string, allowNil bool) []string {
-	output := []string{}
+	var output []string
 	for key, value := range value {
 		if value == nil && !allowNil {
 			continue

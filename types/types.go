@@ -33,7 +33,7 @@ func (d Duration) String() string {
 	return time.Duration(d).String()
 }
 
-// ConvertDurationPtr converts a typedefined Duration pointer to a time.Duration pointer with the same value.
+// ConvertDurationPtr converts a type defined Duration pointer to a time.Duration pointer with the same value.
 func ConvertDurationPtr(d *Duration) *time.Duration {
 	if d == nil {
 		return nil
@@ -208,7 +208,7 @@ const (
 	PullPolicyNever = "never"
 	//PullPolicyIfNotPresent pull missing images
 	PullPolicyIfNotPresent = "if_not_present"
-	//PullPolicyIfNotPresent pull missing images
+	//PullPolicyMissing pull missing images
 	PullPolicyMissing = "missing"
 	//PullPolicyBuild force building images
 	PullPolicyBuild = "build"
@@ -611,7 +611,7 @@ func ParsePortConfig(value string) ([]ServicePortConfig, error) {
 }
 
 func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.PortBinding) ([]ServicePortConfig, error) {
-	portConfigs := []ServicePortConfig{}
+	var portConfigs []ServicePortConfig
 	for _, binding := range portBindings[port] {
 		startHostPort, endHostPort, err := nat.ParsePortRange(binding.HostPort)
 
@@ -647,13 +647,13 @@ type ServiceVolumeConfig struct {
 }
 
 const (
-	// TypeBind is the type for mounting host dir
+	// VolumeTypeBind is the type for mounting host dir
 	VolumeTypeBind = "bind"
-	// TypeVolume is the type for remote storage volumes
+	// VolumeTypeVolume is the type for remote storage volumes
 	VolumeTypeVolume = "volume"
-	// TypeTmpfs is the type for mounting tmpfs
+	// VolumeTypeTmpfs is the type for mounting tmpfs
 	VolumeTypeTmpfs = "tmpfs"
-	// TypeNamedPipe is the type for mounting Windows named pipes
+	// VolumeTypeNamedPipe is the type for mounting Windows named pipes
 	VolumeTypeNamedPipe = "npipe"
 )
 
