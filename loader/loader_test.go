@@ -1812,7 +1812,7 @@ services:
 	assert.NilError(t, err)
 }
 
-func TestLoadService(t *testing.T) {
+func TestLoadServiceWithEnvFile(t *testing.T) {
 	file, err := os.CreateTemp("", "test-compose-go")
 	assert.NilError(t, err)
 	defer os.Remove(file.Name())
@@ -1829,4 +1829,34 @@ func TestLoadService(t *testing.T) {
 	}, true)
 	assert.NilError(t, err)
 	assert.Equal(t, "YES", *s.Environment["HALLO"])
+}
+
+func TestLoadServiceWithVolumes(t *testing.T) {
+	m := map[string]interface{}{
+		"volumes": []interface{}{
+			"source:/path 1/",
+			map[string]interface{}{
+				"target": "/path 2/",
+			},
+		},
+		"configs": []interface{}{
+			map[string]interface{}{
+				"target": "/path 3/",
+			},
+		},
+		"secrets": []interface{}{
+			map[string]interface{}{
+				"target": "/path 4/",
+			},
+		},
+	}
+	s, err := LoadService("Test Name", m, ".", nil, true)
+	assert.NilError(t, err)
+	assert.Equal(t, len(s.Volumes), 2)
+	assert.Equal(t, "/path 1", s.Volumes[0].Target)
+	assert.Equal(t, "/path 2", s.Volumes[1].Target)
+	assert.Equal(t, len(s.Configs), 1)
+	assert.Equal(t, "/path 3", s.Configs[0].Target)
+	assert.Equal(t, len(s.Secrets), 1)
+	assert.Equal(t, "/path 4", s.Secrets[0].Target)
 }

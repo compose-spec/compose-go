@@ -34,13 +34,6 @@ func TestParseVolumeAnonymousVolume(t *testing.T) {
 	}
 }
 
-func TestParseVolumeCleanTarget(t *testing.T) {
-	volume, err := ParseVolume("/path/")
-	expected := types.ServiceVolumeConfig{Type: "volume", Target: "/path", Volume: &types.ServiceVolumeVolume{}}
-	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(expected, volume))
-}
-
 func TestParseVolumeAnonymousVolumeWindows(t *testing.T) {
 	for _, path := range []string{"C:\\path", "Z:\\path\\foo"} {
 		volume, err := ParseVolume(path)
