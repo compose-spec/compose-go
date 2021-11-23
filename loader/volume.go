@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"path"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -57,7 +56,6 @@ func ParseVolume(spec string) (types.ServiceVolumeConfig, error) {
 		}
 	}
 
-	volume.Target = path.Clean(volume.Target)
 	populateType(&volume)
 	return volume, nil
 }

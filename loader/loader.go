@@ -342,8 +342,8 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
 		reflect.TypeOf(types.UnitBytes(0)):                       transformSize,
 		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
-		reflect.TypeOf(types.ServiceSecretConfig{}):              transformStringSourceMap,
-		reflect.TypeOf(types.ServiceConfigObjConfig{}):           transformStringSourceMap,
+		reflect.TypeOf(types.ServiceSecretConfig{}):              transformFileReferenceConfig,
+		reflect.TypeOf(types.ServiceConfigObjConfig{}):           transformFileReferenceConfig,
 		reflect.TypeOf(types.StringOrNumberList{}):               transformStringOrNumberList,
 		reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}): transformServiceNetworkMap,
 		reflect.TypeOf(types.Mapping{}):                          transformMappingOrListFunc("=", false),
@@ -852,15 +852,25 @@ var transformServiceDeviceRequest TransformerFunc = func(data interface{}) (inte
 	}
 }
 
-var transformStringSourceMap TransformerFunc = func(data interface{}) (interface{}, error) {
+var transformFileReferenceConfig TransformerFunc = func(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case string:
 		return map[string]interface{}{"source": value}, nil
 	case map[string]interface{}:
-		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
+		if target, ok := value["target"]; ok {
+			value["target"] = cleanTarget(target.(string))
+		}
+		return groupXFieldsIntoExtensions(value), nil
 	default:
 		return data, errors.Errorf("invalid type %T for secret", value)
 	}
+}
+
+func cleanTarget(target string) string {
+	if target == "" {
+		return ""
+	}
+	return path.Clean(target)
 }
 
 var transformBuildConfig TransformerFunc = func(data interface{}) (interface{}, error) {
@@ -906,9 +916,15 @@ var transformExtendsConfig TransformerFunc = func(data interface{}) (interface{}
 var transformServiceVolumeConfig TransformerFunc = func(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case string:
-		return ParseVolume(value)
+		volume, err := ParseVolume(value)
+		volume.Target = cleanTarget(volume.Target)
+		return volume, err
 	case map[string]interface{}:
-		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
+		data := groupXFieldsIntoExtensions(data.(map[string]interface{}))
+		if target, ok := data["target"]; ok {
+			data["target"] = cleanTarget(target.(string))
+		}
+		return data, nil
 	default:
 		return data, errors.Errorf("invalid type %T for service volume", value)
 	}
