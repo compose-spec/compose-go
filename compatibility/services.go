@@ -198,6 +198,13 @@ func (c *AllowList) CheckDependsOn(service *types.ServiceConfig) {
 	}
 }
 
+func (c *AllowList) CheckDeviceCgroupRules(service *types.ServiceConfig) {
+	if !c.supported("services.device_cgroup_rules") && len(service.DeviceCgroupRules) != 0 {
+		service.DeviceCgroupRules = nil
+		c.Unsupported("services.device_cgroup_rules")
+	}
+}
+
 func (c *AllowList) CheckDevices(service *types.ServiceConfig) {
 	if !c.supported("services.devices") && len(service.Devices) != 0 {
 		service.Devices = nil

@@ -55,6 +55,7 @@ type Checker interface {
 	CheckContainerName(service *types.ServiceConfig)
 	CheckCredentialSpec(service *types.ServiceConfig)
 	CheckDependsOn(service *types.ServiceConfig)
+	CheckDeviceCgroupRules(service *types.ServiceConfig)
 	CheckDevices(service *types.ServiceConfig)
 	CheckDNS(service *types.ServiceConfig)
 	CheckDNSOpts(service *types.ServiceConfig)
@@ -299,6 +300,7 @@ func CheckServiceConfig(service *types.ServiceConfig, c Checker) {
 			c.CheckUpdateConfigParallelism(UpdateConfigRollback, service.Deploy.RollbackConfig)
 		}
 	}
+	c.CheckDeviceCgroupRules(service)
 	c.CheckDevices(service)
 	c.CheckDNS(service)
 	c.CheckDNSOpts(service)

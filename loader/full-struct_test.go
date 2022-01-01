@@ -139,6 +139,10 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				},
 				EndpointMode: "dnsrr",
 			},
+      DeviceCgroupRules: []string{
+        "c 1:3 mr",
+        "a 7:* rmw",
+      },
 			Devices:    []string{"/dev/ttyUSB0:/dev/ttyUSB0"},
 			DNS:        []string{"8.8.8.8", "9.9.9.9"},
 			DNSSearch:  []string{"dc1.example.com", "dc2.example.com"},
@@ -640,6 +644,9 @@ func fullExampleYAML(workingDir, homeDir string) string {
         - spread: node.labels.az
         max_replicas_per_node: 5
       endpoint_mode: dnsrr
+    device_cgroup_rules:
+    - c 1:3 mr
+    - a 7:* rmw
     devices:
     - /dev/ttyUSB0:/dev/ttyUSB0
     dns:
@@ -1184,6 +1191,10 @@ func fullExampleJSON(workingDir, homeDir string) string {
         },
         "endpoint_mode": "dnsrr"
       },
+      "device_cgroup_rules": [
+        "c 1:3 mr",
+        "a 7:* rmw"
+      ],
       "devices": [
         "/dev/ttyUSB0:/dev/ttyUSB0"
       ],
