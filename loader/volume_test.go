@@ -112,6 +112,38 @@ func TestParseVolumeWithBindOptions(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expected, volume))
 }
 
+func TestParseVolumeWithBindOptionsSELinuxShared(t *testing.T) {
+	volume, err := ParseVolume("/source:/target:ro,z")
+	expected := types.ServiceVolumeConfig{
+		Type:     "bind",
+		Source:   "/source",
+		Target:   "/target",
+		ReadOnly: true,
+		Bind: &types.ServiceVolumeBind{
+			CreateHostPath: true,
+			SELinux:        "z",
+		},
+	}
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(expected, volume))
+}
+
+func TestParseVolumeWithBindOptionsSELinuxPrivate(t *testing.T) {
+	volume, err := ParseVolume("/source:/target:ro,Z")
+	expected := types.ServiceVolumeConfig{
+		Type:     "bind",
+		Source:   "/source",
+		Target:   "/target",
+		ReadOnly: true,
+		Bind: &types.ServiceVolumeBind{
+			CreateHostPath: true,
+			SELinux:        "Z",
+		},
+	}
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(expected, volume))
+}
+
 func TestParseVolumeWithBindOptionsWindows(t *testing.T) {
 	volume, err := ParseVolume("C:\\source\\foo:D:\\target:ro,rprivate")
 	expected := types.ServiceVolumeConfig{

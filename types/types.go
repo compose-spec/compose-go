@@ -661,11 +661,20 @@ const (
 
 // ServiceVolumeBind are options for a service volume of type bind
 type ServiceVolumeBind struct {
+	SELinux        string `yaml:",omitempty" json:"selinux,omitempty"`
 	Propagation    string `yaml:",omitempty" json:"propagation,omitempty"`
 	CreateHostPath bool   `mapstructure:"create_host_path" yaml:"create_host_path,omitempty" json:"create_host_path,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
+
+// SELinux represents the SELinux re-labeling options.
+const (
+	// SELinuxShared option indicates that the bind mount content is shared among multiple containers
+	SELinuxShared string = "z"
+	// SELinuxPrivate option indicates that the bind mount content is private and unshared
+	SELinuxPrivate string = "Z"
+)
 
 // Propagation represents the propagation of a mount.
 const (
