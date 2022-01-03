@@ -139,10 +139,10 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				},
 				EndpointMode: "dnsrr",
 			},
-      DeviceCgroupRules: []string{
-        "c 1:3 mr",
-        "a 7:* rmw",
-      },
+			DeviceCgroupRules: []string{
+				"c 1:3 mr",
+				"a 7:* rmw",
+			},
 			Devices:    []string{"/dev/ttyUSB0:/dev/ttyUSB0"},
 			DNS:        []string{"8.8.8.8", "9.9.9.9"},
 			DNSSearch:  []string{"dc1.example.com", "dc2.example.com"},
