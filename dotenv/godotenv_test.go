@@ -31,11 +31,10 @@ func loadEnvAndCompareValues(t *testing.T, loader func(files ...string) error, e
 		t.Fatalf("Error loading %v", envFileName)
 	}
 
-	for k := range expectedValues {
-		envValue := os.Getenv(k)
-		v := expectedValues[k]
-		if envValue != v {
-			t.Errorf("Mismatch for key '%v': expected '%v' got '%v'", k, v, envValue)
+	for k, expected := range expectedValues {
+		actual := strings.ReplaceAll(os.Getenv(k), "\r\n", "\n")
+		if actual != expected {
+			t.Errorf("Mismatch for key '%v': expected '%v' got '%v'", k, expected, actual)
 		}
 	}
 }
