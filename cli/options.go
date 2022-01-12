@@ -24,10 +24,10 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/compose-spec/compose-go/dotenv"
 	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
-	"github.com/compose-spec/godotenv"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -220,7 +220,7 @@ func WithDotEnv(o *ProjectOptions) error {
 	defer file.Close()
 
 	notInEnvSet := make(map[string]interface{})
-	env, err := godotenv.ParseWithLookup(file, func(k string) (string, bool) {
+	env, err := dotenv.ParseWithLookup(file, func(k string) (string, bool) {
 		v, ok := os.LookupEnv(k)
 		if !ok {
 			notInEnvSet[k] = nil

@@ -27,11 +27,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/compose-spec/compose-go/dotenv"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/types"
-	"github.com/compose-spec/godotenv"
 	"github.com/docker/go-units"
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
@@ -559,7 +559,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 				return err
 			}
 			defer file.Close()
-			fileVars, err := godotenv.ParseWithLookup(file, godotenv.LookupFn(lookupEnv))
+			fileVars, err := dotenv.ParseWithLookup(file, dotenv.LookupFn(lookupEnv))
 			if err != nil {
 				return err
 			}
