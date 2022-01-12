@@ -41,9 +41,9 @@ func parseBytes(src []byte, out map[string]string, lookupFn LookupFn) error {
 			value, ok := lookupFn(key)
 			if ok {
 				out[key] = value
-				cutset = left
-				continue
 			}
+			cutset = left
+			continue
 		}
 
 		value, left, err := extractVarValue(left, out, lookupFn)
