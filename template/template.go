@@ -26,6 +26,7 @@ import (
 
 var delimiter = "\\$"
 var substitutionNamed = "[_a-z][_a-z0-9]*"
+
 var substitutionBraced = "[_a-z][_a-z0-9]*(?::?[-?](.*}|[^}]*))?"
 
 var patternString = fmt.Sprintf(
@@ -69,6 +70,13 @@ func SubstituteWith(template string, mapping Mapping, pattern *regexp.Regexp, su
 	}
 	var err error
 	result := pattern.ReplaceAllStringFunc(template, func(substring string) string {
+		closingBraceIndex := getFirstBraceClosingIndex(substring)
+		rest := ""
+		if closingBraceIndex > -1 {
+			rest = substring[closingBraceIndex+1:]
+			substring = substring[0 : closingBraceIndex+1]
+		}
+
 		matches := pattern.FindStringSubmatch(substring)
 		groups := matchGroups(matches, pattern)
 		if escaped := groups["escaped"]; escaped != "" {
@@ -100,7 +108,11 @@ func SubstituteWith(template string, mapping Mapping, pattern *regexp.Regexp, su
 				if !applied {
 					continue
 				}
-				return value
+				interpolatedNested, err := SubstituteWith(rest, mapping, pattern, subsFuncs...)
+				if err != nil {
+					return ""
+				}
+				return value + interpolatedNested
 			}
 		}
 
@@ -112,6 +124,23 @@ func SubstituteWith(template string, mapping Mapping, pattern *regexp.Regexp, su
 	})
 
 	return result, err
+}
+
+func getFirstBraceClosingIndex(s string) int {
+	openVariableBraces := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] == '}' {
+			openVariableBraces--
+			if openVariableBraces == 0 {
+				return i
+			}
+		}
+		if strings.HasPrefix(s[i:], "${") {
+			openVariableBraces++
+			i++
+		}
+	}
+	return -1
 }
 
 // Substitute variables in the string with their values

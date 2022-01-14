@@ -17,9 +17,8 @@
 package interpolation
 
 import (
-	"testing"
-
 	"strconv"
+	"testing"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -93,6 +92,75 @@ func TestInterpolateWithDefaults(t *testing.T) {
 	result, err := Interpolate(config, Options{})
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(expected, result))
+}
+
+func TestValidUnexistentInterpolation(t *testing.T) {
+	var testcases = []struct {
+		test     string
+		expected string
+	}{
+		{test: "{{{ ${FOO:-foo_} }}}", expected: "{{{ foo_ }}}"},
+		{test: "{{{ ${FOO:-foo-bar-value} }}}", expected: "{{{ foo-bar-value }}}"},
+		{test: "{{{ ${FOO:-foo} ${BAR:-DEFAULT_VALUE} }}}", expected: "{{{ foo DEFAULT_VALUE }}}"},
+		{test: "{{{ ${BAR} }}}", expected: "{{{  }}}"},
+		{test: "${FOO:-baz} }}}", expected: "baz }}}"},
+		{test: "${FOO-baz} }}}", expected: "baz }}}"},
+	}
+
+	getServiceConfig := func(val string) map[string]interface{} {
+		return map[string]interface{}{
+			"myservice": map[string]interface{}{
+				"environment": map[string]interface{}{
+					"TESTVAR": val,
+				},
+			},
+		}
+	}
+
+	for _, testcase := range testcases {
+		result, err := Interpolate(getServiceConfig(testcase.test), Options{})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(getServiceConfig(testcase.expected), result))
+	}
+}
+
+func TestValidExistentInterpolation(t *testing.T) {
+	var testcases = []struct {
+		test     string
+		expected string
+	}{
+		// Only FOO is set
+		{test: "{{{ ${FOO:-foo_} }}}", expected: "{{{ bar }}}"},
+		{test: "{{{ ${FOO:-foo-bar-value} }}}", expected: "{{{ bar }}}"},
+		{test: "{{{ ${FOO:-foo} ${BAR:-DEFAULT_VALUE} }}}", expected: "{{{ bar DEFAULT_VALUE }}}"},
+		{test: "{{{ ${BAR} }}}", expected: "{{{  }}}"},
+		{test: "${FOO:-baz} }}}", expected: "bar }}}"},
+		{test: "${FOO-baz} }}}", expected: "bar }}}"},
+
+		// Both FOO and USER are set
+		{test: "{{{ ${FOO:-foo_} }}}", expected: "{{{ bar }}}"},
+		{test: "{{{ ${FOO:-foo-bar-value} }}}", expected: "{{{ bar }}}"},
+		{test: "{{{ ${FOO:-foo} ${USER:-bar} }}}", expected: "{{{ bar jenny }}}"},
+		{test: "{{{ ${USER} }}}", expected: "{{{ jenny }}}"},
+		{test: "${FOO:-baz} }}}", expected: "bar }}}"},
+		{test: "${FOO-baz} }}}", expected: "bar }}}"},
+	}
+
+	getServiceConfig := func(val string) map[string]interface{} {
+		return map[string]interface{}{
+			"myservice": map[string]interface{}{
+				"environment": map[string]interface{}{
+					"TESTVAR": val,
+				},
+			},
+		}
+	}
+
+	for _, testcase := range testcases {
+		result, err := Interpolate(getServiceConfig(testcase.test), Options{LookupValue: defaultMapping})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(getServiceConfig(testcase.expected), result))
+	}
 }
 
 func TestInterpolateWithCast(t *testing.T) {
