@@ -598,6 +598,65 @@ func TestInheritedEnvVariableNotFoundWithLookup(t *testing.T) {
 	}
 }
 
+func TestInheritedEnvVariableNotFoundMultiVar(t *testing.T) {
+	envMap, err := Read("fixtures/inherited-not-found-multi-var.env")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if v, present := envMap["VARIABLE_NOT_FOUND"]; present {
+		t.Errorf("Expected 'VARIABLE_NOT_FOUND' to not exist, but got %q", v)
+	}
+
+	expectedValues := map[string]string{
+		"FOO": "bar",
+		"BAR": "baz",
+	}
+	if len(envMap) != len(expectedValues) {
+		t.Errorf("Expected the size of envMap to be %d, but was %d", len(expectedValues), len(envMap))
+	}
+	for key, value := range expectedValues {
+		if envMap[key] != value {
+			t.Errorf("Read got one of the keys wrong, [%q]->%q", key, envMap[key])
+		}
+	}
+}
+
+func TestInheritedEnvVariableNotFoundMultiVarWithLookup(t *testing.T) {
+	notFoundMap := make(map[string]bool)
+	envMap, err := ReadWithLookup(func(v string) (string, bool) {
+		envVar, ok := os.LookupEnv(v)
+		if !ok {
+			notFoundMap[v] = true
+		}
+		return envVar, ok
+	}, "fixtures/inherited-not-found-multi-var.env")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !notFoundMap["VARIABLE_NOT_FOUND"] {
+		t.Error("Expected 'VARIABLE_NOT_FOUND' to be part of not found variables")
+	}
+	if v, present := envMap["VARIABLE_NOT_FOUND"]; present {
+		t.Errorf("Expected 'VARIABLE_NOT_FOUND' to not exist, but got %q", v)
+	}
+
+	expectedValues := map[string]string{
+		"FOO": "bar",
+		"BAR": "baz",
+	}
+	if len(envMap) != len(expectedValues) {
+		t.Errorf("Expected the size of envMap to be %d, but was %d", len(expectedValues), len(envMap))
+	}
+	for key, value := range expectedValues {
+		if envMap[key] != value {
+			t.Errorf("Read got one of the keys wrong, [%q]->%q", key, envMap[key])
+		}
+	}
+}
+
 func TestExpendingEnvironmentWithLookup(t *testing.T) {
 	rawEnvLine := "TEST=$ME"
 	expectedValue := "YES"
