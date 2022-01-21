@@ -1045,6 +1045,8 @@ var transformStringToDuration TransformerFunc = func(value interface{}) (interfa
 			return value, err
 		}
 		return types.Duration(d), nil
+	case types.Duration:
+		return value, nil
 	default:
 		return value, errors.Errorf("invalid type %T for duration", value)
 	}
