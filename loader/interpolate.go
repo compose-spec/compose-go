@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	interp "github.com/compose-spec/compose-go/interpolation"
-	"github.com/compose-spec/compose-go/types"
 	"github.com/pkg/errors"
 )
 
@@ -94,19 +93,11 @@ func toInt64(value string) (interface{}, error) {
 }
 
 func toUnitBytes(value string) (interface{}, error) {
-	i, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	return types.UnitBytes(i), nil
+	return transformSize(value)
 }
 
 func toDuration(value string) (interface{}, error) {
-	i, err := strconv.ParseInt(value, 10, 64)
-	if err != nil {
-		return nil, err
-	}
-	return types.Duration(i), nil
+	return transformStringToDuration(value)
 }
 
 func toFloat(value string) (interface{}, error) {

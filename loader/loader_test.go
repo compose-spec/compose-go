@@ -601,7 +601,8 @@ services:
         soft: $theint
     privileged: $thebool
     read_only: $thebool
-    shm_size: 2gb
+    shm_size: ${thesize}
+    stop_grace_period: ${theduration}
     stdin_open: ${thebool}
     tty: $thebool
     volumes:
@@ -628,9 +629,11 @@ networks:
   back:
 `
 	env := map[string]string{
-		"theint":   "555",
-		"thefloat": "3.14",
-		"thebool":  "true",
+		"theint":      "555",
+		"thefloat":    "3.14",
+		"thebool":     "true",
+		"theduration": "60s",
+		"thesize":     "2gb",
 	}
 
 	config, err := Load(buildConfigDetails(dict, env), func(options *Options) {
@@ -641,9 +644,12 @@ networks:
 
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
+	duration, err := time.ParseDuration("60s")
+	assert.NilError(t, err)
+	typesDuration := types.Duration(duration)
 	expected := &types.Project{
 		Name:        "",
-		Environment: map[string]string{"thebool": "true", "thefloat": "3.14", "theint": "555"},
+		Environment: env,
 		WorkingDir:  workingDir,
 		Services: []types.ServiceConfig{
 			{
@@ -690,12 +696,13 @@ networks:
 					"nproc":  {Single: 555},
 					"nofile": {Hard: 555, Soft: 555},
 				},
-				Privileged: true,
-				ReadOnly:   true,
-				Scale:      1,
-				ShmSize:    types.UnitBytes(2 * 1024 * 1024 * 1024),
-				StdinOpen:  true,
-				Tty:        true,
+				Privileged:      true,
+				ReadOnly:        true,
+				Scale:           1,
+				ShmSize:         types.UnitBytes(2 * 1024 * 1024 * 1024),
+				StopGracePeriod: &typesDuration,
+				StdinOpen:       true,
+				Tty:             true,
 				Volumes: []types.ServiceVolumeConfig{
 					{
 						Source:   "data",
