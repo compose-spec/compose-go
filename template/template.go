@@ -60,12 +60,7 @@ type SubstituteFunc func(string, Mapping) (string, bool, error)
 // It accepts additional substitute function.
 func SubstituteWith(template string, mapping Mapping, pattern *regexp.Regexp, subsFuncs ...SubstituteFunc) (string, error) {
 	if len(subsFuncs) == 0 {
-		subsFuncs = []SubstituteFunc{
-			softDefault,
-			hardDefault,
-			requiredNonEmpty,
-			required,
-		}
+		subsFuncs = getDefaultSortedSubstitutionFunctions(template)
 	}
 	var err error
 	result := pattern.ReplaceAllStringFunc(template, func(substring string) string {
@@ -112,6 +107,25 @@ func SubstituteWith(template string, mapping Mapping, pattern *regexp.Regexp, su
 	})
 
 	return result, err
+}
+
+func getDefaultSortedSubstitutionFunctions(template string, fns ...SubstituteFunc) []SubstituteFunc {
+	hyphenIndex := strings.IndexByte(template, '-')
+	questionIndex := strings.IndexByte(template, '?')
+	if hyphenIndex < 0 || hyphenIndex > questionIndex {
+		return []SubstituteFunc{
+			requiredNonEmpty,
+			required,
+			softDefault,
+			hardDefault,
+		}
+	}
+	return []SubstituteFunc{
+		softDefault,
+		hardDefault,
+		requiredNonEmpty,
+		required,
+	}
 }
 
 // Substitute variables in the string with their values
