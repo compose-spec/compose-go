@@ -17,9 +17,9 @@
 package interpolation
 
 import (
-	"testing"
-
+	"fmt"
 	"strconv"
+	"testing"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -93,6 +93,96 @@ func TestInterpolateWithDefaults(t *testing.T) {
 	result, err := Interpolate(config, Options{})
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(expected, result))
+}
+
+func TestValidUnexistentInterpolation(t *testing.T) {
+	var testcases = []struct {
+		test     string
+		expected string
+		errMsg   string
+	}{
+		{test: "{{{ ${FOO:-foo_} }}}", expected: "{{{ foo_ }}}"},
+		{test: "{{{ ${FOO:-foo-bar-value} }}}", expected: "{{{ foo-bar-value }}}"},
+		{test: "{{{ ${FOO:-foo?bar?value} }}}", expected: "{{{ foo?bar?value }}}"},
+		{test: "{{{ ${FOO:-foo:?bar:?value} }}}", expected: "{{{ foo:?bar:?value }}}"},
+		{test: "{{{ ${FOO:-foo} ${BAR:-DEFAULT_VALUE} }}}", expected: "{{{ foo DEFAULT_VALUE }}}"},
+		{test: "{{{ ${BAR} }}}", expected: "{{{  }}}"},
+		{test: "${FOO:-baz} }}}", expected: "baz }}}"},
+		{test: "${FOO-baz} }}}", expected: "baz }}}"},
+
+		{test: "{{{ ${FOO:?foo_} }}}", errMsg: "foo_"},
+		{test: "{{{ ${FOO:?foo-bar-value} }}}", errMsg: "foo-bar-value"},
+		{test: "{{{ ${FOO:?foo} ${BAR:-DEFAULT_VALUE} }}}", errMsg: "foo"},
+		{test: "{{{ ${BAR} }}}", expected: "{{{  }}}"},
+		{test: "${FOO:?baz} }}}", errMsg: "baz"},
+		{test: "${FOO?baz} }}}", errMsg: "baz"},
+	}
+
+	getServiceConfig := func(val string) map[string]interface{} {
+		if val == "" {
+			return map[string]interface{}{}
+		}
+		return map[string]interface{}{
+			"myservice": map[string]interface{}{
+				"environment": map[string]interface{}{
+					"TESTVAR": val,
+				},
+			},
+		}
+	}
+
+	getFullErrorMsg := func(msg string) string {
+		return fmt.Sprintf("invalid interpolation format for myservice.environment.TESTVAR: "+
+			"\"required variable FOO is missing a value: %s\". You may need to escape any $ with another $.", msg)
+	}
+
+	for _, testcase := range testcases {
+		result, err := Interpolate(getServiceConfig(testcase.test), Options{})
+		if testcase.errMsg != "" {
+			assert.Assert(t, err != nil, fmt.Sprintf("This should result in an error %q", testcase.errMsg))
+			assert.Equal(t, getFullErrorMsg(testcase.errMsg), err.Error())
+		}
+		assert.Check(t, is.DeepEqual(getServiceConfig(testcase.expected), result))
+	}
+}
+
+func TestValidExistentInterpolation(t *testing.T) {
+	var testcases = []struct {
+		test     string
+		expected string
+	}{
+		// Only FOO is set
+		{test: "{{{ ${FOO:-foo_} }}}", expected: "{{{ bar }}}"},
+		{test: "{{{ ${FOO:-foo-bar-value} }}}", expected: "{{{ bar }}}"},
+		{test: "{{{ ${FOO:-foo} ${BAR:-DEFAULT_VALUE} }}}", expected: "{{{ bar DEFAULT_VALUE }}}"},
+		{test: "{{{ ${BAR} }}}", expected: "{{{  }}}"},
+		{test: "${FOO:-baz} }}}", expected: "bar }}}"},
+		{test: "${FOO-baz} }}}", expected: "bar }}}"},
+
+		// Both FOO and USER are set
+		{test: "{{{ ${FOO:-foo_} }}}", expected: "{{{ bar }}}"},
+		{test: "{{{ ${FOO:-foo-bar-value} }}}", expected: "{{{ bar }}}"},
+		{test: "{{{ ${FOO:-foo} ${USER:-bar} }}}", expected: "{{{ bar jenny }}}"},
+		{test: "{{{ ${USER} }}}", expected: "{{{ jenny }}}"},
+		{test: "${FOO:-baz} }}}", expected: "bar }}}"},
+		{test: "${FOO-baz} }}}", expected: "bar }}}"},
+	}
+
+	getServiceConfig := func(val string) map[string]interface{} {
+		return map[string]interface{}{
+			"myservice": map[string]interface{}{
+				"environment": map[string]interface{}{
+					"TESTVAR": val,
+				},
+			},
+		}
+	}
+
+	for _, testcase := range testcases {
+		result, err := Interpolate(getServiceConfig(testcase.test), Options{LookupValue: defaultMapping})
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(getServiceConfig(testcase.expected), result))
+	}
 }
 
 func TestInterpolateWithCast(t *testing.T) {

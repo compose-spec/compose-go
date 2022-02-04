@@ -262,6 +262,48 @@ func TestSubstituteWithCustomFunc(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "required variable"))
 }
 
+// TestPrecedence tests is the precedence on '-' and '?' is of the first match
+func TestPrecedence(t *testing.T) {
+
+	testCases := []struct {
+		template string
+		expected string
+		err      error
+	}{
+		{
+			template: "${UNSET_VAR?bar-baz}", // Unexistent variable
+			expected: "",
+			err: &InvalidTemplateError{
+				Template: "required variable UNSET_VAR is missing a value: bar-baz",
+			},
+		},
+		{
+			template: "${UNSET_VAR-myerror?msg}", // Unexistent variable
+			expected: "myerror?msg",
+			err:      nil,
+		},
+
+		{
+			template: "${FOO?bar-baz}", // Existent variable
+			expected: "first",
+		},
+		{
+			template: "${BAR:-default_value_for_empty_var}", // Existent empty variable
+			expected: "default_value_for_empty_var",
+		},
+		{
+			template: "${UNSET_VAR-default_value_for_unset_var}", // Unset variable
+			expected: "default_value_for_unset_var",
+		},
+	}
+
+	for _, tc := range testCases {
+		result, err := Substitute(tc.template, defaultMapping)
+		assert.Check(t, is.DeepEqual(tc.err, err))
+		assert.Check(t, is.Equal(tc.expected, result))
+	}
+}
+
 func TestExtractVariables(t *testing.T) {
 	testCases := []struct {
 		name     string
