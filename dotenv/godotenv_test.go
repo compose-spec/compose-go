@@ -79,6 +79,7 @@ func TestReadPlainEnv(t *testing.T) {
 		"OPTION_E": "5",
 		"OPTION_F": "",
 		"OPTION_G": "",
+		"OPTION_H": "my string",
 	}
 
 	envMap, err := Read(envFileName)
@@ -92,7 +93,7 @@ func TestReadPlainEnv(t *testing.T) {
 
 	for key, value := range expectedValues {
 		if envMap[key] != value {
-			t.Error("Read got one of the keys wrong")
+			t.Errorf("Read got one of the keys wrong. Expected: %q got %q", value, envMap[key])
 		}
 	}
 }
@@ -349,7 +350,7 @@ func TestParsing(t *testing.T) {
 	// parses yaml style options
 	parseAndCompare(t, "OPTION_A: 1", "OPTION_A", "1")
 
-	//parses yaml values with equal signs
+	// parses yaml values with equal signs
 	parseAndCompare(t, "OPTION_A: Foo=bar", "OPTION_A", "Foo=bar")
 
 	// parses non-yaml options with colons
@@ -398,7 +399,7 @@ func TestParsing(t *testing.T) {
 	parseAndCompare(t, `FOO="ba#r"`, "FOO", "ba#r")
 	parseAndCompare(t, "FOO='ba#r'", "FOO", "ba#r")
 
-	//newlines and backslashes should be escaped
+	// newlines and backslashes should be escaped
 	parseAndCompare(t, `FOO="bar\n\ b\az"`, "FOO", "bar\n baz")
 	parseAndCompare(t, `FOO="bar\\\n\ b\az"`, "FOO", "bar\\\n baz")
 	parseAndCompare(t, `FOO="bar\\r\ b\az"`, "FOO", "bar\\r baz")
@@ -482,14 +483,14 @@ func TestWrite(t *testing.T) {
 			t.Errorf("Expected '%v' (%v) to write as '%v', got '%v' instead.", env, envMap, expected, actual)
 		}
 	}
-	//just test some single lines to show the general idea
-	//TestRoundtrip makes most of the good assertions
+	// just test some single lines to show the general idea
+	// TestRoundtrip makes most of the good assertions
 
-	//values are always double-quoted
+	// values are always double-quoted
 	writeAndCompare(`key=value`, `key="value"`)
-	//double-quotes are escaped
+	// double-quotes are escaped
 	writeAndCompare(`key=va"lu"e`, `key="va\"lu\"e"`)
-	//but single quotes are left alone
+	// but single quotes are left alone
 	writeAndCompare(`key=va'lu'e`, `key="va'lu'e"`)
 	// newlines, backslashes, and some other special chars are escaped
 	writeAndCompare(`foo="\n\r\\r!"`, `foo="\n\r\\r\!"`)
