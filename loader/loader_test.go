@@ -1833,7 +1833,7 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 	s, err := LoadService("Test Name", m, ".", func(s string) (string, bool) {
 		assert.Equal(t, "TEST", s)
 		return "YES", true
-	}, true)
+	}, true, false)
 	assert.NilError(t, err)
 	assert.Equal(t, "YES", *s.Environment["HALLO"])
 }
@@ -1857,7 +1857,7 @@ func TestLoadServiceWithVolumes(t *testing.T) {
 			},
 		},
 	}
-	s, err := LoadService("Test Name", m, ".", nil, true)
+	s, err := LoadService("Test Name", m, ".", nil, true, false)
 	assert.NilError(t, err)
 	assert.Equal(t, len(s.Volumes), 2)
 	assert.Equal(t, "/path 1", s.Volumes[0].Target)
