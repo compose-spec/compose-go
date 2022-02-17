@@ -307,11 +307,11 @@ type BuildConfig struct {
 // BlkioConfig define blkio config
 type BlkioConfig struct {
 	Weight          uint16           `yaml:",omitempty" json:"weight,omitempty"`
-	WeightDevice    []WeightDevice   `yaml:",omitempty" json:"weight_device,omitempty"`
-	DeviceReadBps   []ThrottleDevice `yaml:",omitempty" json:"device_read_bps,omitempty"`
-	DeviceReadIOps  []ThrottleDevice `yaml:",omitempty" json:"device_read_iops,omitempty"`
-	DeviceWriteBps  []ThrottleDevice `yaml:",omitempty" json:"device_write_bps,omitempty"`
-	DeviceWriteIOps []ThrottleDevice `yaml:",omitempty" json:"device_write_iops,omitempty"`
+	WeightDevice    []WeightDevice   `mapstructure:"weight_device" yaml:",omitempty" json:"weight_device,omitempty"`
+	DeviceReadBps   []ThrottleDevice `mapstructure:"device_read_bps" yaml:",omitempty" json:"device_read_bps,omitempty"`
+	DeviceReadIOps  []ThrottleDevice `mapstructure:"device_read_iops" yaml:",omitempty" json:"device_read_iops,omitempty"`
+	DeviceWriteBps  []ThrottleDevice `mapstructure:"device_write_bps" yaml:",omitempty" json:"device_write_bps,omitempty"`
+	DeviceWriteIOps []ThrottleDevice `mapstructure:"device_write_iops" yaml:",omitempty" json:"device_write_iops,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
