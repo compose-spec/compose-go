@@ -576,8 +576,8 @@ func TestInheritedEnvVariablSingleVar(t *testing.T) {
 
 func TestInheritedEnvVariableNotFound(t *testing.T) {
 	envMap, err := Read("fixtures/inherited-not-found.env")
-	if envMap["VARIABLE_NOT_FOUND"] != "" || err != nil {
-		t.Errorf("Expected 'VARIABLE_NOT_FOUND' to be '' with no errors")
+	if _, ok := envMap["VARIABLE_NOT_FOUND"]; ok || err != nil {
+		t.Errorf("Expected 'VARIABLE_NOT_FOUND' to be undefined with no errors")
 	}
 }
 
@@ -590,8 +590,8 @@ func TestInheritedEnvVariableNotFoundWithLookup(t *testing.T) {
 		}
 		return envVar, ok
 	}, "fixtures/inherited-not-found.env")
-	if envMap["VARIABLE_NOT_FOUND"] != "" || err != nil {
-		t.Errorf("Expected 'VARIABLE_NOT_FOUND' to be '' with no errors")
+	if _, ok := envMap["VARIABLE_NOT_FOUND"]; ok || err != nil {
+		t.Errorf("Expected 'VARIABLE_NOT_FOUND' to be undefined with no errors")
 	}
 	_, ok := notFoundMap["VARIABLE_NOT_FOUND"]
 	if !ok {
