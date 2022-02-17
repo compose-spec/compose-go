@@ -9,7 +9,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Lint code
-        run: DOCKER_BUILDKIT=1 make lint
+        uses: golangci/golangci-lint-action@v2
       - name: Check license
         run: DOCKER_BUILDKIT=1 make check-license
 

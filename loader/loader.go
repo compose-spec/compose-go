@@ -887,7 +887,7 @@ var transformDependsOnConfig TransformerFunc = func(data interface{}) (interface
 		for _, serviceIntf := range value {
 			service, ok := serviceIntf.(string)
 			if !ok {
-				return data, errors.Errorf("invalid type %T for service depends_on element. Expected string.", value)
+				return data, errors.Errorf("invalid type %T for service depends_on elementn, expected string", value)
 			}
 			transformed[service] = map[string]interface{}{"condition": types.ServiceConditionStarted}
 		}
