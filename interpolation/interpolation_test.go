@@ -74,7 +74,7 @@ func TestInvalidInterpolation(t *testing.T) {
 		},
 	}
 	_, err := Interpolate(services, Options{LookupValue: defaultMapping})
-	assert.Error(t, err, `invalid interpolation format for servicea.image: "${". You may need to escape any $ with another $.`)
+	assert.Error(t, err, `invalid interpolation format for servicea.image: "${". You may need to escape any $ with another $`)
 }
 
 func TestInterpolateWithDefaults(t *testing.T) {
@@ -133,7 +133,7 @@ func TestValidUnexistentInterpolation(t *testing.T) {
 
 	getFullErrorMsg := func(msg string) string {
 		return fmt.Sprintf("invalid interpolation format for myservice.environment.TESTVAR: "+
-			"\"required variable FOO is missing a value: %s\". You may need to escape any $ with another $.", msg)
+			"\"required variable FOO is missing a value: %s\". You may need to escape any $ with another $", msg)
 	}
 
 	for _, testcase := range testcases {

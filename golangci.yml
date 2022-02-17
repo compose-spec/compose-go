@@ -6,7 +6,7 @@ linters:
   enable:
   - gofmt
   - goimports
-  - golint
+  - revive
   - gosimple
   - ineffassign
   - misspell
