@@ -280,10 +280,6 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 	if len(extensions) > 0 {
 		cfg.Extensions = extensions
 	}
-	if err != nil {
-		return nil, err
-	}
-
 	return &cfg, nil
 }
 
