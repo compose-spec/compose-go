@@ -60,7 +60,8 @@ func TestNormalizeNetworkNames(t *testing.T) {
 		},
 	}
 
-	expected := `services:
+	expected := `name: myProject
+services:
   foo:
     build:
       context: ./testdata
@@ -105,7 +106,8 @@ func TestNormalizeResolvePathsBuildContextPaths(t *testing.T) {
 		},
 	}
 
-	expected := fmt.Sprintf(`services:
+	expected := fmt.Sprintf(`name: myProject
+services:
   foo:
     build:
       context: %s

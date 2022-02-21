@@ -154,7 +154,7 @@ func toServicePortConfigsMap(s interface{}) (map[interface{}]interface{}, error)
 	m := map[interface{}]interface{}{}
 	type port struct {
 		target    uint32
-		published uint32
+		published string
 		ip        string
 		protocol  string
 	}

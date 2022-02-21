@@ -52,7 +52,6 @@ var interpolateTypeCastMapping = map[interp.Path]interp.Cast{
 	servicePath("oom_score_adj"):                                     toInt64,
 	servicePath("pids_limit"):                                        toInt64,
 	servicePath("ports", interp.PathMatchList, "target"):             toInt,
-	servicePath("ports", interp.PathMatchList, "published"):          toInt,
 	servicePath("privileged"):                                        toBoolean,
 	servicePath("read_only"):                                         toBoolean,
 	servicePath("scale"):                                             toInt,

@@ -196,7 +196,7 @@ func TestProjectWithDotEnv(t *testing.T) {
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
-	assert.Equal(t, service.Ports[0].Published, uint32(8000))
+	assert.Equal(t, service.Ports[0].Published, "8000")
 }
 
 func TestProjectWithDiscardEnvFile(t *testing.T) {

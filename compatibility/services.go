@@ -550,8 +550,8 @@ func (c *AllowList) CheckPortsTarget(p *types.ServicePortConfig) {
 }
 
 func (c *AllowList) CheckPortsPublished(p *types.ServicePortConfig) {
-	if !c.supported("services.ports.published") && p.Published != 0 {
-		p.Published = 0
+	if !c.supported("services.ports.published") && len(p.Published) != 0 {
+		p.Published = ""
 		c.Unsupported("services.ports.published")
 	}
 }
