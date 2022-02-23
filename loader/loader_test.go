@@ -912,13 +912,13 @@ func uint32Ptr(value uint32) *uint32 {
 }
 
 func TestFullExample(t *testing.T) {
-	bytes, err := ioutil.ReadFile("full-example.yml")
+	b, err := ioutil.ReadFile("full-example.yml")
 	assert.NilError(t, err)
 
 	homeDir, err := os.UserHomeDir()
 	assert.NilError(t, err)
 	env := map[string]string{"HOME": homeDir, "QUX": "qux_from_environment"}
-	config, err := loadYAMLWithEnv(string(bytes), env)
+	config, err := loadYAMLWithEnv(string(b), env)
 	assert.NilError(t, err)
 
 	workingDir, err := os.Getwd()
@@ -926,6 +926,7 @@ func TestFullExample(t *testing.T) {
 
 	expectedConfig := fullExampleConfig(workingDir, homeDir)
 
+	assert.Check(t, is.DeepEqual(expectedConfig.Name, config.Name))
 	assert.Check(t, is.DeepEqual(expectedConfig.Services, config.Services))
 	assert.Check(t, is.DeepEqual(expectedConfig.Networks, config.Networks))
 	assert.Check(t, is.DeepEqual(expectedConfig.Volumes, config.Volumes))

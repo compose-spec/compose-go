@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/compose-spec/compose-go/consts"
 	"gotest.tools/v3/assert"
 )
 
@@ -42,7 +43,7 @@ func TestProjectName(t *testing.T) {
 		assert.Equal(t, p.Name, "42my_project_num")
 
 		opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
-			fmt.Sprintf("%s=%s", ComposeProjectName, "42my_project_env"),
+			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "42my_project_env"),
 		}))
 		assert.NilError(t, err)
 		p, err = ProjectFromOptions(opts)
@@ -58,7 +59,7 @@ func TestProjectName(t *testing.T) {
 		assert.Equal(t, p.Name, "my_project")
 
 		opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
-			fmt.Sprintf("%s=%s", ComposeProjectName, "-my_project"),
+			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "-my_project"),
 		}))
 		assert.NilError(t, err)
 		p, err = ProjectFromOptions(opts)
@@ -74,7 +75,7 @@ func TestProjectName(t *testing.T) {
 		assert.Equal(t, p.Name, "my_project")
 
 		opts, err = NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
-			fmt.Sprintf("%s=%s", ComposeProjectName, "_my_project"),
+			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "_my_project"),
 		}))
 		assert.NilError(t, err)
 		p, err = ProjectFromOptions(opts)
