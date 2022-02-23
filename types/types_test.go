@@ -45,7 +45,18 @@ func TestParsePortConfig(t *testing.T) {
 				{
 					Protocol:  "tcp",
 					Target:    8080,
-					Published: 80,
+					Published: "80",
+					Mode:      "ingress",
+				},
+			},
+		},
+		{
+			value: "80-90:8080",
+			expected: []ServicePortConfig{
+				{
+					Protocol:  "tcp",
+					Target:    8080,
+					Published: "80-90",
 					Mode:      "ingress",
 				},
 			},
@@ -56,7 +67,7 @@ func TestParsePortConfig(t *testing.T) {
 				{
 					Protocol:  "tcp",
 					Target:    80,
-					Published: 8080,
+					Published: "8080",
 					Mode:      "ingress",
 				},
 			},
@@ -67,7 +78,7 @@ func TestParsePortConfig(t *testing.T) {
 				{
 					Protocol:  "udp",
 					Target:    8080,
-					Published: 80,
+					Published: "80",
 					Mode:      "ingress",
 				},
 			},
@@ -78,13 +89,13 @@ func TestParsePortConfig(t *testing.T) {
 				{
 					Protocol:  "tcp",
 					Target:    8080,
-					Published: 80,
+					Published: "80",
 					Mode:      "ingress",
 				},
 				{
 					Protocol:  "tcp",
 					Target:    8081,
-					Published: 81,
+					Published: "81",
 					Mode:      "ingress",
 				},
 			},
@@ -95,19 +106,19 @@ func TestParsePortConfig(t *testing.T) {
 				{
 					Protocol:  "udp",
 					Target:    8080,
-					Published: 80,
+					Published: "80",
 					Mode:      "ingress",
 				},
 				{
 					Protocol:  "udp",
 					Target:    8081,
-					Published: 81,
+					Published: "81",
 					Mode:      "ingress",
 				},
 				{
 					Protocol:  "udp",
 					Target:    8082,
-					Published: 82,
+					Published: "82",
 					Mode:      "ingress",
 				},
 			},
@@ -118,19 +129,7 @@ func TestParsePortConfig(t *testing.T) {
 				{
 					Protocol:  "udp",
 					Target:    8080,
-					Published: 80,
-					Mode:      "ingress",
-				},
-				{
-					Protocol:  "udp",
-					Target:    8080,
-					Published: 81,
-					Mode:      "ingress",
-				},
-				{
-					Protocol:  "udp",
-					Target:    8080,
-					Published: 82,
+					Published: "80-82",
 					Mode:      "ingress",
 				},
 			},
@@ -141,7 +140,7 @@ func TestParsePortConfig(t *testing.T) {
 				{
 					Protocol:  "tcp",
 					Target:    8080,
-					Published: 80,
+					Published: "80",
 					Mode:      "ingress",
 				},
 			},
@@ -173,7 +172,7 @@ func TestParsePortConfig(t *testing.T) {
 					HostIP:    "1.1.1.1",
 					Protocol:  "tcp",
 					Target:    80,
-					Published: 80,
+					Published: "80",
 					Mode:      "ingress",
 				},
 			},

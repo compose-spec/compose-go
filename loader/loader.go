@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -813,6 +814,10 @@ var transformServicePort TransformerFunc = func(data interface{}) (interface{}, 
 					ports = append(ports, v)
 				}
 			case map[string]interface{}:
+				published := value["published"]
+				if v, ok := published.(int); ok {
+					value["published"] = strconv.Itoa(v)
+				}
 				ports = append(ports, groupXFieldsIntoExtensions(value))
 			default:
 				return data, errors.Errorf("invalid type %T for port", value)

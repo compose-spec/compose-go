@@ -495,6 +495,7 @@ type Resource struct {
 	// TODO: types to convert from units and ratios
 	NanoCPUs         string            `mapstructure:"cpus" yaml:"cpus,omitempty" json:"cpus,omitempty"`
 	MemoryBytes      UnitBytes         `mapstructure:"memory" yaml:"memory,omitempty" json:"memory,omitempty"`
+	PIds             int64             `mapstructure:"pids" yaml:"pids,omitempty" json:"pids,omitempty"`
 	Devices          []DeviceRequest   `mapstructure:"devices" yaml:"devices,omitempty" json:"devices,omitempty"`
 	GenericResources []GenericResource `mapstructure:"generic_resources" yaml:"generic_resources,omitempty" json:"generic_resources,omitempty"`
 
@@ -581,7 +582,7 @@ type ServicePortConfig struct {
 	Mode      string `yaml:",omitempty" json:"mode,omitempty"`
 	HostIP    string `mapstructure:"host_ip" yaml:"host_ip,omitempty" json:"host_ip,omitempty"`
 	Target    uint32 `yaml:",omitempty" json:"target,omitempty"`
-	Published uint32 `yaml:",omitempty" json:"published,omitempty"`
+	Published string `yaml:",omitempty" json:"published,omitempty"`
 	Protocol  string `yaml:",omitempty" json:"protocol,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
@@ -615,21 +616,13 @@ func ParsePortConfig(value string) ([]ServicePortConfig, error) {
 func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.PortBinding) ([]ServicePortConfig, error) {
 	var portConfigs []ServicePortConfig
 	for _, binding := range portBindings[port] {
-		startHostPort, endHostPort, err := nat.ParsePortRange(binding.HostPort)
-
-		if err != nil && binding.HostPort != "" {
-			return nil, fmt.Errorf("invalid hostport binding (%s) for port (%s)", binding.HostPort, port.Port())
-		}
-
-		for i := startHostPort; i <= endHostPort; i++ {
-			portConfigs = append(portConfigs, ServicePortConfig{
-				HostIP:    binding.HostIP,
-				Protocol:  strings.ToLower(port.Proto()),
-				Target:    uint32(port.Int()),
-				Published: uint32(i),
-				Mode:      "ingress",
-			})
-		}
+		portConfigs = append(portConfigs, ServicePortConfig{
+			HostIP:    binding.HostIP,
+			Protocol:  strings.ToLower(port.Proto()),
+			Target:    uint32(port.Int()),
+			Published: binding.HostPort,
+			Mode:      "ingress",
+		})
 	}
 	return portConfigs, nil
 }
@@ -657,11 +650,16 @@ const (
 	VolumeTypeTmpfs = "tmpfs"
 	// VolumeTypeNamedPipe is the type for mounting Windows named pipes
 	VolumeTypeNamedPipe = "npipe"
+
+	// SElinuxShared share the volume content
+	SElinuxShared = "z"
+	// SElinuxUnshared label content as private unshared
+	SElinuxUnshared = "Z"
 )
 
 // ServiceVolumeBind are options for a service volume of type bind
 type ServiceVolumeBind struct {
-	SELinux        string `yaml:",omitempty" json:"selinux,omitempty"`
+	SELinux        string `mapstructure:"selinux" yaml:",omitempty" json:"selinux,omitempty"`
 	Propagation    string `yaml:",omitempty" json:"propagation,omitempty"`
 	CreateHostPath bool   `mapstructure:"create_host_path" yaml:"create_host_path,omitempty" json:"create_host_path,omitempty"`
 

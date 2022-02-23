@@ -253,7 +253,7 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 			expected: []types.ServicePortConfig{
 				{
 					Mode:      "ingress",
-					Published: 8080,
+					Published: "8080",
 					Target:    80,
 					Protocol:  "tcp",
 				},
@@ -274,13 +274,13 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 			expected: []types.ServicePortConfig{
 				{
 					Mode:      "ingress",
-					Published: 8080,
+					Published: "8080",
 					Target:    80,
 					Protocol:  "tcp",
 				},
 				{
 					Mode:      "ingress",
-					Published: 8081,
+					Published: "8081",
 					Target:    80,
 					Protocol:  "tcp",
 				},
@@ -301,13 +301,13 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 			expected: []types.ServicePortConfig{
 				{
 					Mode:      "ingress",
-					Published: 8080,
+					Published: "8080",
 					Target:    80,
 					Protocol:  "tcp",
 				},
 				{
 					Mode:      "ingress",
-					Published: 8080,
+					Published: "8080",
 					Target:    80,
 					Protocol:  "udp",
 				},
@@ -324,16 +324,14 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 			portOverride: map[string]interface{}{},
 			expected: []types.ServicePortConfig{
 				{
-					Mode:      "ingress",
-					Published: 0,
-					Target:    5000,
-					Protocol:  "tcp",
+					Mode:     "ingress",
+					Target:   5000,
+					Protocol: "tcp",
 				},
 				{
-					Mode:      "ingress",
-					Published: 0,
-					Target:    6000,
-					Protocol:  "tcp",
+					Mode:     "ingress",
+					Target:   6000,
+					Protocol: "tcp",
 				},
 			},
 		},
@@ -969,17 +967,17 @@ func TestLoadMultipleConfigs(t *testing.T) {
 					{
 						Mode:      "ingress",
 						Target:    80,
-						Published: 8080,
+						Published: "8080",
 						Protocol:  "tcp",
 					},
 					{
 						Target:    81,
-						Published: 8080,
+						Published: "8080",
 					},
 					{
 						Mode:      "ingress",
 						Target:    90,
-						Published: 9090,
+						Published: "9090",
 						Protocol:  "tcp",
 					},
 				},

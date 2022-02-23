@@ -133,60 +133,59 @@ var samplePortsConfig = []types.ServicePortConfig{
 	{
 		Mode:      "ingress",
 		Target:    8080,
-		Published: 80,
+		Published: "80",
 		Protocol:  "tcp",
 	},
 	{
 		Mode:      "ingress",
 		Target:    8081,
-		Published: 81,
+		Published: "81",
 		Protocol:  "tcp",
 	},
 	{
 		Mode:      "ingress",
 		Target:    8082,
-		Published: 82,
+		Published: "82",
 		Protocol:  "tcp",
 	},
 	{
 		Mode:      "ingress",
 		Target:    8090,
-		Published: 90,
+		Published: "90",
 		Protocol:  "udp",
 	},
 	{
 		Mode:      "ingress",
 		Target:    8091,
-		Published: 91,
+		Published: "91",
 		Protocol:  "udp",
 	},
 	{
 		Mode:      "ingress",
 		Target:    8092,
-		Published: 92,
+		Published: "92",
 		Protocol:  "udp",
 	},
 	{
 		Mode:      "ingress",
 		Target:    8500,
-		Published: 85,
+		Published: "85",
 		Protocol:  "tcp",
 	},
 	{
-		Mode:      "ingress",
-		Target:    8600,
-		Published: 0,
-		Protocol:  "tcp",
+		Mode:     "ingress",
+		Target:   8600,
+		Protocol: "tcp",
 	},
 	{
 		Target:    53,
-		Published: 10053,
+		Published: "10053",
 		Protocol:  "udp",
 	},
 	{
 		Mode:      "host",
 		Target:    22,
-		Published: 10022,
+		Published: "10022",
 	},
 }
 
@@ -592,7 +591,7 @@ services:
       - $theint
       - "34567"
       - target: $theint
-        published: $theint
+        published: "$theint"
         x-foo-bar: true
     ulimits:
       nproc: $theint
@@ -690,7 +689,7 @@ networks:
 				Ports: []types.ServicePortConfig{
 					{Target: 555, Mode: "ingress", Protocol: "tcp"},
 					{Target: 34567, Mode: "ingress", Protocol: "tcp"},
-					{Target: 555, Published: 555, Extensions: map[string]interface{}{"x-foo-bar": true}},
+					{Target: 555, Published: "555", Extensions: map[string]interface{}{"x-foo-bar": true}},
 				},
 				Ulimits: map[string]*types.UlimitsConfig{
 					"nproc":  {Single: 555},
