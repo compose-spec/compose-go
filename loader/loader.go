@@ -23,11 +23,13 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/compose-spec/compose-go/consts"
 	"github.com/compose-spec/compose-go/dotenv"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/schema"
@@ -59,8 +61,19 @@ type Options struct {
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
 	discardEnvFiles bool
-	// Set project name
-	Name string
+	// Set project projectName
+	projectName string
+	// Indicates when the projectName was imperatively set or guessed from path
+	projectNameImperativelySet bool
+}
+
+func (o *Options) SetProjectName(name string, imperativelySet bool) {
+	o.projectName = normalizeProjectName(name)
+	o.projectNameImperativelySet = imperativelySet
+}
+
+func (o Options) GetProjectName() (string, bool) {
+	return o.projectName, o.projectNameImperativelySet
 }
 
 // serviceRef identifies a reference to a service. It's used to detect cyclic
@@ -193,8 +206,17 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		s.EnvFile = newEnvFiles
 	}
 
+	projectName, projectNameImperativelySet := opts.GetProjectName()
+	model.Name = normalizeProjectName(model.Name)
+	if !projectNameImperativelySet && model.Name != "" {
+		projectName = model.Name
+	}
+
+	if projectName != "" {
+		configDetails.Environment[consts.ComposeProjectName] = projectName
+	}
 	project := &types.Project{
-		Name:        opts.Name,
+		Name:        projectName,
 		WorkingDir:  configDetails.WorkingDir,
 		Services:    model.Services,
 		Networks:    model.Networks,
@@ -220,6 +242,13 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	return project, nil
+}
+
+func normalizeProjectName(s string) string {
+	r := regexp.MustCompile("[a-z0-9_-]")
+	s = strings.ToLower(s)
+	s = strings.Join(r.FindAllString(s, -1), "")
+	return strings.TrimLeft(s, "_-")
 }
 
 func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
@@ -255,7 +284,14 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 	cfg := types.Config{
 		Filename: filename,
 	}
-
+	name := ""
+	if n, ok := config["name"]; ok {
+		name, ok = n.(string)
+		if !ok {
+			return nil, errors.New("project name must be a string")
+		}
+	}
+	cfg.Name = name
 	cfg.Services, err = LoadServices(filename, getSection(config, "services"), configDetails.WorkingDir, configDetails.LookupEnv, opts)
 	if err != nil {
 		return nil, err
