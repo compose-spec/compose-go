@@ -296,6 +296,7 @@ type BuildConfig struct {
 	Args       MappingWithEquals `yaml:",omitempty" json:"args,omitempty"`
 	Labels     Labels            `yaml:",omitempty" json:"labels,omitempty"`
 	CacheFrom  StringList        `mapstructure:"cache_from" yaml:"cache_from,omitempty" json:"cache_from,omitempty"`
+	CacheTo    StringList        `mapstructure:"cache_to" yaml:"cache_to,omitempty" json:"cache_to,omitempty"`
 	ExtraHosts HostsList         `mapstructure:"extra_hosts" yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
 	Isolation  string            `yaml:",omitempty" json:"isolation,omitempty"`
 	Network    string            `yaml:",omitempty" json:"network,omitempty"`
