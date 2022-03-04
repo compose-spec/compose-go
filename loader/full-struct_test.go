@@ -53,6 +53,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				Context:    "./dir",
 				Dockerfile: "Dockerfile",
 				Args:       map[string]*string{"foo": strPtr("bar")},
+				SSH:        map[string]string{"default": ""},
 				Target:     "foo",
 				Network:    "foo",
 				CacheFrom:  []string{"foo", "bar"},
@@ -569,6 +570,8 @@ services:
       dockerfile: Dockerfile
       args:
         foo: bar
+      ssh:
+        default: ""
       labels:
         FOO: BAR
       cache_from:
@@ -1081,6 +1084,9 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "dockerfile": "Dockerfile",
         "args": {
           "foo": "bar"
+        },
+        "ssh": {
+          "default": ""
         },
         "labels": {
           "FOO": "BAR"

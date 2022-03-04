@@ -294,6 +294,7 @@ type BuildConfig struct {
 	Context    string            `yaml:",omitempty" json:"context,omitempty"`
 	Dockerfile string            `yaml:",omitempty" json:"dockerfile,omitempty"`
 	Args       MappingWithEquals `yaml:",omitempty" json:"args,omitempty"`
+	SSH        SSHConfig         `yaml:"ssh,omitempty" json:"ssh,omitempty"`
 	Labels     Labels            `yaml:",omitempty" json:"labels,omitempty"`
 	CacheFrom  StringList        `mapstructure:"cache_from" yaml:"cache_from,omitempty" json:"cache_from,omitempty"`
 	CacheTo    StringList        `mapstructure:"cache_to" yaml:"cache_to,omitempty" json:"cache_to,omitempty"`
@@ -425,6 +426,9 @@ func (l Labels) Add(key, value string) Labels {
 	l[key] = value
 	return l
 }
+
+// SSHConfig is a mapping type for SSH build config
+type SSHConfig map[string]string
 
 // MappingWithColon is a mapping type that can be converted from a list of
 // 'key: value' strings

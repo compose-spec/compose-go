@@ -1867,3 +1867,59 @@ func TestLoadServiceWithVolumes(t *testing.T) {
 	assert.Equal(t, len(s.Secrets), 1)
 	assert.Equal(t, "/path 4", s.Secrets[0].Target)
 }
+
+func TestLoadNoSSHInBuildConfig(t *testing.T) {
+	actual, err := loadYAML(`
+services:
+  test:
+    build:
+      context: .
+`)
+	assert.NilError(t, err)
+	svc, err := actual.GetService("test")
+	assert.NilError(t, err)
+	assert.Check(t, nil == svc.Build.SSH)
+}
+
+func TestLoadSSHWithoutValueInBuildConfig(t *testing.T) {
+	_, err := loadYAML(`
+services:
+  test:
+    build:
+      context: .
+      ssh:
+`)
+	assert.ErrorContains(t, err, "services.test.build.ssh must be a mapping")
+}
+
+func TestLoadSSHWithDefaultValueInBuildConfig(t *testing.T) {
+	actual, err := loadYAML(`
+services:
+  test:
+    build:
+      context: .
+      ssh: ssh-agent
+`)
+	assert.NilError(t, err)
+	svc, err := actual.GetService("test")
+	assert.NilError(t, err)
+	assert.Assert(t, is.Contains(svc.Build.SSH, "ssh-agent"))
+	assert.Equal(t, "", svc.Build.SSH["ssh-agent"])
+}
+
+func TestLoadSSHWithKeysValuesInBuildConfig(t *testing.T) {
+	actual, err := loadYAML(`
+services:
+  test:
+    build:
+      context: .
+      ssh: 
+        - key1=value1
+        - key2=value2
+`)
+	assert.NilError(t, err)
+	svc, err := actual.GetService("test")
+	assert.NilError(t, err)
+	assert.Equal(t, "value1", svc.Build.SSH["key1"])
+	assert.Equal(t, "value2", svc.Build.SSH["key2"])
+}
