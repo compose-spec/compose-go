@@ -93,12 +93,8 @@
                 "args": {"$ref": "#/definitions/list_or_dict"},
                 "ssh": {
                   "oneOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "$ref": "#/definitions/list_or_dict"
-                    }
+                    {"type": "string"},
+                    {"$ref": "#/definitions/list_or_dict"}
                   ]
                 },
                 "labels": {"$ref": "#/definitions/list_or_dict"},

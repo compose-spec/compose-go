@@ -1898,13 +1898,30 @@ services:
   test:
     build:
       context: .
-      ssh: ssh-agent
+      ssh: default
 `)
 	assert.NilError(t, err)
 	svc, err := actual.GetService("test")
 	assert.NilError(t, err)
-	assert.Assert(t, is.Contains(svc.Build.SSH, "ssh-agent"))
-	assert.Equal(t, "", svc.Build.SSH["ssh-agent"])
+	sshValue, err := svc.Build.SSH.Get("default")
+	assert.NilError(t, err)
+	assert.Equal(t, "", sshValue)
+}
+
+func TestLoadSSHWithKeyValueInBuildConfig(t *testing.T) {
+	actual, err := loadYAML(`
+services:
+  test:
+    build:
+      context: .
+      ssh: key1=value1
+`)
+	assert.NilError(t, err)
+	svc, err := actual.GetService("test")
+	assert.NilError(t, err)
+	sshValue, err := svc.Build.SSH.Get("key1")
+	assert.NilError(t, err)
+	assert.Equal(t, "value1", sshValue)
 }
 
 func TestLoadSSHWithKeysValuesInBuildConfig(t *testing.T) {
@@ -1920,6 +1937,12 @@ services:
 	assert.NilError(t, err)
 	svc, err := actual.GetService("test")
 	assert.NilError(t, err)
-	assert.Equal(t, "value1", svc.Build.SSH["key1"])
-	assert.Equal(t, "value2", svc.Build.SSH["key2"])
+
+	sshValue, err := svc.Build.SSH.Get("key1")
+	assert.NilError(t, err)
+	assert.Equal(t, "value1", sshValue)
+
+	sshValue, err = svc.Build.SSH.Get("key2")
+	assert.NilError(t, err)
+	assert.Equal(t, "value2", sshValue)
 }
