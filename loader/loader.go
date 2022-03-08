@@ -981,10 +981,19 @@ var transformServiceNetworkMap TransformerFunc = func(value interface{}) (interf
 
 var transformSSHConfig TransformerFunc = func(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
+	case map[string]interface{}:
+		var result []types.SSHKey
+		for key, val := range value {
+			if val == nil {
+				val = ""
+			}
+			result = append(result, types.SSHKey{ID: key, Path: val.(string)})
+		}
+		return result, nil
 	case []interface{}:
 		var result []types.SSHKey
-		for _, value := range value {
-			key, val := transformValueToMapEntry(value.(string), "=", false)
+		for _, v := range value {
+			key, val := transformValueToMapEntry(v.(string), "=", false)
 			result = append(result, types.SSHKey{ID: key, Path: val.(string)})
 		}
 		return result, nil

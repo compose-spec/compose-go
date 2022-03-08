@@ -1898,7 +1898,7 @@ services:
   test:
     build:
       context: .
-      ssh: default
+      ssh: [default]
 `)
 	assert.NilError(t, err)
 	svc, err := actual.GetService("test")
@@ -1914,7 +1914,8 @@ services:
   test:
     build:
       context: .
-      ssh: key1=value1
+      ssh: 
+        key1: value1
 `)
 	assert.NilError(t, err)
 	svc, err := actual.GetService("test")
