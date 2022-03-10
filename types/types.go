@@ -302,6 +302,7 @@ type BuildConfig struct {
 	Isolation  string            `yaml:",omitempty" json:"isolation,omitempty"`
 	Network    string            `yaml:",omitempty" json:"network,omitempty"`
 	Target     string            `yaml:",omitempty" json:"target,omitempty"`
+	Secrets    []ServiceSecretConfig `yaml:",omitempty" json:"secrets,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
