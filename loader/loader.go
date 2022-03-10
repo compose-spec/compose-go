@@ -390,6 +390,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.DependsOnConfig{}):                  transformDependsOnConfig,
 		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
 		reflect.TypeOf(types.DeviceRequest{}):                    transformServiceDeviceRequest,
+		reflect.TypeOf(types.SSHConfig{}):                        transformSSHConfig,
 	}
 
 	for _, transformer := range additionalTransformers {
@@ -978,6 +979,35 @@ var transformServiceNetworkMap TransformerFunc = func(value interface{}) (interf
 	return value, nil
 }
 
+var transformSSHConfig TransformerFunc = func(data interface{}) (interface{}, error) {
+	switch value := data.(type) {
+	case map[string]interface{}:
+		var result []types.SSHKey
+		for key, val := range value {
+			if val == nil {
+				val = ""
+			}
+			result = append(result, types.SSHKey{ID: key, Path: val.(string)})
+		}
+		return result, nil
+	case []interface{}:
+		var result []types.SSHKey
+		for _, v := range value {
+			key, val := transformValueToMapEntry(v.(string), "=", false)
+			result = append(result, types.SSHKey{ID: key, Path: val.(string)})
+		}
+		return result, nil
+	case string:
+		if value == "" {
+			value = "default"
+		}
+		key, val := transformValueToMapEntry(value, "=", false)
+		result := []types.SSHKey{{ID: key, Path: val.(string)}}
+		return result, nil
+	}
+	return nil, errors.Errorf("expected a sting, map or a list, got %T: %#v", data, data)
+}
+
 var transformStringOrNumberList TransformerFunc = func(value interface{}) (interface{}, error) {
 	list := value.([]interface{})
 	result := make([]string, len(list))
@@ -1000,47 +1030,52 @@ var transformStringList TransformerFunc = func(data interface{}) (interface{}, e
 
 func transformMappingOrListFunc(sep string, allowNil bool) TransformerFunc {
 	return func(data interface{}) (interface{}, error) {
-		return transformMappingOrList(data, sep, allowNil), nil
+		return transformMappingOrList(data, sep, allowNil)
 	}
 }
 
 func transformListOrMappingFunc(sep string, allowNil bool) TransformerFunc {
 	return func(data interface{}) (interface{}, error) {
-		return transformListOrMapping(data, sep, allowNil), nil
+		return transformListOrMapping(data, sep, allowNil)
 	}
 }
 
-func transformListOrMapping(listOrMapping interface{}, sep string, allowNil bool) interface{} {
+func transformListOrMapping(listOrMapping interface{}, sep string, allowNil bool) (interface{}, error) {
 	switch value := listOrMapping.(type) {
 	case map[string]interface{}:
-		return toStringList(value, sep, allowNil)
+		return toStringList(value, sep, allowNil), nil
 	case []interface{}:
-		return listOrMapping
+		return listOrMapping, nil
 	}
-	panic(errors.Errorf("expected a map or a list, got %T: %#v", listOrMapping, listOrMapping))
+	return nil, errors.Errorf("expected a map or a list, got %T: %#v", listOrMapping, listOrMapping)
 }
 
-func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool) interface{} {
+func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool) (interface{}, error) {
 	switch value := mappingOrList.(type) {
 	case map[string]interface{}:
-		return toMapStringString(value, allowNil)
+		return toMapStringString(value, allowNil), nil
 	case []interface{}:
 		result := make(map[string]interface{})
 		for _, value := range value {
-			parts := strings.SplitN(value.(string), sep, 2)
-			key := parts[0]
-			switch {
-			case len(parts) == 1 && allowNil:
-				result[key] = nil
-			case len(parts) == 1 && !allowNil:
-				result[key] = ""
-			default:
-				result[key] = parts[1]
-			}
+			key, val := transformValueToMapEntry(value.(string), sep, allowNil)
+			result[key] = val
 		}
-		return result
+		return result, nil
 	}
-	panic(errors.Errorf("expected a map or a list, got %T: %#v", mappingOrList, mappingOrList))
+	return nil, errors.Errorf("expected a map or a list, got %T: %#v", mappingOrList, mappingOrList)
+}
+
+func transformValueToMapEntry(value string, separator string, allowNil bool) (string, interface{}) {
+	parts := strings.SplitN(value, separator, 2)
+	key := parts[0]
+	switch {
+	case len(parts) == 1 && allowNil:
+		return key, nil
+	case len(parts) == 1 && !allowNil:
+		return key, ""
+	default:
+		return key, parts[1]
+	}
 }
 
 var transformShellCommand TransformerFunc = func(value interface{}) (interface{}, error) {
