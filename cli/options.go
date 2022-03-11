@@ -240,6 +240,16 @@ func WithDotEnv(o *ProjectOptions) error {
 	return nil
 }
 
+// WithFullProjectLoading set ProjectOptions to enable/skip interpolation
+func WithFullProjectLoading(projectLoading bool) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
+			options.SkipFullProjectLoading = !projectLoading
+		})
+		return nil
+	}
+}
+
 // WithInterpolation set ProjectOptions to enable/skip interpolation
 func WithInterpolation(interpolation bool) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {

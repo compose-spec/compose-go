@@ -59,6 +59,8 @@ type Options struct {
 	SkipExtends bool
 	// Interpolation options
 	Interpolate *interp.Options
+	// SkipFullProjectLoading skips the complete project loading process
+	SkipFullProjectLoading bool
 	// Discard 'env_file' entries after resolving to 'environment' section
 	discardEnvFiles bool
 	// Set project projectName
@@ -179,6 +181,26 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		}
 
 		configDict = groupXFieldsIntoExtensions(configDict)
+		if opts.SkipFullProjectLoading {
+			servicesSection := getSection(configDict, "services")
+			serviceConfigs := []types.ServiceConfig{}
+			for serviceName := range servicesSection {
+				serviceConfigs = append(serviceConfigs, types.ServiceConfig{
+					Name: serviceName,
+				})
+			}
+			projectName := ""
+			if n, ok := configDict["name"]; ok {
+				projectName, ok = n.(string)
+				if !ok {
+					return nil, errors.New("project name must be a string")
+				}
+			}
+			return &types.Project{
+				Name:     projectName,
+				Services: serviceConfigs,
+			}, nil
+		}
 
 		cfg, err := loadSections(file.Filename, configDict, configDetails, opts)
 		if err != nil {
