@@ -114,6 +114,7 @@ func TestValidUnexistentInterpolation(t *testing.T) {
 		{test: "{{{ ${FOO:?foo_} }}}", errMsg: "foo_"},
 		{test: "{{{ ${FOO:?foo-bar-value} }}}", errMsg: "foo-bar-value"},
 		{test: "{{{ ${FOO:?foo} ${BAR:-DEFAULT_VALUE} }}}", errMsg: "foo"},
+		{test: "${FOO:?foo} ${BAR:?bar}", errMsg: "foo"},
 		{test: "{{{ ${BAR} }}}", expected: "{{{  }}}"},
 		{test: "${FOO:?baz} }}}", errMsg: "baz"},
 		{test: "${FOO?baz} }}}", errMsg: "baz"},
