@@ -298,6 +298,8 @@ type BuildConfig struct {
 	Labels     Labels            `yaml:",omitempty" json:"labels,omitempty"`
 	CacheFrom  StringList        `mapstructure:"cache_from" yaml:"cache_from,omitempty" json:"cache_from,omitempty"`
 	CacheTo    StringList        `mapstructure:"cache_to" yaml:"cache_to,omitempty" json:"cache_to,omitempty"`
+	NoCache    bool              `mapstructure:"no_cache" yaml:"no_cache,omitempty" json:"no_cache,omitempty"`
+	Pull       bool              `mapstructure:"pull" yaml:"pull,omitempty" json:"pull,omitempty"`
 	ExtraHosts HostsList         `mapstructure:"extra_hosts" yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
 	Isolation  string            `yaml:",omitempty" json:"isolation,omitempty"`
 	Network    string            `yaml:",omitempty" json:"network,omitempty"`
