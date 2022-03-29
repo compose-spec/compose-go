@@ -1019,14 +1019,19 @@ var transformSSHConfig TransformerFunc = func(data interface{}) (interface{}, er
 		}
 		return result, nil
 	case string:
-		if value == "" {
-			value = "default"
-		}
-		key, val := transformValueToMapEntry(value, "=", false)
-		result := []types.SSHKey{{ID: key, Path: val.(string)}}
-		return result, nil
+		return ParseShortSSHSyntax(value)
 	}
 	return nil, errors.Errorf("expected a sting, map or a list, got %T: %#v", data, data)
+}
+
+// ParseShortSSHSyntax parse short syntax for SSH authentications
+func ParseShortSSHSyntax(value string) ([]types.SSHKey, error) {
+	if value == "" {
+		value = "default"
+	}
+	key, val := transformValueToMapEntry(value, "=", false)
+	result := []types.SSHKey{{ID: key, Path: val.(string)}}
+	return result, nil
 }
 
 var transformStringOrNumberList TransformerFunc = func(value interface{}) (interface{}, error) {
