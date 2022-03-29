@@ -1,0 +1,7 @@
+services:
+  test:
+    image: hello-world
+    volumes:
+    - type: bind
+      source: C:\docker\project
+      target: /test
