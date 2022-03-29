@@ -1,13 +1,26 @@
 name: Release
 on:
-  push:
-    tags:
-      - "v1*"
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch"
+        required: true
+        default: "master"
+      tag:
+        description: "Release Tag"
+
+
 
 jobs:
   release:
     runs-on: ubuntu-latest      
     steps:
-      - uses: ncipollo/release-action@v1
+      - name: Release it!
+        if: ${{ github.event.inputs.tag != '' }} # don't release if no tag is specified
+        uses: ncipollo/release-action@v1
         with:
+          generateReleaseNotes: true
+          draft: true
           token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.event.inputs.tag }}
+          commit: ${{ github.event.inputs.branch }}
