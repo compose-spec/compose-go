@@ -58,6 +58,18 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				Network:    "foo",
 				CacheFrom:  []string{"foo", "bar"},
 				Labels:     map[string]string{"FOO": "BAR"},
+				Secrets: []types.ServiceSecretConfig{
+					{
+						Source: "secret1",
+					},
+					{
+						Source: "secret2",
+						Target: "my_secret",
+						UID:    "103",
+						GID:    "103",
+						Mode:   uint32Ptr(0440),
+					},
+				},
 			},
 			CapAdd:       []string{"ALL"},
 			CapDrop:      []string{"NET_ADMIN", "SYS_ADMIN"},
@@ -579,6 +591,13 @@ services:
       - bar
       network: foo
       target: foo
+      secrets:
+      - source: secret1
+      - source: secret2
+        target: my_secret
+        uid: "103"
+        gid: "103"
+        mode: 288
     cap_add:
     - ALL
     cap_drop:
@@ -1096,7 +1115,19 @@ func fullExampleJSON(workingDir, homeDir string) string {
           "bar"
         ],
         "network": "foo",
-        "target": "foo"
+        "target": "foo",
+        "secrets": [
+          {
+            "source": "secret1"
+          },
+          {
+            "source": "secret2",
+            "target": "my_secret",
+            "uid": "103",
+            "gid": "103",
+            "mode": 288
+          }
+        ]
       },
       "cap_add": [
         "ALL"
