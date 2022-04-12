@@ -280,3 +280,18 @@ func TestParseVolumeInvalidSections(t *testing.T) {
 	_, err := ParseVolume("/foo::rw")
 	assert.ErrorContains(t, err, "invalid spec")
 }
+
+func TestVolumeStringer(t *testing.T) {
+	v := types.ServiceVolumeConfig{
+		Type:     "bind",
+		Source:   "/src",
+		Target:   "/target",
+		ReadOnly: false,
+		Bind: &types.ServiceVolumeBind{
+			CreateHostPath: true,
+			Propagation:    types.PropagationShared,
+			SELinux:        types.SELinuxShared,
+		},
+	}
+	assert.Equal(t, v.String(), "/src:/target:rw,z,shared")
+}
