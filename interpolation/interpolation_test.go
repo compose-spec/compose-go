@@ -23,7 +23,6 @@ import (
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
-	"gotest.tools/v3/env"
 )
 
 var defaults = map[string]string{
@@ -78,7 +77,7 @@ func TestInvalidInterpolation(t *testing.T) {
 }
 
 func TestInterpolateWithDefaults(t *testing.T) {
-	defer env.Patch(t, "FOO", "BARZ")()
+	t.Setenv("FOO", "BARZ")
 
 	config := map[string]interface{}{
 		"networks": map[string]interface{}{
