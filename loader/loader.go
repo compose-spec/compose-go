@@ -571,18 +571,18 @@ func LoadService(name string, serviceDict map[string]interface{}, workingDir str
 		if volume.Type != types.VolumeTypeBind {
 			continue
 		}
-
 		if volume.Source == "" {
 			return nil, errors.New(`invalid mount config for type "bind": field Source must not be empty`)
 		}
 
 		if resolvePaths {
-			serviceConfig.Volumes[i] = resolveVolumePath(volume, workingDir, lookupEnv)
+			volume = resolveVolumePath(volume, workingDir, lookupEnv)
 		}
 
 		if convertPaths {
-			serviceConfig.Volumes[i] = convertVolumePath(volume)
+			volume = convertVolumePath(volume)
 		}
+		serviceConfig.Volumes[i] = volume
 	}
 
 	return serviceConfig, nil
