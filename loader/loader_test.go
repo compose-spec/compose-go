@@ -308,7 +308,7 @@ services:
 	assert.Check(t, is.Len(actual.Services, 1))
 	service := actual.Services[0]
 	assert.Check(t, is.Equal("busybox", service.Image))
-	extras := map[string]interface{}{
+	extras := types.Extensions{
 		"x-foo": "bar",
 	}
 	assert.Check(t, is.DeepEqual(extras, service.Extensions))
@@ -2214,4 +2214,19 @@ volumes:
 	assert.NilError(t, err)
 	path := project.Volumes["data"].DriverOpts["device"]
 	assert.Check(t, filepath.IsAbs(path))
+}
+
+func TestLoadServiceExtension(t *testing.T) {
+	dict := `
+services:
+  extension: # this name should be allowed
+    image: web
+    x-foo: bar
+`
+	configDetails := buildConfigDetails(dict, nil)
+
+	project, err := Load(configDetails)
+	assert.NilError(t, err)
+	assert.Equal(t, project.Services[0].Name, "extension")
+	assert.Equal(t, project.Services[0].Extensions["x-foo"], "bar")
 }
