@@ -305,6 +305,7 @@ type BuildConfig struct {
 	Network    string                `yaml:",omitempty" json:"network,omitempty"`
 	Target     string                `yaml:",omitempty" json:"target,omitempty"`
 	Secrets    []ServiceSecretConfig `yaml:",omitempty" json:"secrets,omitempty"`
+	Tags       StringList            `mapstructure:"tags" yaml:"tags,omitempty" json:"tags,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
