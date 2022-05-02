@@ -468,7 +468,16 @@ func (s SSHKey) MarshalJSON() ([]byte, error) {
 type MappingWithColon map[string]string
 
 // HostsList is a list of colon-separated host-ip mappings
-type HostsList []string
+type HostsList map[string]string
+
+// AsList return host-ip mappings as a list of colon-separated strings
+func (h HostsList) AsList() []string {
+	l := make([]string, 0, len(h))
+	for k, v := range h {
+		l = append(l, fmt.Sprintf("%s:%s", k, v))
+	}
+	return l
+}
 
 // LoggingConfig the logging configuration for a service
 type LoggingConfig struct {

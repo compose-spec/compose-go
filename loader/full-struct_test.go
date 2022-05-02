@@ -178,9 +178,9 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				"project_db_1:mysql",
 				"project_db_1:postgresql",
 			},
-			ExtraHosts: []string{
-				"somehost:162.242.195.82",
-				"otherhost:50.31.209.229",
+			ExtraHosts: types.HostsList{
+				"somehost":  "162.242.195.82",
+				"otherhost": "50.31.209.229",
 			},
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
@@ -700,8 +700,8 @@ services:
     - project_db_1:mysql
     - project_db_1:postgresql
     extra_hosts:
-    - somehost:162.242.195.82
-    - otherhost:50.31.209.229
+      otherhost: 50.31.209.229
+      somehost: 162.242.195.82
     hostname: foo
     healthcheck:
       test:
@@ -1270,10 +1270,10 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "project_db_1:mysql",
         "project_db_1:postgresql"
       ],
-      "extra_hosts": [
-        "somehost:162.242.195.82",
-        "otherhost:50.31.209.229"
-      ],
+      "extra_hosts": {
+        "otherhost": "50.31.209.229",
+        "somehost": "162.242.195.82"
+      },
       "hostname": "foo",
       "healthcheck": {
         "test": [

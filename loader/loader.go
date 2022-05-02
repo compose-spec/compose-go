@@ -24,7 +24,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -385,7 +384,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.MappingWithEquals{}):                transformMappingOrListFunc("=", true),
 		reflect.TypeOf(types.Labels{}):                           transformMappingOrListFunc("=", false),
 		reflect.TypeOf(types.MappingWithColon{}):                 transformMappingOrListFunc(":", false),
-		reflect.TypeOf(types.HostsList{}):                        transformListOrMappingFunc(":", false),
+		reflect.TypeOf(types.HostsList{}):                        transformMappingOrListFunc(":", false),
 		reflect.TypeOf(types.ServiceVolumeConfig{}):              transformServiceVolumeConfig,
 		reflect.TypeOf(types.BuildConfig{}):                      transformBuildConfig,
 		reflect.TypeOf(types.Duration(0)):                        transformStringToDuration,
@@ -1060,22 +1059,6 @@ func transformMappingOrListFunc(sep string, allowNil bool) TransformerFunc {
 	}
 }
 
-func transformListOrMappingFunc(sep string, allowNil bool) TransformerFunc {
-	return func(data interface{}) (interface{}, error) {
-		return transformListOrMapping(data, sep, allowNil)
-	}
-}
-
-func transformListOrMapping(listOrMapping interface{}, sep string, allowNil bool) (interface{}, error) {
-	switch value := listOrMapping.(type) {
-	case map[string]interface{}:
-		return toStringList(value, sep, allowNil), nil
-	case []interface{}:
-		return listOrMapping, nil
-	}
-	return nil, errors.Errorf("expected a map or a list, got %T: %#v", listOrMapping, listOrMapping)
-}
-
 func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool) (interface{}, error) {
 	switch value := mappingOrList.(type) {
 	case map[string]interface{}:
@@ -1167,16 +1150,4 @@ func toString(value interface{}, allowNil bool) interface{} {
 	default:
 		return ""
 	}
-}
-
-func toStringList(value map[string]interface{}, separator string, allowNil bool) []string {
-	var output []string
-	for key, value := range value {
-		if value == nil && !allowNil {
-			continue
-		}
-		output = append(output, fmt.Sprintf("%s%s%s", key, separator, value))
-	}
-	sort.Strings(output)
-	return output
 }

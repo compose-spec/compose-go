@@ -1256,3 +1256,28 @@ func TestMergeEnvironments(t *testing.T) {
 	assert.Assert(t, *env["NAME"] == "DEV")
 	assert.Assert(t, env["VALUE"] == nil)
 }
+
+func TestMergeExtraHosts(t *testing.T) {
+	base := types.HostsList{
+		"kept":              "192.168.1.100",
+		"extra1.domain.org": "192.168.1.101",
+		"extra2.domain.org": "192.168.1.102",
+	}
+	override := types.HostsList{
+		"extra1.domain.org": "10.0.0.1",
+		"extra2.domain.org": "10.0.0.2",
+		"added":             "10.0.0.3",
+	}
+	err := mergo.Merge(&base, &override, mergo.WithOverride)
+	assert.NilError(t, err)
+	assert.DeepEqual(
+		t,
+		base,
+		types.HostsList{
+			"kept":              "192.168.1.100",
+			"extra1.domain.org": "10.0.0.1",
+			"extra2.domain.org": "10.0.0.2",
+			"added":             "10.0.0.3",
+		},
+	)
+}
