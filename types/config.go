@@ -19,6 +19,7 @@ package types
 import (
 	"encoding/json"
 
+	"github.com/compose-spec/compose-go/utils"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -32,7 +33,7 @@ type ConfigDetails struct {
 
 // LookupEnv provides a lookup function for environment variables
 func (cd ConfigDetails) LookupEnv(key string) (string, bool) {
-	v, ok := cd.Environment[key]
+	v, ok := utils.EnvResolver(cd.Environment)(key)
 	return v, ok
 }
 
