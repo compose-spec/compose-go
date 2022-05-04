@@ -18,9 +18,15 @@ package types
 
 import (
 	"encoding/json"
+	"runtime"
+	"strings"
 
-	"github.com/compose-spec/compose-go/utils"
 	"github.com/mitchellh/mapstructure"
+)
+
+var (
+	// isCaseInsensitiveEnvVars is true on platforms where environment variable names are treated case-insensitively.
+	isCaseInsensitiveEnvVars = (runtime.GOOS == "windows")
 )
 
 // ConfigDetails are the details about a group of ConfigFiles
@@ -33,8 +39,22 @@ type ConfigDetails struct {
 
 // LookupEnv provides a lookup function for environment variables
 func (cd ConfigDetails) LookupEnv(key string) (string, bool) {
-	v, ok := utils.EnvResolver(cd.Environment)(key)
-	return v, ok
+	v, ok := cd.Environment[key]
+	if !isCaseInsensitiveEnvVars || ok {
+		return v, ok
+	}
+	// variable names must be treated case-insensitively on some platforms (that is, Windows).
+	// Resolves in this way:
+	// * Return the value if its name matches with the passed name case-sensitively.
+	// * Otherwise, return the value if its lower-cased name matches lower-cased passed name.
+	//     * The value is indefinite if multiple variables match.
+	lowerKey := strings.ToLower(key)
+	for k, v := range cd.Environment {
+		if strings.ToLower(k) == lowerKey {
+			return v, true
+		}
+	}
+	return "", false
 }
 
 // ConfigFile is a filename and the contents of the file as a Dict
