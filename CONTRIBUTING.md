@@ -81,7 +81,8 @@ Then you just add a line to every git commit message:
 
     Signed-off-by: Joe Smith <joe.smith@email.com>
 
-Use your real name (sorry, no pseudonyms or anonymous contributions.)
+Use your real name. (sorry, no pseudonyms or anonymous contributions.)
+Committer name (`user.name` in git config) also must be your real name.
 
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
