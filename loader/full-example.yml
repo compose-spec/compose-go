@@ -22,6 +22,9 @@ services:
           uid: '103'
           gid: '103'
           mode: 0440
+      tags:
+        - foo:v1.0.0
+        - docker.io/username/foo:my-other-tag
 
 
     cap_add:
