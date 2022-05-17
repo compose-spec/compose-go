@@ -26,10 +26,15 @@ import (
 func TestConvertWithEnvVar(t *testing.T) {
 	os.Setenv("COMPOSE_CONVERT_WINDOWS_PATHS", "1")
 	defer os.Unsetenv("COMPOSE_CONVERT_WINDOWS_PATHS")
-	opts, _ := NewProjectOptions([]string{"testdata/simple/compose-with-paths.yaml"}, WithOsEnv)
+	opts, _ := NewProjectOptions([]string{"testdata/simple/compose-with-paths.yaml"},
+		WithOsEnv,
+		WithWorkingDirectory("C:\\\\"))
 
 	p, err := ProjectFromOptions(opts)
 
 	assert.NilError(t, err)
+	assert.Equal(t, len(p.Services[0].Volumes), 3)
 	assert.Equal(t, p.Services[0].Volumes[0].Source, "/c/docker/project")
+	assert.Equal(t, p.Services[0].Volumes[1].Source, "/c/relative")
+	assert.Equal(t, p.Services[0].Volumes[2].Source, "/c/relative2")
 }

@@ -5,3 +5,7 @@ services:
     - type: bind
       source: C:\docker\project
       target: /test
+    - type: bind
+      source: ./relative
+      target: /test-relative
+    - ./relative2:/test-relative2
