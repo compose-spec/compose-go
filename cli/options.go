@@ -222,7 +222,7 @@ func WithDotEnv(o *ProjectOptions) error {
 
 	notInEnvSet := make(map[string]interface{})
 	env, err := dotenv.ParseWithLookup(file, func(k string) (string, bool) {
-		v, ok := os.LookupEnv(k)
+		v, ok := o.Environment[k]
 		if !ok {
 			notInEnvSet[k] = nil
 			return "", true
