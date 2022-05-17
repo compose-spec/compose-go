@@ -63,6 +63,9 @@ func NewProjectOptions(configs []string, opts ...ProjectOptionsFn) (*ProjectOpti
 // WithName defines ProjectOptions' name
 func WithName(name string) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
+		if name != loader.NormalizeProjectName(name) {
+			return fmt.Errorf("%q is not a valid project name", name)
+		}
 		o.Name = name
 		return nil
 	}

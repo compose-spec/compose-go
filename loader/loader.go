@@ -69,7 +69,7 @@ type Options struct {
 }
 
 func (o *Options) SetProjectName(name string, imperativelySet bool) {
-	o.projectName = normalizeProjectName(name)
+	o.projectName = NormalizeProjectName(name)
 	o.projectNameImperativelySet = imperativelySet
 }
 
@@ -208,7 +208,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	projectName, projectNameImperativelySet := opts.GetProjectName()
-	model.Name = normalizeProjectName(model.Name)
+	model.Name = NormalizeProjectName(model.Name)
 	if !projectNameImperativelySet && model.Name != "" {
 		projectName = model.Name
 	}
@@ -245,7 +245,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	return project, nil
 }
 
-func normalizeProjectName(s string) string {
+func NormalizeProjectName(s string) string {
 	r := regexp.MustCompile("[a-z0-9_-]")
 	s = strings.ToLower(s)
 	s = strings.Join(r.FindAllString(s, -1), "")
