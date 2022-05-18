@@ -804,7 +804,7 @@ func loadFileObjectConfig(name string, objType string, obj types.FileObjectConfi
 			return obj, errors.Errorf("%[1]s %[2]s: %[1]s.driver and %[1]s.file conflict; only use %[1]s.driver", objType, name)
 		}
 	default:
-		if resolvePaths {
+		if obj.File != "" && resolvePaths {
 			obj.File = absPath(details.WorkingDir, obj.File)
 		}
 	}

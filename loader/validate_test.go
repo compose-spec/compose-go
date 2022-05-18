@@ -139,3 +139,48 @@ func TestValidateNetworkMode(t *testing.T) {
 		assert.NilError(t, err)
 	})
 }
+
+func TestValidateSecret(t *testing.T) {
+	t.Run("secret set by file", func(t *testing.T) {
+		project := &types.Project{
+			Secrets: types.Secrets{
+				"foo": types.SecretConfig{
+					File: ".secret",
+				},
+			},
+		}
+		err := checkConsistency(project)
+		assert.NilError(t, err)
+	})
+	t.Run("secret set by environment", func(t *testing.T) {
+		project := &types.Project{
+			Secrets: types.Secrets{
+				"foo": types.SecretConfig{
+					Environment: "TOKEN",
+				},
+			},
+		}
+		err := checkConsistency(project)
+		assert.NilError(t, err)
+	})
+	t.Run("external secret", func(t *testing.T) {
+		project := &types.Project{
+			Secrets: types.Secrets{
+				"foo": types.SecretConfig{
+					External: types.External{External: true},
+				},
+			},
+		}
+		err := checkConsistency(project)
+		assert.NilError(t, err)
+	})
+	t.Run("uset secret", func(t *testing.T) {
+		project := &types.Project{
+			Secrets: types.Secrets{
+				"foo": types.SecretConfig{},
+			},
+		}
+		err := checkConsistency(project)
+		assert.Error(t, err, "secret \"foo\" must declare either `file` or `environment`: invalid compose project")
+	})
+}

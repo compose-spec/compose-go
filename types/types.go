@@ -891,6 +891,7 @@ type CredentialSpecConfig struct {
 type FileObjectConfig struct {
 	Name           string                 `yaml:",omitempty" json:"name,omitempty"`
 	File           string                 `yaml:",omitempty" json:"file,omitempty"`
+	Environment    string                 `yaml:",omitempty" json:"environment,omitempty"`
 	External       External               `yaml:",omitempty" json:"external,omitempty"`
 	Labels         Labels                 `yaml:",omitempty" json:"labels,omitempty"`
 	Driver         string                 `yaml:",omitempty" json:"driver,omitempty"`

@@ -31,7 +31,7 @@ func fullExampleConfig(workingDir, homeDir string) *types.Config {
 		Services: services(workingDir, homeDir),
 		Networks: networks(),
 		Volumes:  volumes(),
-		Configs:  configs(workingDir),
+		Configs:  configs(workingDir, homeDir),
 		Secrets:  secrets(workingDir),
 		Extensions: map[string]interface{}{
 			"x-foo": "bar",
@@ -520,7 +520,7 @@ func volumes() map[string]types.VolumeConfig {
 	}
 }
 
-func configs(workingDir string) map[string]types.ConfigObjConfig {
+func configs(workingDir string, homeDir string) map[string]types.ConfigObjConfig {
 	return map[string]types.ConfigObjConfig{
 		"config1": {
 			File: filepath.Join(workingDir, "config_data"),
@@ -538,7 +538,7 @@ func configs(workingDir string) map[string]types.ConfigObjConfig {
 		},
 		"config4": {
 			Name: "foo",
-			File: workingDir,
+			File: filepath.Join(homeDir, "config_data"),
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
 				"x-foo": "bar",
@@ -564,8 +564,8 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 			External: types.External{External: true},
 		},
 		"secret4": {
-			Name: "bar",
-			File: workingDir,
+			Name:        "bar",
+			Environment: "BAR",
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
 				"x-foo": "bar",
@@ -973,7 +973,7 @@ secrets:
     external: true
   secret4:
     name: bar
-    file: %s
+    environment: BAR
     x-bar: baz
     x-foo: bar
 configs:
@@ -1003,9 +1003,8 @@ x-nested:
 		filepath.Join(homeDir, "configs"),
 		filepath.Join(workingDir, "opt"),
 		filepath.Join(workingDir, "secret_data"),
-		filepath.Join(workingDir),
 		filepath.Join(workingDir, "config_data"),
-		filepath.Join(workingDir))
+		filepath.Join(homeDir, "config_data"))
 }
 
 func fullExampleJSON(workingDir, homeDir string) string {
@@ -1096,7 +1095,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
     },
     "secret4": {
       "name": "bar",
-      "file": "%s",
+      "environment": "BAR",
       "external": false
     }
   },
@@ -1613,9 +1612,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
   }
 }`,
 		toPath(workingDir, "config_data"),
-		toPath(workingDir),
+		toPath(homeDir, "config_data"),
 		toPath(workingDir, "secret_data"),
-		toPath(workingDir),
 		toPath(workingDir),
 		toPath(workingDir, "static"),
 		toPath(homeDir, "configs"),
