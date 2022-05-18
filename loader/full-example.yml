@@ -405,6 +405,7 @@ configs:
     external: true
   config4:
     name: foo
+    file: ~/config_data
     x-bar: baz
     x-foo: bar
 
@@ -420,6 +421,7 @@ secrets:
     external: true
   secret4:
     name: bar
+    environment: BAR
     x-bar: baz
     x-foo: bar
 x-bar: baz

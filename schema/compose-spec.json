@@ -685,6 +685,7 @@
       "type": "object",
       "properties": {
         "name": {"type": "string"},
+        "environment": {"type": "string"},
         "file": {"type": "string"},
         "external": {
           "type": ["boolean", "object"],
