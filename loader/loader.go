@@ -392,6 +392,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
 		reflect.TypeOf(types.DeviceRequest{}):                    transformServiceDeviceRequest,
 		reflect.TypeOf(types.SSHConfig{}):                        transformSSHConfig,
+		reflect.TypeOf(types.Trigger{}):                          transformTrigger,
 	}
 
 	for _, transformer := range additionalTransformers {
@@ -1031,6 +1032,16 @@ func ParseShortSSHSyntax(value string) ([]types.SSHKey, error) {
 	key, val := transformValueToMapEntry(value, "=", false)
 	result := []types.SSHKey{{ID: key, Path: val.(string)}}
 	return result, nil
+}
+
+var transformTrigger TransformerFunc = func(data interface{}) (interface{}, error) {
+	switch value := data.(type) {
+	case string:
+		return types.Trigger{Strategy: value}, nil
+	case map[string]interface{}:
+		return data, nil
+	}
+	return nil, errors.Errorf("expected a string or mapping, got %T: %#v", data, data)
 }
 
 var transformStringOrNumberList TransformerFunc = func(value interface{}) (interface{}, error) {

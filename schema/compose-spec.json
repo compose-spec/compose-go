@@ -82,6 +82,7 @@
 
       "properties": {
         "deploy": {"$ref": "#/definitions/deployment"},
+        "develop": {"$ref": "#/definitions/development"},
         "build": {
           "oneOf": [
             {"type": "string"},
@@ -447,6 +448,34 @@
       },
       "additionalProperties": false,
       "patternProperties": {"^x-": {}}
+    },
+    "development": {
+      "id": "#/definitions/development",
+      "type": ["object", "null"],
+      "properties": {
+        "watch": {
+          "type": "object",
+          "properties": {
+            "ignores": {"type": "array", "items": {"type": "string"}},
+            "quiet_period": {"type": "string"},
+            "trigger": {
+              "oneOf": [
+                {"type": "string"},
+                {
+                  "type": "object",
+                  "properties": {
+                    "strategy": {"type": "string"},
+                    "paths": {"type": "array", "items": {"type": "string"}},
+                    "signal": {"type": "string"}
+                  }
+                }
+              ]
+            }
+          },
+          "additionalProperties": false,
+          "patternProperties": {"^x-": {}}
+        }
+      }
     },
     "deployment": {
       "id": "#/definitions/deployment",

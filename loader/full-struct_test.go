@@ -72,6 +72,17 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				},
 				Tags: []string{"foo:v1.0.0", "docker.io/username/foo:my-other-tag"},
 			},
+			Develop: &types.DevelopmentConfig{
+				Watch: types.WatchConfig{
+					QuietPeriod: durationPtr(5 * time.Second),
+					Ignores:     []string{"ignored/**"},
+					Trigger: types.Trigger{
+						Strategy: "sync",
+						Paths:    []string{"src:/app"},
+						Signal:   "sighup",
+					},
+				},
+			},
 			CapAdd:       []string{"ALL"},
 			CapDrop:      []string{"NET_ADMIN", "SYS_ADMIN"},
 			CgroupParent: "m-executor-abcd",
@@ -602,6 +613,16 @@ services:
       tags:
       - foo:v1.0.0
       - docker.io/username/foo:my-other-tag
+    develop:
+      watch:
+        quiet_period: 5s
+        ignores:
+        - ignored/**
+        trigger:
+          strategy: sync
+          paths:
+          - src:/app
+          signal: sighup
     cap_add:
     - ALL
     cap_drop:
@@ -1136,6 +1157,21 @@ func fullExampleJSON(workingDir, homeDir string) string {
           "foo:v1.0.0",
           "docker.io/username/foo:my-other-tag"
         ]
+      },
+      "develop": {
+        "watch": {
+          "quiet_period": "5s",
+          "ignores": [
+            "ignored/**"
+          ],
+          "trigger": {
+            "strategy": "sync",
+            "paths": [
+              "src:/app"
+            ],
+            "signal": "sighup"
+          }
+        }
       },
       "cap_add": [
         "ALL"

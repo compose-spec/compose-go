@@ -26,6 +26,16 @@ services:
         - foo:v1.0.0
         - docker.io/username/foo:my-other-tag
 
+    develop:
+      watch:
+        quiet_period: 5s
+        ignores:
+          - ignored/**
+        trigger:
+          strategy: sync
+          paths:
+            - src:/app
+          signal: sighup
 
     cap_add:
       - ALL

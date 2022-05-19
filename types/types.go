@@ -89,6 +89,7 @@ type ServiceConfig struct {
 	Profiles []string `mapstructure:"profiles" yaml:"profiles,omitempty" json:"profiles,omitempty"`
 
 	Build             *BuildConfig                     `yaml:",omitempty" json:"build,omitempty"`
+	Develop           *DevelopmentConfig               `mapstructure:"develop" yaml:"develop,omitempty" json:"develop,omitempty"`
 	BlkioConfig       *BlkioConfig                     `mapstructure:"blkio_config" yaml:",omitempty" json:"blkio_config,omitempty"`
 	CapAdd            []string                         `mapstructure:"cap_add" yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
 	CapDrop           []string                         `mapstructure:"cap_drop" yaml:"cap_drop,omitempty" json:"cap_drop,omitempty"`
@@ -309,6 +310,31 @@ type BuildConfig struct {
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
+
+// DevelopmentConfig holds configuration for development usages
+type DevelopmentConfig struct {
+	Watch WatchConfig `yaml:",omitempty" json:"watch,omitempty"`
+}
+
+// WatchConfig holds the change watch configuration
+type WatchConfig struct {
+	QuietPeriod *Duration `mapstructure:"quiet_period" yaml:"quiet_period,omitempty" json:"quiet_period,omitempty"`
+	Ignores     []string  `yaml:",omitempty" json:"ignores,omitempty"`
+	Trigger     Trigger   `yaml:",omitempty" json:"trigger,omitempty"`
+}
+
+// Trigger holds the action triggered according to WatchConfig
+type Trigger struct {
+	Strategy string   `yaml:",omitempty" json:"strategy,omitempty"`
+	Paths    []string `yaml:",omitempty" json:"paths,omitempty"`
+	Signal   string   `yaml:",omitempty" json:"signal,omitempty"`
+}
+
+const (
+	WatchBuild  = "build"
+	WatchSignal = "signal"
+	WatchSync   = "sync"
+)
 
 // BlkioConfig define blkio config
 type BlkioConfig struct {
