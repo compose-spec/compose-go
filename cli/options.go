@@ -170,6 +170,9 @@ func WithLoadOptions(loadOptions ...func(*loader.Options)) ProjectOptionsFn {
 // WithOsEnv imports environment variables from OS
 func WithOsEnv(o *ProjectOptions) error {
 	for k, v := range getAsEqualsMap(os.Environ()) {
+		if _, set := o.Environment[k]; set {
+			continue
+		}
 		o.Environment[k] = v
 	}
 	return nil
@@ -237,6 +240,9 @@ func WithDotEnv(o *ProjectOptions) error {
 	}
 	for k, v := range env {
 		if _, ok := notInEnvSet[k]; ok {
+			continue
+		}
+		if _, set := o.Environment[k]; set {
 			continue
 		}
 		o.Environment[k] = v
