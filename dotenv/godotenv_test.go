@@ -612,3 +612,34 @@ func TestExpendingEnvironmentWithLookup(t *testing.T) {
 		t.Errorf("Expected '%v' to parse as '%v' => '%v', got '%v' => '%v' instead", rawEnvLine, key, expectedValue, key, value)
 	}
 }
+
+func TestSubstitutionsWithShellEnvPrecedence(t *testing.T) {
+	os.Clearenv()
+	const envKey = "OPTION_A"
+	const envVal = "5"
+	os.Setenv(envKey, envVal)
+	defer os.Unsetenv(envKey)
+
+	envFileName := "fixtures/substitutions.env"
+	expectedValues := map[string]string{
+		"OPTION_A": "5",
+		"OPTION_B": "5",
+		"OPTION_C": "5",
+		"OPTION_D": "55",
+		"OPTION_E": "",
+	}
+
+	envMap, err := ReadWithLookup(os.LookupEnv, envFileName)
+	if err != nil {
+		t.Error("Error reading file")
+	}
+	if len(envMap) != len(expectedValues) {
+		t.Error("Didn't get the right size map back")
+	}
+
+	for key, value := range expectedValues {
+		if envMap[key] != value {
+			t.Errorf("Read got one of the keys wrong, [%q]->%q", key, envMap[key])
+		}
+	}
+}

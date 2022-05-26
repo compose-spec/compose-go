@@ -1833,8 +1833,10 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 		"env_file": file.Name(),
 	}
 	s, err := LoadService("Test Name", m, ".", func(s string) (string, bool) {
-		assert.Equal(t, "TEST", s)
-		return "YES", true
+		if s == "TEST" {
+			return "YES", true
+		}
+		return "", false
 	}, true, false)
 	assert.NilError(t, err)
 	assert.Equal(t, "YES", *s.Environment["HALLO"])

@@ -226,12 +226,11 @@ func WithDotEnv(o *ProjectOptions) error {
 	}
 	defer file.Close()
 
-	notInEnvSet := make(map[string]interface{})
 	env, err := dotenv.ParseWithLookup(file, func(k string) (string, bool) {
 		v, ok := o.Environment[k]
 		if !ok {
-			notInEnvSet[k] = nil
-			return "", true
+
+			return "", false
 		}
 		return v, true
 	})
@@ -239,9 +238,6 @@ func WithDotEnv(o *ProjectOptions) error {
 		return err
 	}
 	for k, v := range env {
-		if _, ok := notInEnvSet[k]; ok {
-			continue
-		}
 		if _, set := o.Environment[k]; set {
 			continue
 		}
