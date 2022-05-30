@@ -917,7 +917,11 @@ func TestFullExample(t *testing.T) {
 
 	homeDir, err := os.UserHomeDir()
 	assert.NilError(t, err)
-	env := map[string]string{"HOME": homeDir, "QUX": "qux_from_environment"}
+	env := map[string]string{
+		"HOME": homeDir,
+		"BAR":  "this is a secret",
+		"QUX":  "qux_from_environment",
+	}
 	config, err := loadYAMLWithEnv(string(b), env)
 	assert.NilError(t, err)
 
