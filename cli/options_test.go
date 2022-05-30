@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/compose-spec/compose-go/consts"
+	"github.com/compose-spec/compose-go/utils"
 	"gotest.tools/v3/assert"
 )
 
@@ -231,8 +232,8 @@ func TestProjectNameFromWorkingDir(t *testing.T) {
 func TestEnvMap(t *testing.T) {
 	m := map[string]string{}
 	m["foo"] = "bar"
-	l := getAsStringList(m)
+	l := utils.GetAsStringList(m)
 	assert.Equal(t, l[0], "foo=bar")
-	m = getAsEqualsMap(l)
+	m = utils.GetAsEqualsMap(l)
 	assert.Equal(t, m["foo"], "bar")
 }
