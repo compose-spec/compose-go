@@ -34,18 +34,30 @@ import (
 )
 
 func buildConfigDetails(yaml string, env map[string]string) types.ConfigDetails {
+	return buildConfigDetailsMultipleFiles(env, yaml)
+}
+
+func buildConfigDetailsMultipleFiles(env map[string]string, yamls ...string) types.ConfigDetails {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		panic(err)
 	}
 
 	return types.ConfigDetails{
-		WorkingDir: workingDir,
-		ConfigFiles: []types.ConfigFile{
-			{Filename: "filename.yml", Content: []byte(yaml)},
-		},
+		WorkingDir:  workingDir,
+		ConfigFiles: buildConfigFiles(yamls),
 		Environment: env,
 	}
+}
+
+func buildConfigFiles(yamls []string) []types.ConfigFile {
+	configFiles := []types.ConfigFile{}
+	for i, yaml := range yamls {
+		configFiles = append(configFiles, types.ConfigFile{
+			Filename: fmt.Sprintf("filename%d.yml", i),
+			Content:  []byte(yaml)})
+	}
+	return configFiles
 }
 
 func loadYAML(yaml string) (*types.Project, error) {
@@ -1950,4 +1962,77 @@ services:
 	sshValue, err = svc.Build.SSH.Get("key2")
 	assert.NilError(t, err)
 	assert.Equal(t, "value2", sshValue)
+}
+
+func TestProjectNameInterpolation(t *testing.T) {
+	t.Run("project name simple interpolation", func(t *testing.T) {
+		yaml := `
+name: interpolated
+services:
+  web:
+    image: web
+    container_name: ${COMPOSE_PROJECT_NAME}-web
+`
+		configDetails := buildConfigDetails(yaml, map[string]string{})
+
+		actual, err := Load(configDetails)
+		assert.NilError(t, err)
+		svc, err := actual.GetService("web")
+		assert.NilError(t, err)
+		assert.Equal(t, "interpolated-web", svc.ContainerName)
+	})
+
+	t.Run("project name interpolation with override", func(t *testing.T) {
+		yaml1 := `
+name: interpolated
+services:
+  web:
+    image: web
+    container_name: ${COMPOSE_PROJECT_NAME}-web
+`
+		yaml2 := `
+name: overrided
+services:
+  db:
+    image: db
+    container_name: ${COMPOSE_PROJECT_NAME}-db
+`
+		yaml3 := `
+services:
+  proxy:
+    image: proxy
+    container_name: ${COMPOSE_PROJECT_NAME}-proxy
+`
+		configDetails := buildConfigDetailsMultipleFiles(map[string]string{}, yaml1, yaml2, yaml3)
+
+		actual, err := Load(configDetails)
+		assert.NilError(t, err)
+		svc, err := actual.GetService("web")
+		assert.NilError(t, err)
+		assert.Equal(t, "overrided-web", svc.ContainerName)
+
+		svc, err = actual.GetService("db")
+		assert.NilError(t, err)
+		assert.Equal(t, "overrided-db", svc.ContainerName)
+
+		svc, err = actual.GetService("proxy")
+		assert.NilError(t, err)
+		assert.Equal(t, "overrided-proxy", svc.ContainerName)
+	})
+
+	t.Run("project name env variable interpolation", func(t *testing.T) {
+		yaml := `
+name: interpolated
+services:
+  web:
+    image: web
+    container_name: ${COMPOSE_PROJECT_NAME}-web
+`
+		configDetails := buildConfigDetails(yaml, map[string]string{"COMPOSE_PROJECT_NAME": "env-var"})
+		actual, err := Load(configDetails)
+		assert.NilError(t, err)
+		svc, err := actual.GetService("web")
+		assert.NilError(t, err)
+		assert.Equal(t, "env-var-web", svc.ContainerName)
+	})
 }

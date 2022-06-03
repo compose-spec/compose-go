@@ -160,6 +160,8 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		op(opts)
 	}
 
+	projectName := projectName(configDetails, opts)
+
 	var configs []*types.Config
 	for i, file := range configDetails.ConfigFiles {
 		configDict := file.Config
@@ -207,15 +209,6 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		s.EnvFile = newEnvFiles
 	}
 
-	projectName, projectNameImperativelySet := opts.GetProjectName()
-	model.Name = NormalizeProjectName(model.Name)
-	if !projectNameImperativelySet && model.Name != "" {
-		projectName = model.Name
-	}
-
-	if projectName != "" {
-		configDetails.Environment[consts.ComposeProjectName] = projectName
-	}
 	project := &types.Project{
 		Name:        projectName,
 		WorkingDir:  configDetails.WorkingDir,
@@ -243,6 +236,30 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	return project, nil
+}
+
+func projectName(details types.ConfigDetails, opts *Options) string {
+	projectName, projectNameImperativelySet := opts.GetProjectName()
+	var pjNameFromConfigFile string
+
+	for _, configFile := range details.ConfigFiles {
+		yml, err := ParseYAML(configFile.Content)
+		if err != nil {
+			return ""
+		}
+		if val, ok := yml["name"]; ok && val != "" {
+			pjNameFromConfigFile = yml["name"].(string)
+		}
+	}
+	pjNameFromConfigFile = NormalizeProjectName(pjNameFromConfigFile)
+	if !projectNameImperativelySet && pjNameFromConfigFile != "" {
+		projectName = pjNameFromConfigFile
+	}
+
+	if _, ok := details.Environment[consts.ComposeProjectName]; !ok && projectName != "" {
+		details.Environment[consts.ComposeProjectName] = projectName
+	}
+	return projectName
 }
 
 func NormalizeProjectName(s string) string {
