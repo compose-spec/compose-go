@@ -477,6 +477,11 @@ func LoadServices(filename string, servicesDict map[string]interface{}, workingD
 		services = append(services, *serviceConfig)
 	}
 
+	g := NewGraph(services)
+	if hasCycle, err := g.HasCycles(); hasCycle {
+		return nil, err
+	}
+
 	return services, nil
 }
 

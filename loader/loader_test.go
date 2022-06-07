@@ -1951,3 +1951,17 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, "value2", sshValue)
 }
+
+func TestLoadServicesContainCircularDependencyConfig(t *testing.T) {
+	actual, err := loadYAML(`
+services:
+  a:
+    depends_on:
+      - b
+  b:
+    depends_on:
+      - a
+`)
+	assert.Equal(t, actual, (*types.Project)(nil))
+	assert.ErrorContains(t, err, "cycle found")
+}
