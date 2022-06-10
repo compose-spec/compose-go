@@ -83,6 +83,13 @@ func Test_ForServices(t *testing.T) {
 	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
 }
 
+func Test_ForServicesCycle(t *testing.T) {
+	p := makeProject()
+	p.Services[0].Links = []string{"service_2"}
+	err := p.ForServices([]string{"service_2"})
+	assert.NilError(t, err)
+}
+
 func makeProject() Project {
 	return Project{
 		Services: append(Services{},
