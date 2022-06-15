@@ -70,7 +70,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 						Mode:   uint32Ptr(0440),
 					},
 				},
-				Tags: []string{"foo:v1.0.0", "docker.io/username/foo:my-other-tag"},
+				Tags: []string{"foo:v1.0.0", "docker.io/username/foo:my-other-tag", "full_example_project_name:1.0.0"},
 			},
 			CapAdd:       []string{"ALL"},
 			CapDrop:      []string{"NET_ADMIN", "SYS_ADMIN"},
@@ -602,6 +602,7 @@ services:
       tags:
       - foo:v1.0.0
       - docker.io/username/foo:my-other-tag
+      - full_example_project_name:1.0.0
     cap_add:
     - ALL
     cap_drop:
@@ -1133,7 +1134,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
         ],
         "tags": [
           "foo:v1.0.0",
-          "docker.io/username/foo:my-other-tag"
+          "docker.io/username/foo:my-other-tag",
+          "full_example_project_name:1.0.0"
         ]
       },
       "cap_add": [
