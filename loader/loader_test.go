@@ -778,10 +778,12 @@ func TestDiscardEnvFileOption(t *testing.T) {
      - example2.env
 `
 	expectedEnvironmentMap := types.MappingWithEquals{
-		"FOO": strPtr("foo_from_env_file"),
-		"BAZ": strPtr("baz_from_env_file"),
-		"BAR": strPtr("bar_from_env_file_2"), // Original value is overwritten by example2.env
-		"QUX": strPtr("quz_from_env_file_2"),
+		"FOO":                 strPtr("foo_from_env_file"),
+		"BAZ":                 strPtr("baz_from_env_file"),
+		"BAR":                 strPtr("bar_from_env_file_2"), // Original value is overwritten by example2.env
+		"QUX":                 strPtr("quz_from_env_file_2"),
+		"ENV.WITH.DOT":        strPtr("ok"),
+		"ENV_WITH_UNDERSCORE": strPtr("ok"),
 	}
 	configDetails := buildConfigDetails(dict, nil)
 
