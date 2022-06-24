@@ -129,7 +129,7 @@ loop:
 }
 
 // extractVarValue extracts variable value and returns rest of slice
-func extractVarValue(src []byte, envMap map[string]string, lookupFn LookupFn) (value string, rest []byte, err error) {
+func extractVarValue(src []byte, envMap map[string]string, lookupFn LookupFn) (string, []byte, error) {
 	quote, isQuoted := hasQuotePrefix(src)
 	if !isQuoted {
 		// unquoted value - read until new line
@@ -138,13 +138,17 @@ func extractVarValue(src []byte, envMap map[string]string, lookupFn LookupFn) (v
 		if end < 0 {
 			value := strings.Split(string(src), "#")[0] // Remove inline comments on unquoted lines
 			value = strings.TrimRightFunc(value, unicode.IsSpace)
-			return expandVariables(value, envMap, lookupFn), nil, nil
+
+			retVal, err := expandVariables(value, envMap, lookupFn)
+			return retVal, nil, err
 		}
 
 		value := strings.Split(string(src[0:end]), "#")[0]
 		value = strings.TrimRightFunc(value, unicode.IsSpace)
 		rest = src[end:]
-		return expandVariables(value, envMap, lookupFn), rest, nil
+
+		retVal, err := expandVariables(value, envMap, lookupFn)
+		return retVal, rest, err
 	}
 
 	// lookup quoted string terminator
@@ -160,11 +164,16 @@ func extractVarValue(src []byte, envMap map[string]string, lookupFn LookupFn) (v
 
 		// trim quotes
 		trimFunc := isCharFunc(rune(quote))
-		value = string(bytes.TrimLeftFunc(bytes.TrimRightFunc(src[0:i], trimFunc), trimFunc))
+		value := string(bytes.TrimLeftFunc(bytes.TrimRightFunc(src[0:i], trimFunc), trimFunc))
 		if quote == prefixDoubleQuote {
 			// unescape newlines for double quote (this is compat feature)
 			// and expand environment variables
-			value = expandVariables(expandEscapes(value), envMap, lookupFn)
+
+			retVal, err := expandVariables(expandEscapes(value), envMap, lookupFn)
+			if err != nil {
+				return "", nil, err
+			}
+			value = retVal
 		}
 
 		return value, src[i+1:], nil
@@ -187,6 +196,8 @@ func expandEscapes(str string) string {
 			return "\n"
 		case "r":
 			return "\r"
+		case "$":
+			return "$$"
 		default:
 			return match
 		}

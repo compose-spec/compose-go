@@ -24,6 +24,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/compose-spec/compose-go/template"
 )
 
 const doubleQuoteSpecialChars = "\\\n\r\"!$`"
@@ -322,42 +324,24 @@ func parseValue(value string, envMap map[string]string, lookupFn LookupFn) strin
 		}
 
 		if singleQuotes == nil {
-			value = expandVariables(value, envMap, lookupFn)
+			value, _ = expandVariables(value, envMap, lookupFn)
 		}
 	}
 
 	return value
 }
 
-var expandVarRegex = regexp.MustCompile(`(\\)?(\$)(\()?\{?([A-Z0-9_]+)?\}?`)
-
-func expandVariables(v string, envMap map[string]string, lookupFn LookupFn) string {
-	return expandVarRegex.ReplaceAllStringFunc(v, func(s string) string {
-		submatch := expandVarRegex.FindStringSubmatch(s)
-
-		if submatch == nil {
-			return s
+func expandVariables(value string, envMap map[string]string, lookupFn LookupFn) (string, error) {
+	retVal, err := template.Substitute(value, func(k string) (string, bool) {
+		if v, ok := envMap[k]; ok {
+			return v, ok
 		}
-		if submatch[1] == "\\" || submatch[2] == "(" {
-			return submatch[0][1:]
-		} else if submatch[4] != "" {
-			// first check if we have defined this already earlier
-			if envMap[submatch[4]] != "" {
-				return envMap[submatch[4]]
-			}
-			if lookupFn == nil {
-				return ""
-			}
-			// if we have not defined it, check the lookup function provided
-			// by the user
-			s2, ok := lookupFn(submatch[4])
-			if ok {
-				return s2
-			}
-			return ""
-		}
-		return s
+		return lookupFn(k)
 	})
+	if err != nil {
+		return value, err
+	}
+	return retVal, nil
 }
 
 func doubleQuoteEscape(line string) string {
