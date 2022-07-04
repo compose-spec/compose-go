@@ -165,7 +165,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			Entrypoint: []string{"/code/entrypoint.sh", "-p", "3000"},
 			Environment: map[string]*string{
 				"FOO":                 strPtr("foo_from_env_file"),
-				"BAR":                 strPtr("this is a secret"),
+				"BAR":                 strPtr("bar_from_env_file_2"),
 				"BAZ":                 strPtr("baz_from_service_def"),
 				"QUX":                 strPtr("qux_from_environment"),
 				"ENV.WITH.DOT":        strPtr("ok"),
@@ -692,7 +692,7 @@ services:
     - -p
     - "3000"
     environment:
-      BAR: this is a secret
+      BAR: bar_from_env_file_2
       BAZ: baz_from_service_def
       ENV.WITH.DOT: ok
       ENV_WITH_UNDERSCORE: ok
@@ -1265,7 +1265,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "3000"
       ],
       "environment": {
-        "BAR": "this is a secret",
+        "BAR": "bar_from_env_file_2",
         "BAZ": "baz_from_service_def",
         "ENV.WITH.DOT": "ok",
         "ENV_WITH_UNDERSCORE": "ok",

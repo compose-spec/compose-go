@@ -37,7 +37,6 @@ func parseBytes(src []byte, out map[string]string, lookupFn LookupFn) error {
 		}
 
 		if inherited {
-
 			value, ok := lookupFn(key)
 			if ok {
 				out[key] = value
@@ -49,9 +48,6 @@ func parseBytes(src []byte, out map[string]string, lookupFn LookupFn) error {
 		value, left, err := extractVarValue(left, out, lookupFn)
 		if err != nil {
 			return err
-		}
-		if lookUpValue, ok := lookupFn(key); ok {
-			value = lookUpValue
 		}
 
 		out[key] = value
