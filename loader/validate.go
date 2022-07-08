@@ -38,6 +38,12 @@ func checkConsistency(project *types.Project) error {
 			}
 		}
 
+		for dependedService := range s.DependsOn {
+			if _, err := project.GetService(dependedService); err != nil {
+				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q depends on undefined service %s", s.Name, dependedService))
+			}
+		}
+
 		if strings.HasPrefix(s.NetworkMode, types.ServicePrefix) {
 			serviceName := s.NetworkMode[len(types.ServicePrefix):]
 			if _, err := project.GetServices(serviceName); err != nil {

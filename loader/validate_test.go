@@ -184,3 +184,19 @@ func TestValidateSecret(t *testing.T) {
 		assert.Error(t, err, "secret \"foo\" must declare either `file` or `environment`: invalid compose project")
 	})
 }
+
+func TestValidateDependsOn(t *testing.T) {
+	project := types.Project{
+		Services: types.Services([]types.ServiceConfig{
+			{
+				Name:  "myservice",
+				Image: "scratch",
+				DependsOn: map[string]types.ServiceDependency{
+					"missingservice": {},
+				},
+			},
+		}),
+	}
+	err := checkConsistency(&project)
+	assert.Error(t, err, `service "myservice" depends on undefined service missingservice: invalid compose project`)
+}
