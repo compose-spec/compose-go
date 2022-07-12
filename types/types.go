@@ -204,26 +204,26 @@ func (s *ServiceConfig) NetworksByPriority() []string {
 }
 
 const (
-	//PullPolicyAlways always pull images
+	// PullPolicyAlways always pull images
 	PullPolicyAlways = "always"
-	//PullPolicyNever never pull images
+	// PullPolicyNever never pull images
 	PullPolicyNever = "never"
-	//PullPolicyIfNotPresent pull missing images
+	// PullPolicyIfNotPresent pull missing images
 	PullPolicyIfNotPresent = "if_not_present"
-	//PullPolicyMissing pull missing images
+	// PullPolicyMissing pull missing images
 	PullPolicyMissing = "missing"
-	//PullPolicyBuild force building images
+	// PullPolicyBuild force building images
 	PullPolicyBuild = "build"
 )
 
 const (
-	//RestartPolicyAlways always restart the container if it stops
+	// RestartPolicyAlways always restart the container if it stops
 	RestartPolicyAlways = "always"
-	//RestartPolicyOnFailure restart the container if it exits due to an error
+	// RestartPolicyOnFailure restart the container if it exits due to an error
 	RestartPolicyOnFailure = "on-failure"
-	//RestartPolicyNo do not automatically restart the container
+	// RestartPolicyNo do not automatically restart the container
 	RestartPolicyNo = "no"
-	//RestartPolicyUnlessStopped always restart the container unless the container is stopped (manually or otherwise)
+	// RestartPolicyUnlessStopped always restart the container unless the container is stopped (manually or otherwise)
 	RestartPolicyUnlessStopped = "unless-stopped"
 )
 

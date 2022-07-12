@@ -810,10 +810,8 @@ func loadFileObjectConfig(name string, objType string, obj types.FileObjectConfi
 			logrus.Warnf("%[1]s %[2]s: %[1]s.external.name is deprecated in favor of %[1]s.name", objType, name)
 			obj.Name = obj.External.Name
 			obj.External.Name = ""
-		} else {
-			if obj.Name == "" {
-				obj.Name = name
-			}
+		} else if obj.Name == "" {
+			obj.Name = name
 		}
 		// if not "external: true"
 	case obj.Driver != "":

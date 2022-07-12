@@ -1003,7 +1003,7 @@ x-nested:
   bar: baz
   foo: bar
 `,
-		filepath.Join(workingDir),
+		workingDir,
 		filepath.Join(workingDir, "static"),
 		filepath.Join(homeDir, "configs"),
 		filepath.Join(workingDir, "opt"),
