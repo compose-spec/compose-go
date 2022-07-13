@@ -242,18 +242,16 @@ func parseLineWithLookup(line string, envMap map[string]string, lookupFn LookupF
 	}
 
 	// ditch the comments (but keep quoted hashes)
-	if strings.Contains(line, "#") {
+	if strings.HasPrefix(strings.TrimSpace(line), "#") || strings.Contains(line, " #") {
 		segmentsBetweenHashes := strings.Split(line, "#")
 		quotesAreOpen := false
 		var segmentsToKeep []string
 		for _, segment := range segmentsBetweenHashes {
 			if strings.Count(segment, "\"") == 1 || strings.Count(segment, "'") == 1 {
 				if quotesAreOpen {
-					quotesAreOpen = false
 					segmentsToKeep = append(segmentsToKeep, segment)
-				} else {
-					quotesAreOpen = true
 				}
+				quotesAreOpen = !quotesAreOpen
 			}
 
 			if len(segmentsToKeep) == 0 || quotesAreOpen {
