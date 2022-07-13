@@ -637,7 +637,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 			}
 
 			// Do not defer to avoid it inside a loop
-			file.Close() // nolint:errcheck
+			file.Close() //nolint:errcheck
 
 			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), dotenv.LookupFn(lookupEnv))
 			if err != nil {
