@@ -17,10 +17,11 @@
 package loader
 
 import (
+	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
-	"path"
+	paths "path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -524,12 +525,12 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			// Resolve the path to the imported file, and load it.
 			baseFilePath := absPath(workingDir, *file)
 
-			bytes, err := ioutil.ReadFile(baseFilePath)
+			b, err := os.ReadFile(baseFilePath)
 			if err != nil {
 				return nil, err
 			}
 
-			baseFile, err := parseConfig(bytes, opts)
+			baseFile, err := parseConfig(b, opts)
 			if err != nil {
 				return nil, err
 			}
@@ -629,8 +630,16 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 			if err != nil {
 				return err
 			}
-			defer file.Close()
-			fileVars, err := dotenv.ParseWithLookup(file, dotenv.LookupFn(lookupEnv))
+
+			b, err := io.ReadAll(file)
+			if err != nil {
+				return err
+			}
+
+			// Do not defer to avoid it inside a loop
+			file.Close() // nolint:errcheck
+
+			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), dotenv.LookupFn(lookupEnv))
 			if err != nil {
 				return err
 			}
@@ -656,7 +665,7 @@ func resolveVolumePath(volume types.ServiceVolumeConfig, workingDir string, look
 	// Note that this is not required for Docker for Windows when specifying
 	// a local Windows path, because Docker for Windows translates the Windows
 	// path into a valid path within the VM.
-	if !path.IsAbs(filePath) && !isAbs(filePath) {
+	if !paths.IsAbs(filePath) && !isAbs(filePath) {
 		filePath = absPath(workingDir, filePath)
 	}
 	volume.Source = filePath
@@ -943,7 +952,7 @@ func cleanTarget(target string) string {
 	if target == "" {
 		return ""
 	}
-	return path.Clean(target)
+	return paths.Clean(target)
 }
 
 var transformBuildConfig TransformerFunc = func(data interface{}) (interface{}, error) {

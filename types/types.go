@@ -275,8 +275,8 @@ func (s ServiceConfig) GetDependencies() []string {
 
 type set map[string]struct{}
 
-func (s set) append(strings ...string) {
-	for _, str := range strings {
+func (s set) append(strs ...string) {
+	for _, str := range strs {
 		s[str] = struct{}{}
 	}
 }
@@ -459,9 +459,9 @@ func (s SSHKey) MarshalYAML() (interface{}, error) {
 // MarshalJSON makes SSHKey implement json.Marshaller
 func (s SSHKey) MarshalJSON() ([]byte, error) {
 	if s.Path == "" {
-		return []byte(fmt.Sprintf(`"%s"`, s.ID)), nil
+		return []byte(fmt.Sprintf(`%q`, s.ID)), nil
 	}
-	return []byte(fmt.Sprintf(`"%s": %s`, s.ID, s.Path)), nil
+	return []byte(fmt.Sprintf(`%q: %s`, s.ID, s.Path)), nil
 }
 
 // MappingWithColon is a mapping type that can be converted from a list of
