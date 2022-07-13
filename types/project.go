@@ -23,7 +23,7 @@ import (
 	"sort"
 
 	"github.com/distribution/distribution/v3/reference"
-	"github.com/opencontainers/go-digest"
+	godigest "github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -311,7 +311,7 @@ func (p *Project) ForServices(names []string) error {
 }
 
 // ResolveImages updates services images to include digest computed by a resolver function
-func (p *Project) ResolveImages(resolver func(named reference.Named) (digest.Digest, error)) error {
+func (p *Project) ResolveImages(resolver func(named reference.Named) (godigest.Digest, error)) error {
 	eg := errgroup.Group{}
 	for i, s := range p.Services {
 		idx := i

@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"regexp"
@@ -44,7 +43,7 @@ func Parse(r io.Reader) (map[string]string, error) {
 
 // ParseWithLookup reads an env file from io.Reader, returning a map of keys and values.
 func ParseWithLookup(r io.Reader, lookupFn LookupFn) (map[string]string, error) {
-	data, err := ioutil.ReadAll(r)
+	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +183,7 @@ func Marshal(envMap map[string]string) (string, error) {
 		if d, err := strconv.Atoi(v); err == nil {
 			lines = append(lines, fmt.Sprintf(`%s=%d`, k, d))
 		} else {
-			lines = append(lines, fmt.Sprintf(`%s="%s"`, k, doubleQuoteEscape(v)))
+			lines = append(lines, fmt.Sprintf(`%s="%s"`, k, doubleQuoteEscape(v))) //nolint // Cannot use %q here
 		}
 	}
 	sort.Strings(lines)
@@ -235,10 +234,9 @@ var exportRegex = regexp.MustCompile(`^\s*(?:export\s+)?(.*?)\s*$`)
 func parseLine(line string, envMap map[string]string) (key string, value string, err error) {
 	return parseLineWithLookup(line, envMap, nil)
 }
-func parseLineWithLookup(line string, envMap map[string]string, lookupFn LookupFn) (key string, value string, err error) {
-	if len(line) == 0 {
-		err = errors.New("zero length string")
-		return
+func parseLineWithLookup(line string, envMap map[string]string, lookupFn LookupFn) (string, string, error) {
+	if line == "" {
+		return "", "", errors.New("zero length string")
 	}
 
 	// ditch the comments (but keep quoted hashes)
@@ -271,14 +269,14 @@ func parseLineWithLookup(line string, envMap map[string]string, lookupFn LookupF
 	}
 
 	if len(splitString) != 2 {
-		err = errors.New("can't separate key from value")
-		return
+		return "", "", errors.New("can't separate key from value")
 	}
-	key = exportRegex.ReplaceAllString(splitString[0], "$1")
+	key := exportRegex.ReplaceAllString(splitString[0], "$1")
 
 	// Parse the value
-	value = parseValue(splitString[1], envMap, lookupFn)
-	return
+	value := parseValue(splitString[1], envMap, lookupFn)
+
+	return key, value, nil
 }
 
 var (
@@ -351,7 +349,7 @@ func doubleQuoteEscape(line string) string {
 		if c == '\r' {
 			toReplace = `\r`
 		}
-		line = strings.Replace(line, string(c), toReplace, -1)
+		line = strings.ReplaceAll(line, string(c), toReplace)
 	}
 	return line
 }

@@ -67,7 +67,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 						Target: "my_secret",
 						UID:    "103",
 						GID:    "103",
-						Mode:   uint32Ptr(0440),
+						Mode:   uint32Ptr(0o440),
 					},
 				},
 				Tags: []string{"foo:v1.0.0", "docker.io/username/foo:my-other-tag", "full_example_project_name:1.0.0"},
@@ -85,7 +85,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 					Target: "/my_config",
 					UID:    "103",
 					GID:    "103",
-					Mode:   uint32Ptr(0440),
+					Mode:   uint32Ptr(0o440),
 				},
 			},
 			ContainerName: "my-web-container",
@@ -389,7 +389,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 					Target: "my_secret",
 					UID:    "103",
 					GID:    "103",
-					Mode:   uint32Ptr(0440),
+					Mode:   uint32Ptr(0o440),
 				},
 			},
 			SecurityOpt: []string{
@@ -420,7 +420,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				{Source: "/opt/data", Target: "/var/lib/mysql", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: workingDir, Target: "/code", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: filepath.Join(workingDir, "static"), Target: "/var/www/html", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
-				{Source: filepath.Join(homeDir, "/configs"), Target: "/etc/configs", Type: "bind", ReadOnly: true, Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
+				{Source: filepath.Join(homeDir, "configs"), Target: "/etc/configs", Type: "bind", ReadOnly: true, Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: "datavolume", Target: "/var/lib/mysql", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
 				{Source: filepath.Join(workingDir, "opt"), Target: "/opt", Consistency: "cached", Type: "bind"},
 				{Target: "/opt", Type: "tmpfs", Tmpfs: &types.ServiceVolumeTmpfs{
@@ -1003,7 +1003,7 @@ x-nested:
   bar: baz
   foo: bar
 `,
-		filepath.Join(workingDir),
+		workingDir,
 		filepath.Join(workingDir, "static"),
 		filepath.Join(homeDir, "configs"),
 		filepath.Join(workingDir, "opt"),

@@ -4,6 +4,7 @@ run:
 linters:
   disable-all: true
   enable:
+  - gocritic
   - gofmt
   - goimports
   - revive
@@ -11,3 +12,15 @@ linters:
   - ineffassign
   - misspell
   - govet
+linters-settings:
+  gocritic:
+    # Enable multiple checks by tags, run `GL_DEBUG=gocritic golangci-lint run` to see all tags and checks.
+    # Empty list by default. See https://github.com/go-critic/go-critic#usage -> section "Tags".
+    enabled-tags:
+      - diagnostic
+      - opinionated
+      - style
+    disabled-checks:
+      - paramTypeCombine
+      - unnamedResult
+      - whyNoLint

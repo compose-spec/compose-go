@@ -18,7 +18,7 @@ package cli
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -323,7 +323,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 	for _, f := range configPaths {
 		var b []byte
 		if f == "-" {
-			b, err = ioutil.ReadAll(os.Stdin)
+			b, err = io.ReadAll(os.Stdin)
 			if err != nil {
 				return nil, err
 			}
@@ -332,7 +332,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 			if err != nil {
 				return nil, err
 			}
-			b, err = ioutil.ReadFile(f)
+			b, err = os.ReadFile(f)
 			if err != nil {
 				return nil, err
 			}

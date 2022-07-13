@@ -19,7 +19,6 @@ package loader
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strings"
@@ -926,7 +925,7 @@ func uint32Ptr(value uint32) *uint32 {
 }
 
 func TestFullExample(t *testing.T) {
-	b, err := ioutil.ReadFile("full-example.yml")
+	b, err := os.ReadFile("full-example.yml")
 	assert.NilError(t, err)
 
 	homeDir, err := os.UserHomeDir()
@@ -1728,13 +1727,13 @@ secrets:
 }
 
 func TestComposeFileWithVersion(t *testing.T) {
-	bytes, err := ioutil.ReadFile("testdata/compose-test-with-version.yaml")
+	b, err := os.ReadFile("testdata/compose-test-with-version.yaml")
 	assert.NilError(t, err)
 
 	homeDir, err := os.UserHomeDir()
 	assert.NilError(t, err)
 	env := map[string]string{"HOME": homeDir, "QUX": "qux_from_environment"}
-	config, err := loadYAMLWithEnv(string(bytes), env)
+	config, err := loadYAMLWithEnv(string(b), env)
 	assert.NilError(t, err)
 
 	workingDir, err := os.Getwd()
@@ -1751,13 +1750,13 @@ func TestComposeFileWithVersion(t *testing.T) {
 }
 
 func TestLoadWithExtends(t *testing.T) {
-	bytes, err := ioutil.ReadFile("testdata/compose-test-extends.yaml")
+	b, err := os.ReadFile("testdata/compose-test-extends.yaml")
 	assert.NilError(t, err)
 
 	configDetails := types.ConfigDetails{
 		WorkingDir: "testdata",
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "testdata/compose-test-extends.yaml", Content: bytes},
+			{Filename: "testdata/compose-test-extends.yaml", Content: b},
 		},
 	}
 
@@ -1896,7 +1895,7 @@ services:
 	assert.NilError(t, err)
 	svc, err := actual.GetService("test")
 	assert.NilError(t, err)
-	assert.Check(t, nil == svc.Build.SSH)
+	assert.Check(t, svc.Build.SSH == nil)
 }
 
 func TestLoadSSHWithoutValueInBuildConfig(t *testing.T) {
