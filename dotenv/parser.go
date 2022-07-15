@@ -81,7 +81,9 @@ func getStatementStart(src []byte) []byte {
 }
 
 // locateKeyName locates and parses key name and returns rest of slice
-func locateKeyName(src []byte) (key string, cutset []byte, inherited bool, err error) {
+func locateKeyName(src []byte) (string, []byte, bool, error) {
+	var key string
+	var inherited bool
 	// trim "export" and space at beginning
 	src = bytes.TrimLeftFunc(bytes.TrimPrefix(src, []byte(exportPrefix)), isSpace)
 
@@ -120,7 +122,7 @@ loop:
 
 	// trim whitespace
 	key = strings.TrimRightFunc(key, unicode.IsSpace)
-	cutset = bytes.TrimLeftFunc(src[offset:], isSpace)
+	cutset := bytes.TrimLeftFunc(src[offset:], isSpace)
 	return key, cutset, inherited, nil
 }
 
@@ -208,14 +210,14 @@ func indexOfNonSpaceChar(src []byte) int {
 }
 
 // hasQuotePrefix reports whether charset starts with single or double quote and returns quote character
-func hasQuotePrefix(src []byte) (quote byte, isQuoted bool) {
+func hasQuotePrefix(src []byte) (byte, bool) {
 	if len(src) == 0 {
 		return 0, false
 	}
 
-	switch prefix := src[0]; prefix {
+	switch quote := src[0]; quote {
 	case prefixDoubleQuote, prefixSingleQuote:
-		return prefix, true
+		return quote, true // isQuoted
 	default:
 		return 0, false
 	}
