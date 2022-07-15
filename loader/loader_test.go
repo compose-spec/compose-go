@@ -1484,6 +1484,67 @@ networks:
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
 }
 
+func TestLoadNetworkLinkLocalIPs(t *testing.T) {
+	config, err := loadYAML(`
+services:
+  foo:
+    image: alpine
+    networks:
+      network1:
+        ipv4_address: 10.1.0.100
+        ipv6_address: 2001:db8:0:1::100
+        link_local_ips:
+          - fe80::1:95ff:fe20:100
+networks:
+  network1:
+    driver: bridge
+    enable_ipv6: true
+    name: network1
+    ipam:
+      config:
+        - subnet: 10.1.0.0/16
+        - subnet: 2001:db8:0:1::/64
+`)
+	assert.NilError(t, err)
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	expected := &types.Project{
+		Name:       "",
+		WorkingDir: workingDir,
+		Services: types.Services{
+			{
+				Name:  "foo",
+				Image: "alpine",
+				Scale: 1,
+				Networks: map[string]*types.ServiceNetworkConfig{
+					"network1": {
+						Ipv4Address: "10.1.0.100",
+						Ipv6Address: "2001:db8:0:1::100",
+						LinkLocalIPs: []string{
+							"fe80::1:95ff:fe20:100",
+						},
+					},
+				},
+			},
+		},
+		Networks: map[string]types.NetworkConfig{
+			"network1": {
+				Name:       "network1",
+				Driver:     "bridge",
+				EnableIPv6: true,
+				Ipam: types.IPAMConfig{
+					Config: []*types.IPAMPool{
+						{Subnet: "10.1.0.0/16"},
+						{Subnet: "2001:db8:0:1::/64"},
+					},
+				},
+			},
+		},
+	}
+	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+}
+
 func TestLoadInit(t *testing.T) {
 	booleanTrue := true
 	booleanFalse := false
