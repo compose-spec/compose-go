@@ -17,26 +17,25 @@
 package schema
 
 import (
+	// Enable support for embedded static resources
+	_ "embed"
 	"fmt"
 	"strings"
 	"time"
 
 	"github.com/xeipuuv/gojsonschema"
-
-	// Enable support for embedded static resources
-	_ "embed"
 )
 
 type portsFormatChecker struct{}
 
-func (checker portsFormatChecker) IsFormat(input interface{}) bool {
+func (checker portsFormatChecker) IsFormat(input any) bool {
 	// TODO: implement this
 	return true
 }
 
 type durationFormatChecker struct{}
 
-func (checker durationFormatChecker) IsFormat(input interface{}) bool {
+func (checker durationFormatChecker) IsFormat(input any) bool {
 	value, ok := input.(string)
 	if !ok {
 		return false
@@ -56,7 +55,7 @@ func init() {
 var Schema string
 
 // Validate uses the jsonschema to validate the configuration
-func Validate(config map[string]interface{}) error {
+func Validate(config map[string]any) error {
 	schemaLoader := gojsonschema.NewStringLoader(Schema)
 	dataLoader := gojsonschema.NewGoLoader(config)
 

@@ -100,38 +100,38 @@ networks:
         - subnet: 172.28.0.0/16
 `
 
-var sampleDict = map[string]interface{}{
-	"services": map[string]interface{}{
-		"foo": map[string]interface{}{
+var sampleDict = map[string]any{
+	"services": map[string]any{
+		"foo": map[string]any{
 			"image":    "busybox",
-			"networks": map[string]interface{}{"with_me": nil},
+			"networks": map[string]any{"with_me": nil},
 		},
-		"bar": map[string]interface{}{
+		"bar": map[string]any{
 			"image":       "busybox",
-			"environment": []interface{}{"FOO=1"},
-			"networks":    []interface{}{"with_ipam"},
+			"environment": []any{"FOO=1"},
+			"networks":    []any{"with_ipam"},
 		},
 	},
-	"volumes": map[string]interface{}{
-		"hello": map[string]interface{}{
+	"volumes": map[string]any{
+		"hello": map[string]any{
 			"driver": "default",
-			"driver_opts": map[string]interface{}{
+			"driver_opts": map[string]any{
 				"beep": "boop",
 			},
 		},
 	},
-	"networks": map[string]interface{}{
-		"default": map[string]interface{}{
+	"networks": map[string]any{
+		"default": map[string]any{
 			"driver": "bridge",
-			"driver_opts": map[string]interface{}{
+			"driver_opts": map[string]any{
 				"beep": "boop",
 			},
 		},
-		"with_ipam": map[string]interface{}{
-			"ipam": map[string]interface{}{
+		"with_ipam": map[string]any{
+			"ipam": map[string]any{
 				"driver": "default",
-				"config": []interface{}{
-					map[string]interface{}{
+				"config": []any{
+					map[string]any{
 						"subnet": "172.28.0.0/16",
 					},
 				},
@@ -280,7 +280,7 @@ services:
 	assert.Check(t, is.Len(actual.Services, 1))
 	service := actual.Services[0]
 	assert.Check(t, is.Equal("busybox", service.Image))
-	extras := map[string]interface{}{
+	extras := map[string]any{
 		"x-foo": "bar",
 	}
 	assert.Check(t, is.DeepEqual(extras, service.Extensions))
@@ -700,7 +700,7 @@ networks:
 				Ports: []types.ServicePortConfig{
 					{Target: 555, Mode: "ingress", Protocol: "tcp"},
 					{Target: 34567, Mode: "ingress", Protocol: "tcp"},
-					{Target: 555, Published: "555", Extensions: map[string]interface{}{"x-foo-bar": true}},
+					{Target: 555, Published: "555", Extensions: map[string]any{"x-foo-bar": true}},
 				},
 				Ulimits: map[string]*types.UlimitsConfig{
 					"nproc":  {Single: 555},
@@ -1281,9 +1281,9 @@ func TestLoadVolumesWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
+	source := map[string]any{
+		"foo": map[string]any{
+			"external": map[string]any{
 				"name": "oops",
 			},
 		},
@@ -1312,9 +1312,9 @@ func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
+	source := map[string]any{
+		"foo": map[string]any{
+			"external": map[string]any{
 				"name": "oops",
 			},
 		},
@@ -1364,9 +1364,9 @@ func TestLoadSecretsWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
+	source := map[string]any{
+		"foo": map[string]any{
+			"external": map[string]any{
 				"name": "oops",
 			},
 		},
@@ -1388,9 +1388,9 @@ func TestLoadNetworksWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
+	source := map[string]any{
+		"foo": map[string]any{
+			"external": map[string]any{
 				"name": "oops",
 			},
 		},
@@ -1412,9 +1412,9 @@ func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
+	source := map[string]any{
+		"foo": map[string]any{
+			"external": map[string]any{
 				"name": "oops",
 			},
 		},
@@ -1570,17 +1570,17 @@ services:
 }
 
 func TestTransform(t *testing.T) {
-	var source = []interface{}{
+	var source = []any{
 		"80-82:8080-8082",
 		"90-92:8090-8092/udp",
 		"85:8500",
 		8600,
-		map[string]interface{}{
+		map[string]any{
 			"protocol":  "udp",
 			"target":    53,
 			"published": 10053,
 		},
-		map[string]interface{}{
+		map[string]any{
 			"mode":      "host",
 			"target":    22,
 			"published": 10022,
@@ -1842,7 +1842,7 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 	_, err = file.Write([]byte("HALLO=$TEST"))
 	assert.NilError(t, err)
 
-	m := map[string]interface{}{
+	m := map[string]any{
 		"env_file": file.Name(),
 	}
 	s, err := LoadService("Test Name", m, ".", func(s string) (string, bool) {
@@ -1856,20 +1856,20 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 }
 
 func TestLoadServiceWithVolumes(t *testing.T) {
-	m := map[string]interface{}{
-		"volumes": []interface{}{
+	m := map[string]any{
+		"volumes": []any{
 			"source:/path 1/",
-			map[string]interface{}{
+			map[string]any{
 				"target": "/path 2/",
 			},
 		},
-		"configs": []interface{}{
-			map[string]interface{}{
+		"configs": []any{
+			map[string]any{
 				"target": "/path 3/",
 			},
 		},
-		"secrets": []interface{}{
-			map[string]interface{}{
+		"secrets": []any{
+			map[string]any{
 				"target": "/path 4/",
 			},
 		},

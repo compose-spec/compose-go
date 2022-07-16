@@ -164,14 +164,14 @@ func Substitute(template string, mapping Mapping) (string, error) {
 
 // ExtractVariables returns a map of all the variables defined in the specified
 // composefile (dict representation) and their default value if any.
-func ExtractVariables(configDict map[string]interface{}, pattern *regexp.Regexp) map[string]Variable {
+func ExtractVariables(configDict map[string]any, pattern *regexp.Regexp) map[string]Variable {
 	if pattern == nil {
 		pattern = defaultPattern
 	}
 	return recurseExtract(configDict, pattern)
 }
 
-func recurseExtract(value interface{}, pattern *regexp.Regexp) map[string]Variable {
+func recurseExtract(value any, pattern *regexp.Regexp) map[string]Variable {
 	m := map[string]Variable{}
 
 	switch value := value.(type) {
@@ -181,7 +181,7 @@ func recurseExtract(value interface{}, pattern *regexp.Regexp) map[string]Variab
 				m[v.Name] = v
 			}
 		}
-	case map[string]interface{}:
+	case map[string]any:
 		for _, elem := range value {
 			submap := recurseExtract(elem, pattern)
 			for key, value := range submap {
@@ -189,7 +189,7 @@ func recurseExtract(value interface{}, pattern *regexp.Regexp) map[string]Variab
 			}
 		}
 
-	case []interface{}:
+	case []any:
 		for _, elem := range value {
 			if values, is := extractVariable(elem, pattern); is {
 				for _, v := range values {
@@ -208,7 +208,7 @@ type Variable struct {
 	Required     bool
 }
 
-func extractVariable(value interface{}, pattern *regexp.Regexp) ([]Variable, bool) {
+func extractVariable(value any, pattern *regexp.Regexp) ([]Variable, bool) {
 	sValue, ok := value.(string)
 	if !ok {
 		return []Variable{}, false

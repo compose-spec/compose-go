@@ -45,10 +45,10 @@ func (c *AllowList) supported(attributes ...string) bool {
 	return false
 }
 
-func (c *AllowList) Unsupported(message string, args ...interface{}) {
+func (c *AllowList) Unsupported(message string, args ...any) {
 	c.errors = append(c.errors, errors.Wrap(errdefs.ErrUnsupported, fmt.Sprintf(message, args...)))
 }
 
-func (c *AllowList) Incompatible(message string, args ...interface{}) {
+func (c *AllowList) Incompatible(message string, args ...any) {
 	c.errors = append(c.errors, errors.Wrap(errdefs.ErrIncompatible, fmt.Sprintf(message, args...)))
 }

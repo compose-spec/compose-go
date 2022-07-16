@@ -83,27 +83,27 @@ func servicePath(parts ...string) interp.Path {
 	return iPath(append([]string{"services", interp.PathMatchAll}, parts...)...)
 }
 
-func toInt(value string) (interface{}, error) {
+func toInt(value string) (any, error) {
 	return strconv.Atoi(value)
 }
 
-func toInt64(value string) (interface{}, error) {
+func toInt64(value string) (any, error) {
 	return strconv.ParseInt(value, 10, 64)
 }
 
-func toUnitBytes(value string) (interface{}, error) {
+func toUnitBytes(value string) (any, error) {
 	return transformSize(value)
 }
 
-func toDuration(value string) (interface{}, error) {
+func toDuration(value string) (any, error) {
 	return transformStringToDuration(value)
 }
 
-func toFloat(value string) (interface{}, error) {
+func toFloat(value string) (any, error) {
 	return strconv.ParseFloat(value, 64)
 }
 
-func toFloat32(value string) (interface{}, error) {
+func toFloat32(value string) (any, error) {
 	f, err := strconv.ParseFloat(value, 32)
 	if err != nil {
 		return nil, err
@@ -112,7 +112,7 @@ func toFloat32(value string) (interface{}, error) {
 }
 
 // should match http://yaml.org/type/bool.html
-func toBoolean(value string) (interface{}, error) {
+func toBoolean(value string) (any, error) {
 	switch strings.ToLower(value) {
 	case "y", "yes", "true", "on":
 		return true, nil

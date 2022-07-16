@@ -48,7 +48,7 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 }
 
 // MarshalYAML makes Duration implement yaml.Marshaler
-func (d Duration) MarshalYAML() (interface{}, error) {
+func (d Duration) MarshalYAML() (any, error) {
 	return d.String(), nil
 }
 
@@ -66,7 +66,7 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 type Services []ServiceConfig
 
 // MarshalYAML makes Services implement yaml.Marshaller
-func (s Services) MarshalYAML() (interface{}, error) {
+func (s Services) MarshalYAML() (any, error) {
 	services := map[string]ServiceConfig{}
 	for _, service := range s {
 		services[service.Name] = service
@@ -173,7 +173,7 @@ type ServiceConfig struct {
 	VolumesFrom       []string                         `mapstructure:"volumes_from" yaml:"volumes_from,omitempty" json:"volumes_from,omitempty"`
 	WorkingDir        string                           `mapstructure:"working_dir" yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // NetworksByPriority return the service networks IDs sorted according to Priority
@@ -307,7 +307,7 @@ type BuildConfig struct {
 	Secrets    []ServiceSecretConfig `yaml:",omitempty" json:"secrets,omitempty"`
 	Tags       StringList            `mapstructure:"tags" yaml:"tags,omitempty" json:"tags,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // BlkioConfig define blkio config
@@ -319,7 +319,7 @@ type BlkioConfig struct {
 	DeviceWriteBps  []ThrottleDevice `mapstructure:"device_write_bps" yaml:",omitempty" json:"device_write_bps,omitempty"`
 	DeviceWriteIOps []ThrottleDevice `mapstructure:"device_write_iops" yaml:",omitempty" json:"device_write_iops,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // WeightDevice is a structure that holds device:weight pair
@@ -327,7 +327,7 @@ type WeightDevice struct {
 	Path   string
 	Weight uint16
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // ThrottleDevice is a structure that holds device:rate_per_second pair
@@ -335,7 +335,7 @@ type ThrottleDevice struct {
 	Path string
 	Rate uint64
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // ShellCommand is a string or list of string args
@@ -449,7 +449,7 @@ func (s SSHConfig) Get(id string) (string, error) {
 }
 
 // MarshalYAML makes SSHKey implement yaml.Marshaller
-func (s SSHKey) MarshalYAML() (interface{}, error) {
+func (s SSHKey) MarshalYAML() (any, error) {
 	if s.Path == "" {
 		return s.ID, nil
 	}
@@ -485,7 +485,7 @@ type LoggingConfig struct {
 	Driver  string            `yaml:",omitempty" json:"driver,omitempty"`
 	Options map[string]string `yaml:",omitempty" json:"options,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // DeployConfig the deployment configuration for a service
@@ -500,7 +500,7 @@ type DeployConfig struct {
 	Placement      Placement      `yaml:",omitempty" json:"placement,omitempty"`
 	EndpointMode   string         `mapstructure:"endpoint_mode" yaml:"endpoint_mode,omitempty" json:"endpoint_mode,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // HealthCheckConfig the healthcheck configuration for a service
@@ -512,7 +512,7 @@ type HealthCheckConfig struct {
 	StartPeriod *Duration       `mapstructure:"start_period" yaml:"start_period,omitempty" json:"start_period,omitempty"`
 	Disable     bool            `yaml:",omitempty" json:"disable,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // HealthCheckTest is the command run to test the health of a service
@@ -527,7 +527,7 @@ type UpdateConfig struct {
 	MaxFailureRatio float32  `mapstructure:"max_failure_ratio" yaml:"max_failure_ratio,omitempty" json:"max_failure_ratio,omitempty"`
 	Order           string   `yaml:",omitempty" json:"order,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // Resources the resource limits and reservations
@@ -535,7 +535,7 @@ type Resources struct {
 	Limits       *Resource `yaml:",omitempty" json:"limits,omitempty"`
 	Reservations *Resource `yaml:",omitempty" json:"reservations,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // Resource is a resource to be limited or reserved
@@ -547,7 +547,7 @@ type Resource struct {
 	Devices          []DeviceRequest   `mapstructure:"devices" yaml:"devices,omitempty" json:"devices,omitempty"`
 	GenericResources []GenericResource `mapstructure:"generic_resources" yaml:"generic_resources,omitempty" json:"generic_resources,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 type DeviceRequest struct {
@@ -562,7 +562,7 @@ type DeviceRequest struct {
 type GenericResource struct {
 	DiscreteResourceSpec *DiscreteGenericResource `mapstructure:"discrete_resource_spec" yaml:"discrete_resource_spec,omitempty" json:"discrete_resource_spec,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // DiscreteGenericResource represents a "user defined" resource which is defined
@@ -573,14 +573,14 @@ type DiscreteGenericResource struct {
 	Kind  string `json:"kind"`
 	Value int64  `json:"value"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // UnitBytes is the bytes type
 type UnitBytes int64
 
 // MarshalYAML makes UnitBytes implement yaml.Marshaller
-func (u UnitBytes) MarshalYAML() (interface{}, error) {
+func (u UnitBytes) MarshalYAML() (any, error) {
 	return fmt.Sprintf("%d", u), nil
 }
 
@@ -596,7 +596,7 @@ type RestartPolicy struct {
 	MaxAttempts *uint64   `mapstructure:"max_attempts" yaml:"max_attempts,omitempty" json:"max_attempts,omitempty"`
 	Window      *Duration `yaml:",omitempty" json:"window,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // Placement constraints for the service
@@ -605,14 +605,14 @@ type Placement struct {
 	Preferences []PlacementPreferences `yaml:",omitempty" json:"preferences,omitempty"`
 	MaxReplicas uint64                 `mapstructure:"max_replicas_per_node" yaml:"max_replicas_per_node,omitempty" json:"max_replicas_per_node,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // PlacementPreferences is the preferences for a service placement
 type PlacementPreferences struct {
 	Spread string `yaml:",omitempty" json:"spread,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // ServiceNetworkConfig is the network configuration for a service
@@ -622,7 +622,7 @@ type ServiceNetworkConfig struct {
 	Ipv4Address string   `mapstructure:"ipv4_address" yaml:"ipv4_address,omitempty" json:"ipv4_address,omitempty"`
 	Ipv6Address string   `mapstructure:"ipv6_address" yaml:"ipv6_address,omitempty" json:"ipv6_address,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // ServicePortConfig is the port configuration for a service
@@ -633,7 +633,7 @@ type ServicePortConfig struct {
 	Published string `yaml:",omitempty" json:"published,omitempty"`
 	Protocol  string `yaml:",omitempty" json:"protocol,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // ParsePortConfig parse short syntax for service port configuration
@@ -686,7 +686,7 @@ type ServiceVolumeConfig struct {
 	Volume      *ServiceVolumeVolume `yaml:",omitempty" json:"volume,omitempty"`
 	Tmpfs       *ServiceVolumeTmpfs  `yaml:",omitempty" json:"tmpfs,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // String render ServiceVolumeConfig as a volume string, one can parse back using loader.ParseVolume
@@ -730,7 +730,7 @@ type ServiceVolumeBind struct {
 	Propagation    string `yaml:",omitempty" json:"propagation,omitempty"`
 	CreateHostPath bool   `mapstructure:"create_host_path" yaml:"create_host_path,omitempty" json:"create_host_path,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // SELinux represents the SELinux re-labeling options.
@@ -761,14 +761,14 @@ const (
 type ServiceVolumeVolume struct {
 	NoCopy bool `mapstructure:"nocopy" yaml:"nocopy,omitempty" json:"nocopy,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // ServiceVolumeTmpfs are options for a service volume of type tmpfs
 type ServiceVolumeTmpfs struct {
 	Size UnitBytes `yaml:",omitempty" json:"size,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // FileReferenceConfig for a reference to a swarm file object
@@ -779,7 +779,7 @@ type FileReferenceConfig struct {
 	GID    string  `yaml:",omitempty" json:"gid,omitempty"`
 	Mode   *uint32 `yaml:",omitempty" json:"mode,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // ServiceConfigObjConfig is the config obj configuration for a service
@@ -794,11 +794,11 @@ type UlimitsConfig struct {
 	Soft   int `yaml:",omitempty" json:"soft,omitempty"`
 	Hard   int `yaml:",omitempty" json:"hard,omitempty"`
 
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // MarshalYAML makes UlimitsConfig implement yaml.Marshaller
-func (u *UlimitsConfig) MarshalYAML() (interface{}, error) {
+func (u *UlimitsConfig) MarshalYAML() (any, error) {
 	if u.Single != 0 {
 		return u.Single, nil
 	}
@@ -816,55 +816,55 @@ func (u *UlimitsConfig) MarshalJSON() ([]byte, error) {
 
 // NetworkConfig for a network
 type NetworkConfig struct {
-	Name       string                 `yaml:",omitempty" json:"name,omitempty"`
-	Driver     string                 `yaml:",omitempty" json:"driver,omitempty"`
-	DriverOpts map[string]string      `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
-	Ipam       IPAMConfig             `yaml:",omitempty" json:"ipam,omitempty"`
-	External   External               `yaml:",omitempty" json:"external,omitempty"`
-	Internal   bool                   `yaml:",omitempty" json:"internal,omitempty"`
-	Attachable bool                   `yaml:",omitempty" json:"attachable,omitempty"`
-	Labels     Labels                 `yaml:",omitempty" json:"labels,omitempty"`
-	EnableIPv6 bool                   `mapstructure:"enable_ipv6" yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Name       string            `yaml:",omitempty" json:"name,omitempty"`
+	Driver     string            `yaml:",omitempty" json:"driver,omitempty"`
+	DriverOpts map[string]string `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
+	Ipam       IPAMConfig        `yaml:",omitempty" json:"ipam,omitempty"`
+	External   External          `yaml:",omitempty" json:"external,omitempty"`
+	Internal   bool              `yaml:",omitempty" json:"internal,omitempty"`
+	Attachable bool              `yaml:",omitempty" json:"attachable,omitempty"`
+	Labels     Labels            `yaml:",omitempty" json:"labels,omitempty"`
+	EnableIPv6 bool              `mapstructure:"enable_ipv6" yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
+	Extensions map[string]any    `yaml:",inline" json:"-"`
 }
 
 // IPAMConfig for a network
 type IPAMConfig struct {
-	Driver     string                 `yaml:",omitempty" json:"driver,omitempty"`
-	Config     []*IPAMPool            `yaml:",omitempty" json:"config,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Driver     string         `yaml:",omitempty" json:"driver,omitempty"`
+	Config     []*IPAMPool    `yaml:",omitempty" json:"config,omitempty"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // IPAMPool for a network
 type IPAMPool struct {
-	Subnet             string                 `yaml:",omitempty" json:"subnet,omitempty"`
-	Gateway            string                 `yaml:",omitempty" json:"gateway,omitempty"`
-	IPRange            string                 `mapstructure:"ip_range" yaml:"ip_range,omitempty" json:"ip_range,omitempty"`
-	AuxiliaryAddresses map[string]string      `mapstructure:"aux_addresses" yaml:"aux_addresses,omitempty" json:"aux_addresses,omitempty"`
-	Extensions         map[string]interface{} `yaml:",inline" json:"-"`
+	Subnet             string            `yaml:",omitempty" json:"subnet,omitempty"`
+	Gateway            string            `yaml:",omitempty" json:"gateway,omitempty"`
+	IPRange            string            `mapstructure:"ip_range" yaml:"ip_range,omitempty" json:"ip_range,omitempty"`
+	AuxiliaryAddresses map[string]string `mapstructure:"aux_addresses" yaml:"aux_addresses,omitempty" json:"aux_addresses,omitempty"`
+	Extensions         map[string]any    `yaml:",inline" json:"-"`
 }
 
 // VolumeConfig for a volume
 type VolumeConfig struct {
-	Name       string                 `yaml:",omitempty" json:"name,omitempty"`
-	Driver     string                 `yaml:",omitempty" json:"driver,omitempty"`
-	DriverOpts map[string]string      `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
-	External   External               `yaml:",omitempty" json:"external,omitempty"`
-	Labels     Labels                 `yaml:",omitempty" json:"labels,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Name       string            `yaml:",omitempty" json:"name,omitempty"`
+	Driver     string            `yaml:",omitempty" json:"driver,omitempty"`
+	DriverOpts map[string]string `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
+	External   External          `yaml:",omitempty" json:"external,omitempty"`
+	Labels     Labels            `yaml:",omitempty" json:"labels,omitempty"`
+	Extensions map[string]any    `yaml:",inline" json:"-"`
 }
 
 // External identifies a Volume or Network as a reference to a resource that is
 // not managed, and should already exist.
 // External.name is deprecated and replaced by Volume.name
 type External struct {
-	Name       string                 `yaml:",omitempty" json:"name,omitempty"`
-	External   bool                   `yaml:",omitempty" json:"external,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Name       string         `yaml:",omitempty" json:"name,omitempty"`
+	External   bool           `yaml:",omitempty" json:"external,omitempty"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // MarshalYAML makes External implement yaml.Marshaller
-func (e External) MarshalYAML() (interface{}, error) {
+func (e External) MarshalYAML() (any, error) {
 	if e.Name == "" {
 		return e.External, nil
 	}
@@ -881,23 +881,23 @@ func (e External) MarshalJSON() ([]byte, error) {
 
 // CredentialSpecConfig for credential spec on Windows
 type CredentialSpecConfig struct {
-	Config     string                 `yaml:",omitempty" json:"config,omitempty"` // Config was added in API v1.40
-	File       string                 `yaml:",omitempty" json:"file,omitempty"`
-	Registry   string                 `yaml:",omitempty" json:"registry,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Config     string         `yaml:",omitempty" json:"config,omitempty"` // Config was added in API v1.40
+	File       string         `yaml:",omitempty" json:"file,omitempty"`
+	Registry   string         `yaml:",omitempty" json:"registry,omitempty"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 // FileObjectConfig is a config type for a file used by a service
 type FileObjectConfig struct {
-	Name           string                 `yaml:",omitempty" json:"name,omitempty"`
-	File           string                 `yaml:",omitempty" json:"file,omitempty"`
-	Environment    string                 `yaml:",omitempty" json:"environment,omitempty"`
-	External       External               `yaml:",omitempty" json:"external,omitempty"`
-	Labels         Labels                 `yaml:",omitempty" json:"labels,omitempty"`
-	Driver         string                 `yaml:",omitempty" json:"driver,omitempty"`
-	DriverOpts     map[string]string      `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
-	TemplateDriver string                 `mapstructure:"template_driver" yaml:"template_driver,omitempty" json:"template_driver,omitempty"`
-	Extensions     map[string]interface{} `yaml:",inline" json:"-"`
+	Name           string            `yaml:",omitempty" json:"name,omitempty"`
+	File           string            `yaml:",omitempty" json:"file,omitempty"`
+	Environment    string            `yaml:",omitempty" json:"environment,omitempty"`
+	External       External          `yaml:",omitempty" json:"external,omitempty"`
+	Labels         Labels            `yaml:",omitempty" json:"labels,omitempty"`
+	Driver         string            `yaml:",omitempty" json:"driver,omitempty"`
+	DriverOpts     map[string]string `mapstructure:"driver_opts" yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
+	TemplateDriver string            `mapstructure:"template_driver" yaml:"template_driver,omitempty" json:"template_driver,omitempty"`
+	Extensions     map[string]any    `yaml:",inline" json:"-"`
 }
 
 const (
@@ -914,8 +914,8 @@ const (
 type DependsOnConfig map[string]ServiceDependency
 
 type ServiceDependency struct {
-	Condition  string                 `yaml:",omitempty" json:"condition,omitempty"`
-	Extensions map[string]interface{} `yaml:",inline" json:"-"`
+	Condition  string         `yaml:",omitempty" json:"condition,omitempty"`
+	Extensions map[string]any `yaml:",inline" json:"-"`
 }
 
 type ExtendsConfig MappingWithEquals

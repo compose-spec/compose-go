@@ -22,7 +22,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-type dict map[string]interface{}
+type dict map[string]any
 
 func TestValidate(t *testing.T) {
 	config := dict{
@@ -108,7 +108,7 @@ func TestValidateSecretConfigNames(t *testing.T) {
 	assert.NilError(t, Validate(config))
 }
 
-type array []interface{}
+type array []any
 
 func TestValidatePlacement(t *testing.T) {
 	config := dict{

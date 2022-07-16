@@ -583,7 +583,7 @@ func TestInheritedEnvVariableNotFound(t *testing.T) {
 }
 
 func TestInheritedEnvVariableNotFoundWithLookup(t *testing.T) {
-	notFoundMap := make(map[string]interface{})
+	notFoundMap := make(map[string]any)
 	envMap, err := ReadWithLookup(func(v string) (string, bool) {
 		envVar, ok := os.LookupEnv(v)
 		if !ok {

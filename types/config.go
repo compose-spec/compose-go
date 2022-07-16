@@ -64,7 +64,7 @@ type ConfigFile struct {
 	// Content is the raw yaml content. Will be loaded from Filename if not set
 	Content []byte
 	// Config if the yaml tree for this config file. Will be parsed from Content if not set
-	Config map[string]interface{}
+	Config map[string]any
 }
 
 // Config is a full compose file configuration and model
@@ -92,11 +92,11 @@ type Secrets map[string]SecretConfig
 type Configs map[string]ConfigObjConfig
 
 // Extensions is a map of custom extension
-type Extensions map[string]interface{}
+type Extensions map[string]any
 
 // MarshalJSON makes Config implement json.Marshaler
 func (c Config) MarshalJSON() ([]byte, error) {
-	m := map[string]interface{}{
+	m := map[string]any{
 		"services": c.Services,
 	}
 
@@ -118,7 +118,7 @@ func (c Config) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-func (e Extensions) Get(name string, target interface{}) (bool, error) {
+func (e Extensions) Get(name string, target any) (bool, error) {
 	if v, ok := e[name]; ok {
 		err := mapstructure.Decode(v, target)
 		return true, err

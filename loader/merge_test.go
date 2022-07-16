@@ -29,24 +29,24 @@ import (
 func TestLoadLogging(t *testing.T) {
 	loggingCases := []struct {
 		name            string
-		loggingBase     map[string]interface{}
-		loggingOverride map[string]interface{}
+		loggingBase     map[string]any
+		loggingOverride map[string]any
 		expected        *types.LoggingConfig
 	}{
 		{
 			name: "no_override_driver",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
+			loggingBase: map[string]any{
+				"logging": map[string]any{
 					"driver": "json-file",
-					"options": map[string]interface{}{
+					"options": map[string]any{
 						"frequency": "2000",
 						"timeout":   "23",
 					},
 				},
 			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"options": map[string]interface{}{
+			loggingOverride: map[string]any{
+				"logging": map[string]any{
+					"options": map[string]any{
 						"timeout":      "360",
 						"pretty-print": "on",
 					},
@@ -63,19 +63,19 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name: "override_driver",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
+			loggingBase: map[string]any{
+				"logging": map[string]any{
 					"driver": "json-file",
-					"options": map[string]interface{}{
+					"options": map[string]any{
 						"frequency": "2000",
 						"timeout":   "23",
 					},
 				},
 			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
+			loggingOverride: map[string]any{
+				"logging": map[string]any{
 					"driver": "syslog",
-					"options": map[string]interface{}{
+					"options": map[string]any{
 						"timeout":      "360",
 						"pretty-print": "on",
 					},
@@ -91,18 +91,18 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name: "no_base_driver",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"options": map[string]interface{}{
+			loggingBase: map[string]any{
+				"logging": map[string]any{
+					"options": map[string]any{
 						"frequency": "2000",
 						"timeout":   "23",
 					},
 				},
 			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
+			loggingOverride: map[string]any{
+				"logging": map[string]any{
 					"driver": "json-file",
-					"options": map[string]interface{}{
+					"options": map[string]any{
 						"timeout":      "360",
 						"pretty-print": "on",
 					},
@@ -119,17 +119,17 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name: "no_driver",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"options": map[string]interface{}{
+			loggingBase: map[string]any{
+				"logging": map[string]any{
+					"options": map[string]any{
 						"frequency": "2000",
 						"timeout":   "23",
 					},
 				},
 			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"options": map[string]interface{}{
+			loggingOverride: map[string]any{
+				"logging": map[string]any{
+					"options": map[string]any{
 						"timeout":      "360",
 						"pretty-print": "on",
 					},
@@ -145,17 +145,17 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name: "no_override_options",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
+			loggingBase: map[string]any{
+				"logging": map[string]any{
 					"driver": "json-file",
-					"options": map[string]interface{}{
+					"options": map[string]any{
 						"frequency": "2000",
 						"timeout":   "23",
 					},
 				},
 			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
+			loggingOverride: map[string]any{
+				"logging": map[string]any{
 					"driver": "syslog",
 				},
 			},
@@ -165,11 +165,11 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name:        "no_base",
-			loggingBase: map[string]interface{}{},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
+			loggingBase: map[string]any{},
+			loggingOverride: map[string]any{
+				"logging": map[string]any{
 					"driver": "json-file",
-					"options": map[string]interface{}{
+					"options": map[string]any{
 						"frequency": "2000",
 					},
 				},
@@ -189,16 +189,16 @@ func TestLoadLogging(t *testing.T) {
 				ConfigFiles: []types.ConfigFile{
 					{
 						Filename: "base.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.loggingBase,
 							},
 						},
 					},
 					{
 						Filename: "override.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.loggingOverride,
 							},
 						},
@@ -238,18 +238,18 @@ func loadTestProject(configDetails types.ConfigDetails) (*types.Project, error) 
 func TestLoadMultipleServicePorts(t *testing.T) {
 	portsCases := []struct {
 		name         string
-		portBase     map[string]interface{}
-		portOverride map[string]interface{}
+		portBase     map[string]any
+		portOverride map[string]any
 		expected     []types.ServicePortConfig
 	}{
 		{
 			name: "no_override",
-			portBase: map[string]interface{}{
-				"ports": []interface{}{
+			portBase: map[string]any{
+				"ports": []any{
 					"8080:80",
 				},
 			},
-			portOverride: map[string]interface{}{},
+			portOverride: map[string]any{},
 			expected: []types.ServicePortConfig{
 				{
 					Mode:      "ingress",
@@ -261,13 +261,13 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 		},
 		{
 			name: "override_different_published",
-			portBase: map[string]interface{}{
-				"ports": []interface{}{
+			portBase: map[string]any{
+				"ports": []any{
 					"8080:80",
 				},
 			},
-			portOverride: map[string]interface{}{
-				"ports": []interface{}{
+			portOverride: map[string]any{
+				"ports": []any{
 					"8081:80",
 				},
 			},
@@ -288,13 +288,13 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 		},
 		{
 			name: "override_distinct_protocols",
-			portBase: map[string]interface{}{
-				"ports": []interface{}{
+			portBase: map[string]any{
+				"ports": []any{
 					"8080:80/tcp",
 				},
 			},
-			portOverride: map[string]interface{}{
-				"ports": []interface{}{
+			portOverride: map[string]any{
+				"ports": []any{
 					"8080:80/udp",
 				},
 			},
@@ -315,13 +315,13 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 		},
 		{
 			name: "override_one_sided",
-			portBase: map[string]interface{}{
-				"ports": []interface{}{
+			portBase: map[string]any{
+				"ports": []any{
 					"5000",
 					"6000",
 				},
 			},
-			portOverride: map[string]interface{}{},
+			portOverride: map[string]any{},
 			expected: []types.ServicePortConfig{
 				{
 					Mode:     "ingress",
@@ -343,16 +343,16 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 				ConfigFiles: []types.ConfigFile{
 					{
 						Filename: "base.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.portBase,
 							},
 						},
 					},
 					{
 						Filename: "override.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.portOverride,
 							},
 						},
@@ -385,18 +385,18 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 func TestLoadMultipleSecretsConfig(t *testing.T) {
 	portsCases := []struct {
 		name           string
-		secretBase     map[string]interface{}
-		secretOverride map[string]interface{}
+		secretBase     map[string]any
+		secretOverride map[string]any
 		expected       []types.ServiceSecretConfig
 	}{
 		{
 			name: "no_override",
-			secretBase: map[string]interface{}{
-				"secrets": []interface{}{
+			secretBase: map[string]any{
+				"secrets": []any{
 					"my_secret",
 				},
 			},
-			secretOverride: map[string]interface{}{},
+			secretOverride: map[string]any{},
 			expected: []types.ServiceSecretConfig{
 				{
 					Source: "my_secret",
@@ -405,13 +405,13 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 		},
 		{
 			name: "override_simple",
-			secretBase: map[string]interface{}{
-				"secrets": []interface{}{
+			secretBase: map[string]any{
+				"secrets": []any{
 					"foo_secret",
 				},
 			},
-			secretOverride: map[string]interface{}{
-				"secrets": []interface{}{
+			secretOverride: map[string]any{
+				"secrets": []any{
 					"bar_secret",
 				},
 			},
@@ -426,22 +426,22 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 		},
 		{
 			name: "override_same_source",
-			secretBase: map[string]interface{}{
-				"secrets": []interface{}{
+			secretBase: map[string]any{
+				"secrets": []any{
 					"foo_secret",
-					map[string]interface{}{
+					map[string]any{
 						"source": "bar_secret",
 						"target": "waw_secret",
 					},
 				},
 			},
-			secretOverride: map[string]interface{}{
-				"secrets": []interface{}{
-					map[string]interface{}{
+			secretOverride: map[string]any{
+				"secrets": []any{
+					map[string]any{
 						"source": "bar_secret",
 						"target": "bof_secret",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"source": "baz_secret",
 						"target": "waw_secret",
 					},
@@ -469,16 +469,16 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 				ConfigFiles: []types.ConfigFile{
 					{
 						Filename: "base.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.secretBase,
 							},
 						},
 					},
 					{
 						Filename: "override.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.secretOverride,
 							},
 						},
@@ -511,18 +511,18 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 	portsCases := []struct {
 		name           string
-		configBase     map[string]interface{}
-		configOverride map[string]interface{}
+		configBase     map[string]any
+		configOverride map[string]any
 		expected       []types.ServiceConfigObjConfig
 	}{
 		{
 			name: "no_override",
-			configBase: map[string]interface{}{
-				"configs": []interface{}{
+			configBase: map[string]any{
+				"configs": []any{
 					"my_config",
 				},
 			},
-			configOverride: map[string]interface{}{},
+			configOverride: map[string]any{},
 			expected: []types.ServiceConfigObjConfig{
 				{
 					Source: "my_config",
@@ -531,13 +531,13 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 		},
 		{
 			name: "override_simple",
-			configBase: map[string]interface{}{
-				"configs": []interface{}{
+			configBase: map[string]any{
+				"configs": []any{
 					"foo_config",
 				},
 			},
-			configOverride: map[string]interface{}{
-				"configs": []interface{}{
+			configOverride: map[string]any{
+				"configs": []any{
 					"bar_config",
 				},
 			},
@@ -552,22 +552,22 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 		},
 		{
 			name: "override_same_source",
-			configBase: map[string]interface{}{
-				"configs": []interface{}{
+			configBase: map[string]any{
+				"configs": []any{
 					"foo_config",
-					map[string]interface{}{
+					map[string]any{
 						"source": "bar_config",
 						"target": "waw_config",
 					},
 				},
 			},
-			configOverride: map[string]interface{}{
-				"configs": []interface{}{
-					map[string]interface{}{
+			configOverride: map[string]any{
+				"configs": []any{
+					map[string]any{
 						"source": "bar_config",
 						"target": "bof_config",
 					},
-					map[string]interface{}{
+					map[string]any{
 						"source": "baz_config",
 						"target": "waw_config",
 					},
@@ -595,16 +595,16 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 				ConfigFiles: []types.ConfigFile{
 					{
 						Filename: "base.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.configBase,
 							},
 						},
 					},
 					{
 						Filename: "override.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.configOverride,
 							},
 						},
@@ -637,18 +637,18 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 func TestLoadMultipleUlimits(t *testing.T) {
 	ulimitCases := []struct {
 		name           string
-		ulimitBase     map[string]interface{}
-		ulimitOverride map[string]interface{}
+		ulimitBase     map[string]any
+		ulimitOverride map[string]any
 		expected       map[string]*types.UlimitsConfig
 	}{
 		{
 			name: "no_override",
-			ulimitBase: map[string]interface{}{
-				"ulimits": map[string]interface{}{
+			ulimitBase: map[string]any{
+				"ulimits": map[string]any{
 					"noproc": 65535,
 				},
 			},
-			ulimitOverride: map[string]interface{}{},
+			ulimitOverride: map[string]any{},
 			expected: map[string]*types.UlimitsConfig{
 				"noproc": {
 					Single: 65535,
@@ -657,13 +657,13 @@ func TestLoadMultipleUlimits(t *testing.T) {
 		},
 		{
 			name: "override_simple",
-			ulimitBase: map[string]interface{}{
-				"ulimits": map[string]interface{}{
+			ulimitBase: map[string]any{
+				"ulimits": map[string]any{
 					"noproc": 65535,
 				},
 			},
-			ulimitOverride: map[string]interface{}{
-				"ulimits": map[string]interface{}{
+			ulimitOverride: map[string]any{
+				"ulimits": map[string]any{
 					"noproc": 44444,
 				},
 			},
@@ -675,19 +675,19 @@ func TestLoadMultipleUlimits(t *testing.T) {
 		},
 		{
 			name: "override_different_notation",
-			ulimitBase: map[string]interface{}{
-				"ulimits": map[string]interface{}{
-					"nofile": map[string]interface{}{
+			ulimitBase: map[string]any{
+				"ulimits": map[string]any{
+					"nofile": map[string]any{
 						"soft": 11111,
 						"hard": 99999,
 					},
 					"noproc": 44444,
 				},
 			},
-			ulimitOverride: map[string]interface{}{
-				"ulimits": map[string]interface{}{
+			ulimitOverride: map[string]any{
+				"ulimits": map[string]any{
 					"nofile": 55555,
-					"noproc": map[string]interface{}{
+					"noproc": map[string]any{
 						"soft": 22222,
 						"hard": 33333,
 					},
@@ -711,16 +711,16 @@ func TestLoadMultipleUlimits(t *testing.T) {
 				ConfigFiles: []types.ConfigFile{
 					{
 						Filename: "base.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.ulimitBase,
 							},
 						},
 					},
 					{
 						Filename: "override.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.ulimitOverride,
 							},
 						},
@@ -753,19 +753,19 @@ func TestLoadMultipleUlimits(t *testing.T) {
 func TestLoadMultipleServiceNetworks(t *testing.T) {
 	networkCases := []struct {
 		name            string
-		networkBase     map[string]interface{}
-		networkOverride map[string]interface{}
+		networkBase     map[string]any
+		networkOverride map[string]any
 		expected        map[string]*types.ServiceNetworkConfig
 	}{
 		{
 			name: "no_override",
-			networkBase: map[string]interface{}{
-				"networks": []interface{}{
+			networkBase: map[string]any{
+				"networks": []any{
 					"net1",
 					"net2",
 				},
 			},
-			networkOverride: map[string]interface{}{},
+			networkOverride: map[string]any{},
 			expected: map[string]*types.ServiceNetworkConfig{
 				"net1": nil,
 				"net2": nil,
@@ -773,14 +773,14 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 		},
 		{
 			name: "override_simple",
-			networkBase: map[string]interface{}{
-				"networks": []interface{}{
+			networkBase: map[string]any{
+				"networks": []any{
 					"net1",
 					"net2",
 				},
 			},
-			networkOverride: map[string]interface{}{
-				"networks": []interface{}{
+			networkOverride: map[string]any{
+				"networks": []any{
 					"net1",
 					"net3",
 				},
@@ -793,25 +793,25 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 		},
 		{
 			name: "override_with_aliases",
-			networkBase: map[string]interface{}{
-				"networks": map[string]interface{}{
-					"net1": map[string]interface{}{
-						"aliases": []interface{}{
+			networkBase: map[string]any{
+				"networks": map[string]any{
+					"net1": map[string]any{
+						"aliases": []any{
 							"alias1",
 						},
 					},
 					"net2": nil,
 				},
 			},
-			networkOverride: map[string]interface{}{
-				"networks": map[string]interface{}{
-					"net1": map[string]interface{}{
-						"aliases": []interface{}{
+			networkOverride: map[string]any{
+				"networks": map[string]any{
+					"net1": map[string]any{
+						"aliases": []any{
 							"alias2",
 							"alias3",
 						},
 					},
-					"net3": map[string]interface{}{},
+					"net3": map[string]any{},
 				},
 			},
 			expected: map[string]*types.ServiceNetworkConfig{
@@ -830,16 +830,16 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 				ConfigFiles: []types.ConfigFile{
 					{
 						Filename: "base.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.networkBase,
 							},
 						},
 					},
 					{
 						Filename: "override.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
+						Config: map[string]any{
+							"services": map[string]any{
 								"foo": tc.networkOverride,
 							},
 						},
@@ -870,67 +870,67 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 }
 
 func TestLoadMultipleConfigs(t *testing.T) {
-	base := map[string]interface{}{
-		"services": map[string]interface{}{
-			"foo": map[string]interface{}{
+	base := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image":      "foo",
 				"entrypoint": "echo",
 				"command":    "hellow world",
-				"build": map[string]interface{}{
+				"build": map[string]any{
 					"context":    ".",
 					"dockerfile": "bar.Dockerfile",
 				},
-				"ports": []interface{}{
+				"ports": []any{
 					"8080:80",
 					"9090:90",
 				},
-				"labels": []interface{}{
+				"labels": []any{
 					"foo=bar",
 				},
-				"cap_add": []interface{}{
+				"cap_add": []any{
 					"NET_ADMIN",
 				},
 			},
 		},
-		"volumes":  map[string]interface{}{},
-		"networks": map[string]interface{}{},
-		"secrets":  map[string]interface{}{},
-		"configs":  map[string]interface{}{},
+		"volumes":  map[string]any{},
+		"networks": map[string]any{},
+		"secrets":  map[string]any{},
+		"configs":  map[string]any{},
 	}
-	override := map[string]interface{}{
-		"services": map[string]interface{}{
-			"foo": map[string]interface{}{
+	override := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image":      "baz",
 				"entrypoint": "ping",
 				"command":    "localhost",
-				"build": map[string]interface{}{
+				"build": map[string]any{
 					"dockerfile": "foo.Dockerfile",
-					"args": []interface{}{
+					"args": []any{
 						"buildno=1",
 						"password=secret",
 					},
 				},
-				"ports": []interface{}{
-					map[string]interface{}{
+				"ports": []any{
+					map[string]any{
 						"target":    81,
 						"published": 8080,
 					},
 				},
-				"labels": map[string]interface{}{
+				"labels": map[string]any{
 					"foo": "baz",
 				},
-				"cap_add": []interface{}{
+				"cap_add": []any{
 					"SYS_ADMIN",
 				},
 			},
-			"bar": map[string]interface{}{
+			"bar": map[string]any{
 				"image": "bar",
 			},
 		},
-		"volumes":  map[string]interface{}{},
-		"networks": map[string]interface{}{},
-		"secrets":  map[string]interface{}{},
-		"configs":  map[string]interface{}{},
+		"volumes":  map[string]any{},
+		"networks": map[string]any{},
+		"secrets":  map[string]any{},
+		"configs":  map[string]any{},
 	}
 	configDetails := types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
@@ -998,41 +998,41 @@ func TestLoadMultipleConfigs(t *testing.T) {
 
 // Issue#972
 func TestLoadMultipleNetworks(t *testing.T) {
-	base := map[string]interface{}{
-		"services": map[string]interface{}{
-			"foo": map[string]interface{}{
+	base := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image": "baz",
 			},
 		},
-		"volumes": map[string]interface{}{},
-		"networks": map[string]interface{}{
-			"hostnet": map[string]interface{}{
+		"volumes": map[string]any{},
+		"networks": map[string]any{
+			"hostnet": map[string]any{
 				"driver": "overlay",
-				"ipam": map[string]interface{}{
+				"ipam": map[string]any{
 					"driver": "default",
-					"config": []interface{}{
-						map[string]interface{}{
+					"config": []any{
+						map[string]any{
 							"subnet": "10.0.0.0/20",
 						},
 					},
 				},
 			},
 		},
-		"secrets": map[string]interface{}{},
-		"configs": map[string]interface{}{},
+		"secrets": map[string]any{},
+		"configs": map[string]any{},
 	}
-	override := map[string]interface{}{
-		"services": map[string]interface{}{},
-		"volumes":  map[string]interface{}{},
-		"networks": map[string]interface{}{
-			"hostnet": map[string]interface{}{
-				"external": map[string]interface{}{
+	override := map[string]any{
+		"services": map[string]any{},
+		"volumes":  map[string]any{},
+		"networks": map[string]any{
+			"hostnet": map[string]any{
+				"external": map[string]any{
 					"name": "host",
 				},
 			},
 		},
-		"secrets": map[string]interface{}{},
-		"configs": map[string]interface{}{},
+		"secrets": map[string]any{},
+		"configs": map[string]any{},
 	}
 	configDetails := types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
@@ -1159,14 +1159,14 @@ func TestMergeServiceNetworkConfig(t *testing.T) {
 }
 
 func TestMergeTopLevelExtensions(t *testing.T) {
-	base := map[string]interface{}{
+	base := map[string]any{
 		"x-foo": "foo",
-		"x-bar": map[string]interface{}{
-			"base": map[string]interface{}{},
+		"x-bar": map[string]any{
+			"base": map[string]any{},
 		},
 	}
-	override := map[string]interface{}{
-		"x-bar": map[string]interface{}{
+	override := map[string]any{
+		"x-bar": map[string]any{
 			"base": "qix",
 		},
 		"x-zot": "zot",
@@ -1189,7 +1189,7 @@ func TestMergeTopLevelExtensions(t *testing.T) {
 		Configs:    types.Configs{},
 		Extensions: types.Extensions{
 			"x-foo": "foo",
-			"x-bar": map[string]interface{}{
+			"x-bar": map[string]any{
 				"base": "qix",
 			},
 			"x-zot": "zot",
@@ -1200,17 +1200,17 @@ func TestMergeTopLevelExtensions(t *testing.T) {
 func TestMergeCommands(t *testing.T) {
 	configDetails := types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "base.yml", Config: map[string]interface{}{
-				"services": map[string]interface{}{
-					"foo": map[string]interface{}{
+			{Filename: "base.yml", Config: map[string]any{
+				"services": map[string]any{
+					"foo": map[string]any{
 						"image":   "alpine",
 						"command": "/bin/bash -c \"echo 'hello'\"",
 					},
 				},
 			}},
-			{Filename: "override.yml", Config: map[string]interface{}{
-				"services": map[string]interface{}{
-					"foo": map[string]interface{}{
+			{Filename: "override.yml", Config: map[string]any{
+				"services": map[string]any{
+					"foo": map[string]any{
 						"image":   "alpine",
 						"command": "/bin/ash -c \"echo 'world'\"",
 					},
@@ -1226,22 +1226,22 @@ func TestMergeCommands(t *testing.T) {
 func TestMergeEnvironments(t *testing.T) {
 	configDetails := types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "base.yml", Config: map[string]interface{}{
-				"services": map[string]interface{}{
-					"foo": map[string]interface{}{
+			{Filename: "base.yml", Config: map[string]any{
+				"services": map[string]any{
+					"foo": map[string]any{
 						"image": "alpine",
-						"environment": map[string]interface{}{
+						"environment": map[string]any{
 							"NAME":  "BASE",
 							"VALUE": "BASE",
 						},
 					},
 				},
 			}},
-			{Filename: "override.yml", Config: map[string]interface{}{
-				"services": map[string]interface{}{
-					"foo": map[string]interface{}{
+			{Filename: "override.yml", Config: map[string]any{
+				"services": map[string]any{
+					"foo": map[string]any{
 						"image": "alpine",
-						"environment": map[string]interface{}{
+						"environment": map[string]any{
 							"NAME":  "DEV",
 							"VALUE": nil,
 						},

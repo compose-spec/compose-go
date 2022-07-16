@@ -220,7 +220,7 @@ type foo struct {
 
 func TestExtension(t *testing.T) {
 	x := Extensions{
-		"foo": map[string]interface{}{
+		"foo": map[string]any{
 			"bar": "zot",
 		},
 	}
