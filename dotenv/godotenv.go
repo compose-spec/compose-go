@@ -93,26 +93,30 @@ func load(overload bool, filenames ...string) (err error) {
 	return
 }
 
+var startsWithDigitRegex = regexp.MustCompile(`^\s*\d.*`) // Keys starting with numbers are ignored
+
 // ReadWithLookup gets all env vars from the files and/or lookup function and return values as
 // a map rather than automatically writing values into env
-func ReadWithLookup(lookupFn LookupFn, filenames ...string) (envMap map[string]string, err error) {
+func ReadWithLookup(lookupFn LookupFn, filenames ...string) (map[string]string, error) {
 	filenames = filenamesOrDefault(filenames)
-	envMap = make(map[string]string)
+	envMap := make(map[string]string)
 
 	for _, filename := range filenames {
 		individualEnvMap, individualErr := readFile(filename, lookupFn)
 
 		if individualErr != nil {
-			err = individualErr
-			return // return early on a spazout
+			return envMap, individualErr
 		}
 
 		for key, value := range individualEnvMap {
+			if startsWithDigitRegex.MatchString(key) {
+				continue
+			}
 			envMap[key] = value
 		}
 	}
 
-	return
+	return envMap, nil
 }
 
 // Read all env (with same file loading semantics as Load) but return values as
@@ -183,7 +187,7 @@ func Marshal(envMap map[string]string) (string, error) {
 		if d, err := strconv.Atoi(v); err == nil {
 			lines = append(lines, fmt.Sprintf(`%s=%d`, k, d))
 		} else {
-			lines = append(lines, fmt.Sprintf(`%s="%s"`, k, doubleQuoteEscape(v))) //nolint // Cannot use %q here
+			lines = append(lines, fmt.Sprintf(`%s="%s"`, k, doubleQuoteEscape(v))) // nolint // Cannot use %q here
 		}
 	}
 	sort.Strings(lines)
