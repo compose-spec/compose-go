@@ -617,10 +617,11 @@ type PlacementPreferences struct {
 
 // ServiceNetworkConfig is the network configuration for a service
 type ServiceNetworkConfig struct {
-	Priority    int      `yaml:",omitempty" json:"priotirt,omitempty"`
-	Aliases     []string `yaml:",omitempty" json:"aliases,omitempty"`
-	Ipv4Address string   `mapstructure:"ipv4_address" yaml:"ipv4_address,omitempty" json:"ipv4_address,omitempty"`
-	Ipv6Address string   `mapstructure:"ipv6_address" yaml:"ipv6_address,omitempty" json:"ipv6_address,omitempty"`
+	Priority     int      `yaml:",omitempty" json:"priority,omitempty"`
+	Aliases      []string `yaml:",omitempty" json:"aliases,omitempty"`
+	Ipv4Address  string   `mapstructure:"ipv4_address" yaml:"ipv4_address,omitempty" json:"ipv4_address,omitempty"`
+	Ipv6Address  string   `mapstructure:"ipv6_address" yaml:"ipv6_address,omitempty" json:"ipv6_address,omitempty"`
+	LinkLocalIPs []string `mapstructure:"link_local_ips" yaml:"link_local_ips,omitempty" json:"link_local_ips,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
