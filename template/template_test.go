@@ -407,3 +407,35 @@ func TestExtractVariables(t *testing.T) {
 		})
 	}
 }
+
+func TestSubstitutionFunctionChoice(t *testing.T) {
+	testcases := []struct {
+		name   string
+		input  string
+		symbol string
+	}{
+		{"Error when EMPTY or UNSET", "VARNAME:?val?ue", ":?"},
+		{"Error when UNSET 1", "VARNAME?val:?ue", "?"},
+		{"Error when UNSET 2", "VARNAME?va-lu+e:?e", "?"},
+		{"Error when UNSET 3", "VARNAME?va+lu-e:?e", "?"},
+
+		{"Default when EMPTY or UNSET", "VARNAME:-value", ":-"},
+		{"Default when UNSET 1", "VARNAME-va:-lu:?e", "-"},
+		{"Default when UNSET 2", "VARNAME-va+lu?e", "-"},
+		{"Default when UNSET 3", "VARNAME-va?lu+e", "-"},
+
+		{"Default when NOT EMPTY", "VARNAME:+va:?lu:-e", ":+"},
+		{"Default when SET 1", "VARNAME+va:+lue", "+"},
+		{"Default when SET 2", "VARNAME+va?lu-e", "+"},
+		{"Default when SET 3", "VARNAME+va-lu?e", "+"},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.name, func(t *testing.T) {
+			symbol, _ := getSubstitutionFunctionForTemplate(tc.input)
+			assert.Equal(t, symbol, tc.symbol,
+				fmt.Sprintf("Wrong on output for: %s got symbol -> %#v", tc.input, symbol),
+			)
+		})
+	}
+}
