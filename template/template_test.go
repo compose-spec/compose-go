@@ -113,6 +113,42 @@ func TestEmptyValueWithHardDefault(t *testing.T) {
 	assert.Check(t, is.Equal("ok ", result))
 }
 
+func TestPresentValueWithUnset(t *testing.T) {
+	result, err := Substitute("ok ${UNSET_VAR:+presence_value}", defaultMapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok ", result))
+}
+
+func TestPresentValueWithUnset2(t *testing.T) {
+	result, err := Substitute("ok ${UNSET_VAR+presence_value}", defaultMapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok ", result))
+}
+
+func TestPresentValueWithNonEmpty(t *testing.T) {
+	result, err := Substitute("ok ${FOO:+presence_value}", defaultMapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok presence_value", result))
+}
+
+func TestPresentValueAndNonEmptyWithNonEmpty(t *testing.T) {
+	result, err := Substitute("ok ${FOO+presence_value}", defaultMapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok presence_value", result))
+}
+
+func TestPresentValueWithSet(t *testing.T) {
+	result, err := Substitute("ok ${BAR+presence_value}", defaultMapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok presence_value", result))
+}
+
+func TestPresentValueAndNotEmptyWithSet(t *testing.T) {
+	result, err := Substitute("ok ${BAR:+presence_value}", defaultMapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok ", result))
+}
+
 func TestNonAlphanumericDefault(t *testing.T) {
 	result, err := Substitute("ok ${BAR:-/non:-alphanumeric}", defaultMapping)
 	assert.NilError(t, err)
@@ -147,6 +183,14 @@ func TestDefaultsWithNestedExpansion(t *testing.T) {
 		{
 			template: "ok ${BAR:-${FOO} ${FOO}}",
 			expected: "ok first first",
+		},
+		{
+			template: "ok ${BAR+$FOO}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${BAR+$FOO ${FOO:+second}}",
+			expected: "ok first second",
 		},
 	}
 
@@ -396,6 +440,24 @@ func TestExtractVariables(t *testing.T) {
 				"toto":    {Name: "toto", DefaultValue: ""},
 				"docker":  {Name: "docker", DefaultValue: ""},
 				"project": {Name: "project", DefaultValue: "cli"},
+			},
+		},
+		{
+			name: "presence-value-nonEmpty",
+			dict: map[string]interface{}{
+				"foo": "${bar:+foo}",
+			},
+			expected: map[string]Variable{
+				"bar": {Name: "bar", PresenceValue: "foo"},
+			},
+		},
+		{
+			name: "presence-value",
+			dict: map[string]interface{}{
+				"foo": "${bar+foo}",
+			},
+			expected: map[string]Variable{
+				"bar": {Name: "bar", PresenceValue: "foo"},
 			},
 		},
 	}

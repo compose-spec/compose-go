@@ -28,7 +28,7 @@ import (
 var delimiter = "\\$"
 var substitutionNamed = "[_a-z][_a-z0-9]*"
 
-var substitutionBraced = "[_a-z][_a-z0-9]*(?::?[-?](.*}|[^}]*))?"
+var substitutionBraced = "[_a-z][_a-z0-9]*(?::?[-+?](.*}|[^}]*))?"
 
 var patternString = fmt.Sprintf(
 	"%s(?i:(?P<escaped>%s)|(?P<named>%s)|{(?P<braced>%s)}|(?P<invalid>))",
@@ -214,9 +214,10 @@ func recurseExtract(value interface{}, pattern *regexp.Regexp) map[string]Variab
 }
 
 type Variable struct {
-	Name         string
-	DefaultValue string
-	Required     bool
+	Name          string
+	DefaultValue  string
+	PresenceValue string
+	Required      bool
 }
 
 func extractVariable(value interface{}, pattern *regexp.Regexp) ([]Variable, bool) {
@@ -240,6 +241,7 @@ func extractVariable(value interface{}, pattern *regexp.Regexp) ([]Variable, boo
 		}
 		name := val
 		var defaultValue string
+		var presenceValue string
 		var required bool
 		switch {
 		case strings.Contains(val, ":?"):
@@ -252,11 +254,16 @@ func extractVariable(value interface{}, pattern *regexp.Regexp) ([]Variable, boo
 			name, defaultValue = partition(val, ":-")
 		case strings.Contains(val, "-"):
 			name, defaultValue = partition(val, "-")
+		case strings.Contains(val, ":+"):
+			name, presenceValue = partition(val, ":+")
+		case strings.Contains(val, "+"):
+			name, presenceValue = partition(val, "+")
 		}
 		values = append(values, Variable{
-			Name:         name,
-			DefaultValue: defaultValue,
-			Required:     required,
+			Name:          name,
+			DefaultValue:  defaultValue,
+			PresenceValue: presenceValue,
+			Required:      required,
 		})
 	}
 	return values, len(values) > 0
@@ -273,11 +280,11 @@ func defaultWhenUnset(substitution string, mapping Mapping) (string, bool, error
 }
 
 func defaultWhenNotEmpty(substitution string, mapping Mapping) (string, bool, error) {
-	return "", false, nil // TODO Implement ":+"
+	return withDefaultWhenPresence(substitution, mapping, true)
 }
 
 func defaultWhenSet(substitution string, mapping Mapping) (string, bool, error) {
-	return "", false, nil // TODO Implement "+"
+	return withDefaultWhenPresence(substitution, mapping, false)
 }
 
 func requiredErrorWhenEmptyOrUnset(substitution string, mapping Mapping) (string, bool, error) {
@@ -286,6 +293,26 @@ func requiredErrorWhenEmptyOrUnset(substitution string, mapping Mapping) (string
 
 func requiredErrorWhenUnset(substitution string, mapping Mapping) (string, bool, error) {
 	return withRequired(substitution, mapping, "?", func(_ string) bool { return true })
+}
+
+func withDefaultWhenPresence(substitution string, mapping Mapping, notEmpty bool) (string, bool, error) {
+	sep := "+"
+	if notEmpty {
+		sep = ":+"
+	}
+	if !strings.Contains(substitution, sep) {
+		return "", false, nil
+	}
+	name, defaultValue := partition(substitution, sep)
+	defaultValue, err := Substitute(defaultValue, mapping)
+	if err != nil {
+		return "", false, err
+	}
+	value, ok := mapping(name)
+	if ok && (!notEmpty || (notEmpty && value != "")) {
+		return defaultValue, true, nil
+	}
+	return value, true, nil
 }
 
 func withDefaultWhenAbsence(substitution string, mapping Mapping, emptyOrUnset bool) (string, bool, error) {
