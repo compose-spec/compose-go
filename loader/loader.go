@@ -624,6 +624,9 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 	environment := types.MappingWithEquals{}
 
 	if len(serviceConfig.EnvFile) > 0 {
+		if serviceConfig.Environment == nil {
+			serviceConfig.Environment = types.MappingWithEquals{}
+		}
 		for _, envFile := range serviceConfig.EnvFile {
 			filePath := absPath(workingDir, envFile)
 			file, err := os.Open(filePath)

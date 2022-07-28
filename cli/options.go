@@ -242,7 +242,6 @@ func GetEnvFromFile(currentEnv map[string]string, workingDir string, filename st
 	env, err := dotenv.ParseWithLookup(file, func(k string) (string, bool) {
 		v, ok := currentEnv[k]
 		if !ok {
-
 			return "", false
 		}
 		return v, true
@@ -251,9 +250,6 @@ func GetEnvFromFile(currentEnv map[string]string, workingDir string, filename st
 		return envMap, err
 	}
 	for k, v := range env {
-		if _, set := currentEnv[k]; set {
-			continue
-		}
 		envMap[k] = v
 	}
 

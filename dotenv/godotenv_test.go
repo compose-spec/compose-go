@@ -218,7 +218,7 @@ func TestSubstitutions(t *testing.T) {
 		"OPTION_A": "1",
 		"OPTION_B": "1",
 		"OPTION_C": "1",
-		"OPTION_D": "11",
+		"OPTION_D": "1_1",
 		"OPTION_E": "",
 	}
 
@@ -614,7 +614,7 @@ func TestExpendingEnvironmentWithLookup(t *testing.T) {
 	}
 }
 
-func TestSubstitutionsWithShellEnvPrecedence(t *testing.T) {
+func TestSubstitutionsWithEnvFilePrecedence(t *testing.T) {
 	os.Clearenv()
 	const envKey = "OPTION_A"
 	const envVal = "5"
@@ -623,10 +623,68 @@ func TestSubstitutionsWithShellEnvPrecedence(t *testing.T) {
 
 	envFileName := "fixtures/substitutions.env"
 	expectedValues := map[string]string{
+		"OPTION_A": "1",
+		"OPTION_B": "1",
+		"OPTION_C": "1",
+		"OPTION_D": "1_1",
+		"OPTION_E": "",
+	}
+
+	envMap, err := ReadWithLookup(os.LookupEnv, envFileName)
+	if err != nil {
+		t.Error("Error reading file")
+	}
+	if len(envMap) != len(expectedValues) {
+		t.Error("Didn't get the right size map back")
+	}
+
+	for key, value := range expectedValues {
+		if envMap[key] != value {
+			t.Errorf("Read got one of the keys wrong, [%q]->%q", key, envMap[key])
+		}
+	}
+}
+
+func TestSubstitutionsWithEnvFileDefaultValuePrecedence(t *testing.T) {
+	os.Clearenv()
+	const envKey = "OPTION_A"
+	const envVal = "5"
+	os.Setenv(envKey, envVal)
+	defer os.Unsetenv(envKey)
+
+	envFileName := "fixtures/substitutions-default.env"
+	expectedValues := map[string]string{
 		"OPTION_A": "5",
 		"OPTION_B": "5",
 		"OPTION_C": "5",
-		"OPTION_D": "55",
+		"OPTION_D": "5_5",
+		"OPTION_E": "",
+	}
+
+	envMap, err := ReadWithLookup(os.LookupEnv, envFileName)
+	if err != nil {
+		t.Error("Error reading file")
+	}
+	if len(envMap) != len(expectedValues) {
+		t.Error("Didn't get the right size map back")
+	}
+
+	for key, value := range expectedValues {
+		if envMap[key] != value {
+			t.Errorf("Read got one of the keys wrong, [%q]->%q", key, envMap[key])
+		}
+	}
+}
+
+func TestSubstitutionsWithUnsetVarEnvFileDefaultValuePrecedence(t *testing.T) {
+	os.Clearenv()
+
+	envFileName := "fixtures/substitutions-default.env"
+	expectedValues := map[string]string{
+		"OPTION_A": "1",
+		"OPTION_B": "1",
+		"OPTION_C": "1",
+		"OPTION_D": "1_1",
 		"OPTION_E": "",
 	}
 
