@@ -237,3 +237,28 @@ func TestEnvMap(t *testing.T) {
 	m = utils.GetAsEqualsMap(l)
 	assert.Equal(t, m["foo"], "bar")
 }
+
+func TestWithSeparator(t *testing.T) {
+	t.Run("With default separator", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{
+			"testdata/simple/compose-with-network-and-volume.yaml",
+		}, WithName("my-project"))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Networks["test-network"].Name, "my-project-test-network")
+
+	})
+
+	t.Run("With compatibility separator", func(t *testing.T) {
+		t.Setenv("COMPOSE_COMPATIBILITY", "true")
+		opts, err := NewProjectOptions([]string{
+			"testdata/simple/compose-with-network-and-volume.yaml",
+		}, WithName("my-project"), WithOsEnv)
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Networks["test-network"].Name, "my-project_test-network")
+
+	})
+}
