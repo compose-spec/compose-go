@@ -251,8 +251,7 @@ func TestWithSeparator(t *testing.T) {
 	})
 
 	t.Run("With compatibility separator", func(t *testing.T) {
-		os.Setenv("COMPOSE_COMPATIBILITY", "true") //nolint:errcheck
-		defer os.Unsetenv("COMPOSE_COMPATIBILITY") //nolint:errcheck
+		t.Setenv("COMPOSE_COMPATIBILITY", "true")
 		opts, err := NewProjectOptions([]string{
 			"testdata/simple/compose-with-network-and-volume.yaml",
 		}, WithName("my-project"), WithOsEnv)
