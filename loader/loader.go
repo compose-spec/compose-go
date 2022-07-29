@@ -43,6 +43,11 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	DefaultSeparator       = "-"
+	CompatibilitySeparator = "_"
+)
+
 // Options supported by Load
 type Options struct {
 	// Skip schema validation
@@ -67,6 +72,8 @@ type Options struct {
 	projectName string
 	// Indicates when the projectName was imperatively set or guessed from path
 	projectNameImperativelySet bool
+	// Set separator used for naming resources
+	Separator string
 }
 
 func (o *Options) SetProjectName(name string, imperativelySet bool) {
@@ -155,6 +162,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			LookupValue:     configDetails.LookupEnv,
 			TypeCastMapping: interpolateTypeCastMapping,
 		},
+		Separator: DefaultSeparator,
 	}
 
 	for _, op := range options {
@@ -223,7 +231,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	if !opts.SkipNormalization {
-		err = normalize(project, opts.ResolvePaths)
+		err = normalize(project, opts.ResolvePaths, opts.Separator)
 		if err != nil {
 			return nil, err
 		}
