@@ -73,16 +73,16 @@ services:
       default: null
 networks:
   default:
-    name: myProject-default
+    name: myProject_default
   myExternalnet:
     name: myExternalnet
     external: true
   myNamedNet:
     name: CustomName
   mynet:
-    name: myProject-mynet
+    name: myProject_mynet
 `
-	err := normalize(&project, false, DefaultSeparator)
+	err := normalize(&project, false)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
 	assert.NilError(t, err)
@@ -116,9 +116,9 @@ services:
       default: null
 networks:
   default:
-    name: myProject-default
+    name: myProject_default
 `, filepath.Join(wd, "testdata"))
-	err := normalize(&project, true, DefaultSeparator)
+	err := normalize(&project, true)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
 	assert.NilError(t, err)
@@ -138,11 +138,11 @@ func TestNormalizeAbsolutePaths(t *testing.T) {
 
 	expected := types.Project{
 		Name:         "myProject",
-		Networks:     types.Networks{"default": {Name: "myProject-default"}},
+		Networks:     types.Networks{"default": {Name: "myProject_default"}},
 		WorkingDir:   absWorkingDir,
 		ComposeFiles: []string{absComposeFile, absOverrideFile},
 	}
-	err := normalize(&project, false, DefaultSeparator)
+	err := normalize(&project, false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project)
 }
@@ -166,13 +166,13 @@ func TestNormalizeVolumes(t *testing.T) {
 	absCwd, _ := filepath.Abs(".")
 	expected := types.Project{
 		Name:     "myProject",
-		Networks: types.Networks{"default": {Name: "myProject-default"}},
+		Networks: types.Networks{"default": {Name: "myProject_default"}},
 		Volumes: types.Volumes{
 			"myExternalVol": {
 				Name:     "myExternalVol",
 				External: types.External{External: true},
 			},
-			"myvol": {Name: "myProject-myvol"},
+			"myvol": {Name: "myProject_myvol"},
 			"myNamedVol": {
 				Name: "CustomName",
 			},
@@ -180,29 +180,7 @@ func TestNormalizeVolumes(t *testing.T) {
 		WorkingDir:   absCwd,
 		ComposeFiles: []string{},
 	}
-	err := normalize(&project, false, DefaultSeparator)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, project)
-}
-
-func TestNormalizeWithCompatibilitySeparator(t *testing.T) {
-	project := types.Project{
-		Name:         "myProject",
-		WorkingDir:   "testdata",
-		Networks:     types.Networks{},
-		ComposeFiles: []string{filepath.Join("testdata", "simple", "compose.yaml"), filepath.Join("testdata", "simple", "compose-with-overrides.yaml")},
-	}
-	absWorkingDir, _ := filepath.Abs("testdata")
-	absComposeFile, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose.yaml"))
-	absOverrideFile, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose-with-overrides.yaml"))
-
-	expected := types.Project{
-		Name:         "myProject",
-		Networks:     types.Networks{"default": {Name: "myProject_default"}},
-		WorkingDir:   absWorkingDir,
-		ComposeFiles: []string{absComposeFile, absOverrideFile},
-	}
-	err := normalize(&project, false, "_")
+	err := normalize(&project, false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project)
 }

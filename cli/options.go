@@ -350,8 +350,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 
 	options.loadOptions = append(options.loadOptions,
 		withNamePrecedenceLoad(absWorkingDir, options),
-		withConvertWindowsPaths(options),
-		withSeparator(options))
+		withConvertWindowsPaths(options))
 
 	project, err := loader.Load(types.ConfigDetails{
 		ConfigFiles: configs,
@@ -382,15 +381,6 @@ func withConvertWindowsPaths(options *ProjectOptions) func(*loader.Options) {
 	return func(o *loader.Options) {
 		o.ConvertWindowsPaths = utils.StringToBool(options.Environment["COMPOSE_CONVERT_WINDOWS_PATHS"])
 		o.ResolvePaths = true
-	}
-}
-
-// withSeparator defines loader.Options separator used to define resource names
-func withSeparator(options *ProjectOptions) func(*loader.Options) {
-	return func(o *loader.Options) {
-		if utils.StringToBool(options.Environment["COMPOSE_COMPATIBILITY"]) {
-			o.Separator = loader.CompatibilitySeparator
-		}
 	}
 }
 
