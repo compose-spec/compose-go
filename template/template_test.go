@@ -155,6 +155,63 @@ func TestNonAlphanumericDefault(t *testing.T) {
 	assert.Check(t, is.Equal("ok /non:-alphanumeric", result))
 }
 
+func TestInterpolationExternalInterference(t *testing.T) {
+	testCases := []struct {
+		name     string
+		template string
+		expected string
+	}{
+		{
+			template: "-ok ${BAR:-defaultValue}",
+			expected: "-ok defaultValue",
+		},
+		{
+			template: "+ok ${UNSET:-${BAR-defaultValue}}",
+			expected: "+ok ",
+		},
+		{
+			template: "-ok ${FOO:-defaultValue}",
+			expected: "-ok first",
+		},
+		{
+			template: ":-ok ${UNSET-defaultValue}",
+			expected: ":-ok defaultValue",
+		},
+		{
+			template: ":-ok ${BAR-defaultValue}",
+			expected: ":-ok ",
+		},
+		{
+			template: ":?ok ${BAR-defaultValue}",
+			expected: ":?ok ",
+		},
+		{
+			template: ":?ok ${BAR:-defaultValue}",
+			expected: ":?ok defaultValue",
+		},
+		{
+			template: ":+ok ${BAR:-defaultValue}",
+			expected: ":+ok defaultValue",
+		},
+		{
+			template: "+ok ${BAR-defaultValue}",
+			expected: "+ok ",
+		},
+		{
+			template: "?ok ${BAR:-defaultValue}",
+			expected: "?ok defaultValue",
+		},
+	}
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(fmt.Sprintf("Interpolation Should not be impacted by outer text: %d", i), func(t *testing.T) {
+			result, err := Substitute(tc.template, defaultMapping)
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(tc.expected, result))
+		})
+	}
+}
+
 func TestDefaultsWithNestedExpansion(t *testing.T) {
 	testCases := []struct {
 		template string
