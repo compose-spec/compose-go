@@ -17,7 +17,11 @@
 package types
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v2"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -270,4 +274,57 @@ func TestNetworksByPriority(t *testing.T) {
 		},
 	}
 	assert.DeepEqual(t, s.NetworksByPriority(), []string{"qix", "zot", "bar", "foo"})
+}
+
+func TestMarshalServiceEntrypoint(t *testing.T) {
+	t.Parallel()
+
+	tcs := []struct {
+		name         string
+		entrypoint   ShellCommand
+		expectedYAML string
+		expectedJSON string
+	}{
+		{
+			name:         "nil",
+			entrypoint:   nil,
+			expectedYAML: `{}`,
+			expectedJSON: `{"command":null,"entrypoint":null}`,
+		},
+		{
+			name:         "empty",
+			entrypoint:   make([]string, 0),
+			expectedYAML: `entrypoint: []`,
+			expectedJSON: `{"command":null,"entrypoint":[]}`,
+		},
+		{
+			name:         "value",
+			entrypoint:   ShellCommand{"ls", "/"},
+			expectedYAML: "entrypoint:\n- ls\n- /",
+			expectedJSON: `{"command":null,"entrypoint":["ls","/"]}`,
+		},
+	}
+
+	assertEqual := func(t testing.TB, actualBytes []byte, expected string) {
+		t.Helper()
+		actual := strings.TrimSpace(string(actualBytes))
+		expected = strings.TrimSpace(expected)
+		assert.Equal(t, actual, expected)
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := ServiceConfig{Entrypoint: tc.entrypoint}
+			actualYAML, err := yaml.Marshal(s)
+			assert.NilError(t, err, "YAML marshal failed")
+			assertEqual(t, actualYAML, tc.expectedYAML)
+
+			actualJSON, err := json.Marshal(s)
+			assert.NilError(t, err, "JSON marshal failed")
+			assertEqual(t, actualJSON, tc.expectedJSON)
+		})
+	}
+
 }
