@@ -1,0 +1,6 @@
+services:
+  simple:
+    image: nginx
+    environment:
+      UID: "${UID}"
+      GID: "${GID}"

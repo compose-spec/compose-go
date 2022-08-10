@@ -178,6 +178,13 @@ func WithOsEnv(o *ProjectOptions) error {
 	return nil
 }
 
+// WithShellVariables import UID and GID variables from OS
+func WithShellVariables(o *ProjectOptions) error {
+    o.Environment["UID"] = os.Getuid()
+    o.Environment["GID"] = os.Getgid()
+    return nil
+}
+
 // WithEnvFile set an alternate env file
 func WithEnvFile(file string) ProjectOptionsFn {
 	return func(options *ProjectOptions) error {
