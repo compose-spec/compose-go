@@ -144,7 +144,7 @@ func TestProjectName(t *testing.T) {
 		assert.Equal(t, p.Name, "my_project_from_dot_env")
 	})
     t.Run("by UID and GID", func(t *testing.T) {
-        opts, err := NewProjectOptions([]string{"testdata/simple/compose-with-uid-guid.yaml"}, WithShellVariables)
+        opts, err := NewProjectOptions([]string{"testdata/simple/compose-with-uid-gid.yaml"}, WithShellVariables)
         assert.NilError(t, err)
         p, err := ProjectFromOptions(opts)
         service, err := p.GetService("simple")
