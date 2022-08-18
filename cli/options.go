@@ -198,6 +198,9 @@ func WithDotEnv(o *ProjectOptions) error {
 	}
 	for k, v := range envMap {
 		o.Environment[k] = v
+		if osVal, ok := os.LookupEnv(k); ok {
+			o.Environment[k] = osVal
+		}
 	}
 	return nil
 }
