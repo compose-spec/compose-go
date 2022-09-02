@@ -14,6 +14,7 @@
 package dotenv
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -28,6 +29,8 @@ import (
 )
 
 const doubleQuoteSpecialChars = "\\\n\r\"!$`"
+
+var utf8BOM = []byte("\uFEFF")
 
 // LookupFn represents a lookup function to resolve variables from
 type LookupFn func(string) (string, bool)
@@ -47,6 +50,10 @@ func ParseWithLookup(r io.Reader, lookupFn LookupFn) (map[string]string, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	// seek past the UTF-8 BOM if it exists (particularly on Windows, some
+	// editors tend to add it, and it'll cause parsing to fail)
+	data = bytes.TrimPrefix(data, utf8BOM)
 
 	return UnmarshalBytesWithLookup(data, lookupFn)
 }

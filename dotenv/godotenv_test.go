@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 var noopPresets = make(map[string]string)
@@ -131,7 +133,7 @@ func TestLoadDoesNotOverride(t *testing.T) {
 	loadEnvAndCompareValues(t, Load, envFileName, expectedValues, presets)
 }
 
-func TestOveroadDoesOverride(t *testing.T) {
+func TestOverloadDoesOverride(t *testing.T) {
 	envFileName := "fixtures/plain.env"
 
 	// ensure NO overload
@@ -525,7 +527,7 @@ func TestRoundtrip(t *testing.T) {
 	}
 }
 
-func TestInheritedEnvVariablSameSize(t *testing.T) {
+func TestInheritedEnvVariableSameSize(t *testing.T) {
 	const envKey = "VAR_TO_BE_LOADED_FROM_OS_ENV"
 	const envVal = "SOME_RANDOM_VALUE"
 	os.Setenv(envKey, envVal)
@@ -551,7 +553,7 @@ func TestInheritedEnvVariablSameSize(t *testing.T) {
 	}
 }
 
-func TestInheritedEnvVariablSingleVar(t *testing.T) {
+func TestInheritedEnvVariableSingleVar(t *testing.T) {
 	const envKey = "VAR_TO_BE_LOADED_FROM_OS_ENV"
 	const envVal = "SOME_RANDOM_VALUE"
 	os.Setenv(envKey, envVal)
@@ -701,4 +703,26 @@ func TestSubstitutionsWithUnsetVarEnvFileDefaultValuePrecedence(t *testing.T) {
 			t.Errorf("Read got one of the keys wrong, [%q]->%q", key, envMap[key])
 		}
 	}
+}
+
+func TestUTF8BOM(t *testing.T) {
+	envFileName := "fixtures/utf8-bom.env"
+
+	// sanity check the fixture, since the UTF-8 BOM is invisible, it'd be
+	// easy for it to get removed by accident, which would invalidate this
+	// test
+	envFileData, err := os.ReadFile(envFileName)
+	require.NoError(t, err)
+	require.True(t, bytes.HasPrefix(envFileData, []byte("\uFEFF")),
+		"Test fixture file is missing UTF-8 BOM")
+
+	expectedValues := map[string]string{
+		"OPTION_A": "1",
+		"OPTION_B": "2",
+		"OPTION_C": "3",
+		"OPTION_D": "4",
+		"OPTION_E": "5",
+	}
+
+	loadEnvAndCompareValues(t, Load, envFileName, expectedValues, noopPresets)
 }
