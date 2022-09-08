@@ -428,6 +428,8 @@ secrets:
     environment: BAR
     x-bar: baz
     x-foo: bar
+  secret5:
+    file: /abs/secret_data
 x-bar: baz
 x-foo: bar
 x-nested:

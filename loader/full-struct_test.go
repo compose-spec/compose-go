@@ -574,6 +574,9 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 				"x-foo": "bar",
 			},
 		},
+		"secret5": {
+			File: "/abs/secret_data",
+		},
 	}
 }
 
@@ -985,6 +988,8 @@ secrets:
     environment: BAR
     x-bar: baz
     x-foo: bar
+  secret5:
+    file: /abs/secret_data
 configs:
   config1:
     file: %s
@@ -1105,6 +1110,10 @@ func fullExampleJSON(workingDir, homeDir string) string {
     "secret4": {
       "name": "bar",
       "environment": "BAR",
+      "external": false
+    },
+    "secret5": {
+      "file": "/abs/secret_data",
       "external": false
     }
   },
