@@ -1,3 +1,5 @@
 services:
   imported:
     image: nginx
+    volumes:
+      - /opt/data:/var/lib/mysql

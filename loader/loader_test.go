@@ -1834,6 +1834,12 @@ func TestLoadWithExtends(t *testing.T) {
 			},
 			Environment: types.MappingWithEquals{},
 			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
+			Volumes:     []types.ServiceVolumeConfig{{
+				Type:   "bind",
+				Source: "/opt/data",
+				Target: "/var/lib/mysql",
+				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+			}},
 			Scale:       1,
 		},
 	}

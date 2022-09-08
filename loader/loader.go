@@ -556,7 +556,7 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 				if vol.Type != types.VolumeTypeBind {
 					continue
 				}
-				baseService.Volumes[i].Source = absPath(baseFileParent, vol.Source)
+				baseService.Volumes[i].Source = resolveMaybeUnixPath(vol.Source, baseFileParent, lookupEnv)
 			}
 		}
 
