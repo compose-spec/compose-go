@@ -2,21 +2,27 @@ package dotenv
 
 import (
 	"bytes"
-	"fmt"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 var noopPresets = make(map[string]string)
 
 func parseAndCompare(t *testing.T, rawEnvLine string, expectedKey string, expectedValue string) {
-	key, value, _ := parseLine(rawEnvLine, noopPresets)
-	if key != expectedKey || value != expectedValue {
-		t.Errorf("Expected '%v' to parse as '%v' => '%v', got '%v' => '%v' instead", rawEnvLine, expectedKey, expectedValue, key, value)
+	t.Helper()
+	env, err := Parse(strings.NewReader(rawEnvLine))
+	if !assert.NoError(t, err) {
+		return
+	}
+	actualValue, ok := env[expectedKey]
+	if !ok {
+		t.Errorf("Key %q was not found in env: %v", expectedKey, env)
+	} else if actualValue != expectedValue {
+		t.Errorf("Expected '%v' to parse as '%v' => '%v', got '%v' => '%v' instead", rawEnvLine, expectedKey, expectedValue, expectedKey, actualValue)
 	}
 }
 
@@ -345,6 +351,7 @@ func TestParsing(t *testing.T) {
 
 	// parses escaped double quotes
 	parseAndCompare(t, `FOO="escaped\"bar"`, "FOO", `escaped"bar`)
+	parseAndCompare(t, `FOO="\"quoted\""`, "FOO", `"quoted"`)
 
 	// parses single quotes inside double quotes
 	parseAndCompare(t, `FOO="'d'"`, "FOO", `'d'`)
@@ -368,16 +375,19 @@ func TestParsing(t *testing.T) {
 	parseAndCompare(t, "export\tOPTION_A=2", "OPTION_A", "2")
 	parseAndCompare(t, "  export OPTION_A=2", "OPTION_A", "2")
 	parseAndCompare(t, "\texport OPTION_A=2", "OPTION_A", "2")
+	parseAndCompare(t, `export OPTION_A="export A"`, "OPTION_A", "export A")
 
 	// it 'expands newlines in quoted strings' do
 	// expect(env('FOO="bar\nbaz"')).to eql('FOO' => "bar\nbaz")
 	parseAndCompare(t, `FOO="bar\nbaz"`, "FOO", "bar\nbaz")
+	parseAndCompare(t, `FOO=a\tb`, "FOO", `a\tb`)
+	parseAndCompare(t, `FOO="a\tb"`, "FOO", "a\tb")
 
-	// it 'parses varibales with "." in the name' do
+	// it 'parses variables with "." in the name' do
 	// expect(env('FOO.BAR=foobar')).to eql('FOO.BAR' => 'foobar')
 	parseAndCompare(t, "FOO.BAR=foobar", "FOO.BAR", "foobar")
 
-	// it 'parses varibales with several "=" in the value' do
+	// it 'parses variables with several "=" in the value' do
 	// expect(env('FOO=foobar=')).to eql('FOO' => 'foobar=')
 	parseAndCompare(t, "FOO=foobar=", "FOO", "foobar=")
 
@@ -388,10 +398,14 @@ func TestParsing(t *testing.T) {
 	// it 'ignores inline comments' do
 	// expect(env("foo=bar # this is foo")).to eql('foo' => 'bar')
 	parseAndCompare(t, "FOO=bar # this is foo", "FOO", "bar")
+	parseAndCompare(t, "FOO=bar #this is foo", "FOO", "bar")
+	parseAndCompare(t, "FOO=bar #", "FOO", "bar")
 	parseAndCompare(t, "FOO=123#not-an-inline-comment", "FOO", "123#not-an-inline-comment")
 
 	// it 'allows # in quoted value' do
 	// expect(env('foo="bar#baz" # comment')).to eql('foo' => 'bar#baz')
+	parseAndCompare(t, `FOO="bar#baz"`, "FOO", "bar#baz")
+	parseAndCompare(t, `FOO="bar#baz"#`, "FOO", "bar#baz")
 	parseAndCompare(t, `FOO="bar#baz" # comment`, "FOO", "bar#baz")
 	parseAndCompare(t, "FOO='bar#baz' # comment", "FOO", "bar#baz")
 	parseAndCompare(t, `FOO="bar#baz#bang" # comment`, "FOO", "bar#baz#bang")
@@ -403,25 +417,48 @@ func TestParsing(t *testing.T) {
 	parseAndCompare(t, "FOO='ba#r'", "FOO", "ba#r")
 
 	// newlines and backslashes should be escaped
-	parseAndCompare(t, `FOO="bar\n\ b\az"`, "FOO", "bar\n baz")
-	parseAndCompare(t, `FOO="bar\\\n\ b\az"`, "FOO", "bar\\\n baz")
-	parseAndCompare(t, `FOO="bar\\r\ b\az"`, "FOO", "bar\\r baz")
+	parseAndCompare(t, `FOO="bar\n\ b\az"`, "FOO", "bar\n\\ b\az")
+	parseAndCompare(t, `FOO="bar\\\n\ b\az"`, "FOO", "bar\\\n\\ b\az")
+	parseAndCompare(t, `FOO="bar\\r\ b\az"`, "FOO", "bar\\r\\ b\az")
 
 	parseAndCompare(t, `="value"`, "", "value")
-	parseAndCompare(t, `KEY="`, "KEY", "\"")
-	parseAndCompare(t, `KEY="value`, "KEY", "\"value")
 
 	// leading whitespace should be ignored
 	parseAndCompare(t, " KEY =value", "KEY", "value")
 	parseAndCompare(t, "   KEY=value", "KEY", "value")
 	parseAndCompare(t, "\tKEY=value", "KEY", "value")
 
+	// XSI-echo style octal escapes are expanded
+	parseAndCompare(t, `KEY="\0123"`, "KEY", "S")
+
+	// non-XSI/POSIX escapes are ignored
+	parseAndCompare(t, `KEY="\x07"`, "KEY", `\x07`)
+	parseAndCompare(t, `KEY="\u12e4"`, "KEY", `\u12e4`)
+	parseAndCompare(t, `KEY="\U00101234"`, "KEY", `\U00101234`)
+
 	// it 'throws an error if line format is incorrect' do
 	// expect{env('lol$wut')}.to raise_error(Dotenv::FormatError)
 	badlyFormattedLine := "lol$wut"
-	_, _, err := parseLine(badlyFormattedLine, noopPresets)
+	_, err := Parse(strings.NewReader(badlyFormattedLine))
 	if err == nil {
 		t.Errorf("Expected \"%v\" to return error, but it didn't", badlyFormattedLine)
+	}
+}
+
+func TestUnterminatedQuotes(t *testing.T) {
+	cases := []string{
+		`KEY="`,
+		`KEY="value`,
+		`KEY="value\"`,
+		`KEY="value'`,
+		`KEY='`,
+		`KEY='value`,
+		`KEY='value\'`,
+		`KEY='value"`,
+	}
+	for _, tc := range cases {
+		_, err := Parse(strings.NewReader(tc))
+		assert.ErrorContains(t, err, "unterminated quoted value", "Env data: %v", tc)
 	}
 }
 
@@ -475,55 +512,6 @@ func TestErrorParsing(t *testing.T) {
 	envMap, err := Read(envFileName)
 	if err == nil {
 		t.Errorf("Expected error, got %v", envMap)
-	}
-}
-
-func TestWrite(t *testing.T) {
-	writeAndCompare := func(env string, expected string) {
-		envMap, _ := Unmarshal(env)
-		actual, _ := Marshal(envMap)
-		if expected != actual {
-			t.Errorf("Expected '%v' (%v) to write as '%v', got '%v' instead.", env, envMap, expected, actual)
-		}
-	}
-	// just test some single lines to show the general idea
-	// TestRoundtrip makes most of the good assertions
-
-	// values are always double-quoted
-	writeAndCompare(`key=value`, `key="value"`)
-	// double-quotes are escaped
-	writeAndCompare(`key=va"lu"e`, `key="va\"lu\"e"`)
-	// but single quotes are left alone
-	writeAndCompare(`key=va'lu'e`, `key="va'lu'e"`)
-	// newlines, backslashes, and some other special chars are escaped
-	writeAndCompare(`foo="\n\r\\r!"`, `foo="\n\r\\r\!"`)
-	// lines should be sorted
-	writeAndCompare("foo=bar\nbaz=buzz", "baz=\"buzz\"\nfoo=\"bar\"")
-	// integers should not be quoted
-	writeAndCompare(`key="10"`, `key=10`)
-
-}
-
-func TestRoundtrip(t *testing.T) {
-	fixtures := []string{"equals.env", "exported.env", "plain.env", "quoted.env"}
-	for _, fixture := range fixtures {
-		fixtureFilename := fmt.Sprintf("fixtures/%s", fixture)
-		env, err := readFile(fixtureFilename, nil)
-		if err != nil {
-			t.Errorf("Expected '%s' to read without error (%v)", fixtureFilename, err)
-		}
-		rep, err := Marshal(env)
-		if err != nil {
-			t.Errorf("Expected '%s' to Marshal (%v)", fixtureFilename, err)
-		}
-		roundtripped, err := Unmarshal(rep)
-		if err != nil {
-			t.Errorf("Expected '%s' to Mashal and Unmarshal (%v)", fixtureFilename, err)
-		}
-		if !reflect.DeepEqual(env, roundtripped) {
-			t.Errorf("Expected '%s' to roundtrip as '%v', got '%v' instead", fixtureFilename, env, roundtripped)
-		}
-
 	}
 }
 
@@ -602,18 +590,18 @@ func TestInheritedEnvVariableNotFoundWithLookup(t *testing.T) {
 	}
 }
 
-func TestExpendingEnvironmentWithLookup(t *testing.T) {
+func TestExpandingEnvironmentWithLookup(t *testing.T) {
 	rawEnvLine := "TEST=$ME"
 	expectedValue := "YES"
-	key, value, _ := parseLineWithLookup(rawEnvLine, noopPresets, func(s string) (string, bool) {
+	lookupFn := func(s string) (string, bool) {
 		if s == "ME" {
 			return expectedValue, true
 		}
 		return "NO", false
-	})
-	if value != "YES" {
-		t.Errorf("Expected '%v' to parse as '%v' => '%v', got '%v' => '%v' instead", rawEnvLine, key, expectedValue, key, value)
 	}
+	env, err := ParseWithLookup(strings.NewReader(rawEnvLine), lookupFn)
+	require.NoError(t, err)
+	require.Equal(t, expectedValue, env["TEST"])
 }
 
 func TestSubstitutionsWithEnvFilePrecedence(t *testing.T) {

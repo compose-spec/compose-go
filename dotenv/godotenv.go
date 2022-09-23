@@ -4,33 +4,28 @@
 //
 // The TL;DR is that you make a .env file that looks something like
 //
-// 		SOME_ENV_VAR=somevalue
+//	SOME_ENV_VAR=somevalue
 //
 // and then in your go code you can call
 //
-// 		godotenv.Load()
+//	godotenv.Load()
 //
 // and all the env vars declared in .env will be available through os.Getenv("SOME_ENV_VAR")
 package dotenv
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/template"
 )
 
-const doubleQuoteSpecialChars = "\\\n\r\"!$`"
-
 var utf8BOM = []byte("\uFEFF")
+
+var startsWithDigitRegex = regexp.MustCompile(`^\s*\d.*`) // Keys starting with numbers are ignored
 
 // LookupFn represents a lookup function to resolve variables from
 type LookupFn func(string) (string, bool)
@@ -60,13 +55,13 @@ func ParseWithLookup(r io.Reader, lookupFn LookupFn) (map[string]string, error) 
 
 // Load will read your env file(s) and load them into ENV for this process.
 //
-// Call this function as close as possible to the start of your program (ideally in main)
+// Call this function as close as possible to the start of your program (ideally in main).
 //
-// If you call Load without any args it will default to loading .env in the current path
+// If you call Load without any args it will default to loading .env in the current path.
 //
-// You can otherwise tell it which files to load (there can be more than one) like
+// You can otherwise tell it which files to load (there can be more than one) like:
 //
-//		godotenv.Load("fileone", "filetwo")
+//	godotenv.Load("fileone", "filetwo")
 //
 // It's important to note that it WILL NOT OVERRIDE an env variable that already exists - consider the .env file to set dev vars or sensible defaults
 func Load(filenames ...string) error {
@@ -75,13 +70,13 @@ func Load(filenames ...string) error {
 
 // Overload will read your env file(s) and load them into ENV for this process.
 //
-// Call this function as close as possible to the start of your program (ideally in main)
+// Call this function as close as possible to the start of your program (ideally in main).
 //
-// If you call Overload without any args it will default to loading .env in the current path
+// If you call Overload without any args it will default to loading .env in the current path.
 //
-// You can otherwise tell it which files to load (there can be more than one) like
+// You can otherwise tell it which files to load (there can be more than one) like:
 //
-//		godotenv.Overload("fileone", "filetwo")
+//	godotenv.Overload("fileone", "filetwo")
 //
 // It's important to note this WILL OVERRIDE an env variable that already exists - consider the .env file to forcefilly set all vars.
 func Overload(filenames ...string) error {
@@ -98,8 +93,6 @@ func load(overload bool, filenames ...string) error {
 	}
 	return nil
 }
-
-var startsWithDigitRegex = regexp.MustCompile(`^\s*\d.*`) // Keys starting with numbers are ignored
 
 // ReadWithLookup gets all env vars from the files and/or lookup function and return values as
 // a map rather than automatically writing values into env
@@ -131,73 +124,11 @@ func Read(filenames ...string) (map[string]string, error) {
 	return ReadWithLookup(nil, filenames...)
 }
 
-// Unmarshal reads an env file from a string, returning a map of keys and values.
-func Unmarshal(str string) (map[string]string, error) {
-	return UnmarshalBytes([]byte(str))
-}
-
-// UnmarshalBytes parses env file from byte slice of chars, returning a map of keys and values.
-func UnmarshalBytes(src []byte) (map[string]string, error) {
-	return UnmarshalBytesWithLookup(src, nil)
-}
-
 // UnmarshalBytesWithLookup parses env file from byte slice of chars, returning a map of keys and values.
 func UnmarshalBytesWithLookup(src []byte, lookupFn LookupFn) (map[string]string, error) {
 	out := make(map[string]string)
 	err := parseBytes(src, out, lookupFn)
 	return out, err
-}
-
-// Exec loads env vars from the specified filenames (empty map falls back to default)
-// then executes the cmd specified.
-//
-// Simply hooks up os.Stdin/err/out to the command and calls Run()
-//
-// If you want more fine grained control over your command it's recommended
-// that you use `Load()` or `Read()` and the `os/exec` package yourself.
-func Exec(filenames []string, cmd string, cmdArgs []string) error {
-	if err := Load(filenames...); err != nil {
-		return err
-	}
-
-	command := exec.Command(cmd, cmdArgs...)
-	command.Stdin = os.Stdin
-	command.Stdout = os.Stdout
-	command.Stderr = os.Stderr
-	return command.Run()
-}
-
-// Write serializes the given environment and writes it to a file
-func Write(envMap map[string]string, filename string) error {
-	content, err := Marshal(envMap)
-	if err != nil {
-		return err
-	}
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	_, err = file.WriteString(content + "\n")
-	if err != nil {
-		return err
-	}
-	return file.Sync()
-}
-
-// Marshal outputs the given environment as a dotenv-formatted environment file.
-// Each line is in the format: KEY="VALUE" where VALUE is backslash-escaped.
-func Marshal(envMap map[string]string) (string, error) {
-	lines := make([]string, 0, len(envMap))
-	for k, v := range envMap {
-		if d, err := strconv.Atoi(v); err == nil {
-			lines = append(lines, fmt.Sprintf(`%s=%d`, k, d))
-		} else {
-			lines = append(lines, fmt.Sprintf(`%s="%s"`, k, doubleQuoteEscape(v))) // nolint // Cannot use %q here
-		}
-	}
-	sort.Strings(lines)
-	return strings.Join(lines, "\n"), nil
 }
 
 func filenamesOrDefault(filenames []string) []string {
@@ -239,104 +170,6 @@ func readFile(filename string, lookupFn LookupFn) (map[string]string, error) {
 	return ParseWithLookup(file, lookupFn)
 }
 
-var exportRegex = regexp.MustCompile(`^\s*(?:export\s+)?(.*?)\s*$`)
-
-func parseLine(line string, envMap map[string]string) (string, string, error) {
-	return parseLineWithLookup(line, envMap, nil)
-}
-func parseLineWithLookup(line string, envMap map[string]string, lookupFn LookupFn) (string, string, error) {
-	if line == "" {
-		return "", "", errors.New("zero length string")
-	}
-
-	// ditch the comments (but keep quoted hashes)
-	if strings.HasPrefix(strings.TrimSpace(line), "#") || strings.Contains(line, " #") {
-		segmentsBetweenHashes := strings.Split(line, "#")
-		quotesAreOpen := false
-		var segmentsToKeep []string
-		for _, segment := range segmentsBetweenHashes {
-			if strings.Count(segment, "\"") == 1 || strings.Count(segment, "'") == 1 {
-				if quotesAreOpen {
-					segmentsToKeep = append(segmentsToKeep, segment)
-				}
-				quotesAreOpen = !quotesAreOpen
-			}
-
-			if len(segmentsToKeep) == 0 || quotesAreOpen {
-				segmentsToKeep = append(segmentsToKeep, segment)
-			}
-		}
-
-		line = strings.Join(segmentsToKeep, "#")
-	}
-
-	firstEquals := strings.Index(line, "=")
-	firstColon := strings.Index(line, ":")
-	splitString := strings.SplitN(line, "=", 2)
-	if firstColon != -1 && (firstColon < firstEquals || firstEquals == -1) {
-		// This is a yaml-style line
-		splitString = strings.SplitN(line, ":", 2)
-	}
-
-	if len(splitString) != 2 {
-		return "", "", errors.New("can't separate key from value")
-	}
-	key := exportRegex.ReplaceAllString(splitString[0], "$1")
-
-	// Parse the value
-	value := parseValue(splitString[1], envMap, lookupFn)
-
-	return key, value, nil
-}
-
-var (
-	singleQuotesRegex  = regexp.MustCompile(`\A'(.*)'\z`)
-	doubleQuotesRegex  = regexp.MustCompile(`\A"(.*)"\z`)
-	escapeRegex        = regexp.MustCompile(`\\.`)
-	unescapeCharsRegex = regexp.MustCompile(`\\([^$])`)
-)
-
-func parseValue(value string, envMap map[string]string, lookupFn LookupFn) string {
-
-	// trim
-	value = strings.Trim(value, " ")
-
-	// check if we've got quoted values or possible escapes
-	if len(value) > 1 {
-		singleQuotes := singleQuotesRegex.FindStringSubmatch(value)
-
-		doubleQuotes := doubleQuotesRegex.FindStringSubmatch(value)
-
-		if singleQuotes != nil || doubleQuotes != nil {
-			// pull the quotes off the edges
-			value = value[1 : len(value)-1]
-		}
-
-		if doubleQuotes != nil {
-			// expand newlines
-			value = escapeRegex.ReplaceAllStringFunc(value, func(match string) string {
-				c := strings.TrimPrefix(match, `\`)
-				switch c {
-				case "n":
-					return "\n"
-				case "r":
-					return "\r"
-				default:
-					return match
-				}
-			})
-			// unescape characters
-			value = unescapeCharsRegex.ReplaceAllString(value, "$1")
-		}
-
-		if singleQuotes == nil {
-			value, _ = expandVariables(value, envMap, lookupFn)
-		}
-	}
-
-	return value
-}
-
 func expandVariables(value string, envMap map[string]string, lookupFn LookupFn) (string, error) {
 	retVal, err := template.Substitute(value, func(k string) (string, bool) {
 		if v, ok := envMap[k]; ok {
@@ -348,18 +181,4 @@ func expandVariables(value string, envMap map[string]string, lookupFn LookupFn) 
 		return value, err
 	}
 	return retVal, nil
-}
-
-func doubleQuoteEscape(line string) string {
-	for _, c := range doubleQuoteSpecialChars {
-		toReplace := "\\" + string(c)
-		if c == '\n' {
-			toReplace = `\n`
-		}
-		if c == '\r' {
-			toReplace = `\r`
-		}
-		line = strings.ReplaceAll(line, string(c), toReplace)
-	}
-	return line
 }
