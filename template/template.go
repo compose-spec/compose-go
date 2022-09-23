@@ -31,7 +31,7 @@ var substitutionNamed = "[_a-z][_a-z0-9]*"
 var substitutionBraced = "[_a-z][_a-z0-9]*(?::?[-+?](.*}|[^}]*))?"
 
 var patternString = fmt.Sprintf(
-	"%s(?i:(?P<escaped>%s)|(?P<named>%s)|{(?P<braced>%s)}|(?P<invalid>))",
+	"%s(?i:(?P<escaped>%s)|(?P<named>%s)|{(?:(?P<braced>%s)}|(?P<invalid>)))",
 	delimiter, delimiter, substitutionNamed, substitutionBraced,
 )
 

@@ -47,10 +47,24 @@ func TestSubstituteNoMatch(t *testing.T) {
 	assert.Equal(t, "foo", result)
 }
 
+func TestUnescaped(t *testing.T) {
+	templates := []string{
+		"a $ string",
+		"^REGEX$",
+		"$}",
+		"$",
+	}
+
+	for _, expected := range templates {
+		actual, err := Substitute(expected, defaultMapping)
+		assert.NilError(t, err)
+		assert.Equal(t, expected, actual)
+	}
+}
+
 func TestInvalid(t *testing.T) {
 	invalidTemplates := []string{
 		"${",
-		"$}",
 		"${}",
 		"${ }",
 		"${ foo}",
