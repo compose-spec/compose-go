@@ -383,6 +383,10 @@ func TestParsing(t *testing.T) {
 	parseAndCompare(t, `FOO=a\tb`, "FOO", `a\tb`)
 	parseAndCompare(t, `FOO="a\tb"`, "FOO", "a\tb")
 
+	// various shell escape sequences
+	// see https://pubs.opengroup.org/onlinepubs/9699919799/utilities/echo.html
+	parseAndCompare(t, `KEY="Z\aZ\bZ\fZ\nZ\rZ\tZ\vZ\\Z\0123Z"`, "KEY", "Z\aZ\bZ\fZ\nZ\rZ\tZ\vZ\\ZSZ")
+
 	// it 'parses variables with "." in the name' do
 	// expect(env('FOO.BAR=foobar')).to eql('FOO.BAR' => 'foobar')
 	parseAndCompare(t, "FOO.BAR=foobar", "FOO.BAR", "foobar")
