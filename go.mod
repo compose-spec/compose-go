@@ -1,6 +1,6 @@
 module github.com/compose-spec/compose-go
 
-go 1.17
+go 1.18
 
 require (
 	github.com/distribution/distribution/v3 v3.0.0-20220725133111-4bf3547399eb
