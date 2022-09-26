@@ -136,10 +136,10 @@ func extractVarValue(src []byte, envMap map[string]string, lookupFn LookupFn) (s
 	quote, isQuoted := hasQuotePrefix(src)
 	if !isQuoted {
 		// unquoted value - read until new line
-		value, rest, _ := bytesCut(src, []byte("\n"))
+		value, rest, _ := bytes.Cut(src, []byte("\n"))
 
 		// Remove inline comments on unquoted lines
-		value, _, _ = bytesCut(value, []byte(" #"))
+		value, _, _ = bytes.Cut(value, []byte(" #"))
 		value = bytes.TrimRightFunc(value, unicode.IsSpace)
 		retVal, err := expandVariables(string(value), envMap, lookupFn)
 		return retVal, rest, err
