@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -261,6 +262,32 @@ func TestParseYAML(t *testing.T) {
 
 func TestLoad(t *testing.T) {
 	actual, err := Load(buildConfigDetails(sampleYAML, nil), func(options *Options) {
+		options.SkipNormalization = true
+		options.SkipConsistencyCheck = true
+	})
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(serviceSort(sampleConfig.Services), serviceSort(actual.Services)))
+	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
+	assert.Check(t, is.DeepEqual(sampleConfig.Volumes, actual.Volumes))
+}
+
+func TestLoadFromFile(t *testing.T) {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("os.Getwd(): %s", err)
+	}
+	tmpdir := t.TempDir()
+	tmpPath := filepath.Join(tmpdir, "Docker-compose.yaml")
+	if err := os.WriteFile(tmpPath, []byte(sampleYAML), 0444); err != nil {
+		t.Fatalf("failed to write temporary file: %s", err)
+	}
+	actual, err := Load(types.ConfigDetails{
+		WorkingDir: workingDir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: tmpPath,
+		}},
+		Environment: nil,
+	}, func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 	})
