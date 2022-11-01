@@ -174,7 +174,7 @@ func TestValidateSecret(t *testing.T) {
 		err := checkConsistency(project)
 		assert.NilError(t, err)
 	})
-	t.Run("uset secret", func(t *testing.T) {
+	t.Run("unset secret type", func(t *testing.T) {
 		project := &types.Project{
 			Secrets: types.Secrets{
 				"foo": types.SecretConfig{},
@@ -182,6 +182,49 @@ func TestValidateSecret(t *testing.T) {
 		}
 		err := checkConsistency(project)
 		assert.Error(t, err, "secret \"foo\" must declare either `file` or `environment`: invalid compose project")
+	})
+
+	t.Run("service secret exist", func(t *testing.T) {
+		project := &types.Project{
+			Secrets: types.Secrets{
+				"foo": types.SecretConfig{
+					External: types.External{
+						External: true,
+					},
+				},
+			},
+			Services: types.Services([]types.ServiceConfig{
+				{
+					Name:  "myservice",
+					Image: "scratch",
+					Secrets: []types.ServiceSecretConfig{
+						{
+							Source: "foo",
+						},
+					},
+				},
+			}),
+		}
+		err := checkConsistency(project)
+		assert.NilError(t, err)
+	})
+
+	t.Run("service secret undefined", func(t *testing.T) {
+		project := &types.Project{
+			Services: types.Services([]types.ServiceConfig{
+				{
+					Name:  "myservice",
+					Image: "scratch",
+					Secrets: []types.ServiceSecretConfig{
+						{
+							Source: "foo",
+						},
+					},
+				},
+			}),
+		}
+		err := checkConsistency(project)
+		assert.Error(t, err, `service "myservice" refers to undefined secret foo: invalid compose project`)
 	})
 }
 
