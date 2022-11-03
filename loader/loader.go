@@ -167,6 +167,13 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	for i, file := range configDetails.ConfigFiles {
 		configDict := file.Config
 		if configDict == nil {
+			if len(file.Content) == 0 {
+				content, err := os.ReadFile(file.Filename)
+				if err != nil {
+					return nil, err
+				}
+				file.Content = content
+			}
 			dict, err := parseConfig(file.Content, opts)
 			if err != nil {
 				return nil, err
