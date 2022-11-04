@@ -279,6 +279,16 @@ func WithNormalization(normalization bool) ProjectOptionsFn {
 	}
 }
 
+// WithConsistency set ProjectOptions to enable/skip consistency
+func WithConsistency(consistency bool) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
+			options.SkipConsistencyCheck = !consistency
+		})
+		return nil
+	}
+}
+
 // WithResolvedPaths set ProjectOptions to enable paths resolution
 func WithResolvedPaths(resolve bool) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
