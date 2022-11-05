@@ -515,6 +515,10 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 		return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, filename)
 	}
 
+	if target == nil {
+		target = map[string]interface{}{}
+	}
+
 	serviceConfig, err := LoadService(name, target.(map[string]interface{}), workingDir, lookupEnv, opts.ResolvePaths, opts.ConvertWindowsPaths)
 	if err != nil {
 		return nil, err
