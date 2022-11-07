@@ -258,25 +258,33 @@ func (p *Project) WithoutUnnecessaryResources() {
 
 	networks := Networks{}
 	for k := range requiredNetworks {
-		networks[k] = p.Networks[k]
+		if value, ok := p.Networks[k]; ok {
+			networks[k] = value
+		}
 	}
 	p.Networks = networks
 
 	volumes := Volumes{}
 	for k := range requiredVolumes {
-		volumes[k] = p.Volumes[k]
+		if value, ok := p.Volumes[k]; ok {
+			volumes[k] = value
+		}
 	}
 	p.Volumes = volumes
 
 	secrets := Secrets{}
 	for k := range requiredSecrets {
-		secrets[k] = p.Secrets[k]
+		if value, ok := p.Secrets[k]; ok {
+			secrets[k] = value
+		}
 	}
 	p.Secrets = secrets
 
 	configs := Configs{}
 	for k := range requiredConfigs {
-		configs[k] = p.Configs[k]
+		if value, ok := p.Configs[k]; ok {
+			configs[k] = value
+		}
 	}
 	p.Configs = configs
 }

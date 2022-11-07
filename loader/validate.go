@@ -70,6 +70,12 @@ func checkConsistency(project *types.Project) error {
 				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined config %s", s.Name, config.Source))
 			}
 		}
+
+		for _, secret := range s.Secrets {
+			if _, ok := project.Secrets[secret.Source]; !ok {
+				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined secret %s", s.Name, secret.Source))
+			}
+		}
 	}
 
 	for name, secret := range project.Secrets {
