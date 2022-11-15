@@ -359,7 +359,7 @@ type ThrottleDevice struct {
 // preserved so that it can override any base value (e.g. container entrypoint).
 //
 // The different semantics between YAML and JSON are due to limitations with
-// JSON marshaling + `omitempty` in the Go stdlib, while gopkg.in/yaml.v2 gives
+// JSON marshaling + `omitempty` in the Go stdlib, while gopkg.in/yaml.v3 gives
 // us more flexibility via the yaml.IsZeroer interface.
 //
 // In the future, it might make sense to make fields of this type be
@@ -383,7 +383,7 @@ func (s ShellCommand) IsZero() bool {
 // accurately if the `omitempty` struct tag is omitted/forgotten.
 //
 // A similar MarshalJSON() implementation is not needed because the Go stdlib
-// already serializes nil slices to `null`, whereas gopkg.in/yaml.v2 by default
+// already serializes nil slices to `null`, whereas gopkg.in/yaml.v3 by default
 // serializes nil slices to `[]`.
 func (s ShellCommand) MarshalYAML() (interface{}, error) {
 	if s == nil {
@@ -883,7 +883,13 @@ func (u *UlimitsConfig) MarshalYAML() (interface{}, error) {
 	if u.Single != 0 {
 		return u.Single, nil
 	}
-	return u, nil
+	return struct {
+		Soft int
+		Hard int
+	}{
+		Soft: u.Soft,
+		Hard: u.Hard,
+	}, nil
 }
 
 // MarshalJSON makes UlimitsConfig implement json.Marshaller

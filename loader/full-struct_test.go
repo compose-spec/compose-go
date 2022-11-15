@@ -25,8 +25,8 @@ import (
 	"github.com/compose-spec/compose-go/types"
 )
 
-func fullExampleConfig(workingDir, homeDir string) *types.Config {
-	return &types.Config{
+func fullExampleProject(workingDir, homeDir string) *types.Project {
+	return &types.Project{
 		Name:     "full_example_project_name",
 		Services: services(workingDir, homeDir),
 		Networks: networks(),
@@ -591,47 +591,47 @@ services:
       args:
         foo: bar
       ssh:
-      - default
+        - default
       labels:
         FOO: BAR
       cache_from:
-      - foo
-      - bar
+        - foo
+        - bar
       network: foo
       target: foo
       secrets:
-      - source: secret1
-      - source: secret2
-        target: my_secret
+        - source: secret1
+        - source: secret2
+          target: my_secret
+          uid: "103"
+          gid: "103"
+          mode: 288
+      tags:
+        - foo:v1.0.0
+        - docker.io/username/foo:my-other-tag
+        - full_example_project_name:1.0.0
+      platforms:
+        - linux/amd64
+        - linux/arm64
+    cap_add:
+      - ALL
+    cap_drop:
+      - NET_ADMIN
+      - SYS_ADMIN
+    cgroup_parent: m-executor-abcd
+    command:
+      - bundle
+      - exec
+      - thin
+      - -p
+      - "3000"
+    configs:
+      - source: config1
+      - source: config2
+        target: /my_config
         uid: "103"
         gid: "103"
         mode: 288
-      tags:
-      - foo:v1.0.0
-      - docker.io/username/foo:my-other-tag
-      - full_example_project_name:1.0.0
-      platforms:
-      - linux/amd64
-      - linux/arm64
-    cap_add:
-    - ALL
-    cap_drop:
-    - NET_ADMIN
-    - SYS_ADMIN
-    cgroup_parent: m-executor-abcd
-    command:
-    - bundle
-    - exec
-    - thin
-    - -p
-    - "3000"
-    configs:
-    - source: config1
-    - source: config2
-      target: /my_config
-      uid: "103"
-      gid: "103"
-      mode: 288
     container_name: my-web-container
     depends_on:
       db:
@@ -665,12 +665,12 @@ services:
           cpus: "0.0001"
           memory: "20971520"
           generic_resources:
-          - discrete_resource_spec:
-              kind: gpu
-              value: 2
-          - discrete_resource_spec:
-              kind: ssd
-              value: 1
+            - discrete_resource_spec:
+                kind: gpu
+                value: 2
+            - discrete_resource_spec:
+                kind: ssd
+                value: 1
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -678,27 +678,27 @@ services:
         window: 2m0s
       placement:
         constraints:
-        - node=foo
+          - node=foo
         preferences:
-        - spread: node.labels.az
+          - spread: node.labels.az
         max_replicas_per_node: 5
       endpoint_mode: dnsrr
     device_cgroup_rules:
-    - c 1:3 mr
-    - a 7:* rmw
+      - c 1:3 mr
+      - a 7:* rmw
     devices:
-    - /dev/ttyUSB0:/dev/ttyUSB0
+      - /dev/ttyUSB0:/dev/ttyUSB0
     dns:
-    - 8.8.8.8
-    - 9.9.9.9
+      - 8.8.8.8
+      - 9.9.9.9
     dns_search:
-    - dc1.example.com
-    - dc2.example.com
+      - dc1.example.com
+      - dc2.example.com
     domainname: foo.com
     entrypoint:
-    - /code/entrypoint.sh
-    - -p
-    - "3000"
+      - /code/entrypoint.sh
+      - -p
+      - "3000"
     environment:
       BAR: bar_from_env_file_2
       BAZ: baz_from_service_def
@@ -707,23 +707,23 @@ services:
       FOO: foo_from_env_file
       QUX: qux_from_environment
     env_file:
-    - ./example1.env
-    - ./example2.env
+      - ./example1.env
+      - ./example2.env
     expose:
-    - "3000"
-    - "8000"
+      - "3000"
+      - "8000"
     external_links:
-    - redis_1
-    - project_db_1:mysql
-    - project_db_1:postgresql
+      - redis_1
+      - project_db_1:mysql
+      - project_db_1:postgresql
     extra_hosts:
-    - otherhost:50.31.209.229
-    - somehost:162.242.195.82
+      - otherhost:50.31.209.229
+      - somehost:162.242.195.82
     hostname: foo
     healthcheck:
       test:
-      - CMD-SHELL
-      - echo "hello world"
+        - CMD-SHELL
+        - echo "hello world"
       timeout: 1s
       interval: 10s
       retries: 5
@@ -735,9 +735,9 @@ services:
       com.example.empty-label: ""
       com.example.number: "42"
     links:
-    - db
-    - db:database
-    - redis
+      - db
+      - db:database
+      - redis
     logging:
       driver: syslog
       options:
@@ -751,117 +751,117 @@ services:
       other-other-network: null
       some-network:
         aliases:
-        - alias1
-        - alias3
+          - alias1
+          - alias3
     pid: host
     ports:
-    - mode: ingress
-      target: 3000
-      protocol: tcp
-    - mode: ingress
-      target: 3001
-      protocol: tcp
-    - mode: ingress
-      target: 3002
-      protocol: tcp
-    - mode: ingress
-      target: 3003
-      protocol: tcp
-    - mode: ingress
-      target: 3004
-      protocol: tcp
-    - mode: ingress
-      target: 3005
-      protocol: tcp
-    - mode: ingress
-      target: 8000
-      published: "8000"
-      protocol: tcp
-    - mode: ingress
-      target: 8080
-      published: "9090"
-      protocol: tcp
-    - mode: ingress
-      target: 8081
-      published: "9091"
-      protocol: tcp
-    - mode: ingress
-      target: 22
-      published: "49100"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 8001
-      published: "8001"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5000
-      published: "5000"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5001
-      published: "5001"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5002
-      published: "5002"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5003
-      published: "5003"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5004
-      published: "5004"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5005
-      published: "5005"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5006
-      published: "5006"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5007
-      published: "5007"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5008
-      published: "5008"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5009
-      published: "5009"
-      protocol: tcp
-    - mode: ingress
-      host_ip: 127.0.0.1
-      target: 5010
-      published: "5010"
-      protocol: tcp
+      - mode: ingress
+        target: 3000
+        protocol: tcp
+      - mode: ingress
+        target: 3001
+        protocol: tcp
+      - mode: ingress
+        target: 3002
+        protocol: tcp
+      - mode: ingress
+        target: 3003
+        protocol: tcp
+      - mode: ingress
+        target: 3004
+        protocol: tcp
+      - mode: ingress
+        target: 3005
+        protocol: tcp
+      - mode: ingress
+        target: 8000
+        published: "8000"
+        protocol: tcp
+      - mode: ingress
+        target: 8080
+        published: "9090"
+        protocol: tcp
+      - mode: ingress
+        target: 8081
+        published: "9091"
+        protocol: tcp
+      - mode: ingress
+        target: 22
+        published: "49100"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 8001
+        published: "8001"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5000
+        published: "5000"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5001
+        published: "5001"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5002
+        published: "5002"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5003
+        published: "5003"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5004
+        published: "5004"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5005
+        published: "5005"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5006
+        published: "5006"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5007
+        published: "5007"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5008
+        published: "5008"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5009
+        published: "5009"
+        protocol: tcp
+      - mode: ingress
+        host_ip: 127.0.0.1
+        target: 5010
+        published: "5010"
+        protocol: tcp
     privileged: true
     read_only: true
     restart: always
     secrets:
-    - source: secret1
-    - source: secret2
-      target: my_secret
-      uid: "103"
-      gid: "103"
-      mode: 288
+      - source: secret1
+      - source: secret2
+        target: my_secret
+        uid: "103"
+        gid: "103"
+        mode: 288
     security_opt:
-    - label=level:s0:c100,c200
-    - label=type:svirt_apache_t
+      - label=level:s0:c100,c200
+      - label=type:svirt_apache_t
     stdin_open: true
     stop_grace_period: 20s
     stop_signal: SIGUSR1
@@ -869,8 +869,8 @@ services:
       net.core.somaxconn: "1024"
       net.ipv4.tcp_syncookies: "0"
     tmpfs:
-    - /run
-    - /tmp
+      - /run
+      - /tmp
     tty: true
     ulimits:
       nofile:
@@ -880,42 +880,42 @@ services:
     user: someone
     uts: host
     volumes:
-    - type: volume
-      target: /var/lib/mysql
-      volume: {}
-    - type: bind
-      source: /opt/data
-      target: /var/lib/mysql
-      bind:
-        create_host_path: true
-    - type: bind
-      source: %s
-      target: /code
-      bind:
-        create_host_path: true
-    - type: bind
-      source: %s
-      target: /var/www/html
-      bind:
-        create_host_path: true
-    - type: bind
-      source: %s
-      target: /etc/configs
-      read_only: true
-      bind:
-        create_host_path: true
-    - type: volume
-      source: datavolume
-      target: /var/lib/mysql
-      volume: {}
-    - type: bind
-      source: %s
-      target: /opt
-      consistency: cached
-    - type: tmpfs
-      target: /opt
-      tmpfs:
-        size: "10000"
+      - type: volume
+        target: /var/lib/mysql
+        volume: {}
+      - type: bind
+        source: /opt/data
+        target: /var/lib/mysql
+        bind:
+          create_host_path: true
+      - type: bind
+        source: %s
+        target: /code
+        bind:
+          create_host_path: true
+      - type: bind
+        source: %s
+        target: /var/www/html
+        bind:
+          create_host_path: true
+      - type: bind
+        source: %s
+        target: /etc/configs
+        read_only: true
+        bind:
+          create_host_path: true
+      - type: volume
+        source: datavolume
+        target: /var/lib/mysql
+        volume: {}
+      - type: bind
+        source: %s
+        target: /opt
+        consistency: cached
+      - type: tmpfs
+        target: /opt
+        tmpfs:
+          size: "10000"
     working_dir: /code
     x-bar: baz
     x-foo: bar
@@ -936,15 +936,15 @@ networks:
     ipam:
       driver: overlay
       config:
-      - subnet: 172.28.0.0/16
-        gateway: 172.28.5.254
-        ip_range: 172.28.5.0/24
-        aux_addresses:
-          host1: 172.28.1.5
-          host2: 172.28.1.6
-          host3: 172.28.1.7
-      - subnet: 2001:3984:3989::/64
-        gateway: 2001:3984:3989::1
+        - subnet: 172.28.0.0/16
+          gateway: 172.28.5.254
+          ip_range: 172.28.5.0/24
+          aux_addresses:
+            host1: 172.28.1.5
+            host2: 172.28.1.6
+            host3: 172.28.1.7
+        - subnet: 2001:3984:3989::/64
+          gateway: 2001:3984:3989::1
     labels:
       foo: bar
   some-network: {}

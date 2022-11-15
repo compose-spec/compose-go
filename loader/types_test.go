@@ -21,20 +21,19 @@ import (
 	"os"
 	"testing"
 
-	yaml "gopkg.in/yaml.v2"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestMarshallConfig(t *testing.T) {
+func TestMarshallProject(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	homeDir, err := os.UserHomeDir()
 	assert.NilError(t, err)
-	cfg := fullExampleConfig(workingDir, homeDir)
+	project := fullExampleProject(workingDir, homeDir)
 	expected := fullExampleYAML(workingDir, homeDir)
 
-	actual, err := yaml.Marshal(cfg)
+	actual, err := project.MarshalYAML()
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(expected, string(actual)))
 
@@ -46,16 +45,16 @@ func TestMarshallConfig(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func TestJSONMarshallConfig(t *testing.T) {
+func TestJSONMarshallProject(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	homeDir, err := os.UserHomeDir()
 	assert.NilError(t, err)
 
-	cfg := fullExampleConfig(workingDir, homeDir)
+	project := fullExampleProject(workingDir, homeDir)
 	expected := fullExampleJSON(workingDir, homeDir)
 
-	actual, err := json.MarshalIndent(cfg, "", "  ")
+	actual, err := json.MarshalIndent(project, "", "  ")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(expected, string(actual)))
 
