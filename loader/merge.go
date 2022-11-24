@@ -119,6 +119,9 @@ func _merge(baseService *types.ServiceConfig, overrideService *types.ServiceConf
 	if overrideService.Command != nil {
 		baseService.Command = overrideService.Command
 	}
+	if overrideService.HealthCheck != nil {
+		baseService.HealthCheck.Test = overrideService.HealthCheck.Test
+	}
 	if overrideService.Entrypoint != nil {
 		baseService.Entrypoint = overrideService.Entrypoint
 	}
@@ -127,7 +130,24 @@ func _merge(baseService *types.ServiceConfig, overrideService *types.ServiceConf
 	} else {
 		baseService.Environment = overrideService.Environment
 	}
+	baseService.Expose = unique(baseService.Expose)
 	return baseService, nil
+}
+
+func unique(slice []string) []string {
+	if slice == nil {
+		return nil
+	}
+	uniqMap := make(map[string]struct{})
+	for _, v := range slice {
+		uniqMap[v] = struct{}{}
+	}
+
+	uniqSlice := make([]string, 0, len(uniqMap))
+	for v := range uniqMap {
+		uniqSlice = append(uniqSlice, v)
+	}
+	return uniqSlice
 }
 
 func toServiceSecretConfigsMap(s interface{}) (map[interface{}]interface{}, error) {
@@ -299,7 +319,7 @@ func mergeLoggingConfig(dst, src reflect.Value) error {
 	return nil
 }
 
-//nolint: unparam
+// nolint: unparam
 func mergeUlimitsConfig(dst, src reflect.Value) error {
 	if src.Interface() != reflect.Zero(reflect.TypeOf(src.Interface())).Interface() {
 		dst.Elem().Set(src.Elem())
@@ -307,7 +327,7 @@ func mergeUlimitsConfig(dst, src reflect.Value) error {
 	return nil
 }
 
-//nolint: unparam
+// nolint: unparam
 func mergeServiceNetworkConfig(dst, src reflect.Value) error {
 	if src.Interface() != reflect.Zero(reflect.TypeOf(src.Interface())).Interface() {
 		dst.Elem().FieldByName("Aliases").Set(src.Elem().FieldByName("Aliases"))

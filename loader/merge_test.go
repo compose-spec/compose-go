@@ -884,6 +884,9 @@ func TestLoadMultipleConfigs(t *testing.T) {
 					"8080:80",
 					"9090:90",
 				},
+				"expose": []interface{}{
+					"8080",
+				},
 				"labels": []interface{}{
 					"foo=bar",
 				},
@@ -915,6 +918,9 @@ func TestLoadMultipleConfigs(t *testing.T) {
 						"target":    81,
 						"published": 8080,
 					},
+				},
+				"expose": []interface{}{
+					"8080",
 				},
 				"labels": map[string]interface{}{
 					"foo": "baz",
@@ -963,6 +969,7 @@ func TestLoadMultipleConfigs(t *testing.T) {
 						"password": strPtr("secret"),
 					},
 				},
+				Expose: []string{"8080"},
 				Ports: []types.ServicePortConfig{
 					{
 						Mode:      "ingress",
@@ -1221,6 +1228,36 @@ func TestMergeCommands(t *testing.T) {
 	merged, err := loadTestProject(configDetails)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, merged.Services[0].Command, types.ShellCommand{"/bin/ash", "-c", "echo 'world'"})
+}
+
+func TestMergeHealthCheck(t *testing.T) {
+	configDetails := types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "base.yml", Config: map[string]interface{}{
+				"services": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"image": "alpine",
+						"healthcheck": map[string]interface{}{
+							"test": []interface{}{"CMD", "original"},
+						},
+					},
+				},
+			}},
+			{Filename: "override.yml", Config: map[string]interface{}{
+				"services": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"image": "alpine",
+						"healthcheck": map[string]interface{}{
+							"test": []interface{}{"CMD", "override"},
+						},
+					},
+				},
+			}},
+		},
+	}
+	merged, err := loadTestProject(configDetails)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, merged.Services[0].HealthCheck.Test, types.HealthCheckTest{"CMD", "override"})
 }
 
 func TestMergeEnvironments(t *testing.T) {
