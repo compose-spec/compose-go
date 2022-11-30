@@ -38,7 +38,6 @@ var serviceSpecials = &specials{
 		reflect.TypeOf([]types.ServiceSecretConfig{}):    mergeSlice(toServiceSecretConfigsMap, toServiceSecretConfigsSlice),
 		reflect.TypeOf([]types.ServiceConfigObjConfig{}): mergeSlice(toServiceConfigObjConfigsMap, toSServiceConfigObjConfigsSlice),
 		reflect.TypeOf(&types.UlimitsConfig{}):           mergeUlimitsConfig,
-		reflect.TypeOf(&types.ServiceNetworkConfig{}):    mergeServiceNetworkConfig,
 	},
 }
 
@@ -323,20 +322,6 @@ func mergeLoggingConfig(dst, src reflect.Value) error {
 func mergeUlimitsConfig(dst, src reflect.Value) error {
 	if src.Interface() != reflect.Zero(reflect.TypeOf(src.Interface())).Interface() {
 		dst.Elem().Set(src.Elem())
-	}
-	return nil
-}
-
-// nolint: unparam
-func mergeServiceNetworkConfig(dst, src reflect.Value) error {
-	if src.Interface() != reflect.Zero(reflect.TypeOf(src.Interface())).Interface() {
-		dst.Elem().FieldByName("Aliases").Set(src.Elem().FieldByName("Aliases"))
-		if ipv4 := src.Elem().FieldByName("Ipv4Address").Interface().(string); ipv4 != "" {
-			dst.Elem().FieldByName("Ipv4Address").SetString(ipv4)
-		}
-		if ipv6 := src.Elem().FieldByName("Ipv6Address").Interface().(string); ipv6 != "" {
-			dst.Elem().FieldByName("Ipv6Address").SetString(ipv6)
-		}
 	}
 	return nil
 }

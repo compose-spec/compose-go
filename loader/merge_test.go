@@ -816,7 +816,7 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 			},
 			expected: map[string]*types.ServiceNetworkConfig{
 				"net1": {
-					Aliases: []string{"alias2", "alias3"},
+					Aliases: []string{"alias1", "alias2", "alias3"},
 				},
 				"net2": nil,
 				"net3": {},
@@ -1111,13 +1111,8 @@ func TestMergeUlimitsConfig(t *testing.T) {
 }
 
 func TestMergeServiceNetworkConfig(t *testing.T) {
-	specials := &specials{
-		m: map[reflect.Type]func(dst, src reflect.Value) error{
-			reflect.TypeOf(&types.ServiceNetworkConfig{}): mergeServiceNetworkConfig,
-		},
-	}
 	base := map[string]*types.ServiceNetworkConfig{
-		"override-aliases": {
+		"merge": {
 			Aliases:     []string{"100", "101"},
 			Ipv4Address: "127.0.0.1",
 			Ipv6Address: "0:0:0:0:0:0:0:1",
@@ -1129,7 +1124,7 @@ func TestMergeServiceNetworkConfig(t *testing.T) {
 		},
 	}
 	override := map[string]*types.ServiceNetworkConfig{
-		"override-aliases": {
+		"merge": {
 			Aliases:     []string{"110", "111"},
 			Ipv4Address: "127.0.1.1",
 			Ipv6Address: "0:0:0:0:0:0:1:1",
@@ -1140,14 +1135,14 @@ func TestMergeServiceNetworkConfig(t *testing.T) {
 			Ipv6Address: "0:0:0:0:0:0:3:1",
 		},
 	}
-	err := mergo.Merge(&base, &override, mergo.WithOverride, mergo.WithTransformers(specials))
+	err := mergo.Merge(&base, &override, mergo.WithAppendSlice, mergo.WithOverride)
 	assert.NilError(t, err)
 	assert.DeepEqual(
 		t,
 		base,
 		map[string]*types.ServiceNetworkConfig{
-			"override-aliases": {
-				Aliases:     []string{"110", "111"},
+			"merge": {
+				Aliases:     []string{"100", "101", "110", "111"},
 				Ipv4Address: "127.0.1.1",
 				Ipv6Address: "0:0:0:0:0:0:1:1",
 			},
