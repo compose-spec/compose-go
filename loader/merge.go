@@ -43,6 +43,15 @@ var serviceSpecials = &specials{
 }
 
 func (s *specials) Transformer(t reflect.Type) func(dst, src reflect.Value) error {
+	// TODO this is a workaround waiting for imdario/mergo#131
+	if t.Kind() == reflect.Pointer && t.Elem().Kind() == reflect.Bool {
+		return func(dst, src reflect.Value) error {
+			if dst.CanSet() && !src.IsNil() {
+				dst.Set(src)
+			}
+			return nil
+		}
+	}
 	if fn, ok := s.m[t]; ok {
 		return fn
 	}
@@ -113,7 +122,10 @@ func mergeServices(base, override []types.ServiceConfig) ([]types.ServiceConfig,
 }
 
 func _merge(baseService *types.ServiceConfig, overrideService *types.ServiceConfig) (*types.ServiceConfig, error) {
-	if err := mergo.Merge(baseService, overrideService, mergo.WithAppendSlice, mergo.WithOverride, mergo.WithTransformers(serviceSpecials)); err != nil {
+	if err := mergo.Merge(baseService, overrideService,
+		mergo.WithAppendSlice,
+		mergo.WithOverride,
+		mergo.WithTransformers(serviceSpecials)); err != nil {
 		return nil, err
 	}
 	if overrideService.Command != nil {
