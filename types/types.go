@@ -828,6 +828,8 @@ type ServiceVolumeVolume struct {
 type ServiceVolumeTmpfs struct {
 	Size UnitBytes `yaml:",omitempty" json:"size,omitempty"`
 
+	Mode uint32 `yaml:",omitempty" json:"mode,omitempty"`
+
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
