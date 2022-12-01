@@ -563,7 +563,7 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 				if vol.Type != types.VolumeTypeBind {
 					continue
 				}
-				baseService.Volumes[i].Source = absPath(baseFileParent, vol.Source)
+				baseService.Volumes[i].Source = resolveMaybeUnixPath(vol.Source, baseFileParent, lookupEnv)
 			}
 		}
 
@@ -667,8 +667,8 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 	return nil
 }
 
-func resolveVolumePath(volume types.ServiceVolumeConfig, workingDir string, lookupEnv template.Mapping) types.ServiceVolumeConfig {
-	filePath := expandUser(volume.Source, lookupEnv)
+func resolveMaybeUnixPath(path string, workingDir string, lookupEnv template.Mapping) string {
+	filePath := expandUser(path, lookupEnv)
 	// Check if source is an absolute path (either Unix or Windows), to
 	// handle a Windows client with a Unix daemon or vice-versa.
 	//
@@ -678,8 +678,19 @@ func resolveVolumePath(volume types.ServiceVolumeConfig, workingDir string, look
 	if !paths.IsAbs(filePath) && !isAbs(filePath) {
 		filePath = absPath(workingDir, filePath)
 	}
-	volume.Source = filePath
+	return filePath
+}
+
+func resolveVolumePath(volume types.ServiceVolumeConfig, workingDir string, lookupEnv template.Mapping) types.ServiceVolumeConfig {
+	volume.Source = resolveMaybeUnixPath(volume.Source, workingDir, lookupEnv)
 	return volume
+}
+
+func resolveSecretsPath(secret types.SecretConfig, workingDir string, lookupEnv template.Mapping) types.SecretConfig {
+	if ! secret.External.External && secret.File != "" {
+		secret.File = resolveMaybeUnixPath(secret.File, workingDir, lookupEnv)
+	}
+	return secret
 }
 
 // TODO: make this more robust
@@ -789,11 +800,14 @@ func LoadSecrets(source map[string]interface{}, details types.ConfigDetails, res
 		return secrets, err
 	}
 	for name, secret := range secrets {
-		obj, err := loadFileObjectConfig(name, "secret", types.FileObjectConfig(secret), details, resolvePaths)
+		obj, err := loadFileObjectConfig(name, "secret", types.FileObjectConfig(secret), details, false)
 		if err != nil {
 			return nil, err
 		}
 		secretConfig := types.SecretConfig(obj)
+		if resolvePaths {
+			secretConfig = resolveSecretsPath(secretConfig, details.WorkingDir, details.LookupEnv)
+		}
 		secrets[name] = secretConfig
 	}
 	return secrets, nil
