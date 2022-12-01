@@ -1110,6 +1110,45 @@ func TestMergeUlimitsConfig(t *testing.T) {
 	)
 }
 
+func TestInitOverride(t *testing.T) {
+	var (
+		bt = true
+		bf = false
+	)
+	cases := []struct {
+		base     *bool
+		override *bool
+		expect   bool
+	}{
+		{
+			base:     &bt,
+			override: &bf,
+			expect:   false,
+		},
+		{
+			base:     nil,
+			override: &bt,
+			expect:   true,
+		},
+		{
+			base:     &bt,
+			override: nil,
+			expect:   true,
+		},
+	}
+	for _, test := range cases {
+		base := types.ServiceConfig{
+			Init: test.base,
+		}
+		override := types.ServiceConfig{
+			Init: test.override,
+		}
+		config, err := _merge(&base, &override)
+		assert.NilError(t, err)
+		assert.Check(t, *config.Init == test.expect)
+	}
+}
+
 func TestMergeServiceNetworkConfig(t *testing.T) {
 	specials := &specials{
 		m: map[reflect.Type]func(dst, src reflect.Value) error{
