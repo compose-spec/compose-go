@@ -539,6 +539,18 @@ func (h HostsList) AsList() []string {
 	return l
 }
 
+func (h HostsList) MarshalYAML() (interface{}, error) {
+	list := h.AsList()
+	sort.Strings(list)
+	return list, nil
+}
+
+func (h HostsList) MarshalJSON() ([]byte, error) {
+	list := h.AsList()
+	sort.Strings(list)
+	return json.Marshal(list)
+}
+
 // LoggingConfig the logging configuration for a service
 type LoggingConfig struct {
 	Driver  string            `yaml:",omitempty" json:"driver,omitempty"`

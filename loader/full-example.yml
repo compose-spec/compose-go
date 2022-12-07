@@ -160,8 +160,8 @@ services:
     #   somehost: "162.242.195.82"
     #   otherhost: "50.31.209.229"
     extra_hosts:
-      - "somehost:162.242.195.82"
       - "otherhost:50.31.209.229"
+      - "somehost:162.242.195.82"
 
     hostname: foo
 

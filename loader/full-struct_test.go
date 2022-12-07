@@ -716,8 +716,8 @@ services:
     - project_db_1:mysql
     - project_db_1:postgresql
     extra_hosts:
-      otherhost: 50.31.209.229
-      somehost: 162.242.195.82
+    - otherhost:50.31.209.229
+    - somehost:162.242.195.82
     hostname: foo
     healthcheck:
       test:
@@ -1302,10 +1302,10 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "project_db_1:mysql",
         "project_db_1:postgresql"
       ],
-      "extra_hosts": {
-        "otherhost": "50.31.209.229",
-        "somehost": "162.242.195.82"
-      },
+      "extra_hosts": [
+        "otherhost:50.31.209.229",
+        "somehost:162.242.195.82"
+      ],
       "hostname": "foo",
       "healthcheck": {
         "test": [
