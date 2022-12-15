@@ -1,5 +1,6 @@
 # compose-go
-![Continuous integration](https://github.com/compose-spec/compose-go/workflows/Continuous%20integration/badge.svg)
+[![Continuous integration](https://github.com/compose-spec/compose-go/actions/workflows/ci.yml/badge.svg)](https://github.com/compose-spec/compose-go/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/compose-spec/compose-go.svg)](https://pkg.go.dev/github.com/compose-spec/compose-go)
 
 Go reference library for parsing and loading Compose files as specified by the
 [Compose specification](https://github.com/compose-spec/compose-spec).
