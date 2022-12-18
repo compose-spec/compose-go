@@ -1455,7 +1455,7 @@ func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, networks))
-	assert.Check(t, strings.Contains(buf.String(), "network foo: network.external.name is deprecated in favor of network.name"))
+	assert.Check(t, strings.Contains(buf.String(), "network foo: network.external.name is deprecated. Please set network.name with external: true"))
 }
 
 func TestLoadNetworkInvalidExternalNameAndNameCombination(t *testing.T) {
@@ -1861,13 +1861,13 @@ func TestLoadWithExtends(t *testing.T) {
 			},
 			Environment: types.MappingWithEquals{},
 			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
-			Volumes:     []types.ServiceVolumeConfig{{
+			Volumes: []types.ServiceVolumeConfig{{
 				Type:   "bind",
 				Source: "/opt/data",
 				Target: "/var/lib/mysql",
 				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
 			}},
-			Scale:       1,
+			Scale: 1,
 		},
 	}
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
