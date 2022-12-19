@@ -687,7 +687,7 @@ func resolveVolumePath(volume types.ServiceVolumeConfig, workingDir string, look
 }
 
 func resolveSecretsPath(secret types.SecretConfig, workingDir string, lookupEnv template.Mapping) types.SecretConfig {
-	if ! secret.External.External && secret.File != "" {
+	if !secret.External.External && secret.File != "" {
 		secret.File = resolveMaybeUnixPath(secret.File, workingDir, lookupEnv)
 	}
 	return secret
@@ -741,7 +741,7 @@ func LoadNetworks(source map[string]interface{}) (map[string]types.NetworkConfig
 			if network.Name != "" {
 				return nil, errors.Errorf("network %s: network.external.name and network.name conflict; only use network.name", name)
 			}
-			logrus.Warnf("network %s: network.external.name is deprecated in favor of network.name", name)
+			logrus.Warnf("network %s: network.external.name is deprecated. Please set network.name with external: true", name)
 			network.Name = network.External.Name
 			network.External.Name = ""
 		case network.Name == "":
