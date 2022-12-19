@@ -37,10 +37,12 @@ import (
 	"github.com/compose-spec/compose-go/types"
 	"github.com/docker/go-units"
 	"github.com/mattn/go-shellwords"
+	yq "github.com/mikefarah/yq/v4/pkg/yqlib"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
+	yaml3 "gopkg.in/yaml.v3"
 )
 
 // Options supported by Load
@@ -278,6 +280,32 @@ func NormalizeProjectName(s string) string {
 }
 
 func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
+	decoder := yq.NewYamlDecoder(yq.YamlPreferences{
+		LeadingContentPreProcessing: false,
+		PrintDocSeparators:          false,
+		UnwrapScalar:                false,
+		EvaluateTogether:            false,
+	})
+
+	err := decoder.Init(bytes.NewReader(b))
+	if err != nil {
+		return nil, err
+	}
+	parsed, err := decoder.Decode()
+	if err != nil {
+		return nil, err
+	}
+
+	context, err := transform(parsed)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println("===========")
+
+	printer := yq.NewPrinter(yq.NewYamlEncoder(2, true, yq.YamlPreferences{}), yq.NewSinglePrinterWriter(os.Stdout))
+	printer.PrintResults(context.MatchingNodes)
+
 	yml, err := ParseYAML(b)
 	if err != nil {
 		return nil, err
@@ -286,6 +314,95 @@ func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
 		return interp.Interpolate(yml, *opts.Interpolate)
 	}
 	return yml, err
+}
+
+type transformFn func(*yaml3.Node) error
+
+var transformations = map[string]transformFn{
+	".services.*.command": transformCommand,
+	".services.*.ports":   transformPorts,
+}
+
+func transform(node *yq.CandidateNode) (yq.Context, error) {
+	navigator := yq.NewDataTreeNavigator()
+	yq.InitExpressionParser()
+	context := yq.Context{
+		DontAutoCreate: true,
+	}
+	context = context.SingleChildContext(node)
+
+	for s, fn := range transformations {
+		expression, err := yq.ExpressionParser.ParseExpression(s)
+		if err != nil {
+			return context, err
+		}
+		nodes, err := navigator.GetMatchingNodes(context, expression)
+		if err != nil {
+			return context, err
+		}
+		matchingNodes := nodes.MatchingNodes
+		for el := matchingNodes.Front(); el != nil; el = el.Next() {
+			n := el.Value.(*yq.CandidateNode)
+			err = fn(n.Node)
+			if err != nil {
+				return context, err
+			}
+
+		}
+	}
+	return context, nil
+}
+
+func transformCommand(n *yaml3.Node) error {
+	if n.Kind == yaml3.ScalarNode {
+		parse, err := shellwords.Parse(n.Value)
+		if err != nil {
+			return err
+		}
+		n.Kind = yaml3.SequenceNode
+		n.Tag = ""
+		for _, s := range parse {
+			n.Content = append(n.Content, &yaml3.Node{
+				Kind:  yaml3.ScalarNode,
+				Value: s,
+				Tag:   "!!str",
+			})
+		}
+	}
+	return nil
+}
+
+func transformPorts(n *yaml3.Node) error {
+	var ports []*yaml3.Node
+	if n.Kind != yaml3.SequenceNode {
+		return errors.New("invalid content for port")
+	}
+	for _, entry := range n.Content {
+		switch entry.Kind {
+		case yaml3.ScalarNode:
+			parsed, err := types.ParsePortConfig(entry.Value)
+			if err != nil {
+				return err
+			}
+			for _, v := range parsed {
+				// TODO could we use yaml3.Marshal(v) to get a yaml3.Node ?
+				ports = append(ports, mappingNode(map[string]interface{}{
+					"target":    v.Target,
+					"host_ip":   v.HostIP,
+					"protocol":  v.Protocol,
+					"published": v.Published,
+					"mode":      v.Mode,
+				}))
+			}
+		case yaml3.MappingNode:
+			ports = append(ports, entry)
+		default:
+			return errors.Errorf("invalid yaml content line %d", entry.Line)
+		}
+	}
+	n.Kind = yaml3.SequenceNode
+	n.Content = ports
+	return nil
 }
 
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
@@ -366,11 +483,11 @@ func (e *ForbiddenPropertiesError) Error() string {
 
 // Transform converts the source into the target struct with compose types transformer
 // and the specified transformers if any.
-func Transform(source interface{}, target interface{}, additionalTransformers ...Transformer) error {
+func Transform(source interface{}, target interface{}) error {
 	data := mapstructure.Metadata{}
 	config := &mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			createTransformHook(additionalTransformers...),
+			createTransformHook(),
 			mapstructure.StringToTimeDurationHookFunc()),
 		Result:   target,
 		Metadata: &data,
@@ -391,7 +508,7 @@ type Transformer struct {
 	Func   TransformerFunc
 }
 
-func createTransformHook(additionalTransformers ...Transformer) mapstructure.DecodeHookFuncType {
+func createTransformHook() mapstructure.DecodeHookFuncType {
 	transforms := map[reflect.Type]func(interface{}) (interface{}, error){
 		reflect.TypeOf(types.External{}):                         transformExternal,
 		reflect.TypeOf(types.HealthCheckTest{}):                  transformHealthCheckTest,
@@ -417,10 +534,6 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
 		reflect.TypeOf(types.DeviceRequest{}):                    transformServiceDeviceRequest,
 		reflect.TypeOf(types.SSHConfig{}):                        transformSSHConfig,
-	}
-
-	for _, transformer := range additionalTransformers {
-		transforms[transformer.TypeOf] = transformer.Func
 	}
 
 	return func(_ reflect.Type, target reflect.Type, data interface{}) (interface{}, error) {

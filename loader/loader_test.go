@@ -527,6 +527,14 @@ services:
     environment:
       FOO: true
       BAR: false
+    ports:
+      - "8080"
+      - "9090:80"
+      - target: 80
+        host_ip: 127.0.0.1
+        published: "8080"
+        protocol: tcp
+        mode: host
 `)
 	assert.NilError(t, err)
 
