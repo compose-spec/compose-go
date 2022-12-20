@@ -102,6 +102,7 @@
                 "shm_size": {"type": ["integer", "string"]},
                 "extra_hosts": {"$ref": "#/definitions/list_or_dict"},
                 "isolation": {"type": "string"},
+                "privileged": {"type": "boolean"},
                 "secrets": {"$ref": "#/definitions/service_config_or_secret"},
                 "tags": {"type": "array", "items": {"type": "string"}},
                 "platforms": {"type": "array", "items": {"type": "string"}}
@@ -407,9 +408,7 @@
                           {"type": "string"}
                         ]
                       },
-                      "mode": {
-                        "type": "number"
-                      }
+                      "mode": {"type": "number"}
                     },
                     "additionalProperties": false,
                     "patternProperties": {"^x-": {}}
@@ -581,12 +580,12 @@
       "items": {
         "type": "object",
         "properties": {
-            "capabilities": {"$ref": "#/definitions/list_of_strings"},
-            "count": {"type": ["string", "integer"]},
-            "device_ids": {"$ref": "#/definitions/list_of_strings"},
-            "driver":{"type": "string"},
-            "options":{"$ref": "#/definitions/list_or_dict"}
-          },
+          "capabilities": {"$ref": "#/definitions/list_of_strings"},
+          "count": {"type": ["string", "integer"]},
+          "device_ids": {"$ref": "#/definitions/list_of_strings"},
+          "driver":{"type": "string"},
+          "options":{"$ref": "#/definitions/list_or_dict"}
+        },
         "additionalProperties": false,
         "patternProperties": {"^x-": {}}
       }
