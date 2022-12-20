@@ -93,6 +93,7 @@ type ServiceConfig struct {
 	CapAdd       []string     `mapstructure:"cap_add" yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
 	CapDrop      []string     `mapstructure:"cap_drop" yaml:"cap_drop,omitempty" json:"cap_drop,omitempty"`
 	CgroupParent string       `mapstructure:"cgroup_parent" yaml:"cgroup_parent,omitempty" json:"cgroup_parent,omitempty"`
+	Cgroup       string       `mapstructure:"cgroup" yaml:"cgroup,omitempty" json:"cgroup,omitempty"`
 	CPUCount     int64        `mapstructure:"cpu_count" yaml:"cpu_count,omitempty" json:"cpu_count,omitempty"`
 	CPUPercent   float32      `mapstructure:"cpu_percent" yaml:"cpu_percent,omitempty" json:"cpu_percent,omitempty"`
 	CPUPeriod    int64        `mapstructure:"cpu_period" yaml:"cpu_period,omitempty" json:"cpu_period,omitempty"`
@@ -319,6 +320,7 @@ type BuildConfig struct {
 	Secrets    []ServiceSecretConfig `yaml:",omitempty" json:"secrets,omitempty"`
 	Tags       StringList            `mapstructure:"tags" yaml:"tags,omitempty" json:"tags,omitempty"`
 	Platforms  StringList            `mapstructure:"platforms" yaml:"platforms,omitempty" json:"platforms,omitempty"`
+	Privileged bool                  `yaml:",omitempty" json:"privileged,omitempty"`
 
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
