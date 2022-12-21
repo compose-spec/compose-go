@@ -629,6 +629,12 @@ func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConf
 
 func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
 	environment := types.MappingWithEquals{}
+	var resolve dotenv.LookupFn = func(s string) (string, bool) {
+		if v, ok := environment[s]; ok && v != nil {
+			return *v, true
+		}
+		return lookupEnv(s)
+	}
 
 	if len(serviceConfig.EnvFile) > 0 {
 		if serviceConfig.Environment == nil {
@@ -649,7 +655,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 			// Do not defer to avoid it inside a loop
 			file.Close() //nolint:errcheck
 
-			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), dotenv.LookupFn(lookupEnv))
+			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), resolve)
 			if err != nil {
 				return err
 			}
