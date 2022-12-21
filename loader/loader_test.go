@@ -2131,3 +2131,26 @@ services:
 		assert.Equal(t, "env-var-web", svc.ContainerName)
 	})
 }
+
+func TestLoadWithBindMountVolume(t *testing.T) {
+	dict := `
+services:
+  web:
+    image: web
+    volumes:
+     - data:/data
+volumes:
+  data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      o: 'bind'
+      device: './data'
+`
+	configDetails := buildConfigDetails(dict, nil)
+
+	project, err := Load(configDetails)
+	assert.NilError(t, err)
+	path := project.Volumes["data"].DriverOpts["device"]
+	assert.Check(t, filepath.IsAbs(path))
+}
