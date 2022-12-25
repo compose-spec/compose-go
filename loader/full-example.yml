@@ -182,6 +182,8 @@ services:
 
     ipc: host
 
+    uts: host
+
     # Mapping or list
     # Mapping values can be strings, numbers or null
     labels:

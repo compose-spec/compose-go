@@ -200,6 +200,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			Hostname: "foo",
 			Image:    "redis",
 			Ipc:      "host",
+			Uts:      "host",
 			Labels: map[string]string{
 				"com.example.description": "Accounting webapp",
 				"com.example.number":      "42",
@@ -877,6 +878,7 @@ services:
         hard: 40000
       nproc: 65535
     user: someone
+    uts: host
     volumes:
     - type: volume
       target: /var/lib/mysql
@@ -1530,6 +1532,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "nproc": 65535
       },
       "user": "someone",
+      "uts": "host",
       "volumes": [
         {
           "type": "volume",
