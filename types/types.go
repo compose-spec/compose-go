@@ -279,7 +279,8 @@ func (s ServiceConfig) GetDependencies() []string {
 	}
 	for _, vol := range s.VolumesFrom {
 		if !strings.HasPrefix(s.Pid, ContainerPrefix) {
-			dependencies.append(vol)
+			spec := strings.Split(vol, ":")
+			dependencies.append(spec[0])
 		}
 	}
 
