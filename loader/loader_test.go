@@ -814,7 +814,9 @@ func TestDiscardEnvFileOption(t *testing.T) {
 	configDetails := buildConfigDetails(dict, nil)
 
 	// Default behavior keeps the `env_file` entries
-	configWithEnvFiles, err := Load(configDetails)
+	configWithEnvFiles, err := Load(configDetails, func(options *Options) {
+		options.SkipNormalization = true
+	})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, configWithEnvFiles.Services[0].EnvFile, types.StringList{"example1.env",
 		"example2.env"})
@@ -1936,17 +1938,22 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 	_, err = file.Write([]byte("HALLO=$TEST"))
 	assert.NilError(t, err)
 
-	m := map[string]interface{}{
-		"env_file": file.Name(),
+	p := &types.Project{
+		Environment: map[string]string{
+			"TEST": "YES",
+		},
+		Services: []types.ServiceConfig{
+			{
+				Name:    "Test",
+				EnvFile: []string{file.Name()},
+			},
+		},
 	}
-	s, err := LoadService("Test Name", m, ".", func(s string) (string, bool) {
-		if s == "TEST" {
-			return "YES", true
-		}
-		return "", false
-	}, true, false)
+	err = p.ResolveServicesEnvironment(false)
 	assert.NilError(t, err)
-	assert.Equal(t, "YES", *s.Environment["HALLO"])
+	service, err := p.GetService("Test")
+	assert.NilError(t, err)
+	assert.Equal(t, "YES", *service.Environment["HALLO"])
 }
 
 func TestLoadServiceWithVolumes(t *testing.T) {

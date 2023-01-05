@@ -85,6 +85,9 @@ func normalize(project *types.Project, resolvePaths bool) error {
 			}
 			s.Build.Args = s.Build.Args.Resolve(fn)
 		}
+		for j, f := range s.EnvFile {
+			s.EnvFile[j] = absPath(project.WorkingDir, f)
+		}
 		s.Environment = s.Environment.Resolve(fn)
 
 		err := relocateLogDriver(&s)

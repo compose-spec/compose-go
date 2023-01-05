@@ -482,6 +482,21 @@ func NewMapping(values []string) Mapping {
 	return mapping
 }
 
+// ToMappingWithEquals converts Mapping into a MappingWithEquals with pointer references
+func (m Mapping) ToMappingWithEquals() MappingWithEquals {
+	mapping := MappingWithEquals{}
+	for k, v := range m {
+		v := v
+		mapping[k] = &v
+	}
+	return mapping
+}
+
+func (m Mapping) Resolve(s string) (string, bool) {
+	v, ok := m[s]
+	return v, ok
+}
+
 // Labels is a mapping type for labels
 type Labels map[string]string
 
