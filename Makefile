@@ -42,3 +42,7 @@ check-license: build-validate-image
 setup: ## Setup the precommit hook
 	@which pre-commit > /dev/null 2>&1 || (echo "pre-commit not installed see README." && false)
 	@pre-commit install
+
+.PHONY: sync
+sync:
+	curl -fSL https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json -o schema/compose-spec.json
