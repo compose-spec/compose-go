@@ -38,6 +38,14 @@ func checkConsistency(project *types.Project) error {
 			}
 		}
 
+		if s.HealthCheck != nil && len(s.HealthCheck.Test) > 0 {
+			switch s.HealthCheck.Test[0] {
+			case "CMD", "CMD-SHELL", "NONE":
+			default:
+				return errors.New(`healthcheck.test must start either by "CMD", "CMD-SHELL" or "NONE"`)
+			}
+		}
+
 		for dependedService := range s.DependsOn {
 			if _, err := project.GetService(dependedService); err != nil {
 				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q depends on undefined service %s", s.Name, dependedService))
