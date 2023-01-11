@@ -141,6 +141,7 @@
         },
         "cap_add": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "cap_drop": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "cgroup": {"type": "string", "enum": ["host", "private"]},
         "cgroup_parent": {"type": "string"},
         "command": {
           "oneOf": [
@@ -581,12 +582,12 @@
       "items": {
         "type": "object",
         "properties": {
-          "capabilities": {"$ref": "#/definitions/list_of_strings"},
-          "count": {"type": ["string", "integer"]},
-          "device_ids": {"$ref": "#/definitions/list_of_strings"},
-          "driver":{"type": "string"},
-          "options":{"$ref": "#/definitions/list_or_dict"}
-        },
+            "capabilities": {"$ref": "#/definitions/list_of_strings"},
+            "count": {"type": ["string", "integer"]},
+            "device_ids": {"$ref": "#/definitions/list_of_strings"},
+            "driver":{"type": "string"},
+            "options":{"$ref": "#/definitions/list_or_dict"}
+          },
         "additionalProperties": false,
         "patternProperties": {"^x-": {}}
       }

@@ -16,6 +16,8 @@ jobs:
         uses: golangci/golangci-lint-action@v2
       - name: Check license
         run: DOCKER_BUILDKIT=1 make check-license
+      - name: Check schema
+        run: make check-schema
 
   test:
     strategy:
