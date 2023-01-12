@@ -238,7 +238,7 @@ func GetEnvFromFile(currentEnv map[string]string, workingDir string, filename st
 
 	file, err := os.Open(dotEnvFile)
 	if err != nil {
-		return envMap, err
+		return envMap, errors.Wrapf(err, "failed to read %s", dotEnvFile)
 	}
 	defer file.Close()
 
@@ -250,7 +250,7 @@ func GetEnvFromFile(currentEnv map[string]string, workingDir string, filename st
 		return v, true
 	})
 	if err != nil {
-		return envMap, err
+		return envMap, errors.Wrapf(err, "failed to read %s", dotEnvFile)
 	}
 	for k, v := range env {
 		envMap[k] = v

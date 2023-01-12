@@ -55,25 +55,10 @@ func TestLoadWithNoArgsLoadsDotEnv(t *testing.T) {
 	}
 }
 
-func TestOverloadWithNoArgsOverloadsDotEnv(t *testing.T) {
-	err := Overload()
-	pathError := err.(*os.PathError)
-	if pathError == nil || pathError.Op != "open" || pathError.Path != ".env" {
-		t.Errorf("Didn't try and open .env by default")
-	}
-}
-
 func TestLoadFileNotFound(t *testing.T) {
 	err := Load("somefilethatwillneverexistever.env")
 	if err == nil {
 		t.Error("File wasn't found but Load didn't return an error")
-	}
-}
-
-func TestOverloadFileNotFound(t *testing.T) {
-	err := Overload("somefilethatwillneverexistever.env")
-	if err == nil {
-		t.Error("File wasn't found but Overload didn't return an error")
 	}
 }
 
@@ -137,20 +122,6 @@ func TestLoadDoesNotOverride(t *testing.T) {
 		"OPTION_B": "",
 	}
 	loadEnvAndCompareValues(t, Load, envFileName, expectedValues, presets)
-}
-
-func TestOverloadDoesOverride(t *testing.T) {
-	envFileName := "fixtures/plain.env"
-
-	// ensure NO overload
-	presets := map[string]string{
-		"OPTION_A": "do_not_override",
-	}
-
-	expectedValues := map[string]string{
-		"OPTION_A": "1",
-	}
-	loadEnvAndCompareValues(t, Overload, envFileName, expectedValues, presets)
 }
 
 func TestLoadPlainEnv(t *testing.T) {
@@ -494,7 +465,7 @@ func TestLinesToIgnore(t *testing.T) {
 
 	for n, c := range cases {
 		t.Run(n, func(t *testing.T) {
-			got := string(getStatementStart([]byte(c.input)))
+			got := string(newParser().getStatementStart([]byte(c.input)))
 			if got != c.want {
 				t.Errorf("Expected:\t %q\nGot:\t %q", c.want, got)
 			}
@@ -513,10 +484,8 @@ func TestErrorReadDirectory(t *testing.T) {
 
 func TestErrorParsing(t *testing.T) {
 	envFileName := "fixtures/invalid1.env"
-	envMap, err := Read(envFileName)
-	if err == nil {
-		t.Errorf("Expected error, got %v", envMap)
-	}
+	_, err := Read(envFileName)
+	assert.ErrorContains(t, err, "line 7: key cannot contain a space")
 }
 
 func TestInheritedEnvVariableSameSize(t *testing.T) {
