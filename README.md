@@ -7,7 +7,7 @@ Go reference library for parsing and loading Compose files as specified by the
 
 ## Used by
 
-* [compose-ref](https://github.com/compose-spec/compose-ref)
+* [compose](https://github.com/docker/compose)
 * [containerd/nerdctl](https://github.com/containerd/nerdctl)
 * [compose-cli](https://github.com/docker/compose-cli)
 * [tilt.dev](https://github.com/tilt-dev/tilt)
