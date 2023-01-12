@@ -11,3 +11,4 @@ Go reference library for parsing and loading Compose files as specified by the
 * [containerd/nerdctl](https://github.com/containerd/nerdctl)
 * [compose-cli](https://github.com/docker/compose-cli)
 * [tilt.dev](https://github.com/tilt-dev/tilt)
+* [kompose](https://github.com/kubernetes/kompose)
