@@ -117,7 +117,7 @@ loop:
 			offset = i + 1
 			inherited = char == '\n'
 			break loop
-		case '_', '.', '-':
+		case '_', '.', '-', '[', ']':
 		default:
 			// variable name should match [A-Za-z0-9_.-]
 			if unicode.IsLetter(rchar) || unicode.IsNumber(rchar) {
