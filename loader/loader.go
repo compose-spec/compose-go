@@ -657,7 +657,7 @@ func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, l
 
 			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), resolve)
 			if err != nil {
-				return err
+				return errors.Wrapf(err, "Failed to load %s", filePath)
 			}
 			env := types.MappingWithEquals{}
 			for k, v := range fileVars {
