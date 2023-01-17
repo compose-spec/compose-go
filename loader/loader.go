@@ -161,7 +161,10 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		op(opts)
 	}
 
-	projectName := projectName(configDetails, opts)
+	projectName, err := projectName(configDetails, opts)
+	if err != nil {
+		return nil, err
+	}
 
 	var configs []*types.Config
 	for i, file := range configDetails.ConfigFiles {
@@ -246,18 +249,25 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	return project, nil
 }
 
-func projectName(details types.ConfigDetails, opts *Options) string {
+func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 	projectName, projectNameImperativelySet := opts.GetProjectName()
 	var pjNameFromConfigFile string
 
 	for _, configFile := range details.ConfigFiles {
 		yml, err := ParseYAML(configFile.Content)
 		if err != nil {
-			return ""
+			return "", nil
 		}
 		if val, ok := yml["name"]; ok && val != "" {
 			pjNameFromConfigFile = yml["name"].(string)
 		}
+	}
+	if !opts.SkipInterpolation {
+		interpolated, err := interp.Interpolate(map[string]interface{}{"name": pjNameFromConfigFile}, *opts.Interpolate)
+		if err != nil {
+			return "", err
+		}
+		pjNameFromConfigFile = interpolated["name"].(string)
 	}
 	pjNameFromConfigFile = NormalizeProjectName(pjNameFromConfigFile)
 	if !projectNameImperativelySet && pjNameFromConfigFile != "" {
@@ -267,7 +277,7 @@ func projectName(details types.ConfigDetails, opts *Options) string {
 	if _, ok := details.Environment[consts.ComposeProjectName]; !ok && projectName != "" {
 		details.Environment[consts.ComposeProjectName] = projectName
 	}
-	return projectName
+	return projectName, nil
 }
 
 func NormalizeProjectName(s string) string {

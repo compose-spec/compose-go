@@ -1,0 +1,4 @@
+name: test-${TEST}-test
+services:
+  simple:
+    image: nginx
