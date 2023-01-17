@@ -554,9 +554,7 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			// absolute path.
 			baseFileParent := filepath.Dir(*file)
 			if baseService.Build != nil {
-				// Note that the Dockerfile is always defined relative to the
-				// build context, so there's no need to update the Dockerfile field.
-				baseService.Build.Context = absPath(baseFileParent, baseService.Build.Context)
+				baseService.Build.Context = resolveBuildContextPath(baseFileParent, baseService.Build.Context)
 			}
 
 			for i, vol := range baseService.Volumes {
@@ -574,6 +572,19 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 	}
 
 	return serviceConfig, nil
+}
+
+func resolveBuildContextPath(baseFileParent string, context string) string {
+	// Checks if the context is an HTTP(S) URL or a remote git repository URL
+	for _, prefix := range []string{"https://", "http://", "git://", "github.com/", "git@"} {
+		if strings.HasPrefix(context, prefix) {
+			return context
+		}
+	}
+
+	// Note that the Dockerfile is always defined relative to the
+	// build context, so there's no need to update the Dockerfile field.
+	return absPath(baseFileParent, context)
 }
 
 // LoadService produces a single ServiceConfig from a compose file Dict

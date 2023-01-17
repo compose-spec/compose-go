@@ -1873,6 +1873,39 @@ func TestLoadWithExtends(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
 }
 
+func TestLoadWithExtendsWithContextUrl(t *testing.T) {
+	b, err := os.ReadFile("testdata/compose-test-extends-with-context-url.yaml")
+	assert.NilError(t, err)
+
+	configDetails := types.ConfigDetails{
+		WorkingDir: "testdata",
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "testdata/compose-test-extends-with-context-url.yaml", Content: b},
+		},
+	}
+
+	actual, err := Load(configDetails)
+	assert.NilError(t, err)
+
+	expServices := types.Services{
+		{
+			Name: "importer-with-https-url",
+			Build: &types.BuildConfig{
+				Context:    "https://github.com/docker/compose.git",
+				Dockerfile: "Dockerfile",
+			},
+			Extends: types.ExtendsConfig{
+				"file":    strPtr("compose-test-extends-with-context-url-imported.yaml"),
+				"service": strPtr("imported-with-https-url"),
+			},
+			Environment: types.MappingWithEquals{},
+			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
+			Scale:       1,
+		},
+	}
+	assert.Check(t, is.DeepEqual(expServices, actual.Services))
+}
+
 func TestServiceDeviceRequestCount(t *testing.T) {
 	_, err := loadYAML(`
 services:
