@@ -144,6 +144,15 @@ func TestProjectName(t *testing.T) {
 		assert.Equal(t, p.Name, "my_project_from_dot_env")
 	})
 
+	t.Run("by name in compose.yaml with variable", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose-name.yaml"}, WithEnv([]string{
+			"TEST=expected",
+		}))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "test-expected-test")
+	})
 }
 
 func TestProjectFromSetOfFiles(t *testing.T) {
