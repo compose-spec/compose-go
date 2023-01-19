@@ -167,6 +167,14 @@ func WithLoadOptions(loadOptions ...func(*loader.Options)) ProjectOptionsFn {
 	}
 }
 
+// WithProfiles sets profiles to be activated
+func WithProfiles(profiles []string) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, loader.WithProfiles(profiles))
+		return nil
+	}
+}
+
 // WithOsEnv imports environment variables from OS
 func WithOsEnv(o *ProjectOptions) error {
 	for k, v := range utils.GetAsEqualsMap(os.Environ()) {

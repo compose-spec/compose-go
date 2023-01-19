@@ -17,28 +17,31 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 
+	"github.com/compose-spec/compose-go/dotenv"
 	"github.com/distribution/distribution/v3/reference"
 	godigest "github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
 
 // Project is the result of loading a set of compose files
 type Project struct {
-	Name         string            `yaml:"name,omitempty" json:"name,omitempty"`
-	WorkingDir   string            `yaml:"-" json:"-"`
-	Services     Services          `json:"services"`
-	Networks     Networks          `yaml:",omitempty" json:"networks,omitempty"`
-	Volumes      Volumes           `yaml:",omitempty" json:"volumes,omitempty"`
-	Secrets      Secrets           `yaml:",omitempty" json:"secrets,omitempty"`
-	Configs      Configs           `yaml:",omitempty" json:"configs,omitempty"`
-	Extensions   Extensions        `yaml:",inline" json:"-"` // https://github.com/golang/go/issues/6213
-	ComposeFiles []string          `yaml:"-" json:"-"`
-	Environment  map[string]string `yaml:"-" json:"-"`
+	Name         string     `yaml:"name,omitempty" json:"name,omitempty"`
+	WorkingDir   string     `yaml:"-" json:"-"`
+	Services     Services   `json:"services"`
+	Networks     Networks   `yaml:",omitempty" json:"networks,omitempty"`
+	Volumes      Volumes    `yaml:",omitempty" json:"volumes,omitempty"`
+	Secrets      Secrets    `yaml:",omitempty" json:"secrets,omitempty"`
+	Configs      Configs    `yaml:",omitempty" json:"configs,omitempty"`
+	Extensions   Extensions `yaml:",inline" json:"-"` // https://github.com/golang/go/issues/6213
+	ComposeFiles []string   `yaml:"-" json:"-"`
+	Environment  Mapping    `yaml:"-" json:"-"`
 
 	// DisabledServices track services which have been disable as profile is not active
 	DisabledServices Services `yaml:"-" json:"-"`
@@ -352,4 +355,42 @@ func (p *Project) ResolveImages(resolver func(named reference.Named) (godigest.D
 		})
 	}
 	return eg.Wait()
+}
+
+// ResolveServicesEnvironment parse env_files set for services to resolve the actual environment map for services
+func (p Project) ResolveServicesEnvironment(discardEnvFiles bool) error {
+	for i, service := range p.Services {
+		service.Environment = service.Environment.Resolve(p.Environment.Resolve)
+
+		environment := MappingWithEquals{}
+		// resolve variables based on other files we already parsed, + project's environment
+		var resolve dotenv.LookupFn = func(s string) (string, bool) {
+			v, ok := environment[s]
+			if ok && v != nil {
+				return *v, ok
+			}
+			return p.Environment.Resolve(s)
+		}
+
+		for _, envFile := range service.EnvFile {
+			b, err := os.ReadFile(envFile)
+			if err != nil {
+				return errors.Wrapf(err, "Failed to load %s", envFile)
+			}
+
+			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), resolve)
+			if err != nil {
+				return err
+			}
+			environment.OverrideBy(Mapping(fileVars).ToMappingWithEquals())
+		}
+
+		service.Environment = environment.OverrideBy(service.Environment)
+
+		if discardEnvFiles {
+			service.EnvFile = nil
+		}
+		p.Services[i] = service
+	}
+	return nil
 }

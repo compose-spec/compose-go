@@ -17,9 +17,7 @@
 package loader
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"os"
 	paths "path"
 	"path/filepath"
@@ -30,7 +28,6 @@ import (
 	"time"
 
 	"github.com/compose-spec/compose-go/consts"
-	"github.com/compose-spec/compose-go/dotenv"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
@@ -67,6 +64,8 @@ type Options struct {
 	projectName string
 	// Indicates when the projectName was imperatively set or guessed from path
 	projectNameImperativelySet bool
+	// Profiles set profiles to enable
+	Profiles []string
 }
 
 func (o *Options) SetProjectName(name string, imperativelySet bool) {
@@ -123,6 +122,13 @@ func WithDiscardEnvFiles(opts *Options) {
 // WithSkipValidation sets the Options to skip validation when loading sections
 func WithSkipValidation(opts *Options) {
 	opts.SkipValidation = true
+}
+
+// WithProfiles sets profiles to be activated
+func WithProfiles(profiles []string) func(*Options) {
+	return func(opts *Options) {
+		opts.Profiles = profiles
+	}
 }
 
 // ParseYAML reads the bytes from a file, parses the bytes into a mapping
@@ -198,12 +204,6 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		if err != nil {
 			return nil, err
 		}
-		if opts.discardEnvFiles {
-			for i := range cfg.Services {
-				cfg.Services[i].EnvFile = nil
-			}
-		}
-
 		configs = append(configs, cfg)
 	}
 
@@ -246,7 +246,13 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		}
 	}
 
-	return project, nil
+	if len(opts.Profiles) > 0 {
+		project.ApplyProfiles(opts.Profiles)
+	}
+
+	err = project.ResolveServicesEnvironment(opts.discardEnvFiles)
+
+	return project, err
 }
 
 func projectName(details types.ConfigDetails, opts *Options) (string, error) {
@@ -601,10 +607,6 @@ func LoadService(name string, serviceDict map[string]interface{}, workingDir str
 	}
 	serviceConfig.Name = name
 
-	if err := resolveEnvironment(serviceConfig, workingDir, lookupEnv); err != nil {
-		return nil, err
-	}
-
 	for i, volume := range serviceConfig.Volumes {
 		if volume.Type != types.VolumeTypeBind {
 			continue
@@ -639,52 +641,6 @@ func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConf
 
 	volume.Source = convertedSource
 	return volume
-}
-
-func resolveEnvironment(serviceConfig *types.ServiceConfig, workingDir string, lookupEnv template.Mapping) error {
-	environment := types.MappingWithEquals{}
-	var resolve dotenv.LookupFn = func(s string) (string, bool) {
-		if v, ok := environment[s]; ok && v != nil {
-			return *v, true
-		}
-		return lookupEnv(s)
-	}
-
-	if len(serviceConfig.EnvFile) > 0 {
-		if serviceConfig.Environment == nil {
-			serviceConfig.Environment = types.MappingWithEquals{}
-		}
-		for _, envFile := range serviceConfig.EnvFile {
-			filePath := absPath(workingDir, envFile)
-			file, err := os.Open(filePath)
-			if err != nil {
-				return err
-			}
-
-			b, err := io.ReadAll(file)
-			if err != nil {
-				return err
-			}
-
-			// Do not defer to avoid it inside a loop
-			file.Close() //nolint:errcheck
-
-			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), resolve)
-			if err != nil {
-				return errors.Wrapf(err, "Failed to load %s", filePath)
-			}
-			env := types.MappingWithEquals{}
-			for k, v := range fileVars {
-				v := v
-				env[k] = &v
-			}
-			environment.OverrideBy(env.Resolve(lookupEnv).RemoveEmpty())
-		}
-	}
-
-	environment.OverrideBy(serviceConfig.Environment.Resolve(lookupEnv))
-	serviceConfig.Environment = environment
-	return nil
 }
 
 func resolveMaybeUnixPath(path string, workingDir string, lookupEnv template.Mapping) string {
