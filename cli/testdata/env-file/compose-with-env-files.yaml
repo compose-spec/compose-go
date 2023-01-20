@@ -1,0 +1,9 @@
+version: "3"
+services:
+  simple:
+    image: nginx
+    env_file:
+      - ./simple-env
+      - ./second-env
+    ports:
+    - ${PORT}:80

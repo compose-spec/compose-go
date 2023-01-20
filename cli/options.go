@@ -17,6 +17,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -39,7 +40,7 @@ type ProjectOptions struct {
 	WorkingDir  string
 	ConfigPaths []string
 	Environment map[string]string
-	EnvFile     string
+	EnvFiles    []string
 	loadOptions []func(*loader.Options)
 }
 
@@ -187,9 +188,15 @@ func WithOsEnv(o *ProjectOptions) error {
 }
 
 // WithEnvFile set an alternate env file
+// deprecated - use WithEnvFiles
 func WithEnvFile(file string) ProjectOptionsFn {
+	return WithEnvFiles(file)
+}
+
+// WithEnvFiles set alternate env files
+func WithEnvFiles(file ...string) ProjectOptionsFn {
 	return func(options *ProjectOptions) error {
-		options.EnvFile = file
+		options.EnvFiles = file
 		return nil
 	}
 }
@@ -200,7 +207,7 @@ func WithDotEnv(o *ProjectOptions) error {
 	if err != nil {
 		return err
 	}
-	envMap, err := GetEnvFromFile(o.Environment, wd, o.EnvFile)
+	envMap, err := GetEnvFromFile(o.Environment, wd, o.EnvFiles)
 	if err != nil {
 		return err
 	}
@@ -213,55 +220,48 @@ func WithDotEnv(o *ProjectOptions) error {
 	return nil
 }
 
-func GetEnvFromFile(currentEnv map[string]string, workingDir string, filename string) (map[string]string, error) {
+func GetEnvFromFile(currentEnv map[string]string, workingDir string, filenames []string) (map[string]string, error) {
 	envMap := make(map[string]string)
 
-	dotEnvFile := filename
-	if dotEnvFile == "" {
-		dotEnvFile = filepath.Join(workingDir, ".env")
+	dotEnvFiles := filenames
+	if len(dotEnvFiles) == 0 {
+		dotEnvFiles = append(dotEnvFiles, filepath.Join(workingDir, ".env"))
 	}
-	abs, err := filepath.Abs(dotEnvFile)
-	if err != nil {
-		return envMap, err
-	}
-	dotEnvFile = abs
-
-	s, err := os.Stat(dotEnvFile)
-	if os.IsNotExist(err) {
-		if filename != "" {
-			return nil, errors.Errorf("Couldn't find env file: %s", filename)
+	for _, dotEnvFile := range dotEnvFiles {
+		abs, err := filepath.Abs(dotEnvFile)
+		if err != nil {
+			return envMap, err
 		}
-		return envMap, nil
-	}
-	if err != nil {
-		return envMap, err
-	}
+		dotEnvFile = abs
 
-	if s.IsDir() {
-		if filename == "" {
+		b, err := os.ReadFile(dotEnvFile)
+		if os.IsNotExist(err) {
+			if len(filenames) > 0 {
+				return nil, errors.Errorf("Couldn't read env file: %s", dotEnvFile)
+			}
 			return envMap, nil
 		}
-		return envMap, errors.Errorf("%s is a directory", dotEnvFile)
-	}
-
-	file, err := os.Open(dotEnvFile)
-	if err != nil {
-		return envMap, errors.Wrapf(err, "failed to read %s", dotEnvFile)
-	}
-	defer file.Close()
-
-	env, err := dotenv.ParseWithLookup(file, func(k string) (string, bool) {
-		v, ok := currentEnv[k]
-		if !ok {
-			return "", false
+		if err != nil {
+			return envMap, err
 		}
-		return v, true
-	})
-	if err != nil {
-		return envMap, errors.Wrapf(err, "failed to read %s", dotEnvFile)
-	}
-	for k, v := range env {
-		envMap[k] = v
+
+		env, err := dotenv.ParseWithLookup(bytes.NewReader(b), func(k string) (string, bool) {
+			v, ok := envMap[k]
+			if ok {
+				return v, true
+			}
+			v, ok = currentEnv[k]
+			if !ok {
+				return "", false
+			}
+			return v, true
+		})
+		if err != nil {
+			return envMap, errors.Wrapf(err, "failed to read %s", dotEnvFile)
+		}
+		for k, v := range env {
+			envMap[k] = v
+		}
 	}
 
 	return envMap, nil
