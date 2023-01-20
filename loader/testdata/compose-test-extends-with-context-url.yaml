@@ -1,0 +1,5 @@
+services:
+  importer-with-https-url:
+    extends:
+      file: compose-test-extends-with-context-url-imported.yaml
+      service: imported-with-https-url
