@@ -226,6 +226,24 @@ func TestProjectWithDiscardEnvFile(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, *service.Environment["DEFAULT_PORT"], "8080")
 	assert.Assert(t, service.EnvFile == nil)
+	assert.Equal(t, service.Ports[0].Published, "8000")
+}
+
+func TestProjectWithMultipleEnvFile(t *testing.T) {
+	opts, err := NewProjectOptions([]string{
+		"testdata/env-file/compose-with-env-files.yaml",
+	}, WithDiscardEnvFile,
+		WithEnvFiles("testdata/env-file/.env", "testdata/env-file/override.env"),
+		WithDotEnv)
+
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(opts)
+	assert.NilError(t, err)
+	service, err := p.GetService("simple")
+	assert.NilError(t, err)
+	assert.Equal(t, *service.Environment["DEFAULT_PORT"], "9090")
+	assert.Assert(t, service.EnvFile == nil)
+	assert.Equal(t, service.Ports[0].Published, "9000")
 }
 
 func TestProjectNameFromWorkingDir(t *testing.T) {
