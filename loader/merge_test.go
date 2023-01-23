@@ -1287,11 +1287,23 @@ func TestMergeHealthCheck(t *testing.T) {
 					},
 				},
 			}},
+			{Filename: "override.yml", Config: map[string]interface{}{
+				"services": map[string]interface{}{
+					"foo": map[string]interface{}{
+						"image": "alpine",
+						"healthcheck": map[string]interface{}{
+							"timeout": "30s",
+						},
+					},
+				},
+			}},
 		},
 	}
 	merged, err := loadTestProject(configDetails)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, merged.Services[0].HealthCheck.Test, types.HealthCheckTest{"CMD", "override"})
+	check := merged.Services[0].HealthCheck
+	assert.DeepEqual(t, check.Test, types.HealthCheckTest{"CMD", "override"})
+	assert.Equal(t, check.Timeout.String(), "30s")
 }
 
 func TestMergeEnvironments(t *testing.T) {
