@@ -12,8 +12,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Lint code
-        uses: golangci/golangci-lint-action@v2
       - name: Check license
         run: DOCKER_BUILDKIT=1 make check-license
       - name: Check schema
@@ -22,10 +20,10 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: ['1.18', '1.19']
+        go-version: ['1.20', '1.19']
         platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -35,5 +33,8 @@ jobs:
         go-version: ${{ matrix.go-version }}
         check-latest: true
         cache: true
+    - uses: golangci/golangci-lint-action@v3
+      with:
+        version: v1.51.1
     - name: Test
       run: go test ./...
