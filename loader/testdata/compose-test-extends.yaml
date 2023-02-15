@@ -1,5 +1,5 @@
 services:
   importer:
     extends:
-      file: compose-test-extends-imported.yaml
+      file: subdir/compose-test-extends-imported.yaml
       service: imported

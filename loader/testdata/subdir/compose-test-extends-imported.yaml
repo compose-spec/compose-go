@@ -1,5 +1,7 @@
 services:
   imported:
     image: nginx
+    env_file:
+      - extra.env
     volumes:
       - /opt/data:/var/lib/mysql

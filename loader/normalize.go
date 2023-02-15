@@ -90,6 +90,11 @@ func normalize(project *types.Project, resolvePaths bool) error {
 		}
 		s.Environment = s.Environment.Resolve(fn)
 
+		if extendFile := s.Extends["file"]; extendFile != nil && *extendFile != "" {
+			p := absPath(project.WorkingDir, *extendFile)
+			s.Extends["file"] = &p
+		}
+
 		err := relocateLogDriver(&s)
 		if err != nil {
 			return err

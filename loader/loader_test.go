@@ -26,11 +26,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/compose-spec/compose-go/types"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/compose-spec/compose-go/types"
 )
 
 func buildConfigDetails(yaml string, env map[string]string) types.ConfigDetails {
@@ -1853,16 +1854,29 @@ func TestLoadWithExtends(t *testing.T) {
 	actual, err := Load(configDetails)
 	assert.NilError(t, err)
 
+	extendsDir, err := filepath.Abs(filepath.Join("testdata", "subdir"))
+	assert.NilError(t, err)
+
+	expectedEnvFilePath := filepath.Join(extendsDir, "extra.env")
+
+	expectedExtendsPath := filepath.Join(
+		extendsDir,
+		"compose-test-extends-imported.yaml",
+	)
+
 	expServices := types.Services{
 		{
 			Name:  "importer",
 			Image: "nginx",
 			Extends: types.ExtendsConfig{
-				"file":    strPtr("compose-test-extends-imported.yaml"),
+				"file":    &expectedExtendsPath,
 				"service": strPtr("imported"),
 			},
-			Environment: types.MappingWithEquals{},
-			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
+			Environment: types.MappingWithEquals{
+				"SOURCE": strPtr("extends"),
+			},
+			EnvFile:  []string{expectedEnvFilePath},
+			Networks: map[string]*types.ServiceNetworkConfig{"default": nil},
 			Volumes: []types.ServiceVolumeConfig{{
 				Type:   "bind",
 				Source: "/opt/data",
@@ -1889,6 +1903,13 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 	actual, err := Load(configDetails)
 	assert.NilError(t, err)
 
+	expectedExtendsPath, err := filepath.Abs(
+		filepath.Join(
+			"testdata",
+			"compose-test-extends-with-context-url-imported.yaml",
+		),
+	)
+	assert.NilError(t, err)
 	expServices := types.Services{
 		{
 			Name: "importer-with-https-url",
@@ -1897,7 +1918,7 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 				Dockerfile: "Dockerfile",
 			},
 			Extends: types.ExtendsConfig{
-				"file":    strPtr("compose-test-extends-with-context-url-imported.yaml"),
+				"file":    &expectedExtendsPath,
 				"service": strPtr("imported-with-https-url"),
 			},
 			Environment: types.MappingWithEquals{},
