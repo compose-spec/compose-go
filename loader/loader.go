@@ -583,6 +583,10 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 				}
 				baseService.Volumes[i].Source = resolveMaybeUnixPath(vol.Source, baseFileParent, lookupEnv)
 			}
+
+			for i, envFile := range baseService.EnvFile {
+				baseService.EnvFile[i] = resolveMaybeUnixPath(envFile, baseFileParent, lookupEnv)
+			}
 		}
 
 		serviceConfig, err = _merge(baseService, serviceConfig)

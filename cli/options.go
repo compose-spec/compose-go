@@ -190,7 +190,11 @@ func WithOsEnv(o *ProjectOptions) error {
 // WithEnvFile set an alternate env file
 // deprecated - use WithEnvFiles
 func WithEnvFile(file string) ProjectOptionsFn {
-	return WithEnvFiles(file)
+	var files []string
+	if file != "" {
+		files = []string{file}
+	}
+	return WithEnvFiles(files...)
 }
 
 // WithEnvFiles set alternate env files
