@@ -184,3 +184,61 @@ func TestNormalizeVolumes(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project)
 }
+
+func TestNormalizeDependsOn(t *testing.T) {
+	project := types.Project{
+		Name:     "myProject",
+		Networks: types.Networks{},
+		Volumes:  types.Volumes{},
+		Services: []types.ServiceConfig{
+			{
+				Name: "foo",
+				DependsOn: map[string]types.ServiceDependency{
+					"bar": { // explicit depends_on never should be overridden
+						Condition: types.ServiceConditionHealthy,
+						Restart:   false,
+					},
+				},
+				NetworkMode: "service:zot",
+			},
+			{
+				Name:        "bar",
+				VolumesFrom: []string{"zot"},
+			},
+			{
+				Name: "zot",
+			},
+		},
+	}
+
+	expected := `name: myProject
+services:
+  bar:
+    depends_on:
+      zot:
+        condition: service_started
+    networks:
+      default: null
+    volumes_from:
+    - zot
+  foo:
+    depends_on:
+      bar:
+        condition: service_healthy
+      zot:
+        condition: service_started
+        restart: true
+    network_mode: service:zot
+  zot:
+    networks:
+      default: null
+networks:
+  default:
+    name: myProject_default
+`
+	err := normalize(&project, true)
+	assert.NilError(t, err)
+	marshal, err := yaml.Marshal(project)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expected, string(marshal))
+}

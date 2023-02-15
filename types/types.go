@@ -256,35 +256,11 @@ const (
 
 // GetDependencies retrieve all services this service depends on
 func (s ServiceConfig) GetDependencies() []string {
-	dependencies := make(set)
-	for dependency := range s.DependsOn {
-		dependencies.append(dependency)
+	var dependencies []string
+	for service := range s.DependsOn {
+		dependencies = append(dependencies, service)
 	}
-	for _, link := range s.Links {
-		parts := strings.Split(link, ":")
-		if len(parts) == 2 {
-			dependencies.append(parts[0])
-		} else {
-			dependencies.append(link)
-		}
-	}
-	if strings.HasPrefix(s.NetworkMode, ServicePrefix) {
-		dependencies.append(s.NetworkMode[len(ServicePrefix):])
-	}
-	if strings.HasPrefix(s.Ipc, ServicePrefix) {
-		dependencies.append(s.Ipc[len(ServicePrefix):])
-	}
-	if strings.HasPrefix(s.Pid, ServicePrefix) {
-		dependencies.append(s.Pid[len(ServicePrefix):])
-	}
-	for _, vol := range s.VolumesFrom {
-		if !strings.HasPrefix(s.Pid, ContainerPrefix) {
-			spec := strings.Split(vol, ":")
-			dependencies.append(spec[0])
-		}
-	}
-
-	return dependencies.toSlice()
+	return dependencies
 }
 
 type set map[string]struct{}
