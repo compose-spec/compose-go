@@ -1007,6 +1007,7 @@ type DependsOnConfig map[string]ServiceDependency
 
 type ServiceDependency struct {
 	Condition  string                 `yaml:",omitempty" json:"condition,omitempty"`
+	Restart    bool                   `yaml:",omitempty" json:"restart,omitempty"`
 	Extensions map[string]interface{} `yaml:",inline" json:"-"`
 }
 
