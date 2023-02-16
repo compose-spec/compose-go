@@ -107,7 +107,7 @@ type ServiceConfig struct {
 	// Command for the service containers.
 	// If set, overrides COMMAND from the image.
 	//
-	// Set to `[]` or `''` to clear the command from the image.
+	// Set to `[]` or an empty string to clear the command from the image.
 	Command ShellCommand `yaml:",omitempty" json:"command"` // NOTE: we can NOT omitempty for JSON! see ShellCommand type for details.
 
 	Configs           []ServiceConfigObjConfig `yaml:",omitempty" json:"configs,omitempty"`
@@ -126,7 +126,7 @@ type ServiceConfig struct {
 	// Entrypoint for the service containers.
 	// If set, overrides ENTRYPOINT from the image.
 	//
-	// Set to `[]` or `''` to clear the entrypoint from the image.
+	// Set to `[]` or an empty string to clear the entrypoint from the image.
 	Entrypoint ShellCommand `yaml:"entrypoint,omitempty" json:"entrypoint"` // NOTE: we can NOT omitempty for JSON! see ShellCommand type for details.
 
 	Environment     MappingWithEquals                `yaml:",omitempty" json:"environment,omitempty"`
@@ -333,13 +333,13 @@ type ThrottleDevice struct {
 // ShellCommand is a string or list of string args.
 //
 // When marshaled to YAML, nil command fields will be omitted if `omitempty`
-// is specified as a struct tag. Explicitly empty commands (i.e. `[]` or `''`)
-// will serialize to an empty array (`[]`).
+// is specified as a struct tag. Explicitly empty commands (i.e. `[]` or
+// empty string will serialize to an empty array (`[]`).
 //
 // When marshaled to JSON, the `omitempty` struct must NOT be specified.
 // If the command field is nil, it will be serialized as `null`.
-// Explicitly empty commands (i.e. `[]` or `''`) will serialize to an empty
-// array (`[]`).
+// Explicitly empty commands (i.e. `[]` or empty string) will serialize to
+// an empty array (`[]`).
 //
 // The distinction between nil and explicitly empty is important to distinguish
 // between an unset value and a provided, but empty, value, which should be

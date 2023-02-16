@@ -279,7 +279,7 @@ func TestLoadFromFile(t *testing.T) {
 	}
 	tmpdir := t.TempDir()
 	tmpPath := filepath.Join(tmpdir, "Docker-compose.yaml")
-	if err := os.WriteFile(tmpPath, []byte(sampleYAML), 0444); err != nil {
+	if err := os.WriteFile(tmpPath, []byte(sampleYAML), 0o444); err != nil {
 		t.Fatalf("failed to write temporary file: %s", err)
 	}
 	actual, err := Load(types.ConfigDetails{

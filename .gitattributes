@@ -1,0 +1,2 @@
+# required for golangci-lint on Windows
+*.go text eol=lf
