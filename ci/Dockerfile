@@ -12,11 +12,11 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-FROM golang:1.18
+FROM golang:1.20
 
 WORKDIR /go/src
 
-ARG GOLANGCILINT_VERSION=v1.46.2
+ARG GOLANGCILINT_VERSION=v1.51.1
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCILINT_VERSION}
 RUN go install github.com/kunalkushwaha/ltag@latest && rm -rf /go/src/github.com/kunalkushwaha
 
