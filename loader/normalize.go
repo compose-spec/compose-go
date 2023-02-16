@@ -28,8 +28,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
-func normalize(project *types.Project, resolvePaths bool) error {
+// Normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
+func Normalize(project *types.Project, resolvePaths bool) error {
 	absWorkingDir, err := filepath.Abs(project.WorkingDir)
 	if err != nil {
 		return err

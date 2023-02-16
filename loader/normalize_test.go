@@ -82,7 +82,7 @@ networks:
   mynet:
     name: myProject_mynet
 `
-	err := normalize(&project, false)
+	err := Normalize(&project, false)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
 	assert.NilError(t, err)
@@ -118,7 +118,7 @@ networks:
   default:
     name: myProject_default
 `, filepath.Join(wd, "testdata"))
-	err := normalize(&project, true)
+	err := Normalize(&project, true)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
 	assert.NilError(t, err)
@@ -142,7 +142,7 @@ func TestNormalizeAbsolutePaths(t *testing.T) {
 		WorkingDir:   absWorkingDir,
 		ComposeFiles: []string{absComposeFile, absOverrideFile},
 	}
-	err := normalize(&project, false)
+	err := Normalize(&project, false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project)
 }
@@ -180,7 +180,7 @@ func TestNormalizeVolumes(t *testing.T) {
 		WorkingDir:   absCwd,
 		ComposeFiles: []string{},
 	}
-	err := normalize(&project, false)
+	err := Normalize(&project, false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project)
 }
@@ -236,7 +236,7 @@ networks:
   default:
     name: myProject_default
 `
-	err := normalize(&project, true)
+	err := Normalize(&project, true)
 	assert.NilError(t, err)
 	marshal, err := yaml.Marshal(project)
 	assert.NilError(t, err)
