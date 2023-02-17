@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/types"
@@ -27,8 +28,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
-func normalize(project *types.Project, resolvePaths bool) error {
+// Normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
+func Normalize(project *types.Project, resolvePaths bool) error {
 	absWorkingDir, err := filepath.Abs(project.WorkingDir)
 	if err != nil {
 		return err
@@ -95,6 +96,37 @@ func normalize(project *types.Project, resolvePaths bool) error {
 			s.Extends["file"] = &p
 		}
 
+		for _, link := range s.Links {
+			parts := strings.Split(link, ":")
+			if len(parts) == 2 {
+				link = parts[0]
+			}
+			s.DependsOn = setIfMissing(s.DependsOn, link, types.ServiceDependency{
+				Condition: types.ServiceConditionStarted,
+				Restart:   true,
+			})
+		}
+
+		for _, namespace := range []string{s.NetworkMode, s.Ipc, s.Pid, s.Uts, s.Cgroup} {
+			if strings.HasPrefix(namespace, types.ServicePrefix) {
+				name := namespace[len(types.ServicePrefix):]
+				s.DependsOn = setIfMissing(s.DependsOn, name, types.ServiceDependency{
+					Condition: types.ServiceConditionStarted,
+					Restart:   true,
+				})
+			}
+		}
+
+		for _, vol := range s.VolumesFrom {
+			if !strings.HasPrefix(s.Pid, types.ContainerPrefix) {
+				spec := strings.Split(vol, ":")
+				s.DependsOn = setIfMissing(s.DependsOn, spec[0], types.ServiceDependency{
+					Condition: types.ServiceConditionStarted,
+					Restart:   false,
+				})
+			}
+		}
+
 		err := relocateLogDriver(&s)
 		if err != nil {
 			return err
@@ -131,9 +163,20 @@ func normalize(project *types.Project, resolvePaths bool) error {
 	return nil
 }
 
+// setIfMissing adds a ServiceDependency for service if not already defined
+func setIfMissing(d types.DependsOnConfig, service string, dep types.ServiceDependency) types.DependsOnConfig {
+	if d == nil {
+		d = types.DependsOnConfig{}
+	}
+	if _, ok := d[service]; !ok {
+		d[service] = dep
+	}
+	return d
+}
+
 func relocateScale(s *types.ServiceConfig) error {
 	scale := uint64(s.Scale)
-	if scale != 1 {
+	if scale > 1 {
 		logrus.Warn("`scale` is deprecated. Use the `deploy.replicas` element")
 		if s.Deploy == nil {
 			s.Deploy = &types.DeployConfig{}

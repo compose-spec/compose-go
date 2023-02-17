@@ -783,7 +783,7 @@ services:
     build:
      context: ./web
     links:
-      - bar
+      - db
     pid: host
   db:
     image: db
@@ -837,7 +837,7 @@ services:
     image: web
     build: .
     links:
-      - bar
+      - db
   db:
     image: db
     build:

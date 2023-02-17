@@ -233,7 +233,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	if !opts.SkipNormalization {
-		err = normalize(project, opts.ResolvePaths)
+		err = Normalize(project, opts.ResolvePaths)
 		if err != nil {
 			return nil, err
 		}
