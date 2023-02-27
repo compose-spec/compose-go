@@ -31,8 +31,22 @@ func Test_ApplyProfiles(t *testing.T) {
 	assert.Equal(t, len(p.Services), 2)
 	assert.Equal(t, p.Services[0].Name, "service_1")
 	assert.Equal(t, p.Services[1].Name, "service_2")
+	assert.Equal(t, len(p.DisabledServices), 3)
+	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
+	assert.Equal(t, p.DisabledServices[1].Name, "service_4")
+	assert.Equal(t, p.DisabledServices[2].Name, "service_5")
+
+	err := p.EnableServices("service_4")
+	assert.NilError(t, err)
+
+	assert.Equal(t, len(p.Services), 4)
+	assert.Equal(t, p.Services[0].Name, "service_1")
+	assert.Equal(t, p.Services[1].Name, "service_2")
+	assert.Equal(t, p.Services[2].Name, "service_4")
+	assert.Equal(t, p.Services[3].Name, "service_5")
 	assert.Equal(t, len(p.DisabledServices), 1)
 	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
+
 }
 
 func Test_WithoutUnnecessaryResources(t *testing.T) {
@@ -60,7 +74,7 @@ func Test_NoProfiles(t *testing.T) {
 	p := makeProject()
 	p.ApplyProfiles(nil)
 	assert.Equal(t, len(p.Services), 1)
-	assert.Equal(t, len(p.DisabledServices), 2)
+	assert.Equal(t, len(p.DisabledServices), 4)
 	assert.Equal(t, p.Services[0].Name, "service_1")
 }
 
@@ -79,8 +93,10 @@ func Test_ForServices(t *testing.T) {
 	err := p.ForServices([]string{"service_2"})
 	assert.NilError(t, err)
 
-	assert.Equal(t, len(p.DisabledServices), 1)
+	assert.Equal(t, len(p.DisabledServices), 3)
 	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
+	assert.Equal(t, p.DisabledServices[1].Name, "service_4")
+	assert.Equal(t, p.DisabledServices[2].Name, "service_5")
 }
 
 func Test_ForServicesCycle(t *testing.T) {
@@ -103,6 +119,12 @@ func makeProject() Project {
 				Name:      "service_3",
 				Profiles:  []string{"bar"},
 				DependsOn: map[string]ServiceDependency{"service_2": {}},
+			}, ServiceConfig{
+				Name:     "service_4",
+				Profiles: []string{"zot"},
+			}, ServiceConfig{
+				Name:     "service_5",
+				Profiles: []string{"zot"},
 			}),
 		Networks: Networks{},
 		Volumes:  Volumes{},

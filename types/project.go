@@ -45,6 +45,7 @@ type Project struct {
 
 	// DisabledServices track services which have been disable as profile is not active
 	DisabledServices Services `yaml:"-" json:"-"`
+	Profiles         []string `yaml:"-" json:"-"`
 }
 
 // ServiceNames return names for all services in this Compose config
@@ -117,6 +118,16 @@ func (p *Project) GetServices(names ...string) (Services, error) {
 		services = append(services, *serviceConfig)
 	}
 	return services, nil
+}
+
+// GetDisabledService retrieve disabled service by name
+func (p Project) GetDisabledService(name string) (ServiceConfig, error) {
+	for _, config := range p.DisabledServices {
+		if config.Name == name {
+			return config, nil
+		}
+	}
+	return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
 }
 
 // GetService retrieve a specific service by name
@@ -247,7 +258,7 @@ func (p *Project) ApplyProfiles(profiles []string) {
 		}
 	}
 	var enabled, disabled Services
-	for _, service := range p.Services {
+	for _, service := range p.AllServices() {
 		if service.HasProfile(profiles) {
 			enabled = append(enabled, service)
 		} else {
@@ -256,6 +267,41 @@ func (p *Project) ApplyProfiles(profiles []string) {
 	}
 	p.Services = enabled
 	p.DisabledServices = disabled
+	p.Profiles = profiles
+}
+
+// EnableServices ensure services are enabled and activate profiles accordingly
+func (p *Project) EnableServices(names ...string) error {
+	if len(names) == 0 {
+		return nil
+	}
+	var enabled []string
+	for _, name := range names {
+		_, err := p.GetService(name)
+		if err == nil {
+			// already enabled
+			continue
+		}
+		def, err := p.GetDisabledService(name)
+		if err != nil {
+			return err
+		}
+		enabled = append(enabled, def.Profiles...)
+	}
+
+	profiles := p.Profiles
+PROFILES:
+	for _, profile := range enabled {
+		for _, p := range profiles {
+			if p == profile {
+				continue PROFILES
+			}
+		}
+		profiles = append(profiles, profile)
+	}
+	p.ApplyProfiles(profiles)
+
+	return p.ResolveServicesEnvironment(true)
 }
 
 // WithoutUnnecessaryResources drops networks/volumes/secrets/configs that are not referenced by active services
