@@ -254,13 +254,26 @@ const (
 	NetworkModeContainerPrefix = ContainerPrefix
 )
 
-// GetDependencies retrieve all services this service depends on
+// GetDependencies retrieves all services this service depends on
 func (s ServiceConfig) GetDependencies() []string {
 	var dependencies []string
 	for service := range s.DependsOn {
 		dependencies = append(dependencies, service)
 	}
 	return dependencies
+}
+
+// GetDependents retrieves all services which depend on this service
+func (s ServiceConfig) GetDependents(p *Project) []string {
+	var dependent []string
+	for _, service := range p.Services {
+		for name := range service.DependsOn {
+			if name == s.Name {
+				dependent = append(dependent, service.Name)
+			}
+		}
+	}
+	return dependent
 }
 
 type set map[string]struct{}

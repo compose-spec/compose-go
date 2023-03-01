@@ -48,7 +48,7 @@ type Project struct {
 }
 
 // ServiceNames return names for all services in this Compose config
-func (p Project) ServiceNames() []string {
+func (p *Project) ServiceNames() []string {
 	var names []string
 	for _, s := range p.Services {
 		names = append(names, s.Name)
@@ -58,7 +58,7 @@ func (p Project) ServiceNames() []string {
 }
 
 // VolumeNames return names for all volumes in this Compose config
-func (p Project) VolumeNames() []string {
+func (p *Project) VolumeNames() []string {
 	var names []string
 	for k := range p.Volumes {
 		names = append(names, k)
@@ -68,7 +68,7 @@ func (p Project) VolumeNames() []string {
 }
 
 // NetworkNames return names for all volumes in this Compose config
-func (p Project) NetworkNames() []string {
+func (p *Project) NetworkNames() []string {
 	var names []string
 	for k := range p.Networks {
 		names = append(names, k)
@@ -78,7 +78,7 @@ func (p Project) NetworkNames() []string {
 }
 
 // SecretNames return names for all secrets in this Compose config
-func (p Project) SecretNames() []string {
+func (p *Project) SecretNames() []string {
 	var names []string
 	for k := range p.Secrets {
 		names = append(names, k)
@@ -88,7 +88,7 @@ func (p Project) SecretNames() []string {
 }
 
 // ConfigNames return names for all configs in this Compose config
-func (p Project) ConfigNames() []string {
+func (p *Project) ConfigNames() []string {
 	var names []string
 	for k := range p.Configs {
 		names = append(names, k)
@@ -98,7 +98,7 @@ func (p Project) ConfigNames() []string {
 }
 
 // GetServices retrieve services by names, or return all services if no name specified
-func (p Project) GetServices(names ...string) (Services, error) {
+func (p *Project) GetServices(names ...string) (Services, error) {
 	if len(names) == 0 {
 		return p.Services, nil
 	}
@@ -120,7 +120,7 @@ func (p Project) GetServices(names ...string) (Services, error) {
 }
 
 // GetService retrieve a specific service by name
-func (p Project) GetService(name string) (ServiceConfig, error) {
+func (p *Project) GetService(name string) (ServiceConfig, error) {
 	services, err := p.GetServices(name)
 	if err != nil {
 		return ServiceConfig{}, err
@@ -131,7 +131,7 @@ func (p Project) GetService(name string) (ServiceConfig, error) {
 	return services[0], nil
 }
 
-func (p Project) AllServices() Services {
+func (p *Project) AllServices() Services {
 	var all Services
 	all = append(all, p.Services...)
 	all = append(all, p.DisabledServices...)
@@ -140,12 +140,16 @@ func (p Project) AllServices() Services {
 
 type ServiceFunc func(service ServiceConfig) error
 
-// WithServices run ServiceFunc on each service and dependencies in dependency order
-func (p Project) WithServices(names []string, fn ServiceFunc) error {
-	return p.withServices(names, fn, map[string]bool{})
+// WithServices run ServiceFunc on each service and dependencies according to DependencyPolicy
+func (p *Project) WithServices(names []string, fn ServiceFunc, options ...DependencyOption) error {
+	if len(options) == 0 {
+		// backward compatibility
+		options = []DependencyOption{IncludeDependencies}
+	}
+	return p.withServices(names, fn, map[string]bool{}, options)
 }
 
-func (p Project) withServices(names []string, fn ServiceFunc, seen map[string]bool) error {
+func (p *Project) withServices(names []string, fn ServiceFunc, seen map[string]bool, options []DependencyOption) error {
 	services, err := p.GetServices(names...)
 	if err != nil {
 		return err
@@ -155,9 +159,21 @@ func (p Project) withServices(names []string, fn ServiceFunc, seen map[string]bo
 			continue
 		}
 		seen[service.Name] = true
-		dependencies := service.GetDependencies()
+		var dependencies []string
+		for _, policy := range options {
+			switch policy {
+			case IncludeDependents:
+				dependencies = append(dependencies, p.GetDependentsForService(service)...)
+			case IncludeDependencies:
+				dependencies = append(dependencies, service.GetDependencies()...)
+			case IgnoreDependencies:
+				// Noop
+			default:
+				return fmt.Errorf("unsupported dependency policy %d", policy)
+			}
+		}
 		if len(dependencies) > 0 {
-			err := p.withServices(dependencies, fn, seen)
+			err := p.withServices(dependencies, fn, seen, options)
 			if err != nil {
 				return err
 			}
@@ -167,6 +183,18 @@ func (p Project) withServices(names []string, fn ServiceFunc, seen map[string]bo
 		}
 	}
 	return nil
+}
+
+func (p *Project) GetDependentsForService(s ServiceConfig) []string {
+	var dependent []string
+	for _, service := range p.Services {
+		for name := range service.DependsOn {
+			if name == s.Name {
+				dependent = append(dependent, service.Name)
+			}
+		}
+	}
+	return dependent
 }
 
 // RelativePath resolve a relative path based project's working directory
@@ -292,8 +320,16 @@ func (p *Project) WithoutUnnecessaryResources() {
 	p.Configs = configs
 }
 
-// ForServices restrict the project model to a subset of services
-func (p *Project) ForServices(names []string) error {
+type DependencyOption int
+
+const (
+	IncludeDependencies = iota
+	IncludeDependents
+	IgnoreDependencies
+)
+
+// ForServices restrict the project model to selected services and dependencies
+func (p *Project) ForServices(names []string, options ...DependencyOption) error {
 	if len(names) == 0 {
 		// All services
 		return nil
@@ -303,7 +339,7 @@ func (p *Project) ForServices(names []string) error {
 	err := p.WithServices(names, func(service ServiceConfig) error {
 		set[service.Name] = struct{}{}
 		return nil
-	})
+	}, options...)
 	if err != nil {
 		return err
 	}

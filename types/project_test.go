@@ -100,8 +100,9 @@ func makeProject() Project {
 				Profiles:  []string{"foo"},
 				DependsOn: map[string]ServiceDependency{"service_1": {}},
 			}, ServiceConfig{
-				Name:     "service_3",
-				Profiles: []string{"bar"},
+				Name:      "service_3",
+				Profiles:  []string{"bar"},
+				DependsOn: map[string]ServiceDependency{"service_2": {}},
 			}),
 		Networks: Networks{},
 		Volumes:  Volumes{},
@@ -148,4 +149,31 @@ func Test_ResolveImages(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, p.Services[0].Image, test.resolved)
 	}
+}
+
+func TestWithServices(t *testing.T) {
+	p := makeProject()
+	var seen []string
+	err := p.WithServices([]string{"service_3"}, func(service ServiceConfig) error {
+		seen = append(seen, service.Name)
+		return nil
+	}, IncludeDependencies)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, seen, []string{"service_1", "service_2", "service_3"})
+
+	seen = []string{}
+	err = p.WithServices([]string{"service_1"}, func(service ServiceConfig) error {
+		seen = append(seen, service.Name)
+		return nil
+	}, IncludeDependents)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, seen, []string{"service_3", "service_2", "service_1"})
+
+	seen = []string{}
+	err = p.WithServices([]string{"service_1"}, func(service ServiceConfig) error {
+		seen = append(seen, service.Name)
+		return nil
+	}, IgnoreDependencies)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, seen, []string{"service_1"})
 }
