@@ -246,9 +246,10 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		}
 	}
 
-	if len(opts.Profiles) > 0 {
-		project.ApplyProfiles(opts.Profiles)
+	if profiles, ok := project.Environment[consts.ComposeProfiles]; ok && len(opts.Profiles) == 0 {
+		opts.Profiles = strings.Split(profiles, ",")
 	}
+	project.ApplyProfiles(opts.Profiles)
 
 	err = project.ResolveServicesEnvironment(opts.discardEnvFiles)
 

@@ -1223,7 +1223,7 @@ func TestMergeTopLevelExtensions(t *testing.T) {
 	assert.DeepEqual(t, &types.Project{
 		Name:       "",
 		WorkingDir: "",
-		Services:   types.Services{},
+		Services:   nil,
 		Networks:   types.Networks{},
 		Volumes:    types.Volumes{},
 		Secrets:    types.Secrets{},
