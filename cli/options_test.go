@@ -54,7 +54,7 @@ func TestProjectName(t *testing.T) {
 
 	t.Run("by name start with invalid char '-'", func(t *testing.T) {
 		_, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("-my_project"))
-		assert.Error(t, err, `"-my_project" is not a valid project name`)
+		assert.ErrorContains(t, err, `"-my_project" is not a valid project name`)
 
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "-my_project"),
@@ -67,7 +67,7 @@ func TestProjectName(t *testing.T) {
 
 	t.Run("by name start with invalid char '_'", func(t *testing.T) {
 		_, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("_my_project"))
-		assert.Error(t, err, `"_my_project" is not a valid project name`)
+		assert.ErrorContains(t, err, `"_my_project" is not a valid project name`)
 
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "_my_project"),
@@ -80,7 +80,7 @@ func TestProjectName(t *testing.T) {
 
 	t.Run("by name contains dots", func(t *testing.T) {
 		_, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("www.my.project"))
-		assert.Error(t, err, `"www.my.project" is not a valid project name`)
+		assert.ErrorContains(t, err, `"www.my.project" is not a valid project name`)
 
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "www.my.project"),
@@ -93,7 +93,7 @@ func TestProjectName(t *testing.T) {
 
 	t.Run("by name uppercase", func(t *testing.T) {
 		_, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("MY_PROJECT"))
-		assert.Error(t, err, `"MY_PROJECT" is not a valid project name`)
+		assert.ErrorContains(t, err, `"MY_PROJECT" is not a valid project name`)
 
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "_my_project"),
