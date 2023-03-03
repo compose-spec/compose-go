@@ -136,9 +136,25 @@ func WithProfiles(profiles []string) func(*Options) {
 
 // ParseYAML reads the bytes from a file, parses the bytes into a mapping
 // structure, and returns it.
-func ParseYAML(source []byte) (map[string]interface{}, error) {
+func ParseYAML(source []byte, options *interp.Options) (map[string]interface{}, error) {
 	var cfg interface{}
-	if err := yaml.Unmarshal(source, &cfg); err != nil {
+
+	var opts interp.Options
+	if options != nil {
+		opts = *options
+	}
+	if opts.LookupValue == nil {
+		opts.LookupValue = os.LookupEnv
+	}
+	if opts.Substitute == nil {
+		opts.Substitute = template.Substitute
+	}
+
+	err := yaml.Unmarshal(source, &variableProcessor{
+		target: &cfg,
+		opts:   opts,
+	})
+	if err != nil {
 		return nil, err
 	}
 	stringMap, ok := cfg.(map[string]interface{})
@@ -160,6 +176,62 @@ func ParseYAML(source []byte) (map[string]interface{}, error) {
 	return converted.(map[string]interface{}), nil
 }
 
+type variableProcessor struct {
+	target interface{}
+	opts   interp.Options
+}
+
+func (p *variableProcessor) UnmarshalYAML(node *yaml.Node) error {
+	resolved, err := p.resolveVariables(node, "")
+	if err != nil {
+		return err
+	}
+	return resolved.Decode(p.target)
+}
+
+func (p *variableProcessor) resolveVariables(node *yaml.Node, path interp.Path) (*yaml.Node, error) {
+	if node.Kind == yaml.ScalarNode && node.Tag == "!!str" {
+		substitute, err := p.opts.Substitute(node.Value, template.Mapping(p.opts.LookupValue))
+		if err != nil {
+			return nil, err
+		}
+		node.Value = substitute
+	}
+	if node.Kind == yaml.MappingNode {
+		var (
+			next interp.Path
+			err  error
+		)
+		for i := range node.Content {
+			if i%2 == 0 {
+				next = path.Next(node.Content[i].Value)
+			}
+			node.Content[i], err = p.resolveVariables(node.Content[i], next)
+			if err != nil {
+				return nil, err
+			}
+			if i%2 == 1 {
+				for pattern, tag := range interpolateTypeCastMapping {
+					if next.Matches(pattern) {
+						node.Content[i].Tag = tag
+						break
+					}
+				}
+			}
+		}
+	}
+	if node.Kind == yaml.SequenceNode {
+		var err error
+		for i := range node.Content {
+			node.Content[i], err = p.resolveVariables(node.Content[i], path.Next("[]"))
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return node, nil
+}
+
 // Load reads a ConfigDetails and returns a fully loaded configuration
 func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	if len(configDetails.ConfigFiles) < 1 {
@@ -168,9 +240,8 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 	opts := &Options{
 		Interpolate: &interp.Options{
-			Substitute:      template.Substitute,
-			LookupValue:     configDetails.LookupEnv,
-			TypeCastMapping: interpolateTypeCastMapping,
+			Substitute:  template.Substitute,
+			LookupValue: configDetails.LookupEnv,
 		},
 	}
 
@@ -284,7 +355,7 @@ func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 	var pjNameFromConfigFile string
 
 	for _, configFile := range details.ConfigFiles {
-		yml, err := ParseYAML(configFile.Content)
+		yml, err := ParseYAML(configFile.Content, opts.Interpolate)
 		if err != nil {
 			return "", nil
 		}
@@ -292,13 +363,7 @@ func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 			pjNameFromConfigFile = yml["name"].(string)
 		}
 	}
-	if !opts.SkipInterpolation {
-		interpolated, err := interp.Interpolate(map[string]interface{}{"name": pjNameFromConfigFile}, *opts.Interpolate)
-		if err != nil {
-			return "", err
-		}
-		pjNameFromConfigFile = interpolated["name"].(string)
-	}
+
 	pjNameFromConfigFileNormalized := NormalizeProjectName(pjNameFromConfigFile)
 	if !projectNameImperativelySet && pjNameFromConfigFileNormalized != "" {
 		projectName = pjNameFromConfigFileNormalized
@@ -324,12 +389,9 @@ func NormalizeProjectName(s string) string {
 }
 
 func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
-	yml, err := ParseYAML(b)
+	yml, err := ParseYAML(b, opts.Interpolate)
 	if err != nil {
 		return nil, err
-	}
-	if !opts.SkipInterpolation {
-		return interp.Interpolate(yml, *opts.Interpolate)
 	}
 	return yml, err
 }

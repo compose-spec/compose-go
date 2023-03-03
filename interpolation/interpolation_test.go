@@ -250,6 +250,6 @@ func TestPathMatches(t *testing.T) {
 		},
 	}
 	for _, testcase := range testcases {
-		assert.Check(t, is.Equal(testcase.expected, testcase.path.matches(testcase.pattern)))
+		assert.Check(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)))
 	}
 }

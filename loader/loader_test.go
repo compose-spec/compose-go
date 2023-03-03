@@ -262,7 +262,7 @@ var sampleConfig = types.Config{
 }
 
 func TestParseYAML(t *testing.T) {
-	dict, err := ParseYAML([]byte(sampleYAML))
+	dict, err := ParseYAML([]byte(sampleYAML), nil)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(sampleDict, dict))
 }
@@ -660,7 +660,7 @@ services:
       nofile:
         hard: $theint
         soft: $theint
-    privileged: $thebool
+    privileged: true
     read_only: $thebool
     shm_size: ${thesize}
     stop_grace_period: ${theduration}
