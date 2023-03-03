@@ -32,6 +32,12 @@ func checkConsistency(project *types.Project) error {
 			return errors.Wrapf(errdefs.ErrInvalid, "service %q has neither an image nor a build context specified", s.Name)
 		}
 
+		if s.Build != nil {
+			if s.Build.DockerfileInline != "" && s.Build.Dockerfile != "" {
+				return errors.Wrapf(errdefs.ErrInvalid, "service %q declares mutualy exclusive dockerfile and dockerfile_inline", s.Name)
+			}
+		}
+
 		for network := range s.Networks {
 			if _, ok := project.Networks[network]; !ok {
 				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined network %s", s.Name, network))

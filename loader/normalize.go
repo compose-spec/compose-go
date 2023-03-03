@@ -72,7 +72,7 @@ func Normalize(project *types.Project, resolvePaths bool) error {
 		}
 
 		if s.Build != nil {
-			if s.Build.Dockerfile == "" {
+			if s.Build.Dockerfile == "" && s.Build.DockerfileInline == "" {
 				s.Build.Dockerfile = "Dockerfile"
 			}
 			localContext := absPath(project.WorkingDir, s.Build.Context)
