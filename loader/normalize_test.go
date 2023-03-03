@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/compose-spec/compose-go/types"
-	"gopkg.in/yaml.v2"
 	"gotest.tools/v3/assert"
 )
 
@@ -84,9 +83,9 @@ networks:
 `
 	err := Normalize(&project, false)
 	assert.NilError(t, err)
-	marshal, err := yaml.Marshal(project)
+	marshal, err := project.MarshalYAML()
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, string(marshal))
+	assert.Equal(t, expected, string(marshal))
 }
 
 func TestNormalizeResolvePathsBuildContextPaths(t *testing.T) {
@@ -120,9 +119,9 @@ networks:
 `, filepath.Join(wd, "testdata"))
 	err := Normalize(&project, true)
 	assert.NilError(t, err)
-	marshal, err := yaml.Marshal(project)
+	marshal, err := project.MarshalYAML()
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, string(marshal))
+	assert.Equal(t, expected, string(marshal))
 }
 
 func TestNormalizeAbsolutePaths(t *testing.T) {
@@ -220,7 +219,7 @@ services:
     networks:
       default: null
     volumes_from:
-    - zot
+      - zot
   foo:
     depends_on:
       bar:
@@ -238,7 +237,7 @@ networks:
 `
 	err := Normalize(&project, true)
 	assert.NilError(t, err)
-	marshal, err := yaml.Marshal(project)
+	marshal, err := project.MarshalYAML()
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, string(marshal))
+	assert.Equal(t, expected, string(marshal))
 }

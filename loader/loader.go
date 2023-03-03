@@ -37,7 +37,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // Options supported by Load
@@ -137,6 +137,14 @@ func ParseYAML(source []byte) (map[string]interface{}, error) {
 	var cfg interface{}
 	if err := yaml.Unmarshal(source, &cfg); err != nil {
 		return nil, err
+	}
+	stringMap, ok := cfg.(map[string]interface{})
+	if ok {
+		converted, err := convertToStringKeysRecursive(stringMap, "")
+		if err != nil {
+			return nil, err
+		}
+		return converted.(map[string]interface{}), nil
 	}
 	cfgMap, ok := cfg.(map[interface{}]interface{})
 	if !ok {
@@ -451,6 +459,22 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 
 // keys need to be converted to strings for jsonschema
 func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interface{}, error) {
+	if mapping, ok := value.(map[string]interface{}); ok {
+		for key, entry := range mapping {
+			var newKeyPrefix string
+			if keyPrefix == "" {
+				newKeyPrefix = key
+			} else {
+				newKeyPrefix = fmt.Sprintf("%s.%s", keyPrefix, key)
+			}
+			convertedEntry, err := convertToStringKeysRecursive(entry, newKeyPrefix)
+			if err != nil {
+				return nil, err
+			}
+			mapping[key] = convertedEntry
+		}
+		return mapping, nil
+	}
 	if mapping, ok := value.(map[interface{}]interface{}); ok {
 		dict := make(map[string]interface{})
 		for key, entry := range mapping {

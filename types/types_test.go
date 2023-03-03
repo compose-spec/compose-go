@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -300,7 +300,7 @@ func TestMarshalServiceEntrypoint(t *testing.T) {
 		{
 			name:         "value",
 			entrypoint:   ShellCommand{"ls", "/"},
-			expectedYAML: "entrypoint:\n- ls\n- /",
+			expectedYAML: "entrypoint:\n    - ls\n    - /",
 			expectedJSON: `{"command":null,"entrypoint":["ls","/"]}`,
 		},
 	}

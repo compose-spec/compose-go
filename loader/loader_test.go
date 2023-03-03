@@ -971,7 +971,7 @@ func TestFullExample(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 
-	expectedConfig := fullExampleConfig(workingDir, homeDir)
+	expectedConfig := fullExampleProject(workingDir, homeDir)
 
 	assert.Check(t, is.DeepEqual(expectedConfig.Name, config.Name))
 	assert.Check(t, is.DeepEqual(expectedConfig.Services, config.Services))
