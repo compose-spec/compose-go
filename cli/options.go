@@ -65,7 +65,8 @@ func NewProjectOptions(configs []string, opts ...ProjectOptionsFn) (*ProjectOpti
 func WithName(name string) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
 		if name != loader.NormalizeProjectName(name) {
-			return fmt.Errorf("%q is not a valid project name", name)
+			return fmt.Errorf("%q is not a valid project name: it must contain "+
+				"only characters from [a-z0-9_-] and start with [a-z0-9]", name)
 		}
 		o.Name = name
 		return nil
