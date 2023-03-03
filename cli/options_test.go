@@ -61,8 +61,8 @@ func TestProjectName(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
-		assert.NilError(t, err)
-		assert.Equal(t, p.Name, "my_project")
+		assert.ErrorContains(t, err, `"-my_project" is not a valid project name`)
+		assert.Assert(t, p == nil)
 	})
 
 	t.Run("by name start with invalid char '_'", func(t *testing.T) {
@@ -74,8 +74,8 @@ func TestProjectName(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
-		assert.NilError(t, err)
-		assert.Equal(t, p.Name, "my_project")
+		assert.ErrorContains(t, err, `"_my_project" is not a valid project name`)
+		assert.Assert(t, p == nil)
 	})
 
 	t.Run("by name contains dots", func(t *testing.T) {
@@ -87,8 +87,8 @@ func TestProjectName(t *testing.T) {
 		}))
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
-		assert.NilError(t, err)
-		assert.Equal(t, p.Name, "wwwmyproject")
+		assert.ErrorContains(t, err, `"www.my.project" is not a valid project name`)
+		assert.Assert(t, p == nil)
 	})
 
 	t.Run("by name uppercase", func(t *testing.T) {
@@ -96,12 +96,12 @@ func TestProjectName(t *testing.T) {
 		assert.ErrorContains(t, err, `"MY_PROJECT" is not a valid project name`)
 
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithEnv([]string{
-			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "_my_project"),
+			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "MY_PROJECT"),
 		}))
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
-		assert.NilError(t, err)
-		assert.Equal(t, p.Name, "my_project")
+		assert.ErrorContains(t, err, `"MY_PROJECT" is not a valid project name`)
+		assert.Assert(t, p == nil)
 	})
 
 	t.Run("by working dir", func(t *testing.T) {

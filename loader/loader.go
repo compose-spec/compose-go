@@ -64,6 +64,8 @@ type Options struct {
 	projectName string
 	// Indicates when the projectName was imperatively set or guessed from path
 	projectNameImperativelySet bool
+	// The value of projectName before normalization
+	projectNameBeforeNormalization string
 	// Profiles set profiles to enable
 	Profiles []string
 }
@@ -71,6 +73,7 @@ type Options struct {
 func (o *Options) SetProjectName(name string, imperativelySet bool) {
 	o.projectName = NormalizeProjectName(name)
 	o.projectNameImperativelySet = imperativelySet
+	o.projectNameBeforeNormalization = name
 }
 
 func (o Options) GetProjectName() (string, bool) {
@@ -264,8 +267,18 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	return project, err
 }
 
+func CheckOriginalProjectNameIsNormalized(original, normalized string) error {
+	if original != normalized {
+		return fmt.Errorf("%q is not a valid project name: it must contain only "+
+			"characters from [a-z0-9_-] and start with [a-z0-9]", original)
+	}
+	return nil
+}
+
 func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 	projectName, projectNameImperativelySet := opts.GetProjectName()
+	projectNameBeforeNormalization := opts.projectNameBeforeNormalization
+
 	var pjNameFromConfigFile string
 
 	for _, configFile := range details.ConfigFiles {
@@ -284,9 +297,15 @@ func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 		}
 		pjNameFromConfigFile = interpolated["name"].(string)
 	}
-	pjNameFromConfigFile = NormalizeProjectName(pjNameFromConfigFile)
-	if !projectNameImperativelySet && pjNameFromConfigFile != "" {
-		projectName = pjNameFromConfigFile
+	pjNameFromConfigFileNormalized := NormalizeProjectName(pjNameFromConfigFile)
+	if !projectNameImperativelySet && pjNameFromConfigFileNormalized != "" {
+		projectName = pjNameFromConfigFileNormalized
+		projectNameBeforeNormalization = pjNameFromConfigFile
+	}
+
+	if err := CheckOriginalProjectNameIsNormalized(
+		projectNameBeforeNormalization, projectName); err != nil {
+		return "", err
 	}
 
 	if _, ok := details.Environment[consts.ComposeProjectName]; !ok && projectName != "" {
