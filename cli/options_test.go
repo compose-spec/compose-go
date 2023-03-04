@@ -62,7 +62,10 @@ func TestProjectName(t *testing.T) {
 			WithWorkingDirectory("/"))
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
-		assert.ErrorContains(t, err, `"/" is not a valid project name`)
+
+		// On macOS and Linux, the message will start with "/". On Windows, it will
+		// start with "\\\\". So we leave that part of the error off here.
+		assert.ErrorContains(t, err, `is not a valid project name`)
 		assert.Assert(t, p == nil)
 	})
 
