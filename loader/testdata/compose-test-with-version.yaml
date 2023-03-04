@@ -1,4 +1,5 @@
 version: "2"
+name: compose-test-with-version
 
 volumes:
   data:

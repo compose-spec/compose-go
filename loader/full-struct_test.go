@@ -1047,6 +1047,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "external": false
     }
   },
+  "name": "full_example_project_name",
   "networks": {
     "external-network": {
       "name": "external-network",

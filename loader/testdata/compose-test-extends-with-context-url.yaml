@@ -1,3 +1,4 @@
+name: compose-test-extends-with-context-url
 services:
   importer-with-https-url:
     extends:
