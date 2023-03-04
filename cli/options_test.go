@@ -52,6 +52,20 @@ func TestProjectName(t *testing.T) {
 		assert.Equal(t, p.Name, "42my_project_env")
 	})
 
+	t.Run("by name must not be empty", func(t *testing.T) {
+		_, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName(""))
+		assert.ErrorContains(t, err, `project name must not be empty`)
+	})
+
+	t.Run("by name must not come from root directory", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"},
+			WithWorkingDirectory("/"))
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.ErrorContains(t, err, `"/" is not a valid project name`)
+		assert.Assert(t, p == nil)
+	})
+
 	t.Run("by name start with invalid char '-'", func(t *testing.T) {
 		_, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("-my_project"))
 		assert.ErrorContains(t, err, `"-my_project" is not a valid project name`)

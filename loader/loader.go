@@ -271,6 +271,8 @@ func CheckOriginalProjectNameIsNormalized(original, normalized string) error {
 	if original != normalized {
 		return fmt.Errorf("%q is not a valid project name: it must contain only "+
 			"characters from [a-z0-9_-] and start with [a-z0-9]", original)
+	} else if normalized == "" {
+		return fmt.Errorf("project name must not be empty")
 	}
 	return nil
 }
