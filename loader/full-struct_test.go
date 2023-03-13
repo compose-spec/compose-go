@@ -50,14 +50,15 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			Name: "foo",
 
 			Build: &types.BuildConfig{
-				Context:    "./dir",
-				Dockerfile: "Dockerfile",
-				Args:       map[string]*string{"foo": strPtr("bar")},
-				SSH:        []types.SSHKey{{ID: "default", Path: ""}},
-				Target:     "foo",
-				Network:    "foo",
-				CacheFrom:  []string{"foo", "bar"},
-				Labels:     map[string]string{"FOO": "BAR"},
+				Context:            "./dir",
+				Dockerfile:         "Dockerfile",
+				Args:               map[string]*string{"foo": strPtr("bar")},
+				SSH:                []types.SSHKey{{ID: "default", Path: ""}},
+				Target:             "foo",
+				Network:            "foo",
+				CacheFrom:          []string{"foo", "bar"},
+				AdditionalContexts: map[string]*string{"foo": strPtr("/bar")},
+				Labels:             map[string]string{"FOO": "BAR"},
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "secret1",
@@ -597,6 +598,8 @@ services:
       cache_from:
         - foo
         - bar
+      additional_contexts:
+        foo: /bar
       network: foo
       target: foo
       secrets:
@@ -1137,6 +1140,9 @@ func fullExampleJSON(workingDir, homeDir string) string {
           "foo",
           "bar"
         ],
+        "additional_contexts": {
+          "foo": "/bar"
+        },
         "network": "foo",
         "target": "foo",
         "secrets": [
