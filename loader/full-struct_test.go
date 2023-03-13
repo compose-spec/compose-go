@@ -50,7 +50,10 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			Name: "foo",
 
 			Build: &types.BuildConfig{
-				Context:    "./dir",
+				Context: "./dir",
+				AdditionalContexts: map[string]string{
+					"foo": "docker-image://foo:latest",
+				},
 				Dockerfile: "Dockerfile",
 				Args:       map[string]*string{"foo": strPtr("bar")},
 				SSH:        []types.SSHKey{{ID: "default", Path: ""}},
@@ -587,6 +590,8 @@ services:
   foo:
     build:
       context: ./dir
+      additional_contexts:
+        foo: docker-image://foo:latest
       dockerfile: Dockerfile
       args:
         foo: bar
@@ -1123,6 +1128,9 @@ func fullExampleJSON(workingDir, homeDir string) string {
     "foo": {
       "build": {
         "context": "./dir",
+        "additional_contexts": {
+          "foo": "docker-image://foo:latest"
+        },
         "dockerfile": "Dockerfile",
         "args": {
           "foo": "bar"

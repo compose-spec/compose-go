@@ -4,6 +4,8 @@ services:
 
     build:
       context: ./dir
+      additional_contexts:
+        foo: docker-image://foo:latest
       dockerfile: Dockerfile
       args:
         foo: bar
