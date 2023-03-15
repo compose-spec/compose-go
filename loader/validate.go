@@ -36,6 +36,19 @@ func checkConsistency(project *types.Project) error {
 			if s.Build.DockerfileInline != "" && s.Build.Dockerfile != "" {
 				return errors.Wrapf(errdefs.ErrInvalid, "service %q declares mutualy exclusive dockerfile and dockerfile_inline", s.Name)
 			}
+
+			if len(s.Build.Platforms) > 0 && s.Platform != "" {
+				var found bool
+				for _, platform := range s.Build.Platforms {
+					if platform == s.Platform {
+						found = true
+						break
+					}
+				}
+				if !found {
+					return errors.Wrapf(errdefs.ErrInvalid, "service.build.platforms MUST include service.platform %q ", s.Platform)
+				}
+			}
 		}
 
 		for network := range s.Networks {
