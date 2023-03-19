@@ -457,6 +457,7 @@ func (p *Project) MarshalYAML() ([]byte, error) {
 // MarshalJSON makes Config implement json.Marshaler
 func (p *Project) MarshalJSON() ([]byte, error) {
 	m := map[string]interface{}{
+		"name":     p.Name,
 		"services": p.Services,
 	}
 

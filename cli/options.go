@@ -18,7 +18,6 @@ package cli
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -64,9 +63,9 @@ func NewProjectOptions(configs []string, opts ...ProjectOptionsFn) (*ProjectOpti
 // WithName defines ProjectOptions' name
 func WithName(name string) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
-		if name != loader.NormalizeProjectName(name) {
-			return fmt.Errorf("%q is not a valid project name: it must contain "+
-				"only characters from [a-z0-9_-] and start with [a-z0-9]", name)
+		normalized := loader.NormalizeProjectName(name)
+		if err := loader.CheckOriginalProjectNameIsNormalized(name, normalized); err != nil {
+			return err
 		}
 		o.Name = name
 		return nil

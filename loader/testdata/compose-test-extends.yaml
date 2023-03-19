@@ -1,3 +1,4 @@
+name: compose-test-extends
 services:
   importer:
     extends:
