@@ -334,6 +334,8 @@ func parseConfig(b []byte, opts *Options) (map[string]interface{}, error) {
 	return yml, err
 }
 
+const extensions = "#extensions" // Using # prefix, we prevent risk to conflict with an actual yaml key
+
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
 	extras := map[string]interface{}{}
 	for key, value := range dict {
@@ -346,7 +348,7 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 		}
 	}
 	if len(extras) > 0 {
-		dict["extensions"] = extras
+		dict[extensions] = extras
 	}
 	return dict
 }
@@ -385,7 +387,7 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 	if err != nil {
 		return nil, err
 	}
-	extensions := getSection(config, "extensions")
+	extensions := getSection(config, extensions)
 	if len(extensions) > 0 {
 		cfg.Extensions = extensions
 	}
@@ -547,7 +549,7 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 func LoadServices(filename string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
-	x, ok := servicesDict["extensions"]
+	x, ok := servicesDict[extensions]
 	if ok {
 		// as a top-level attribute, "services" doesn't support extensions, and a service can be named `x-foo`
 		for k, v := range x.(map[string]interface{}) {
