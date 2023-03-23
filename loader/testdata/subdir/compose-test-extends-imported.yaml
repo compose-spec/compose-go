@@ -2,6 +2,6 @@ services:
   imported:
     image: nginx
     env_file:
-      - extra.env
+      - ./extra.env # expected to be loaded relative to this file, not the extending one
     volumes:
       - /opt/data:/var/lib/mysql

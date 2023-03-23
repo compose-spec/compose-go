@@ -1934,19 +1934,10 @@ func TestLoadWithExtends(t *testing.T) {
 
 	expectedEnvFilePath := filepath.Join(extendsDir, "extra.env")
 
-	expectedExtendsPath := filepath.Join(
-		extendsDir,
-		"compose-test-extends-imported.yaml",
-	)
-
 	expServices := types.Services{
 		{
 			Name:  "importer",
 			Image: "nginx",
-			Extends: types.ExtendsConfig{
-				"file":    &expectedExtendsPath,
-				"service": strPtr("imported"),
-			},
 			Environment: types.MappingWithEquals{
 				"SOURCE": strPtr("extends"),
 			},
@@ -1979,23 +1970,12 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 	actual, err := Load(configDetails)
 	assert.NilError(t, err)
 
-	expectedExtendsPath, err := filepath.Abs(
-		filepath.Join(
-			"testdata",
-			"compose-test-extends-with-context-url-imported.yaml",
-		),
-	)
-	assert.NilError(t, err)
 	expServices := types.Services{
 		{
 			Name: "importer-with-https-url",
 			Build: &types.BuildConfig{
 				Context:    "https://github.com/docker/compose.git",
 				Dockerfile: "Dockerfile",
-			},
-			Extends: types.ExtendsConfig{
-				"file":    &expectedExtendsPath,
-				"service": strPtr("imported-with-https-url"),
 			},
 			Environment: types.MappingWithEquals{},
 			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
@@ -2304,6 +2284,7 @@ volumes:
 
 func TestLoadServiceExtension(t *testing.T) {
 	dict := `
+name: test
 services:
   extension: # this name should be allowed
     image: web
