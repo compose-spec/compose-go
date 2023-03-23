@@ -23,23 +23,59 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+
 	"github.com/compose-spec/compose-go/consts"
 	"github.com/compose-spec/compose-go/dotenv"
 	"github.com/compose-spec/compose-go/errdefs"
 	"github.com/compose-spec/compose-go/loader"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/compose-spec/compose-go/utils"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
-// ProjectOptions groups the command line options recommended for a Compose implementation
+// ProjectOptions provides common configuration for loading a project.
 type ProjectOptions struct {
-	Name        string
-	WorkingDir  string
+	// Name is a valid Compose project name to be used or empty.
+	//
+	// If empty, the project loader will automatically infer a reasonable
+	// project name if possible.
+	Name string
+
+	// WorkingDir is a file path to use as the project directory or empty.
+	//
+	// If empty, the project loader will automatically infer a reasonable
+	// working directory if possible.
+	WorkingDir string
+
+	// ConfigPaths are file paths to one or more Compose files.
+	//
+	// These are applied in order by the loader following the merge logic
+	// as described in the spec.
+	//
+	// The first entry is required and is the primary Compose file.
+	// For convenience, WithConfigFileEnv and WithDefaultConfigPath
+	// are provided to populate this in a predictable manner.
 	ConfigPaths []string
+
+	// Environment are additional environment variables to make available
+	// for interpolation.
+	//
+	// NOTE: For security, the loader does not automatically expose any
+	// process environment variables. For convenience, WithOsEnv can be
+	// used if appropriate.
 	Environment map[string]string
-	EnvFiles    []string
+
+	// EnvFiles are file paths to ".env" files with additional environment
+	// variable data.
+	//
+	// These are loaded in-order, so it is possible to override variables or
+	// in subsequent files.
+	//
+	// This field is optional, but any file paths that are included here must
+	// exist or an error will be returned during load.
+	EnvFiles []string
+
 	loadOptions []func(*loader.Options)
 }
 
@@ -63,9 +99,15 @@ func NewProjectOptions(configs []string, opts ...ProjectOptionsFn) (*ProjectOpti
 // WithName defines ProjectOptions' name
 func WithName(name string) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
-		normalized := loader.NormalizeProjectName(name)
-		if err := loader.CheckOriginalProjectNameIsNormalized(name, normalized); err != nil {
-			return err
+		// a project (once loaded) cannot have an empty name
+		// however, on the options object, the name is optional: if unset,
+		// a name will be inferred by the loader, so it's legal to set the
+		// name to an empty string here
+		if name != "" {
+			normalized := loader.NormalizeProjectName(name)
+			if err := loader.CheckOriginalProjectNameIsNormalized(name, normalized); err != nil {
+				return err
+			}
 		}
 		o.Name = name
 		return nil
