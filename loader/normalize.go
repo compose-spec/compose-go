@@ -91,9 +91,8 @@ func Normalize(project *types.Project, resolvePaths bool) error {
 		}
 		s.Environment = s.Environment.Resolve(fn)
 
-		if extendFile := s.Extends["file"]; extendFile != nil && *extendFile != "" {
-			p := absPath(project.WorkingDir, *extendFile)
-			s.Extends["file"] = &p
+		if s.Extends != nil && s.Extends.File != "" {
+			s.Extends.File = absPath(project.WorkingDir, s.Extends.File)
 		}
 
 		for _, link := range s.Links {

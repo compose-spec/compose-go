@@ -589,16 +589,17 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 	}
 
 	if serviceConfig.Extends != nil && !opts.SkipExtends {
-		baseServiceName := *serviceConfig.Extends["service"]
+		baseServiceName := serviceConfig.Extends.Service
 		var baseService *types.ServiceConfig
-		if file := serviceConfig.Extends["file"]; file == nil {
+		file := serviceConfig.Extends.File
+		if file == "" {
 			baseService, err = loadServiceWithExtends(filename, baseServiceName, servicesDict, workingDir, lookupEnv, opts, ct)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// Resolve the path to the imported file, and load it.
-			baseFilePath := absPath(workingDir, *file)
+			baseFilePath := absPath(workingDir, file)
 
 			b, err := os.ReadFile(baseFilePath)
 			if err != nil {
@@ -617,10 +618,10 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			}
 
 			// Make paths relative to the importing Compose file. Note that we
-			// make the paths relative to `*file` rather than `baseFilePath` so
-			// that the resulting paths won't be absolute if `*file` isn't an
+			// make the paths relative to `file` rather than `baseFilePath` so
+			// that the resulting paths won't be absolute if `file` isn't an
 			// absolute path.
-			baseFileParent := filepath.Dir(*file)
+			baseFileParent := filepath.Dir(file)
 			if baseService.Build != nil {
 				baseService.Build.Context = resolveBuildContextPath(baseFileParent, baseService.Build.Context)
 			}
@@ -641,6 +642,7 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 		if err != nil {
 			return nil, err
 		}
+		serviceConfig.Extends = nil
 	}
 
 	return serviceConfig, nil
@@ -1048,14 +1050,15 @@ var transformDependsOnConfig TransformerFunc = func(data interface{}) (interface
 	}
 }
 
-var transformExtendsConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch data.(type) {
+var transformExtendsConfig TransformerFunc = func(value interface{}) (interface{}, error) {
+	switch value.(type) {
 	case string:
-		data = map[string]interface{}{
-			"service": data,
-		}
+		return map[string]interface{}{"service": value}, nil
+	case map[string]interface{}:
+		return value, nil
+	default:
+		return value, errors.Errorf("invalid type %T for extends", value)
 	}
-	return transformMappingOrListFunc("=", true)(data)
 }
 
 var transformServiceVolumeConfig TransformerFunc = func(data interface{}) (interface{}, error) {
