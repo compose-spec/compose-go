@@ -22,9 +22,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/compose-spec/compose-go/consts"
 	"github.com/compose-spec/compose-go/utils"
-	"gotest.tools/v3/assert"
 )
 
 func TestProjectName(t *testing.T) {
@@ -52,9 +53,27 @@ func TestProjectName(t *testing.T) {
 		assert.Equal(t, p.Name, "42my_project_env")
 	})
 
-	t.Run("by name must not be empty", func(t *testing.T) {
-		_, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName(""))
-		assert.ErrorContains(t, err, `project name must not be empty`)
+	t.Run("by name empty", func(t *testing.T) {
+		opts, err := NewProjectOptions(
+			[]string{"testdata/simple/compose.yaml"},
+			WithName(""),
+		)
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "simple")
+	})
+
+	t.Run("by name empty working dir", func(t *testing.T) {
+		opts, err := NewProjectOptions(
+			[]string{"testdata/simple/compose.yaml"},
+			WithName(""),
+			WithWorkingDirectory("/path/to/proj"),
+		)
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "proj")
 	})
 
 	t.Run("by name must not come from root directory", func(t *testing.T) {
