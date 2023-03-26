@@ -103,11 +103,8 @@ func WithName(name string) ProjectOptionsFn {
 		// however, on the options object, the name is optional: if unset,
 		// a name will be inferred by the loader, so it's legal to set the
 		// name to an empty string here
-		if name != "" {
-			normalized := loader.NormalizeProjectName(name)
-			if err := loader.CheckOriginalProjectNameIsNormalized(name, normalized); err != nil {
-				return err
-			}
+		if name != loader.NormalizeProjectName(name) {
+			return loader.InvalidProjectNameErr(name)
 		}
 		o.Name = name
 		return nil
@@ -439,7 +436,10 @@ func withNamePrecedenceLoad(absWorkingDir string, options *ProjectOptions) func(
 		} else if nameFromEnv, ok := options.Environment[consts.ComposeProjectName]; ok && nameFromEnv != "" {
 			opts.SetProjectName(nameFromEnv, true)
 		} else {
-			opts.SetProjectName(filepath.Base(absWorkingDir), false)
+			opts.SetProjectName(
+				loader.NormalizeProjectName(filepath.Base(absWorkingDir)),
+				false,
+			)
 		}
 	}
 }
