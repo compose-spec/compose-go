@@ -82,9 +82,9 @@ func TestProjectName(t *testing.T) {
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
 
-		// On macOS and Linux, the message will start with "/". On Windows, it will
-		// start with "\\\\". So we leave that part of the error off here.
-		assert.ErrorContains(t, err, `is not a valid project name`)
+		// root directory will resolve to an empty project name since there
+		// IS no directory name!
+		assert.ErrorContains(t, err, `project name must not be empty`)
 		assert.Assert(t, p == nil)
 	})
 
@@ -154,6 +154,14 @@ func TestProjectName(t *testing.T) {
 		p, err := ProjectFromOptions(opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "simple")
+	})
+
+	t.Run("by compose file parent dir special", func(t *testing.T) {
+		opts, err := NewProjectOptions([]string{"testdata/UNNORMALIZED PATH/compose.yaml"})
+		assert.NilError(t, err)
+		p, err := ProjectFromOptions(opts)
+		assert.NilError(t, err)
+		assert.Equal(t, p.Name, "unnormalizedpath")
 	})
 
 	t.Run("by COMPOSE_PROJECT_NAME", func(t *testing.T) {
