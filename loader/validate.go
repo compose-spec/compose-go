@@ -51,6 +51,9 @@ func checkConsistency(project *types.Project) error {
 			}
 		}
 
+		if s.NetworkMode != "" && len(s.Networks) > 0 {
+			return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %s declares mutually exclusive `network_mode` and `networks`", s.Name))
+		}
 		for network := range s.Networks {
 			if _, ok := project.Networks[network]; !ok {
 				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined network %s", s.Name, network))

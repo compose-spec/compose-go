@@ -138,6 +138,24 @@ func TestValidateNetworkMode(t *testing.T) {
 		err := checkConsistency(project)
 		assert.NilError(t, err)
 	})
+
+	t.Run("network_mode & networks can't both be defined", func(t *testing.T) {
+		project := &types.Project{
+			Networks: types.Networks{"mynetwork": types.NetworkConfig{}},
+			Services: types.Services([]types.ServiceConfig{
+				{
+					Name:        "myservice1",
+					Image:       "scratch",
+					NetworkMode: "host",
+					Networks: map[string]*types.ServiceNetworkConfig{
+						"mynetwork": {},
+					},
+				},
+			}),
+		}
+		err := checkConsistency(project)
+		assert.Error(t, err, "service myservice1 declares mutually exclusive `network_mode` and `networks`: invalid compose project")
+	})
 }
 
 func TestValidateSecret(t *testing.T) {
