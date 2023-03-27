@@ -465,7 +465,7 @@ func TestLinesToIgnore(t *testing.T) {
 
 	for n, c := range cases {
 		t.Run(n, func(t *testing.T) {
-			got := string(newParser().getStatementStart([]byte(c.input)))
+			got := string(newParser().getStatementStart(c.input))
 			if got != c.want {
 				t.Errorf("Expected:\t %q\nGot:\t %q", c.want, got)
 			}
