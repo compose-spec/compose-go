@@ -23,7 +23,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +30,7 @@ import (
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
+	"github.com/compose-spec/compose-go/tree"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/docker/go-units"
 	"github.com/mattn/go-shellwords"
@@ -183,10 +183,9 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		return nil, err
 	}
 
-	var configs []*types.Config
+	configDict := map[string]interface{}{}
 	for i, file := range configDetails.ConfigFiles {
-		configDict := file.Config
-		if configDict == nil {
+		if file.Config == nil {
 			if len(file.Content) == 0 {
 				content, err := os.ReadFile(file.Filename)
 				if err != nil {
@@ -198,27 +197,32 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			if err != nil {
 				return nil, err
 			}
-			configDict = dict
 			file.Config = dict
 			configDetails.ConfigFiles[i] = file
 		}
 
 		if !opts.SkipValidation {
-			if err := schema.Validate(configDict); err != nil {
+			if err := schema.Validate(file.Config); err != nil {
 				return nil, err
 			}
 		}
 
-		configDict = groupXFieldsIntoExtensions(configDict)
+		file.Config = groupXFieldsIntoExtensions(file.Config)
 
-		cfg, err := loadSections(file.Filename, configDict, configDetails, opts)
+		t, err := transform(file.Config, tree.NewPath())
 		if err != nil {
 			return nil, err
 		}
-		configs = append(configs, cfg)
+		file.Config = t.(map[string]interface{})
+
+		merged, err := mergeMappings(configDict, file.Config, tree.NewPath())
+		if err != nil {
+			return nil, err
+		}
+		configDict = merged
 	}
 
-	model, err := merge(configs)
+	model, err := loadSections("", configDict, configDetails, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -448,7 +452,6 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(map[string]string{}):                      transformMapStringString,
 		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
 		reflect.TypeOf(types.UnitBytes(0)):                       transformSize,
-		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
 		reflect.TypeOf(types.ServiceSecretConfig{}):              transformFileReferenceConfig,
 		reflect.TypeOf(types.ServiceConfigObjConfig{}):           transformFileReferenceConfig,
 		reflect.TypeOf(types.StringOrNumberList{}):               transformStringOrNumberList,
@@ -931,47 +934,6 @@ var transformExternal TransformerFunc = func(data interface{}) (interface{}, err
 		return map[string]interface{}{"external": true, "name": value["name"]}, nil
 	default:
 		return data, errors.Errorf("invalid type %T for external", value)
-	}
-}
-
-var transformServicePort TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch entries := data.(type) {
-	case []interface{}:
-		// We process the list instead of individual items here.
-		// The reason is that one entry might be mapped to multiple ServicePortConfig.
-		// Therefore we take an input of a list and return an output of a list.
-		var ports []interface{}
-		for _, entry := range entries {
-			switch value := entry.(type) {
-			case int:
-				parsed, err := types.ParsePortConfig(fmt.Sprint(value))
-				if err != nil {
-					return data, err
-				}
-				for _, v := range parsed {
-					ports = append(ports, v)
-				}
-			case string:
-				parsed, err := types.ParsePortConfig(value)
-				if err != nil {
-					return data, err
-				}
-				for _, v := range parsed {
-					ports = append(ports, v)
-				}
-			case map[string]interface{}:
-				published := value["published"]
-				if v, ok := published.(int); ok {
-					value["published"] = strconv.Itoa(v)
-				}
-				ports = append(ports, groupXFieldsIntoExtensions(value))
-			default:
-				return data, errors.Errorf("invalid type %T for port", value)
-			}
-		}
-		return ports, nil
-	default:
-		return data, errors.Errorf("invalid type %T for port", entries)
 	}
 }
 

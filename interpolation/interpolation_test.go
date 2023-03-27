@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"testing"
 
+	. "github.com/compose-spec/compose-go/tree"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -207,49 +208,4 @@ func TestInterpolateWithCast(t *testing.T) {
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, result))
-}
-
-func TestPathMatches(t *testing.T) {
-	var testcases = []struct {
-		doc      string
-		path     Path
-		pattern  Path
-		expected bool
-	}{
-		{
-			doc:     "pattern too short",
-			path:    NewPath("one", "two", "three"),
-			pattern: NewPath("one", "two"),
-		},
-		{
-			doc:     "pattern too long",
-			path:    NewPath("one", "two"),
-			pattern: NewPath("one", "two", "three"),
-		},
-		{
-			doc:     "pattern mismatch",
-			path:    NewPath("one", "three", "two"),
-			pattern: NewPath("one", "two", "three"),
-		},
-		{
-			doc:     "pattern mismatch with match-all part",
-			path:    NewPath("one", "three", "two"),
-			pattern: NewPath(PathMatchAll, "two", "three"),
-		},
-		{
-			doc:      "pattern match with match-all part",
-			path:     NewPath("one", "two", "three"),
-			pattern:  NewPath("one", "*", "three"),
-			expected: true,
-		},
-		{
-			doc:      "pattern match",
-			path:     NewPath("one", "two", "three"),
-			pattern:  NewPath("one", "two", "three"),
-			expected: true,
-		},
-	}
-	for _, testcase := range testcases {
-		assert.Check(t, is.Equal(testcase.expected, testcase.path.matches(testcase.pattern)))
-	}
 }

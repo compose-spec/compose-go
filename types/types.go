@@ -708,11 +708,11 @@ type ServiceNetworkConfig struct {
 
 // ServicePortConfig is the port configuration for a service
 type ServicePortConfig struct {
-	Mode      string `yaml:",omitempty" json:"mode,omitempty"`
+	Mode      string `mapstructure:"mode" yaml:",omitempty" json:"mode,omitempty"`
 	HostIP    string `mapstructure:"host_ip" yaml:"host_ip,omitempty" json:"host_ip,omitempty"`
-	Target    uint32 `yaml:",omitempty" json:"target,omitempty"`
-	Published string `yaml:",omitempty" json:"published,omitempty"`
-	Protocol  string `yaml:",omitempty" json:"protocol,omitempty"`
+	Target    uint32 `mapstructure:"target" yaml:",omitempty" json:"target,omitempty"`
+	Published string `mapstructure:"published" yaml:",omitempty" json:"published,omitempty"`
+	Protocol  string `mapstructure:"protocol" yaml:",omitempty" json:"protocol,omitempty"`
 
 	Extensions Extensions `mapstructure:"#extensions" yaml:",inline" json:"-"`
 }

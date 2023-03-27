@@ -218,11 +218,10 @@ func TestLoadLogging(t *testing.T) {
 						Scale:       1,
 					},
 				},
-				Networks:   types.Networks{},
-				Volumes:    types.Volumes{},
-				Secrets:    types.Secrets{},
-				Configs:    types.Configs{},
-				Extensions: types.Extensions{},
+				Networks: types.Networks{},
+				Volumes:  types.Volumes{},
+				Secrets:  types.Secrets{},
+				Configs:  types.Configs{},
 			}, config)
 		})
 	}
@@ -372,11 +371,10 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 						Scale:       1,
 					},
 				},
-				Networks:   types.Networks{},
-				Volumes:    types.Volumes{},
-				Secrets:    types.Secrets{},
-				Configs:    types.Configs{},
-				Extensions: types.Extensions{},
+				Networks: types.Networks{},
+				Volumes:  types.Volumes{},
+				Secrets:  types.Secrets{},
+				Configs:  types.Configs{},
 			}, config)
 		})
 	}

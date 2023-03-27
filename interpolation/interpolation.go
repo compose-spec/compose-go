@@ -18,9 +18,9 @@ package interpolation
 
 import (
 	"os"
-	"strings"
 
 	"github.com/compose-spec/compose-go/template"
+	. "github.com/compose-spec/compose-go/tree"
 	"github.com/pkg/errors"
 )
 
@@ -122,54 +122,9 @@ func newPathError(path Path, err error) error {
 	}
 }
 
-const pathSeparator = "."
-
-// PathMatchAll is a token used as part of a Path to match any key at that level
-// in the nested structure
-const PathMatchAll = "*"
-
-// PathMatchList is a token used as part of a Path to match items in a list
-const PathMatchList = "[]"
-
-// Path is a dotted path of keys to a value in a nested mapping structure. A *
-// section in a path will match any key in the mapping structure.
-type Path string
-
-// NewPath returns a new Path
-func NewPath(items ...string) Path {
-	return Path(strings.Join(items, pathSeparator))
-}
-
-// Next returns a new path by append part to the current path
-func (p Path) Next(part string) Path {
-	return Path(string(p) + pathSeparator + part)
-}
-
-func (p Path) parts() []string {
-	return strings.Split(string(p), pathSeparator)
-}
-
-func (p Path) matches(pattern Path) bool {
-	patternParts := pattern.parts()
-	parts := p.parts()
-
-	if len(patternParts) != len(parts) {
-		return false
-	}
-	for index, part := range parts {
-		switch patternParts[index] {
-		case PathMatchAll, part:
-			continue
-		default:
-			return false
-		}
-	}
-	return true
-}
-
 func (o Options) getCasterForPath(path Path) (Cast, bool) {
 	for pattern, caster := range o.TypeCastMapping {
-		if path.matches(pattern) {
+		if path.Matches(pattern) {
 			return caster, true
 		}
 	}
