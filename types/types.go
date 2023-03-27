@@ -340,7 +340,7 @@ type WeightDevice struct {
 // ThrottleDevice is a structure that holds device:rate_per_second pair
 type ThrottleDevice struct {
 	Path string
-	Rate uint64
+	Rate UnitBytes
 
 	Extensions Extensions `mapstructure:"#extensions" yaml:",inline" json:"-"`
 }
