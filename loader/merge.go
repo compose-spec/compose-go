@@ -86,6 +86,11 @@ func merge(configs []*types.Config) (*types.Config, error) {
 		if err != nil {
 			return base, errors.Wrapf(err, "cannot merge extensions from %s", override.Filename)
 		}
+
+		err = applyNullOverrides(base)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return base, nil
 }

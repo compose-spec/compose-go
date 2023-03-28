@@ -341,6 +341,9 @@ const extensions = "#extensions" // Using # prefix, we prevent risk to conflict 
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
 	extras := map[string]interface{}{}
 	for key, value := range dict {
+		if key == extensions {
+			continue
+		}
 		if strings.HasPrefix(key, "x-") {
 			extras[key] = value
 			delete(dict, key)

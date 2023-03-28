@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/compose-spec/compose-go/consts"
 	"github.com/imdario/mergo"
 
 	"github.com/compose-spec/compose-go/types"
@@ -1363,4 +1364,49 @@ func TestMergeExtraHosts(t *testing.T) {
 			"added":             "10.0.0.3",
 		},
 	)
+}
+
+func TestLoadWithNullOverride(t *testing.T) {
+	base := `
+name: test
+services:
+  foo:
+    build:
+      context: .
+      dockerfile: foo.Dockerfile
+`
+	override := `
+services:
+  foo:
+    image: foo
+    build: 
+      x-null:   # this will reset build section to nil
+`
+	configDetails := types.ConfigDetails{
+		Environment: map[string]string{},
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "base.yml", Content: []byte(base)},
+			{Filename: "override.yml", Content: []byte(override)},
+		},
+	}
+	config, err := loadTestProject(configDetails)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, &types.Project{
+		Name:       "test",
+		WorkingDir: "",
+		Services: []types.ServiceConfig{
+			{
+				Name:        "foo",
+				Image:       "foo",
+				Environment: types.MappingWithEquals{},
+				Scale:       1,
+			},
+		},
+		Networks:    types.Networks{},
+		Volumes:     types.Volumes{},
+		Secrets:     types.Secrets{},
+		Configs:     types.Configs{},
+		Extensions:  types.Extensions{},
+		Environment: map[string]string{consts.ComposeProjectName: "test"},
+	}, config)
 }
