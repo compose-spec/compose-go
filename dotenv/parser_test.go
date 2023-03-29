@@ -10,20 +10,21 @@ var testInput = `
 a=b
 a[1]=c
 a.propertyKey=d
+árvíztűrő-TÜKÖRFÚRÓGÉP=ÁRVÍZTŰRŐ-tükörfúrógép
 `
 
 func TestParseBytes(t *testing.T) {
 	p := newParser()
 
-	var inputBytes = []byte(testInput)
 	expectedOutput := map[string]string{
-		"a":             "b",
-		"a[1]":          "c",
-		"a.propertyKey": "d",
+		"a":                      "b",
+		"a[1]":                   "c",
+		"a.propertyKey":          "d",
+		"árvíztűrő-TÜKÖRFÚRÓGÉP": "ÁRVÍZTŰRŐ-tükörfúrógép",
 	}
 
 	out := map[string]string{}
-	err := p.parseBytes([]byte(inputBytes), out, nil)
+	err := p.parse(testInput, out, nil)
 
 	assert.NilError(t, err)
 	assert.Equal(t, len(expectedOutput), len(out))
