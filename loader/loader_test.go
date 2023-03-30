@@ -2297,3 +2297,43 @@ services:
 	assert.Equal(t, project.Services[0].Name, "extension")
 	assert.Equal(t, project.Services[0].Extensions["x-foo"], "bar")
 }
+
+func TestDeviceWriteBps(t *testing.T) {
+	p, err := loadYAML(`
+        name: test
+        services:
+          foo:
+            image: busybox
+            blkio_config:
+              device_read_bps:
+              - path: /dev/test
+                rate: 1024k
+              device_write_bps:
+              - path: /dev/test
+                rate: 1024
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services, types.Services{
+		{
+			Name:        "foo",
+			Image:       "busybox",
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+			BlkioConfig: &types.BlkioConfig{
+				DeviceReadBps: []types.ThrottleDevice{
+					{
+						Path: "/dev/test",
+						Rate: types.UnitBytes(1024 * 1024),
+					},
+				},
+				DeviceWriteBps: []types.ThrottleDevice{
+					{
+						Path: "/dev/test",
+						Rate: types.UnitBytes(1024),
+					},
+				},
+			},
+		},
+	})
+
+}
