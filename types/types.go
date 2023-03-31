@@ -423,6 +423,9 @@ func NewMappingWithEquals(values []string) MappingWithEquals {
 
 // OverrideBy update MappingWithEquals with values from another MappingWithEquals
 func (e MappingWithEquals) OverrideBy(other MappingWithEquals) MappingWithEquals {
+	if e == nil {
+		return other
+	}
 	for k, v := range other {
 		e[k] = v
 	}
