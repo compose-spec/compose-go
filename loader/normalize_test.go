@@ -201,8 +201,11 @@ func TestNormalizeDependsOn(t *testing.T) {
 				NetworkMode: "service:zot",
 			},
 			{
-				Name:        "bar",
-				VolumesFrom: []string{"zot"},
+				Name: "bar",
+				VolumesFrom: []string{
+					"zot",
+					"container:xxx",
+				},
 			},
 			{
 				Name: "zot",
@@ -220,6 +223,7 @@ services:
       default: null
     volumes_from:
       - zot
+      - container:xxx
   foo:
     depends_on:
       bar:

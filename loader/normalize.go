@@ -117,7 +117,7 @@ func Normalize(project *types.Project, resolvePaths bool) error {
 		}
 
 		for _, vol := range s.VolumesFrom {
-			if !strings.HasPrefix(s.Pid, types.ContainerPrefix) {
+			if !strings.HasPrefix(vol, types.ContainerPrefix) {
 				spec := strings.Split(vol, ":")
 				s.DependsOn = setIfMissing(s.DependsOn, spec[0], types.ServiceDependency{
 					Condition: types.ServiceConditionStarted,
