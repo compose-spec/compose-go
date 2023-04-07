@@ -303,7 +303,7 @@ type BuildConfig struct {
 	CacheFrom          StringList            `mapstructure:"cache_from" yaml:"cache_from,omitempty" json:"cache_from,omitempty"`
 	CacheTo            StringList            `mapstructure:"cache_to" yaml:"cache_to,omitempty" json:"cache_to,omitempty"`
 	NoCache            bool                  `mapstructure:"no_cache" yaml:"no_cache,omitempty" json:"no_cache,omitempty"`
-	AdditionalContexts MappingWithEquals     `mapstructure:"additional_contexts" yaml:"additional_contexts,omitempty" json:"additional_contexts,omitempty"`
+	AdditionalContexts Mapping               `mapstructure:"additional_contexts" yaml:"additional_contexts,omitempty" json:"additional_contexts,omitempty"`
 	Pull               bool                  `mapstructure:"pull" yaml:"pull,omitempty" json:"pull,omitempty"`
 	ExtraHosts         HostsList             `mapstructure:"extra_hosts" yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
 	Isolation          string                `yaml:",omitempty" json:"isolation,omitempty"`
