@@ -17,7 +17,9 @@
 package types
 
 import (
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -328,4 +330,41 @@ func TestMarshalServiceEntrypoint(t *testing.T) {
 		})
 	}
 
+}
+
+func TestMarshalBuild_DockerfileInline(t *testing.T) {
+	b := BuildConfig{
+		DockerfileInline: "FROM alpine\n\n# echo the env\nRUN env\n\nENTRYPOINT /bin/echo\n",
+	}
+	out, err := yaml.Marshal(b)
+	assert.NilError(t, err)
+
+	const expected = `
+dockerfile_inline: |
+    FROM alpine
+
+    # echo the env
+    RUN env
+
+    ENTRYPOINT /bin/echo
+`
+	assert.Check(t, equalTrimSpace(out, expected))
+
+	// round-trip
+	var b2 BuildConfig
+	assert.NilError(t, yaml.Unmarshal(out, &b2))
+	assert.Check(t, equalTrimSpace(b.DockerfileInline, b2.DockerfileInline))
+}
+
+func equalTrimSpace(x interface{}, y interface{}) is.Comparison {
+	trim := func(v interface{}) interface{} {
+		switch vv := v.(type) {
+		case string:
+			return strings.TrimSpace(vv)
+		case []byte:
+			return string(bytes.TrimSpace(vv))
+		}
+		panic(fmt.Errorf("invalid type %T (value: %+v)", v, v))
+	}
+	return is.DeepEqual(trim(x), trim(y))
 }
