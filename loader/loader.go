@@ -271,6 +271,12 @@ func InvalidProjectNameErr(v string) error {
 	)
 }
 
+// projectName determines the canonical name to use for the project considering
+// the loader Options as well as `name` fields in Compose YAML fields (which
+// also support interpolation).
+//
+// TODO(milas): restructure loading so that we don't need to re-parse the YAML
+// here, as it's both wasteful and makes this code error-prone.
 func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 	projectName, projectNameImperativelySet := opts.GetProjectName()
 
@@ -281,10 +287,22 @@ func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 		for _, configFile := range details.ConfigFiles {
 			yml, err := ParseYAML(configFile.Content)
 			if err != nil {
+				// HACK: the way that loading is currently structured, this is
+				// a duplicative parse just for the `name`. if it fails, we
+				// give up but don't return the error, knowing that it'll get
+				// caught downstream for us
 				return "", nil
 			}
 			if val, ok := yml["name"]; ok && val != "" {
-				pjNameFromConfigFile = yml["name"].(string)
+				sVal, ok := val.(string)
+				if !ok {
+					// HACK: see above - this is a temporary parsed version
+					// that hasn't been schema-validated, but we don't want
+					// to be the ones to actually report that, so give up,
+					// knowing that it'll get caught downstream for us
+					return "", nil
+				}
+				pjNameFromConfigFile = sVal
 			}
 		}
 		if !opts.SkipInterpolation {

@@ -2337,3 +2337,9 @@ func TestDeviceWriteBps(t *testing.T) {
 	})
 
 }
+
+func TestInvalidProjectNameType(t *testing.T) {
+	p, err := loadYAML(`name: 123`)
+	assert.Error(t, err, "name must be a string")
+	assert.Assert(t, is.Nil(p))
+}
