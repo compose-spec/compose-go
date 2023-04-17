@@ -75,14 +75,23 @@ func Normalize(project *types.Project, resolvePaths bool) error {
 			if s.Build.Dockerfile == "" && s.Build.DockerfileInline == "" {
 				s.Build.Dockerfile = "Dockerfile"
 			}
-			localContext := absPath(project.WorkingDir, s.Build.Context)
-			if _, err := os.Stat(localContext); err == nil {
-				if resolvePaths {
+			if resolvePaths {
+				// Build context might be a remote http/git context. Unfortunately supported "remote"
+				// syntax is highly ambiguous in moby/moby and not defined by compose-spec,
+				// so let's assume runtime will check
+				localContext := absPath(project.WorkingDir, s.Build.Context)
+				if _, err := os.Stat(localContext); err == nil {
 					s.Build.Context = localContext
 				}
-				// } else {
-				// might be a remote http/git context. Unfortunately supported "remote" syntax is highly ambiguous
-				// in moby/moby and not defined by compose-spec, so let's assume runtime will check
+				for name, path := range s.Build.AdditionalContexts {
+					if strings.Contains(path, "://") { // `docker-image://` or any builder specific context type
+						continue
+					}
+					path = absPath(project.WorkingDir, path)
+					if _, err := os.Stat(path); err == nil {
+						s.Build.AdditionalContexts[name] = path
+					}
+				}
 			}
 			s.Build.Args = s.Build.Args.Resolve(fn)
 		}

@@ -57,7 +57,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				Target:             "foo",
 				Network:            "foo",
 				CacheFrom:          []string{"foo", "bar"},
-				AdditionalContexts: map[string]*string{"foo": strPtr("/bar")},
+				AdditionalContexts: types.Mapping{"foo": "/bar"},
 				Labels:             map[string]string{"FOO": "BAR"},
 				Secrets: []types.ServiceSecretConfig{
 					{

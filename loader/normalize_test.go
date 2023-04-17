@@ -245,3 +245,55 @@ networks:
 	assert.NilError(t, err)
 	assert.Equal(t, expected, string(marshal))
 }
+
+func TestNormalizeAdditionalContexts(t *testing.T) {
+	project := types.Project{
+		Name: "myProject",
+		Services: types.Services{
+			types.ServiceConfig{
+				Name: "test",
+				Build: &types.BuildConfig{
+					Context:    ".",
+					Dockerfile: "Dockerfile",
+					AdditionalContexts: map[string]string{
+						"image":    "docker-image://foo",
+						"oci":      "oci-layout://foo",
+						"abs_path": "/tmp",
+						"rel_path": "./testdata",
+					},
+				},
+			},
+		},
+	}
+
+	absCwd, _ := filepath.Abs(".")
+	expected := types.Project{
+		Name: "myProject",
+		Services: types.Services{
+			types.ServiceConfig{
+				Name: "test",
+				Build: &types.BuildConfig{
+					Context:    absCwd,
+					Dockerfile: "Dockerfile",
+					AdditionalContexts: map[string]string{
+						"image":    "docker-image://foo",
+						"oci":      "oci-layout://foo",
+						"abs_path": "/tmp",
+						"rel_path": filepath.Join(absCwd, "testdata"),
+					},
+				},
+				Networks: map[string]*types.ServiceNetworkConfig{
+					"default": nil,
+				},
+			},
+		},
+		Networks: types.Networks{"default": types.NetworkConfig{
+			Name: "myProject_default",
+		}},
+		WorkingDir:   absCwd,
+		ComposeFiles: []string{},
+	}
+	err := Normalize(&project, true)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expected, project)
+}
