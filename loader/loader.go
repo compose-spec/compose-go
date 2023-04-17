@@ -193,7 +193,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			}
 			dict, err := parseConfig(file.Content, opts)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("parsing %s: %w", file.Filename, err)
 			}
 			configDict = dict
 			file.Config = dict
@@ -202,7 +202,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 		if !opts.SkipValidation {
 			if err := schema.Validate(configDict); err != nil {
-				return nil, err
+				return nil, fmt.Errorf("validating %s: %w", file.Filename, err)
 			}
 		}
 
