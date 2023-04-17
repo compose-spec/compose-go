@@ -2126,6 +2126,17 @@ services:
 	assert.ErrorContains(t, err, "services.test.build.ssh must be a mapping")
 }
 
+func TestLoadLegacyBoolean(t *testing.T) {
+	actual, err := loadYAML(`
+name: load-legacy-boolean
+services:
+  test:
+    init: yes # used to be a valid YAML bool, removed in YAML 1.2 
+`)
+	assert.NilError(t, err)
+	assert.Check(t, *actual.Services[0].Init)
+}
+
 func TestLoadSSHWithDefaultValueInBuildConfig(t *testing.T) {
 	actual, err := loadYAML(`
 name: load-ssh-with-default-value-in-build-config
