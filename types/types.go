@@ -296,7 +296,7 @@ func (s set) toSlice() []string {
 type BuildConfig struct {
 	Context            string                `yaml:",omitempty" json:"context,omitempty"`
 	Dockerfile         string                `yaml:",omitempty" json:"dockerfile,omitempty"`
-	DockerfileInline   string                `yaml:"dockerfile_inline,omitempty" json:"dockerfile_inline,omitempty"`
+	DockerfileInline   string                `mapstructure:"dockerfile_inline,omitempty" yaml:"dockerfile_inline,omitempty" json:"dockerfile_inline,omitempty"`
 	Args               MappingWithEquals     `yaml:",omitempty" json:"args,omitempty"`
 	SSH                SSHConfig             `yaml:"ssh,omitempty" json:"ssh,omitempty"`
 	Labels             Labels                `yaml:",omitempty" json:"labels,omitempty"`
