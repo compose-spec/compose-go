@@ -1008,7 +1008,7 @@ func TestFullExample(t *testing.T) {
 	expectedConfig := fullExampleProject(workingDir, homeDir)
 
 	assert.Check(t, is.DeepEqual(expectedConfig.Name, config.Name))
-	assert.Check(t, is.DeepEqual(expectedConfig.Services, config.Services))
+	assert.Check(t, is.DeepEqual(serviceSort(expectedConfig.Services), serviceSort(config.Services)))
 	assert.Check(t, is.DeepEqual(expectedConfig.Networks, config.Networks))
 	assert.Check(t, is.DeepEqual(expectedConfig.Volumes, config.Volumes))
 	assert.Check(t, is.DeepEqual(expectedConfig.Secrets, config.Secrets))

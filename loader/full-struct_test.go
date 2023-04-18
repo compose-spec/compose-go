@@ -432,6 +432,14 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			},
 			WorkingDir: "/code",
 		},
+		{
+			Name: "bar",
+			Build: &types.BuildConfig{
+				DockerfileInline: "FROM alpine\nRUN echo \"hello\" > /world.txt\n",
+			},
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+		},
 	}
 }
 
@@ -585,6 +593,11 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 func fullExampleYAML(workingDir, homeDir string) string {
 	return fmt.Sprintf(`name: full_example_project_name
 services:
+  bar:
+    build:
+      dockerfile_inline: |
+        FROM alpine
+        RUN echo "hello" > /world.txt
   foo:
     build:
       context: ./dir
@@ -1124,6 +1137,13 @@ func fullExampleJSON(workingDir, homeDir string) string {
     }
   },
   "services": {
+    "bar": {
+      "build": {
+        "dockerfile_inline": "FROM alpine\nRUN echo \"hello\" \u003e /world.txt\n"
+      },
+      "command": null,
+      "entrypoint": null
+    },
     "foo": {
       "build": {
         "context": "./dir",

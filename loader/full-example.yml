@@ -1,7 +1,13 @@
 name: full_example_project_name
 services:
-  foo:
 
+  bar:
+    build:
+      dockerfile_inline: |
+        FROM alpine
+        RUN echo "hello" > /world.txt
+
+  foo:
     build:
       context: ./dir
       dockerfile: Dockerfile
