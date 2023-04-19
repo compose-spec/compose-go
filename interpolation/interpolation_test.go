@@ -134,8 +134,7 @@ func TestValidUnexistentInterpolation(t *testing.T) {
 	}
 
 	getFullErrorMsg := func(msg string) string {
-		return fmt.Sprintf("invalid interpolation format for myservice.environment.TESTVAR.\n"+
-			"You may need to escape any $ with another $.\nrequired variable FOO is missing a value: %s", msg)
+		return fmt.Sprintf("error while interpolating myservice.environment.TESTVAR: required variable FOO is missing a value: %s", msg)
 	}
 
 	for _, testcase := range testcases {

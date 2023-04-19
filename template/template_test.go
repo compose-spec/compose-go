@@ -302,7 +302,7 @@ func TestMandatoryVariableErrors(t *testing.T) {
 	for _, tc := range testCases {
 		_, err := Substitute(tc.template, defaultMapping)
 		assert.ErrorContains(t, err, tc.expectedError)
-		assert.ErrorType(t, err, reflect.TypeOf(&InvalidTemplateError{}))
+		assert.ErrorType(t, err, reflect.TypeOf(&MissingRequiredError{}))
 	}
 }
 
@@ -324,7 +324,7 @@ func TestMandatoryVariableErrorsWithNestedExpansion(t *testing.T) {
 	for _, tc := range testCases {
 		_, err := Substitute(tc.template, defaultMapping)
 		assert.ErrorContains(t, err, tc.expectedError)
-		assert.ErrorType(t, err, reflect.TypeOf(&InvalidTemplateError{}))
+		assert.ErrorType(t, err, reflect.TypeOf(&MissingRequiredError{}))
 	}
 }
 
@@ -388,8 +388,9 @@ func TestPrecedence(t *testing.T) {
 		{
 			template: "${UNSET_VAR?bar-baz}", // Unexistent variable
 			expected: "",
-			err: &InvalidTemplateError{
-				Template: "required variable UNSET_VAR is missing a value: bar-baz",
+			err: &MissingRequiredError{
+				Variable: "UNSET_VAR",
+				Reason:   "bar-baz",
 			},
 		},
 		{
