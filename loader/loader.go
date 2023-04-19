@@ -441,6 +441,7 @@ func Transform(source interface{}, target interface{}, additionalTransformers ..
 			createTransformHook(additionalTransformers...),
 			mapstructure.StringToTimeDurationHookFunc()),
 		Result:   target,
+		TagName:  "yaml",
 		Metadata: &data,
 	}
 	decoder, err := mapstructure.NewDecoder(config)
