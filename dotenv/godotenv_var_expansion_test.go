@@ -92,13 +92,13 @@ func TestErrorIfEmptyOrUnset(t *testing.T) {
 			"Error empty or unset: UNSET_VAR",
 			"RESULT=${UNSET_VAR:?Test error}",
 			"RESULT=${UNSET_VAR:?Test error}",
-			&template.InvalidTemplateError{Template: "required variable UNSET_VAR is missing a value: Test error"},
+			&template.MissingRequiredError{Variable: "UNSET_VAR", Reason: "Test error"},
 		},
 		{
 			"Error empty or unset: EMPTY_VAR",
 			"RESULT=${EMPTY_VAR:?Test error}",
 			"RESULT=${EMPTY_VAR:?Test error}",
-			&template.InvalidTemplateError{Template: "required variable EMPTY_VAR is missing a value: Test error"},
+			&template.MissingRequiredError{Variable: "EMPTY_VAR", Reason: "Test error"},
 		},
 		{
 			"Error empty or unset: TEST_VAR",
@@ -128,7 +128,7 @@ func TestErrorIfUnset(t *testing.T) {
 			"Error on unset: UNSET_VAR",
 			"RESULT=${UNSET_VAR?Test error}",
 			"RESULT=${UNSET_VAR?Test error}",
-			&template.InvalidTemplateError{Template: "required variable UNSET_VAR is missing a value: Test error"},
+			&template.MissingRequiredError{Variable: "UNSET_VAR", Reason: "Test error"},
 		},
 		{
 			"Error on unset: EMPTY_VAR",
