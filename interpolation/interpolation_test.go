@@ -21,6 +21,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/compose-spec/compose-go/tree"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -197,7 +198,7 @@ func TestInterpolateWithCast(t *testing.T) {
 	}
 	result, err := Interpolate(config, Options{
 		LookupValue:     defaultMapping,
-		TypeCastMapping: map[Path]Cast{NewPath(PathMatchAll, "replicas"): toInt},
+		TypeCastMapping: map[tree.Path]Cast{tree.NewPath(tree.PathMatchAll, "replicas"): toInt},
 	})
 	assert.NilError(t, err)
 	expected := map[string]interface{}{
@@ -211,44 +212,44 @@ func TestInterpolateWithCast(t *testing.T) {
 func TestPathMatches(t *testing.T) {
 	var testcases = []struct {
 		doc      string
-		path     Path
-		pattern  Path
+		path     tree.Path
+		pattern  tree.Path
 		expected bool
 	}{
 		{
 			doc:     "pattern too short",
-			path:    NewPath("one", "two", "three"),
-			pattern: NewPath("one", "two"),
+			path:    tree.NewPath("one", "two", "three"),
+			pattern: tree.NewPath("one", "two"),
 		},
 		{
 			doc:     "pattern too long",
-			path:    NewPath("one", "two"),
-			pattern: NewPath("one", "two", "three"),
+			path:    tree.NewPath("one", "two"),
+			pattern: tree.NewPath("one", "two", "three"),
 		},
 		{
 			doc:     "pattern mismatch",
-			path:    NewPath("one", "three", "two"),
-			pattern: NewPath("one", "two", "three"),
+			path:    tree.NewPath("one", "three", "two"),
+			pattern: tree.NewPath("one", "two", "three"),
 		},
 		{
 			doc:     "pattern mismatch with match-all part",
-			path:    NewPath("one", "three", "two"),
-			pattern: NewPath(PathMatchAll, "two", "three"),
+			path:    tree.NewPath("one", "three", "two"),
+			pattern: tree.NewPath(tree.PathMatchAll, "two", "three"),
 		},
 		{
 			doc:      "pattern match with match-all part",
-			path:     NewPath("one", "two", "three"),
-			pattern:  NewPath("one", "*", "three"),
+			path:     tree.NewPath("one", "two", "three"),
+			pattern:  tree.NewPath("one", "*", "three"),
 			expected: true,
 		},
 		{
 			doc:      "pattern match",
-			path:     NewPath("one", "two", "three"),
-			pattern:  NewPath("one", "two", "three"),
+			path:     tree.NewPath("one", "two", "three"),
+			pattern:  tree.NewPath("one", "two", "three"),
 			expected: true,
 		},
 	}
 	for _, testcase := range testcases {
-		assert.Check(t, is.Equal(testcase.expected, testcase.path.matches(testcase.pattern)))
+		assert.Check(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)))
 	}
 }
