@@ -294,8 +294,8 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 
 func InvalidProjectNameErr(v string) error {
 	return fmt.Errorf(
-		"%q is not a valid project name: it must contain only "+
-			"characters from [a-z0-9_-] and start with [a-z0-9]", v,
+		"invalid project name %q: must consist only of lowercase alphanumeric characters, hyphens, and underscores as well as start with a letter or number",
+		v,
 	)
 }
 
