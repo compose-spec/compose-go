@@ -49,6 +49,9 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 		{
 			Name: "foo",
 
+			Annotations: map[string]string{
+				"com.example.foo": "bar",
+			},
 			Build: &types.BuildConfig{
 				Context:            "./dir",
 				Dockerfile:         "Dockerfile",
@@ -599,6 +602,8 @@ services:
         FROM alpine
         RUN echo "hello" > /world.txt
   foo:
+    annotations:
+      com.example.foo: bar
     build:
       context: ./dir
       dockerfile: Dockerfile
@@ -1145,6 +1150,9 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "entrypoint": null
     },
     "foo": {
+      "annotations": {
+        "com.example.foo": "bar"
+      },
       "build": {
         "context": "./dir",
         "dockerfile": "Dockerfile",
