@@ -133,7 +133,9 @@ func (p *ResetProcessor) applyNullOverrides(val reflect.Value, path tree.Path) e
 			field := typ.Field(i)
 			name := field.Name
 			attr := strings.ToLower(name)
-			if tag := field.Tag.Get("mapstructure"); tag != "" {
+			tag := field.Tag.Get("yaml")
+			tag = strings.Split(tag, ",")[0]
+			if tag != "" && tag != "-" {
 				attr = tag
 			}
 			next := path.Next(attr)
