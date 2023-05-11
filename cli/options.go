@@ -461,8 +461,9 @@ func withNamePrecedenceLoad(absWorkingDir string, options *ProjectOptions) func(
 
 func withConvertWindowsPaths(options *ProjectOptions) func(*loader.Options) {
 	return func(o *loader.Options) {
-		o.ConvertWindowsPaths = utils.StringToBool(options.Environment["COMPOSE_CONVERT_WINDOWS_PATHS"])
-		o.ResolvePaths = true
+		if o.ResolvePaths {
+			o.ConvertWindowsPaths = utils.StringToBool(options.Environment["COMPOSE_CONVERT_WINDOWS_PATHS"])
+		}
 	}
 }
 
