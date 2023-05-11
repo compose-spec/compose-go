@@ -1374,6 +1374,7 @@ services:
     build:
       context: .
       dockerfile: foo.Dockerfile
+    read_only: true
     environment:
       FOO: BAR
 `
@@ -1382,6 +1383,7 @@ services:
   foo:
     image: foo
     build: !reset  
+    read_only: !reset false
     environment:
       FOO: !reset
 `
@@ -1402,6 +1404,7 @@ services:
 				Name:        "foo",
 				Image:       "foo",
 				Environment: types.MappingWithEquals{},
+				ReadOnly:    false,
 				Scale:       1,
 			},
 		},
