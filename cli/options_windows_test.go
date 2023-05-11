@@ -28,7 +28,8 @@ func TestConvertWithEnvVar(t *testing.T) {
 	defer os.Unsetenv("COMPOSE_CONVERT_WINDOWS_PATHS")
 	opts, _ := NewProjectOptions([]string{"testdata/simple/compose-with-paths.yaml"},
 		WithOsEnv,
-		WithWorkingDirectory("C:\\project-dir\\"))
+		WithWorkingDirectory("C:\\project-dir\\"),
+		WithResolvedPaths(true))
 
 	p, err := ProjectFromOptions(opts)
 
