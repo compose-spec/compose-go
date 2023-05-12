@@ -2354,3 +2354,34 @@ func TestInvalidProjectNameType(t *testing.T) {
 	assert.Error(t, err, "validating filename0.yml: name must be a string")
 	assert.Assert(t, is.Nil(p))
 }
+
+func TestNumericIDs(t *testing.T) {
+	p, err := loadYAML(`
+name: 'test-numeric-ids'
+services:
+  foo:
+    image: busybox
+    volumes:
+      - 0:/foo
+
+volumes:
+  '0': {}
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services, types.Services{
+		{
+			Name:        "foo",
+			Image:       "busybox",
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+			Volumes: []types.ServiceVolumeConfig{
+				{
+					Type:   types.VolumeTypeVolume,
+					Source: "0",
+					Target: "/foo",
+					Volume: &types.ServiceVolumeVolume{},
+				},
+			},
+		},
+	})
+}
