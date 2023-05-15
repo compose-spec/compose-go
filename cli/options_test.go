@@ -322,3 +322,46 @@ func TestGetEnvFromFile(t *testing.T) {
 	_, err = GetEnvFromFile(nil, wd, []string{f})
 	assert.Check(t, strings.HasSuffix(err.Error(), ".env is a directory"))
 }
+
+func TestEnvVariablePrecedence(t *testing.T) {
+	testcases := []struct {
+		name     string
+		dotEnv   string
+		osEnv    []string
+		expected map[string]string
+	}{
+		{
+			"no value set in environment",
+			"FOO=foo\nBAR=${FOO}",
+			nil,
+			map[string]string{
+				"FOO": "foo",
+				"BAR": "foo",
+			},
+		},
+		{
+			"conflict with value set in environment",
+			"FOO=foo\nBAR=${FOO}",
+			[]string{"FOO=zot"},
+			map[string]string{
+				"FOO": "zot",
+				"BAR": "zot",
+			},
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			wd := t.TempDir()
+			err := os.WriteFile(filepath.Join(wd, ".env"), []byte(test.dotEnv), 0o700)
+			assert.NilError(t, err)
+			options, err := NewProjectOptions(nil,
+				// First load os.Env variable, higher in precedence rule
+				WithEnv(test.osEnv),
+				// Then load dotEnv file
+				WithWorkingDirectory(wd), WithDotEnv)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, test.expected, options.Environment)
+		})
+	}
+}
