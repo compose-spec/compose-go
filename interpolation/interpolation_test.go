@@ -119,6 +119,11 @@ func TestValidUnexistentInterpolation(t *testing.T) {
 		{test: "{{{ ${BAR} }}}", expected: "{{{  }}}"},
 		{test: "${FOO:?baz} }}}", errMsg: "baz"},
 		{test: "${FOO?baz} }}}", errMsg: "baz"},
+		// nested variables
+		{test: "${FOO:-${BAR:-${ZOT:-qix}}}", expected: "qix"},
+		{test: "${FOO:-${BAR:-x}_test_${BAR:-y}}", expected: "x_test_y"},
+		{test: "${FOO:-${BAR:-x}_test}", expected: "x_test"},
+		{test: "${FOO:-${BAR:-${ZOT:-x}}_test}", expected: "x_test"},
 	}
 
 	getServiceConfig := func(val string) map[string]interface{} {
