@@ -640,7 +640,7 @@ type Resource struct {
 	// TODO: types to convert from units and ratios
 	NanoCPUs         string            `yaml:"cpus,omitempty" json:"cpus,omitempty"`
 	MemoryBytes      UnitBytes         `yaml:"memory,omitempty" json:"memory,omitempty"`
-	PIds             int64             `yaml:"pids,omitempty" json:"pids,omitempty"`
+	Pids             int64             `yaml:"pids,omitempty" json:"pids,omitempty"`
 	Devices          []DeviceRequest   `yaml:"devices,omitempty" json:"devices,omitempty"`
 	GenericResources []GenericResource `yaml:"generic_resources,omitempty" json:"generic_resources,omitempty"`
 
