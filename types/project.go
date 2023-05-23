@@ -396,6 +396,11 @@ func (p *Project) ForServices(names []string, options ...DependencyOption) error
 	var enabled Services
 	for _, s := range p.Services {
 		if _, ok := set[s.Name]; ok {
+			for _, option := range options {
+				if option == IgnoreDependencies {
+					s.DependsOn = nil
+				}
+			}
 			enabled = append(enabled, s)
 		} else {
 			p.DisabledServices = append(p.DisabledServices, s)
