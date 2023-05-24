@@ -50,7 +50,8 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 	case yaml.SequenceNode:
 		var err error
 		for idx, v := range node.Content {
-			node.Content[idx], err = p.resolveReset(v, path.Next(strconv.Itoa(idx)))
+			next := path.Next(strconv.Itoa(idx))
+			node.Content[idx], err = p.resolveReset(v, next)
 			if err != nil {
 				return nil, err
 			}
@@ -74,20 +75,6 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 
 // Apply finds the go attributes matching recorded paths and reset them to zero value
 func (p *ResetProcessor) Apply(target *types.Config) error {
-	for i, path := range p.paths {
-		parts := path.Parts()
-		// services is a mapping in yaml but a slice in types.Config, so need to translate the paths
-		if len(parts) > 1 && parts[0] == "services" {
-			name := parts[1]
-			for idx, service := range target.Services {
-				if service.Name == name {
-					parts[1] = fmt.Sprintf("[%d]", idx)
-					p.paths[i] = tree.NewPath(parts...)
-					break
-				}
-			}
-		}
-	}
 	return p.applyNullOverrides(reflect.ValueOf(target), tree.NewPath())
 }
 
@@ -98,8 +85,19 @@ func (p *ResetProcessor) applyNullOverrides(val reflect.Value, path tree.Path) e
 		return nil
 	}
 	typ := val.Type()
-	switch typ.Kind() {
-	case reflect.Map:
+	switch {
+	case path == "services":
+		// Project.Services is a slice in compose-go, but a mapping in yaml
+		for i := 0; i < val.Len(); i++ {
+			service := val.Index(i)
+			name := service.FieldByName("Name")
+			next := path.Next(name.String())
+			err := p.applyNullOverrides(service, next)
+			if err != nil {
+				return err
+			}
+		}
+	case typ.Kind() == reflect.Map:
 		iter := val.MapRange()
 	KEYS:
 		for iter.Next() {
@@ -113,7 +111,7 @@ func (p *ResetProcessor) applyNullOverrides(val reflect.Value, path tree.Path) e
 			}
 			return p.applyNullOverrides(iter.Value(), next)
 		}
-	case reflect.Slice:
+	case typ.Kind() == reflect.Slice:
 	ITER:
 		for i := 0; i < val.Len(); i++ {
 			next := path.Next(fmt.Sprintf("[%d]", i))
@@ -127,7 +125,7 @@ func (p *ResetProcessor) applyNullOverrides(val reflect.Value, path tree.Path) e
 			return p.applyNullOverrides(val.Index(i), next)
 		}
 
-	case reflect.Struct:
+	case typ.Kind() == reflect.Struct:
 	FIELDS:
 		for i := 0; i < typ.NumField(); i++ {
 			field := typ.Field(i)
