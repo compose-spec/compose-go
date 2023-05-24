@@ -297,3 +297,36 @@ func TestNormalizeAdditionalContexts(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project)
 }
+
+func TestNormalizeImplicitDependencies(t *testing.T) {
+	project := types.Project{
+		Name: "myProject",
+		Services: types.Services{
+			types.ServiceConfig{
+				Name:        "test",
+				Ipc:         "service:foo",
+				Cgroup:      "service:bar",
+				Uts:         "service:baz",
+				Pid:         "service:qux",
+				VolumesFrom: []string{"quux"},
+				Links:       []string{"corge"},
+				DependsOn: map[string]types.ServiceDependency{
+					// explicit dependency MUST not be overridden
+					"foo": {Condition: types.ServiceConditionHealthy, Restart: false},
+				},
+			},
+		},
+	}
+
+	expected := types.DependsOnConfig{
+		"foo":   {Condition: types.ServiceConditionHealthy, Restart: false},
+		"bar":   {Condition: types.ServiceConditionStarted, Restart: true},
+		"baz":   {Condition: types.ServiceConditionStarted, Restart: true},
+		"qux":   {Condition: types.ServiceConditionStarted, Restart: true},
+		"quux":  {Condition: types.ServiceConditionStarted},
+		"corge": {Condition: types.ServiceConditionStarted, Restart: true},
+	}
+	err := Normalize(&project, true)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expected, project.Services[0].DependsOn)
+}
