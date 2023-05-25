@@ -922,6 +922,7 @@ func (u *UlimitsConfig) MarshalJSON() ([]byte, error) {
 
 // NetworkConfig for a network
 type NetworkConfig struct {
+	ID         string            `yaml:"-,omitempty" json:"-,omitempty"`
 	Name       string            `yaml:"name,omitempty" json:"name,omitempty"`
 	Driver     string            `yaml:"driver,omitempty" json:"driver,omitempty"`
 	DriverOpts map[string]string `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
