@@ -1377,6 +1377,13 @@ services:
     read_only: true
     environment:
       FOO: BAR
+    ports:
+      - "8080:80"
+  bar:
+    image: test
+    ports:
+      - "8443:443"
+
 `
 	override := `
 services:
@@ -1386,6 +1393,7 @@ services:
     read_only: !reset false
     environment:
       FOO: !reset
+    ports: !reset []
 `
 	configDetails := types.ConfigDetails{
 		Environment: map[string]string{},
@@ -1401,9 +1409,18 @@ services:
 		WorkingDir: "",
 		Services: []types.ServiceConfig{
 			{
+				Name:        "bar",
+				Image:       "test",
+				Environment: types.MappingWithEquals{},
+				Ports:       []types.ServicePortConfig{{Mode: "ingress", Target: 443, Published: "8443", Protocol: "tcp"}},
+				Scale:       1,
+			},
+			{
+				Build:       nil,
 				Name:        "foo",
 				Image:       "foo",
 				Environment: types.MappingWithEquals{},
+				Ports:       nil,
 				ReadOnly:    false,
 				Scale:       1,
 			},
