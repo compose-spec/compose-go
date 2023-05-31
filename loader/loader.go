@@ -605,6 +605,7 @@ func LoadServices(filename string, servicesDict map[string]interface{}, workingD
 		for k, v := range x.(map[string]interface{}) {
 			servicesDict[k] = v
 		}
+		delete(servicesDict, extensions)
 	}
 
 	for name := range servicesDict {
