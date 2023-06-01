@@ -2385,3 +2385,21 @@ volumes:
 		},
 	})
 }
+
+func TestXService(t *testing.T) {
+	p, err := loadYAML(`
+name: 'test-x-service'
+services:
+  x-foo:
+    image: busybox
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services, types.Services{
+		{
+			Name:        "x-foo",
+			Image:       "busybox",
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+		},
+	})
+}
