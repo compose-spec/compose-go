@@ -1037,3 +1037,9 @@ type SecretConfig FileObjectConfig
 
 // ConfigObjConfig is the config for the swarm "Config" object
 type ConfigObjConfig FileObjectConfig
+
+type IncludeConfig struct {
+	Path             StringList `yaml:"path,omitempty" json:"path,omitempty"`
+	ProjectDirectory string     `yaml:"project_directory,omitempty" json:"project_directory,omitempty"`
+	EnvFile          StringList `yaml:"env_file,omitempty" json:"env_file,omitempty"`
+}

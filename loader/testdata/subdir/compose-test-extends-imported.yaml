@@ -1,6 +1,7 @@
 services:
   imported:
     image: nginx
+    container_name: ${SOURCE:-imported}
     env_file:
       - ./extra.env # expected to be loaded relative to this file, not the extending one
     volumes:

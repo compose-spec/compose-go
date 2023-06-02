@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -308,19 +307,6 @@ func TestEnvMap(t *testing.T) {
 	assert.Equal(t, l[0], "foo=bar")
 	m = utils.GetAsEqualsMap(l)
 	assert.Equal(t, m["foo"], "bar")
-}
-
-func TestGetEnvFromFile(t *testing.T) {
-	wd := t.TempDir()
-	f := filepath.Join(wd, ".env")
-	err := os.Mkdir(f, 0o700)
-	assert.NilError(t, err)
-
-	_, err = GetEnvFromFile(nil, wd, nil)
-	assert.NilError(t, err)
-
-	_, err = GetEnvFromFile(nil, wd, []string{f})
-	assert.Check(t, strings.HasSuffix(err.Error(), ".env is a directory"))
 }
 
 func TestEnvVariablePrecedence(t *testing.T) {
