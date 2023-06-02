@@ -177,8 +177,8 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				"ENV_WITH_UNDERSCORE": strPtr("ok"),
 			},
 			EnvFile: []string{
-				"./example1.env",
-				"./example2.env",
+				filepath.Join(workingDir, "example1.env"),
+				filepath.Join(workingDir, "example2.env"),
 			},
 			Expose: []string{"3000", "8000"},
 			ExternalLinks: []string{
@@ -728,8 +728,8 @@ services:
       FOO: foo_from_env_file
       QUX: qux_from_environment
     env_file:
-      - ./example1.env
-      - ./example2.env
+      - %s
+      - %s
     expose:
       - "3000"
       - "8000"
@@ -1035,6 +1035,8 @@ x-nested:
   bar: baz
   foo: bar
 `,
+		filepath.Join(workingDir, "example1.env"),
+		filepath.Join(workingDir, "example2.env"),
 		workingDir,
 		filepath.Join(workingDir, "static"),
 		filepath.Join(homeDir, "configs"),
@@ -1327,8 +1329,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "QUX": "qux_from_environment"
       },
       "env_file": [
-        "./example1.env",
-        "./example2.env"
+        "%s",
+        "%s"
       ],
       "expose": [
         "3000",
@@ -1677,6 +1679,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
 		toPath(workingDir, "config_data"),
 		toPath(homeDir, "config_data"),
 		toPath(workingDir, "secret_data"),
+		toPath(workingDir, "example1.env"),
+		toPath(workingDir, "example2.env"),
 		toPath(workingDir),
 		toPath(workingDir, "static"),
 		toPath(homeDir, "configs"),

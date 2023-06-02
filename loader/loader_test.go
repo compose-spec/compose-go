@@ -843,6 +843,7 @@ services:
 	// Default behavior keeps the `env_file` entries
 	configWithEnvFiles, err := Load(configDetails, func(options *Options) {
 		options.SkipNormalization = true
+		options.ResolvePaths = false
 	})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, configWithEnvFiles.Services[0].EnvFile, types.StringList{"example1.env",
@@ -1453,8 +1454,7 @@ func TestLoadSecretsWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 			},
 		},
 	}
-	details := types.ConfigDetails{}
-	secrets, err := LoadSecrets(source, details, true)
+	secrets, err := LoadSecrets(source)
 	assert.NilError(t, err)
 	expected := map[string]types.SecretConfig{
 		"foo": {
@@ -1929,8 +1929,7 @@ func TestLoadWithExtends(t *testing.T) {
 	actual, err := Load(configDetails)
 	assert.NilError(t, err)
 
-	extendsDir, err := filepath.Abs(filepath.Join("testdata", "subdir"))
-	assert.NilError(t, err)
+	extendsDir := filepath.Join("testdata", "subdir")
 
 	expectedEnvFilePath := filepath.Join(extendsDir, "extra.env")
 
@@ -2089,7 +2088,7 @@ func TestLoadServiceWithVolumes(t *testing.T) {
 			},
 		},
 	}
-	s, err := LoadService("Test Name", m, ".", nil, true, false)
+	s, err := LoadService("Test Name", m)
 	assert.NilError(t, err)
 	assert.Equal(t, len(s.Volumes), 2)
 	assert.Equal(t, "/path 1", s.Volumes[0].Target)
