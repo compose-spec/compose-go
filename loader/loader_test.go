@@ -1901,10 +1901,7 @@ func TestComposeFileWithVersion(t *testing.T) {
 	config, err := loadYAMLWithEnv(string(b), env)
 	assert.NilError(t, err)
 
-	workingDir, err := os.Getwd()
-	assert.NilError(t, err)
-
-	expectedConfig := withVersionExampleConfig(workingDir, homeDir)
+	expectedConfig := withVersionExampleConfig()
 
 	sort.Slice(config.Services, func(i, j int) bool {
 		return config.Services[i].Name > config.Services[j].Name

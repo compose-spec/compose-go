@@ -32,7 +32,7 @@ build-validate-image:
 
 .PHONY: lint
 lint: build-validate-image
-	docker run --rm $(IMAGE_PREFIX)validate bash -c "golangci-lint run --config ./golangci.yml ./..."
+	docker run --rm $(IMAGE_PREFIX)validate bash -c "golangci-lint run --config ./.golangci.yml ./..."
 
 .PHONY: check-license
 check-license: build-validate-image

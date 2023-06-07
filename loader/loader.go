@@ -750,13 +750,6 @@ func resolveMaybeUnixPath(workingDir string, path string) string {
 	return filePath
 }
 
-func resolveSecretsPath(secret types.SecretConfig, workingDir string, lookupEnv template.Mapping) types.SecretConfig {
-	if !secret.External.External && secret.File != "" {
-		secret.File = resolveMaybeUnixPath(workingDir, secret.File)
-	}
-	return secret
-}
-
 // TODO: make this more robust
 func expandUser(path string) string {
 	if strings.HasPrefix(path, "~") {
