@@ -20,15 +20,15 @@ import (
 	"github.com/compose-spec/compose-go/types"
 )
 
-func withVersionExampleConfig(workingDir, homeDir string) *types.Config {
+func withVersionExampleConfig() *types.Config {
 	return &types.Config{
-		Services: withVersionServices(workingDir, homeDir),
+		Services: withVersionServices(),
 		Networks: withVersionNetworks(),
 		Volumes:  withVersionVolumes(),
 	}
 }
 
-func withVersionServices(workingDir, homeDir string) []types.ServiceConfig {
+func withVersionServices() []types.ServiceConfig {
 	return []types.ServiceConfig{
 		{
 			Name: "web",
