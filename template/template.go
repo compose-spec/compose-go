@@ -74,36 +74,36 @@ type SubstituteFunc func(string, Mapping) (string, bool, error)
 
 // ReplacementFunc is a user-supplied function that is apply to the matching
 // substring. Returns the value as a string and an error.
-type ReplacementFunc func(string, Mapping, config) (string, error)
+type ReplacementFunc func(string, Mapping, *Config) (string, error)
 
-type config struct {
+type Config struct {
 	pattern         *regexp.Regexp
 	substituteFunc  SubstituteFunc
 	replacementFunc ReplacementFunc
 	logging         bool
 }
 
-type Option func(*config)
+type Option func(*Config)
 
 func WithPattern(pattern *regexp.Regexp) Option {
-	return func(cfg *config) {
+	return func(cfg *Config) {
 		cfg.pattern = pattern
 	}
 }
 
 func WithSubstitutionFunction(subsFunc SubstituteFunc) Option {
-	return func(cfg *config) {
+	return func(cfg *Config) {
 		cfg.substituteFunc = subsFunc
 	}
 }
 
 func WithReplacementFunction(replacementFunc ReplacementFunc) Option {
-	return func(cfg *config) {
+	return func(cfg *Config) {
 		cfg.replacementFunc = replacementFunc
 	}
 }
 
-func WithoutLogging(cfg *config) {
+func WithoutLogging(cfg *Config) {
 	cfg.logging = false
 }
 
@@ -112,7 +112,7 @@ func WithoutLogging(cfg *config) {
 func SubstituteWithOptions(template string, mapping Mapping, options ...Option) (string, error) {
 	var returnErr error
 
-	cfg := &config{
+	cfg := &Config{
 		pattern:         defaultPattern,
 		replacementFunc: DefaultReplacementFunc,
 		logging:         true,
@@ -122,7 +122,7 @@ func SubstituteWithOptions(template string, mapping Mapping, options ...Option) 
 	}
 
 	result := cfg.pattern.ReplaceAllStringFunc(template, func(substring string) string {
-		replacement, err := cfg.replacementFunc(substring, mapping, *cfg)
+		replacement, err := cfg.replacementFunc(substring, mapping, cfg)
 		if err != nil {
 			// Add the template for template errors
 			var tmplErr *InvalidTemplateError
@@ -143,7 +143,7 @@ func SubstituteWithOptions(template string, mapping Mapping, options ...Option) 
 	return result, returnErr
 }
 
-func DefaultReplacementFunc(substring string, mapping Mapping, cfg config) (string, error) {
+func DefaultReplacementFunc(substring string, mapping Mapping, cfg *Config) (string, error) {
 	pattern := cfg.pattern
 	subsFunc := cfg.substituteFunc
 	if subsFunc == nil {
