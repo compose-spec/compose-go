@@ -374,7 +374,6 @@ func TestSubstituteWithCustomFunc(t *testing.T) {
 	assert.Check(t, is.Equal("ok ", result))
 
 	_, err = SubstituteWith("ok ${NOTHERE}", defaultMapping, defaultPattern, errIsMissing)
-	fmt.Println(err)
 	assert.Check(t, is.ErrorContains(err, "required variable"))
 }
 
