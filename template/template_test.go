@@ -377,9 +377,33 @@ func TestSubstituteWithCustomFunc(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "required variable"))
 }
 
+func TestSubstituteWithReplacementFunc(t *testing.T) {
+	options := []Option{
+		WithReplacementFunction(func(s string, m Mapping, c *Config) (string, error) {
+			if s == "${NOTHERE}" {
+				return "", fmt.Errorf("bad choice dude: %q", s)
+			}
+			r, err := DefaultReplacementFunc(s, m, c)
+			if err == nil && r != "" {
+				return r, nil
+			}
+			return "foobar", nil
+		}),
+	}
+	result, err := SubstituteWithOptions("ok ${FOO}", defaultMapping, options...)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok first", result))
+
+	result, err = SubstituteWithOptions("ok ${BAR}", defaultMapping, options...)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok foobar", result))
+
+	_, err = SubstituteWithOptions("ok ${NOTHERE}", defaultMapping, options...)
+	assert.Check(t, is.ErrorContains(err, "bad choice dude"))
+}
+
 // TestPrecedence tests is the precedence on '-' and '?' is of the first match
 func TestPrecedence(t *testing.T) {
-
 	testCases := []struct {
 		template string
 		expected string
