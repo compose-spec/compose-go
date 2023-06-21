@@ -4,7 +4,10 @@ updates:
   directory: "/"
   schedule:
     interval: weekly
-  open-pull-requests-limit: 10
+  # compose-go is a library, so to maximize compatibility for downstream
+  # users with go's minimal version selection for dependencies we should
+  # ignore version bumps and only update when there are security updates
+  open-pull-requests-limit: 0
   ignore:
   - dependency-name: github.com/sirupsen/logrus
     versions:
