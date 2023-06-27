@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft/2019-09/schema#",
+  "$schema": "https://json-schema.org/draft/2019-09/schema#",
   "id": "compose_spec.json",
   "type": "object",
   "title": "Compose Specification",
@@ -15,6 +15,15 @@
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9_-]*$",
       "description": "define the Compose project name, until user defines one explicitly."
+    },
+
+    "include": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "$ref": "#/definitions/include"
+      },
+      "description": "compose sub-projects to be included."
     },
 
     "services": {
@@ -586,6 +595,22 @@
         "additionalProperties": false,
         "patternProperties": {"^x-": {}}
       }
+    },
+
+    "include": {
+      "id": "#/definitions/include",
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "properties": {
+            "path": {"$ref": "#/definitions/string_or_list"},
+            "env_file": {"$ref": "#/definitions/string_or_list"},
+            "project_directory": {"type": "string"}
+          },
+          "additionalProperties": false
+        }
+      ]
     },
 
     "network": {
