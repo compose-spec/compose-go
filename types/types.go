@@ -815,6 +815,8 @@ const (
 	VolumeTypeTmpfs = "tmpfs"
 	// VolumeTypeNamedPipe is the type for mounting Windows named pipes
 	VolumeTypeNamedPipe = "npipe"
+	// VolumeTypeCluster is the type for mounting container storage interface (CSI) volumes
+	VolumeTypeCluster = "cluster"
 
 	// SElinuxShared share the volume content
 	SElinuxShared = "z"
