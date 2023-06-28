@@ -218,3 +218,17 @@ func TestNormalizeImplicitDependencies(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project.Services[0].DependsOn)
 }
+
+func TestImplicitContextPath(t *testing.T) {
+	project := &types.Project{
+		Name: "myProject",
+		Services: types.Services{
+			types.ServiceConfig{
+				Name:  "test",
+				Build: &types.BuildConfig{},
+			},
+		},
+	}
+	assert.NilError(t, Normalize(project))
+	assert.Equal(t, ".", project.Services[0].Build.Context)
+}
