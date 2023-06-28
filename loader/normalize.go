@@ -18,7 +18,6 @@ package loader
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/compose-spec/compose-go/errdefs"
@@ -29,12 +28,6 @@ import (
 
 // Normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
 func Normalize(project *types.Project) error {
-	absWorkingDir, err := filepath.Abs(project.WorkingDir)
-	if err != nil {
-		return err
-	}
-	project.WorkingDir = absWorkingDir
-
 	if project.Networks == nil {
 		project.Networks = make(map[string]types.NetworkConfig)
 	}
@@ -44,8 +37,7 @@ func Normalize(project *types.Project) error {
 		project.Networks["default"] = types.NetworkConfig{}
 	}
 
-	err = relocateExternalName(project)
-	if err != nil {
+	if err := relocateExternalName(project); err != nil {
 		return err
 	}
 
@@ -126,14 +118,6 @@ func Normalize(project *types.Project) error {
 		inferImplicitDependencies(&s)
 
 		project.Services[i] = s
-	}
-
-	for name, config := range project.Volumes {
-		if config.Driver == "local" && config.DriverOpts["o"] == "bind" {
-			// This is actually a bind mount
-			config.DriverOpts["device"] = absPath(project.WorkingDir, config.DriverOpts["device"])
-			project.Volumes[name] = config
-		}
 	}
 
 	setNameFromKey(project)

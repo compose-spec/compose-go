@@ -233,6 +233,7 @@ func loadTestProject(configDetails types.ConfigDetails) (*types.Project, error) 
 	return Load(configDetails, func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
+		options.ResolvePaths = false
 	})
 }
 
