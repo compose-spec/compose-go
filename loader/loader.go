@@ -261,6 +261,13 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 		Extensions:  model.Extensions,
 	}
 
+	if !opts.SkipNormalization {
+		err = Normalize(project)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if opts.ResolvePaths {
 		err = ResolveRelativePaths(project)
 		if err != nil {
@@ -274,13 +281,6 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 				service.Volumes[j] = convertVolumePath(volume)
 			}
 			project.Services[i] = service
-		}
-	}
-
-	if !opts.SkipNormalization {
-		err = Normalize(project)
-		if err != nil {
-			return nil, err
 		}
 	}
 

@@ -27,8 +27,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+var log = logrus.WithField("module", "loader")
+
 // Normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
 func Normalize(project *types.Project) error {
+	// TODO(milas): this really belongs in ResolveRelativePaths
 	absWorkingDir, err := filepath.Abs(project.WorkingDir)
 	if err != nil {
 		return err
@@ -44,8 +47,7 @@ func Normalize(project *types.Project) error {
 		project.Networks["default"] = types.NetworkConfig{}
 	}
 
-	err = relocateExternalName(project)
-	if err != nil {
+	if err := relocateExternalName(project); err != nil {
 		return err
 	}
 
@@ -65,6 +67,12 @@ func Normalize(project *types.Project) error {
 		}
 
 		if s.Build != nil {
+			if s.Build.Context == "" {
+				log.Warnf("service %s: using `.` as implicit default for build.context. "+
+					"Set a value explicitly to prevent this warning and ensure compatibility with future versions of Compose",
+					s.Name)
+				s.Build.Context = "."
+			}
 			if s.Build.Dockerfile == "" && s.Build.DockerfileInline == "" {
 				s.Build.Dockerfile = "Dockerfile"
 			}
@@ -210,7 +218,7 @@ func setIfMissing(d types.DependsOnConfig, service string, dep types.ServiceDepe
 func relocateScale(s *types.ServiceConfig) error {
 	scale := uint64(s.Scale)
 	if scale > 1 {
-		logrus.Warn("`scale` is deprecated. Use the `deploy.replicas` element")
+		log.Warn("`scale` is deprecated. Use the `deploy.replicas` element")
 		if s.Deploy == nil {
 			s.Deploy = &types.DeployConfig{}
 		}
@@ -298,7 +306,7 @@ func relocateExternalName(project *types.Project) error {
 
 func relocateLogOpt(s *types.ServiceConfig) error {
 	if len(s.LogOpt) != 0 {
-		logrus.Warn("`log_opts` is deprecated. Use the `logging` element")
+		log.Warn("`log_opts` is deprecated. Use the `logging` element")
 		if s.Logging == nil {
 			s.Logging = &types.LoggingConfig{}
 		}
@@ -315,7 +323,7 @@ func relocateLogOpt(s *types.ServiceConfig) error {
 
 func relocateLogDriver(s *types.ServiceConfig) error {
 	if s.LogDriver != "" {
-		logrus.Warn("`log_driver` is deprecated. Use the `logging` element")
+		log.Warn("`log_driver` is deprecated. Use the `logging` element")
 		if s.Logging == nil {
 			s.Logging = &types.LoggingConfig{}
 		}
@@ -330,7 +338,7 @@ func relocateLogDriver(s *types.ServiceConfig) error {
 
 func relocateDockerfile(s *types.ServiceConfig) error {
 	if s.Dockerfile != "" {
-		logrus.Warn("`dockerfile` is deprecated. Use the `build` element")
+		log.Warn("`dockerfile` is deprecated. Use the `build` element")
 		if s.Build == nil {
 			s.Build = &types.BuildConfig{}
 		}

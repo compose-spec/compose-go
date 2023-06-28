@@ -17,11 +17,15 @@
 package loader
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
 
+	is "gotest.tools/v3/assert/cmp"
+
 	"github.com/compose-spec/compose-go/types"
+	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 )
 
@@ -217,4 +221,40 @@ func TestNormalizeImplicitDependencies(t *testing.T) {
 	err := Normalize(&project)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project.Services[0].DependsOn)
+}
+
+func TestImplicitContextPath(t *testing.T) {
+	logOut := redirectLogger(t)
+
+	project := &types.Project{
+		Name: "myProject",
+		Services: types.Services{
+			types.ServiceConfig{
+				Name:  "test",
+				Build: &types.BuildConfig{},
+			},
+		},
+	}
+
+	assert.NilError(t, Normalize(project))
+	assert.Equal(t, ".", project.Services[0].Build.Context)
+	assert.Check(t, is.Contains(logOut.String(), "service test: using `.` as implicit default for build.context."))
+}
+
+// redirectLogger sets the package logger to one that writes to a buffer for the duration of the test.
+//
+// This is not safe to use in conjunction with `t.Parallel()`.
+func redirectLogger(t testing.TB) *bytes.Buffer {
+	origLogger := log
+	t.Cleanup(func() {
+		log = origLogger
+	})
+	var out bytes.Buffer
+	log = logrus.NewEntry(&logrus.Logger{
+		Out:       &out,
+		Level:     logrus.TraceLevel,
+		Formatter: new(logrus.TextFormatter),
+		Hooks:     make(logrus.LevelHooks),
+	})
+	return &out
 }
