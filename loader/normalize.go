@@ -29,6 +29,7 @@ import (
 
 // Normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults
 func Normalize(project *types.Project) error {
+	// TODO(milas): this really belongs in ResolveRelativePaths
 	absWorkingDir, err := filepath.Abs(project.WorkingDir)
 	if err != nil {
 		return err
@@ -44,8 +45,7 @@ func Normalize(project *types.Project) error {
 		project.Networks["default"] = types.NetworkConfig{}
 	}
 
-	err = relocateExternalName(project)
-	if err != nil {
+	if err := relocateExternalName(project); err != nil {
 		return err
 	}
 
@@ -65,6 +65,9 @@ func Normalize(project *types.Project) error {
 		}
 
 		if s.Build != nil {
+			if s.Build.Context == "" {
+				s.Build.Context = "."
+			}
 			if s.Build.Dockerfile == "" && s.Build.DockerfileInline == "" {
 				s.Build.Dockerfile = "Dockerfile"
 			}
