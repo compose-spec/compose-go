@@ -395,6 +395,7 @@ func TestParsing(t *testing.T) {
 	parseAndCompare(t, `FOO="bar\n\ b\az"`, "FOO", "bar\n\\ b\az")
 	parseAndCompare(t, `FOO="bar\\\n\ b\az"`, "FOO", "bar\\\n\\ b\az")
 	parseAndCompare(t, `FOO="bar\\r\ b\az"`, "FOO", "bar\\r\\ b\az")
+	parseAndCompare(t, `FOO="bar\nbaz\\"`, "FOO", "bar\nbaz\\")
 
 	parseAndCompare(t, `="value"`, "", "value")
 
