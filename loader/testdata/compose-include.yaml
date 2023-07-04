@@ -1,0 +1,6 @@
+include:
+  - compose-include.yaml
+
+services:
+  foo:
+    image: foo

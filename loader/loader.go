@@ -56,6 +56,8 @@ type Options struct {
 	SkipConsistencyCheck bool
 	// Skip extends
 	SkipExtends bool
+	// SkipInclude will ignore `include` and only load model from file(s) set by ConfigDetails
+	SkipInclude bool
 	// Interpolation options
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
@@ -66,6 +68,24 @@ type Options struct {
 	projectNameImperativelySet bool
 	// Profiles set profiles to enable
 	Profiles []string
+}
+
+func (o *Options) clone() *Options {
+	return &Options{
+		SkipValidation:             o.SkipValidation,
+		SkipInterpolation:          o.SkipInterpolation,
+		SkipNormalization:          o.SkipNormalization,
+		ResolvePaths:               o.ResolvePaths,
+		ConvertWindowsPaths:        o.ConvertWindowsPaths,
+		SkipConsistencyCheck:       o.SkipConsistencyCheck,
+		SkipExtends:                o.SkipExtends,
+		SkipInclude:                o.SkipInclude,
+		Interpolate:                o.Interpolate,
+		discardEnvFiles:            o.discardEnvFiles,
+		projectName:                o.projectName,
+		projectNameImperativelySet: o.projectNameImperativelySet,
+		Profiles:                   o.Profiles,
+	}
 }
 
 func (o *Options) SetProjectName(name string, imperativelySet bool) {
@@ -196,8 +216,22 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	if err != nil {
 		return nil, err
 	}
+	opts.projectName = projectName
+	return load(configDetails, opts, nil)
+}
 
+func load(configDetails types.ConfigDetails, opts *Options, loaded []string) (*types.Project, error) {
 	var model *types.Config
+
+	mainFile := configDetails.ConfigFiles[0].Filename
+	for _, f := range loaded {
+		if f == mainFile {
+			loaded = append(loaded, mainFile)
+			return nil, errors.Errorf("include cycle detected:\n%s\n include %s", loaded[0], strings.Join(loaded[1:], "\n include "))
+		}
+	}
+	loaded = append(loaded, mainFile)
+
 	for i, file := range configDetails.ConfigFiles {
 		var postProcessor PostProcessor
 		configDict := file.Config
@@ -232,10 +266,18 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 			return nil, err
 		}
 
+		if !opts.SkipInclude {
+			cfg, err = loadInclude(configDetails, cfg, opts, loaded)
+			if err != nil {
+				return nil, err
+			}
+		}
+
 		if i == 0 {
 			model = cfg
 			continue
 		}
+
 		merged, err := merge([]*types.Config{model, cfg})
 		if err != nil {
 			return nil, err
@@ -250,7 +292,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	project := &types.Project{
-		Name:        projectName,
+		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
 		Services:    model.Services,
 		Networks:    model.Networks,
@@ -262,14 +304,14 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	if !opts.SkipNormalization {
-		err = Normalize(project)
+		err := Normalize(project)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if opts.ResolvePaths {
-		err = ResolveRelativePaths(project)
+		err := ResolveRelativePaths(project)
 		if err != nil {
 			return nil, err
 		}
@@ -285,7 +327,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 
 	if !opts.SkipConsistencyCheck {
-		err = checkConsistency(project)
+		err := checkConsistency(project)
 		if err != nil {
 			return nil, err
 		}
@@ -296,7 +338,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 	}
 	project.ApplyProfiles(opts.Profiles)
 
-	err = project.ResolveServicesEnvironment(opts.discardEnvFiles)
+	err := project.ResolveServicesEnvironment(opts.discardEnvFiles)
 
 	return project, err
 }
@@ -428,7 +470,6 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 	if err != nil {
 		return nil, err
 	}
-
 	cfg.Networks, err = LoadNetworks(getSection(config, "networks"))
 	if err != nil {
 		return nil, err
@@ -445,6 +486,10 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 	if err != nil {
 		return nil, err
 	}
+	cfg.Include, err = LoadIncludeConfig(getSequence(config, "include"))
+	if err != nil {
+		return nil, err
+	}
 	extensions := getSection(config, extensions)
 	if len(extensions) > 0 {
 		cfg.Extensions = extensions
@@ -458,6 +503,14 @@ func getSection(config map[string]interface{}, key string) map[string]interface{
 		return make(map[string]interface{})
 	}
 	return section.(map[string]interface{})
+}
+
+func getSequence(config map[string]interface{}, key string) []interface{} {
+	section, ok := config[key]
+	if !ok {
+		return make([]interface{}, 0)
+	}
+	return section.([]interface{})
 }
 
 // ForbiddenPropertiesError is returned when there are properties in the Compose
@@ -524,6 +577,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
 		reflect.TypeOf(types.DeviceRequest{}):                    transformServiceDeviceRequest,
 		reflect.TypeOf(types.SSHConfig{}):                        transformSSHConfig,
+		reflect.TypeOf(types.IncludeConfig{}):                    transformIncludeConfig,
 	}
 
 	for _, transformer := range additionalTransformers {
