@@ -1088,13 +1088,24 @@ var transformDependsOnConfig TransformerFunc = func(data interface{}) (interface
 		for _, serviceIntf := range value {
 			service, ok := serviceIntf.(string)
 			if !ok {
-				return data, errors.Errorf("invalid type %T for service depends_on elementn, expected string", value)
+				return data, errors.Errorf("invalid type %T for service depends_on element, expected string", value)
 			}
-			transformed[service] = map[string]interface{}{"condition": types.ServiceConditionStarted}
+			transformed[service] = map[string]interface{}{"condition": types.ServiceConditionStarted, "required": true}
 		}
 		return transformed, nil
 	case map[string]interface{}:
-		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
+		transformed := map[string]interface{}{}
+		for service, val := range value {
+			dependsConfigIntf, ok := val.(map[string]interface{})
+			if !ok {
+				return data, errors.Errorf("invalid type %T for service depends_on element", value)
+			}
+			if _, ok := dependsConfigIntf["required"]; !ok {
+				dependsConfigIntf["required"] = true
+			}
+			transformed[service] = dependsConfigIntf
+		}
+		return groupXFieldsIntoExtensions(transformed), nil
 	default:
 		return data, errors.Errorf("invalid type %T for service depends_on", value)
 	}
