@@ -93,6 +93,7 @@
       "properties": {
         "deploy": {"$ref": "#/definitions/deployment"},
         "annotations": {"$ref": "#/definitions/list_or_dict"},
+        "attach": {"type": "boolean"},
         "build": {
           "oneOf": [
             {"type": "string"},
@@ -190,6 +191,10 @@
                   "additionalProperties": false,
                   "properties": {
                     "restart": {"type": "boolean"},
+                    "required": {
+                      "type":  "boolean",
+                      "default": true
+                    },
                     "condition": {
                       "type": "string",
                       "enum": ["service_started", "service_healthy", "service_completed_successfully"]
