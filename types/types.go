@@ -1025,6 +1025,7 @@ type ServiceDependency struct {
 	Condition  string     `yaml:"condition,omitempty" json:"condition,omitempty"`
 	Restart    bool       `yaml:"restart,omitempty" json:"restart,omitempty"`
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Required   bool       `yaml:"required" json:"required"`
 }
 
 type ExtendsConfig struct {

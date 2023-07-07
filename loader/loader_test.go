@@ -2428,7 +2428,7 @@ services:
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
 			Scale:       1,
-			DependsOn:   types.DependsOnConfig{"imported": {Condition: "service_started"}},
+			DependsOn:   types.DependsOnConfig{"imported": {Condition: "service_started", Required: true}},
 		},
 		{
 			Name:          "imported",
@@ -2464,4 +2464,36 @@ func TestLoadWithIncludeCycle(t *testing.T) {
 		},
 	})
 	assert.Check(t, strings.HasPrefix(err.Error(), "include cycle detected"))
+}
+
+func TestLoadWithDependsOn(t *testing.T) {
+	p, err := loadYAML(`
+name: test-depends-on
+services:
+  foo:
+    image: nginx
+    depends_on:
+      bar:
+        condition: service_started
+      baz:
+        condition: service_healthy
+        required: false
+      qux:
+        condition: service_completed_successfully
+        required: true
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services, types.Services{
+		{
+			Name:        "foo",
+			Image:       "nginx",
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+			DependsOn: types.DependsOnConfig{
+				"bar": {Condition: types.ServiceConditionStarted, Required: true},
+				"baz": {Condition: types.ServiceConditionHealthy, Required: false},
+				"qux": {Condition: types.ServiceConditionCompletedSuccessfully, Required: true},
+			},
+		},
+	})
 }
