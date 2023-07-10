@@ -398,6 +398,39 @@ func TestSubstituteWithReplacementFunc(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("ok foobar", result))
 
+	result, err = SubstituteWithOptions("ok ${UNSET}", defaultMapping, options...)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok foobar", result))
+
+	_, err = SubstituteWithOptions("ok ${NOTHERE}", defaultMapping, options...)
+	assert.Check(t, is.ErrorContains(err, "bad choice"))
+}
+
+func TestSubstituteWithReplacementAppliedFunc(t *testing.T) {
+	options := []Option{
+		WithReplacementFunction(func(s string, m Mapping, c *Config) (string, error) {
+			if s == "${NOTHERE}" {
+				return "", fmt.Errorf("bad choice: %q", s)
+			}
+			r, applied, err := DefaultReplacementAppliedFunc(s, m, c)
+			if err == nil && applied {
+				return r, nil
+			}
+			return "foobar", nil
+		}),
+	}
+	result, err := SubstituteWithOptions("ok ${FOO}", defaultMapping, options...)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok first", result))
+
+	result, err = SubstituteWithOptions("ok ${BAR}", defaultMapping, options...)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok ", result))
+
+	result, err = SubstituteWithOptions("ok ${UNSET}", defaultMapping, options...)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok foobar", result))
+
 	_, err = SubstituteWithOptions("ok ${NOTHERE}", defaultMapping, options...)
 	assert.Check(t, is.ErrorContains(err, "bad choice"))
 }
