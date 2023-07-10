@@ -89,6 +89,7 @@ type ServiceConfig struct {
 	Profiles []string `yaml:"profiles,omitempty" json:"profiles,omitempty"`
 
 	Annotations  Mapping      `yaml:"annotations,omitempty" json:"annotations,omitempty"`
+	Attach       *bool        `yaml:"attach,omitempty" json:"attach,omitempty"`
 	Build        *BuildConfig `yaml:"build,omitempty" json:"build,omitempty"`
 	BlkioConfig  *BlkioConfig `yaml:"blkio_config,omitempty" json:"blkio_config,omitempty"`
 	CapAdd       []string     `yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
