@@ -123,8 +123,8 @@ loop:
 			}
 
 			return "", "", inherited, fmt.Errorf(
-				`line %d: unexpected character %q in variable name`,
-				p.line, string(rune))
+				`line %d: unexpected character %q in variable name %q`,
+				p.line, string(rune), strings.Split(src, "\n")[0])
 		}
 	}
 
