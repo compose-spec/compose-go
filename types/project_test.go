@@ -20,6 +20,7 @@ import (
 	_ "crypto/sha256"
 	"testing"
 
+	"github.com/compose-spec/compose-go/utils"
 	"github.com/distribution/distribution/v3/reference"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"
@@ -114,14 +115,15 @@ func makeProject() Project {
 			}, ServiceConfig{
 				Name:      "service_2",
 				Profiles:  []string{"foo"},
-				DependsOn: map[string]ServiceDependency{"service_1": {}},
+				DependsOn: map[string]ServiceDependency{"service_1": {Required: true}},
 			}, ServiceConfig{
 				Name:      "service_3",
 				Profiles:  []string{"bar"},
-				DependsOn: map[string]ServiceDependency{"service_2": {}},
+				DependsOn: map[string]ServiceDependency{"service_2": {Required: true}},
 			}, ServiceConfig{
-				Name:     "service_4",
-				Profiles: []string{"zot"},
+				Name:      "service_4",
+				Profiles:  []string{"zot"},
+				DependsOn: map[string]ServiceDependency{"service_2": {Required: false}},
 			}, ServiceConfig{
 				Name:     "service_5",
 				Profiles: []string{"zot"},
@@ -189,7 +191,8 @@ func TestWithServices(t *testing.T) {
 		return nil
 	}, IncludeDependents)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, seen, []string{"service_3", "service_2", "service_1"})
+	// Order of service_3 and service_4 may change because there both depending on service_2
+	assert.Check(t, utils.ArrayContains(seen, []string{"service_3", "service_4", "service_2", "service_1"}))
 
 	seen = []string{}
 	err = p.WithServices([]string{"service_1"}, func(service ServiceConfig) error {
@@ -198,4 +201,12 @@ func TestWithServices(t *testing.T) {
 	}, IgnoreDependencies)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, seen, []string{"service_1"})
+
+	seen = []string{}
+	err = p.WithServices([]string{"service_4"}, func(service ServiceConfig) error {
+		seen = append(seen, service.Name)
+		return nil
+	}, IncludeDependencies)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, seen, []string{"service_1", "service_2", "service_4"})
 }

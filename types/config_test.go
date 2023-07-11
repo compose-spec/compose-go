@@ -30,6 +30,7 @@ func Test_WithServices(t *testing.T) {
 				DependsOn: map[string]ServiceDependency{
 					"service_3": {
 						Condition: ServiceConditionStarted,
+						Required:  true,
 					},
 				},
 			}, ServiceConfig{
@@ -39,6 +40,7 @@ func Test_WithServices(t *testing.T) {
 				DependsOn: map[string]ServiceDependency{
 					"service_2": {
 						Condition: ServiceConditionStarted,
+						Required:  true,
 					},
 				},
 			}),
