@@ -84,6 +84,8 @@ func TestResolveBuildContextPaths(t *testing.T) {
 
 func TestResolveAdditionalContexts(t *testing.T) {
 	wd, _ := filepath.Abs(".")
+	absSubdir := filepath.Join(wd, "subdir")
+
 	project := types.Project{
 		Name:       "myProject",
 		WorkingDir: wd,
@@ -96,7 +98,7 @@ func TestResolveAdditionalContexts(t *testing.T) {
 					AdditionalContexts: map[string]string{
 						"image":    "docker-image://foo",
 						"oci":      "oci-layout://foo",
-						"abs_path": "/tmp",
+						"abs_path": absSubdir,
 						"github":   "github.com/compose-spec/compose-go",
 						"rel_path": "./testdata",
 					},
@@ -117,7 +119,7 @@ func TestResolveAdditionalContexts(t *testing.T) {
 					AdditionalContexts: map[string]string{
 						"image":    "docker-image://foo",
 						"oci":      "oci-layout://foo",
-						"abs_path": "/tmp",
+						"abs_path": absSubdir,
 						"github":   "github.com/compose-spec/compose-go",
 						"rel_path": filepath.Join(wd, "testdata"),
 					},
@@ -127,5 +129,48 @@ func TestResolveAdditionalContexts(t *testing.T) {
 	}
 	err := ResolveRelativePaths(&project)
 	assert.NilError(t, err)
+	assert.DeepEqual(t, expected, project)
+}
+
+func TestProjectDirectorySymlink(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Test creates real files on disk")
+	}
+
+	// the tmpdir might itself be a symlink
+	tmpdir, err := filepath.EvalSymlinks(t.TempDir())
+	assert.NilError(t, err)
+
+	realProjDir := filepath.Join(tmpdir, "project")
+	assert.NilError(t, os.Mkdir(realProjDir, 0o700))
+	projDir := filepath.Join(tmpdir, "project-symlink")
+	assert.NilError(t, os.Symlink(realProjDir, projDir))
+
+	project := types.Project{
+		Name:       "myProject",
+		WorkingDir: projDir,
+		Services: types.Services{
+			types.ServiceConfig{
+				Name: "test",
+				Build: &types.BuildConfig{
+					Context: ".",
+				},
+			},
+		},
+	}
+
+	expected := types.Project{
+		Name:       "myProject",
+		WorkingDir: realProjDir,
+		Services: types.Services{
+			types.ServiceConfig{
+				Name: "test",
+				Build: &types.BuildConfig{
+					Context: realProjDir,
+				},
+			},
+		},
+	}
+	assert.NilError(t, ResolveRelativePaths(&project))
 	assert.DeepEqual(t, expected, project)
 }

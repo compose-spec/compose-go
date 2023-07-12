@@ -17,26 +17,34 @@
 package loader
 
 import (
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/compose-spec/compose-go/types"
 )
 
 // ResolveRelativePaths resolves relative paths based on project WorkingDirectory
 func ResolveRelativePaths(project *types.Project) error {
-	absWorkingDir, err := filepath.Abs(project.WorkingDir)
+	projDir, err := RealAbsPath("", project.WorkingDir)
 	if err != nil {
 		return err
 	}
-	project.WorkingDir = absWorkingDir
+	project.WorkingDir = projDir
 
-	absComposeFiles, err := absComposeFiles(project.ComposeFiles)
-	if err != nil {
-		return err
+	for i := range project.ComposeFiles {
+		// N.B. Relative Compose files paths are resolved based on the process
+		// current directory
+		p, err := RealAbsPath("", project.ComposeFiles[i])
+		if err != nil {
+			return err
+		}
+		project.ComposeFiles[i] = p
 	}
-	project.ComposeFiles = absComposeFiles
 
 	for i, s := range project.Services {
 		ResolveServiceRelativePaths(project.WorkingDir, &s)
@@ -45,22 +53,34 @@ func ResolveRelativePaths(project *types.Project) error {
 
 	for i, obj := range project.Configs {
 		if obj.File != "" {
-			obj.File = absPath(project.WorkingDir, obj.File)
+			p, err := RealAbsPath(project.WorkingDir, obj.File)
+			if err != nil {
+				return err
+			}
+			obj.File = p
 			project.Configs[i] = obj
 		}
 	}
 
 	for i, obj := range project.Secrets {
 		if obj.File != "" {
-			obj.File = resolveMaybeUnixPath(project.WorkingDir, obj.File)
+			p, err := RealAbsPath(project.WorkingDir, obj.File)
+			if err != nil {
+				return err
+			}
+			obj.File = p
 			project.Secrets[i] = obj
 		}
 	}
 
 	for name, config := range project.Volumes {
 		if config.Driver == "local" && config.DriverOpts["o"] == "bind" {
+			p, err := RealAbsPath(project.WorkingDir, config.DriverOpts["device"])
+			if err != nil {
+				return err
+			}
 			// This is actually a bind mount
-			config.DriverOpts["device"] = resolveMaybeUnixPath(project.WorkingDir, config.DriverOpts["device"])
+			config.DriverOpts["device"] = p
 			project.Volumes[name] = config
 		}
 	}
@@ -72,9 +92,10 @@ func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
 		// Build context might be a remote http/git context. Unfortunately supported "remote"
 		// syntax is highly ambiguous in moby/moby and not defined by compose-spec,
 		// so let's assume runtime will check
-		localContext := absPath(workingDir, s.Build.Context)
-		if _, err := os.Stat(localContext); err == nil {
-			s.Build.Context = localContext
+		if localContext, err := RealAbsPath(workingDir, s.Build.Context); err == nil {
+			if _, err := os.Stat(localContext); err == nil {
+				s.Build.Context = localContext
+			}
 		}
 		for name, path := range s.Build.AdditionalContexts {
 			if strings.Contains(path, "://") { // `docker-image://` or any builder specific context type
@@ -83,48 +104,77 @@ func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
 			if isRemoteContext(path) {
 				continue
 			}
-			path = absPath(workingDir, path)
-			if _, err := os.Stat(path); err == nil {
-				s.Build.AdditionalContexts[name] = path
+			if path, err := RealAbsPath(workingDir, path); err == nil {
+				if _, err := os.Stat(path); err == nil {
+					s.Build.AdditionalContexts[name] = path
+				}
 			}
 		}
 	}
 	for j, f := range s.EnvFile {
-		s.EnvFile[j] = absPath(workingDir, f)
+		p, err := RealAbsPath(workingDir, f)
+		if err == nil {
+			s.EnvFile[j] = p
+		}
 	}
 
 	if s.Extends != nil && s.Extends.File != "" {
-		s.Extends.File = absPath(workingDir, s.Extends.File)
+		p, err := RealAbsPath(workingDir, s.Extends.File)
+		if err == nil {
+			s.Extends.File = p
+		}
 	}
 
 	for i, vol := range s.Volumes {
 		if vol.Type != types.VolumeTypeBind {
 			continue
 		}
-		s.Volumes[i].Source = resolveMaybeUnixPath(workingDir, vol.Source)
-	}
-}
-
-func absPath(workingDir string, filePath string) string {
-	if strings.HasPrefix(filePath, "~") {
-		home, _ := os.UserHomeDir()
-		return filepath.Join(home, filePath[1:])
-	}
-	if filepath.IsAbs(filePath) {
-		return filePath
-	}
-	return filepath.Join(workingDir, filePath)
-}
-
-func absComposeFiles(composeFiles []string) ([]string, error) {
-	for i, composeFile := range composeFiles {
-		absComposefile, err := filepath.Abs(composeFile)
-		if err != nil {
-			return nil, err
+		p, err := resolveMaybeUnixPath(workingDir, vol.Source)
+		if err == nil {
+			s.Volumes[i].Source = p
 		}
-		composeFiles[i] = absComposefile
 	}
-	return composeFiles, nil
+}
+
+// RealAbsPath attempts to resolve symlinks and determine the absolute, canonical path.
+//
+// Requires that the path exists or an error will be returned.
+func RealAbsPath(basePath string, path string) (string, error) {
+	path, err := expandUser(path)
+	if err != nil {
+		return "", err
+	}
+
+	if pathRelToHome, ok := strings.CutPrefix(path, "~"); ok {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		path = filepath.Join(home, pathRelToHome)
+	}
+
+	var absPath string
+	switch {
+	case filepath.IsAbs(path):
+		absPath = filepath.Clean(path)
+	case basePath != "":
+		absPath = filepath.Join(basePath, path)
+	default:
+		var err error
+		absPath, err = filepath.Abs(path)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	realPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return absPath, nil
+		}
+		return "", err
+	}
+	return realPath, nil
 }
 
 func isRemoteContext(maybeURL string) bool {
@@ -134,4 +184,15 @@ func isRemoteContext(maybeURL string) bool {
 		}
 	}
 	return false
+}
+
+func expandUser(path string) (string, error) {
+	if pathRelToHome, ok := strings.CutPrefix(path, "~"); ok {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("cannot expand '~': %v", err)
+		}
+		path = filepath.Join(home, pathRelToHome)
+	}
+	return path, nil
 }

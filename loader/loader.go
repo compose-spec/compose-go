@@ -713,7 +713,10 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 			}
 		} else {
 			// Resolve the path to the imported file, and load it.
-			baseFilePath := absPath(workingDir, file)
+			baseFilePath, err := RealAbsPath(workingDir, file)
+			if err != nil {
+				return nil, err
+			}
 
 			b, err := os.ReadFile(baseFilePath)
 			if err != nil {
@@ -790,8 +793,11 @@ func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConf
 	return volume
 }
 
-func resolveMaybeUnixPath(workingDir string, path string) string {
-	filePath := expandUser(path)
+func resolveMaybeUnixPath(workingDir string, path string) (string, error) {
+	filePath, err := expandUser(path)
+	if err != nil {
+		return "", err
+	}
 	// Check if source is an absolute path (either Unix or Windows), to
 	// handle a Windows client with a Unix daemon or vice-versa.
 	//
@@ -799,22 +805,13 @@ func resolveMaybeUnixPath(workingDir string, path string) string {
 	// a local Windows path, because Docker for Windows translates the Windows
 	// path into a valid path within the VM.
 	if !paths.IsAbs(filePath) && !isAbs(filePath) {
-		filePath = absPath(workingDir, filePath)
-	}
-	return filePath
-}
-
-// TODO: make this more robust
-func expandUser(path string) string {
-	if strings.HasPrefix(path, "~") {
-		home, err := os.UserHomeDir()
+		var err error
+		filePath, err = RealAbsPath(workingDir, filePath)
 		if err != nil {
-			logrus.Warn("cannot expand '~', because the environment lacks HOME")
-			return path
+			return "", err
 		}
-		return filepath.Join(home, path[1:])
 	}
-	return path
+	return filePath, nil
 }
 
 func transformUlimits(data interface{}) (interface{}, error) {
