@@ -57,6 +57,9 @@ func Normalize(project *types.Project) error {
 		}
 
 		if s.Build != nil {
+			if s.Build.Context == "" {
+				s.Build.Context = "."
+			}
 			if s.Build.Dockerfile == "" && s.Build.DockerfileInline == "" {
 				s.Build.Dockerfile = "Dockerfile"
 			}
@@ -72,6 +75,7 @@ func Normalize(project *types.Project) error {
 			s.DependsOn = setIfMissing(s.DependsOn, link, types.ServiceDependency{
 				Condition: types.ServiceConditionStarted,
 				Restart:   true,
+				Required:  true,
 			})
 		}
 
@@ -81,6 +85,7 @@ func Normalize(project *types.Project) error {
 				s.DependsOn = setIfMissing(s.DependsOn, name, types.ServiceDependency{
 					Condition: types.ServiceConditionStarted,
 					Restart:   true,
+					Required:  true,
 				})
 			}
 		}
@@ -91,6 +96,7 @@ func Normalize(project *types.Project) error {
 				s.DependsOn = setIfMissing(s.DependsOn, spec[0], types.ServiceDependency{
 					Condition: types.ServiceConditionStarted,
 					Restart:   false,
+					Required:  true,
 				})
 			}
 		}
@@ -175,6 +181,7 @@ func inferImplicitDependencies(service *types.ServiceConfig) {
 		if _, ok := service.DependsOn[d]; !ok {
 			service.DependsOn[d] = types.ServiceDependency{
 				Condition: types.ServiceConditionStarted,
+				Required:  true,
 			}
 		}
 	}

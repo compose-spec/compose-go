@@ -3,11 +3,12 @@ package dotenv
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gotest.tools/v3/assert"
 )
 
 var noopPresets = make(map[string]string)
@@ -15,9 +16,7 @@ var noopPresets = make(map[string]string)
 func parseAndCompare(t *testing.T, rawEnvLine string, expectedKey string, expectedValue string) {
 	t.Helper()
 	env, err := Parse(strings.NewReader(rawEnvLine))
-	if !assert.NoError(t, err) {
-		return
-	}
+	assert.NilError(t, err)
 	actualValue, ok := env[expectedKey]
 	if !ok {
 		t.Errorf("Key %q was not found in env: %v", expectedKey, env)
@@ -395,6 +394,7 @@ func TestParsing(t *testing.T) {
 	parseAndCompare(t, `FOO="bar\n\ b\az"`, "FOO", "bar\n\\ b\az")
 	parseAndCompare(t, `FOO="bar\\\n\ b\az"`, "FOO", "bar\\\n\\ b\az")
 	parseAndCompare(t, `FOO="bar\\r\ b\az"`, "FOO", "bar\\r\\ b\az")
+	parseAndCompare(t, `FOO="bar\nbaz\\"`, "FOO", "bar\nbaz\\")
 
 	parseAndCompare(t, `="value"`, "", "value")
 
@@ -694,4 +694,17 @@ func TestDash(t *testing.T) {
 		"VAR.WITH.DOTS":        "dots",
 		"VAR_WITH_UNDERSCORES": "underscores",
 	}, noopPresets)
+}
+
+func TestGetEnvFromFile(t *testing.T) {
+	wd := t.TempDir()
+	f := filepath.Join(wd, ".env")
+	err := os.Mkdir(f, 0o700)
+	assert.NilError(t, err)
+
+	_, err = GetEnvFromFile(nil, wd, nil)
+	assert.NilError(t, err)
+
+	_, err = GetEnvFromFile(nil, wd, []string{f})
+	assert.Check(t, strings.HasSuffix(err.Error(), ".env is a directory"))
 }

@@ -1933,8 +1933,9 @@ func TestLoadWithExtends(t *testing.T) {
 
 	expServices := types.Services{
 		{
-			Name:  "importer",
-			Image: "nginx",
+			Name:          "importer",
+			Image:         "nginx",
+			ContainerName: "imported",
 			Environment: types.MappingWithEquals{
 				"SOURCE": strPtr("extends"),
 			},
@@ -2397,6 +2398,102 @@ services:
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
 			Scale:       1,
+		},
+	})
+}
+
+func TestLoadWithInclude(t *testing.T) {
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	p, err := Load(buildConfigDetails(`
+name: 'test-include'
+
+include:
+  - path: ./testdata/subdir/compose-test-extends-imported.yaml
+    env_file: ./testdata/subdir/extra.env
+
+services:
+  foo:
+    image: busybox
+    depends_on:
+      - imported
+`, nil), func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+	})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services, types.Services{
+		{
+			Name:        "foo",
+			Image:       "busybox",
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+			DependsOn:   types.DependsOnConfig{"imported": {Condition: "service_started", Required: true}},
+		},
+		{
+			Name:          "imported",
+			ContainerName: "imported",
+			Environment:   types.MappingWithEquals{"SOURCE": strPtr("extends")},
+			EnvFile: types.StringList{
+				filepath.Join(workingDir, "testdata", "subdir", "extra.env"),
+			},
+			Image: "nginx",
+			Scale: 1,
+			Volumes: []types.ServiceVolumeConfig{
+				{
+					Type:   "bind",
+					Source: "/opt/data",
+					Target: "/var/lib/mysql",
+					Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				},
+			},
+		},
+	})
+	assert.NilError(t, err)
+}
+
+func TestLoadWithIncludeCycle(t *testing.T) {
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	_, err = Load(types.ConfigDetails{
+		WorkingDir: filepath.Join(workingDir, "testdata"),
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: filepath.Join(workingDir, "testdata", "compose-include.yaml"),
+			},
+		},
+	})
+	assert.Check(t, strings.HasPrefix(err.Error(), "include cycle detected"))
+}
+
+func TestLoadWithDependsOn(t *testing.T) {
+	p, err := loadYAML(`
+name: test-depends-on
+services:
+  foo:
+    image: nginx
+    depends_on:
+      bar:
+        condition: service_started
+      baz:
+        condition: service_healthy
+        required: false
+      qux:
+        condition: service_completed_successfully
+        required: true
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services, types.Services{
+		{
+			Name:        "foo",
+			Image:       "nginx",
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+			DependsOn: types.DependsOnConfig{
+				"bar": {Condition: types.ServiceConditionStarted, Required: true},
+				"baz": {Condition: types.ServiceConditionHealthy, Required: false},
+				"qux": {Condition: types.ServiceConditionCompletedSuccessfully, Required: true},
+			},
 		},
 	})
 }

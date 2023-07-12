@@ -1434,3 +1434,56 @@ services:
 		Environment: map[string]string{consts.ComposeProjectName: "test"},
 	}, config)
 }
+
+func TestMergeExpose(t *testing.T) {
+	base := `
+name: test
+services:
+  foo:
+    image: foo
+    expose:
+      - "8080"
+      - "8081"
+      - "8082"
+      - "8083"
+      - "8084"
+`
+	override := `
+services:
+  foo:
+    image: foo
+    expose:
+      - "8090"
+      - "8091"
+      - "8082"
+      - "8081"
+`
+	configDetails := types.ConfigDetails{
+		Environment: map[string]string{},
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "base.yml", Content: []byte(base)},
+			{Filename: "override.yml", Content: []byte(override)},
+		},
+	}
+	config, err := loadTestProject(configDetails)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, &types.Project{
+		Name:       "test",
+		WorkingDir: "",
+		Services: []types.ServiceConfig{
+			{
+				Name:        "foo",
+				Image:       "foo",
+				Environment: types.MappingWithEquals{},
+				Expose:      types.StringOrNumberList{"8080", "8081", "8082", "8083", "8084", "8090", "8091"},
+				Scale:       1,
+			},
+		},
+		Networks:    types.Networks{},
+		Volumes:     types.Volumes{},
+		Secrets:     types.Secrets{},
+		Configs:     types.Configs{},
+		Extensions:  types.Extensions{},
+		Environment: map[string]string{consts.ComposeProjectName: "test"},
+	}, config)
+}

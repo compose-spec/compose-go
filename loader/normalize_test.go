@@ -133,6 +133,7 @@ func TestNormalizeDependsOn(t *testing.T) {
 					"bar": { // explicit depends_on never should be overridden
 						Condition: types.ServiceConditionHealthy,
 						Restart:   false,
+						Required:  true,
 					},
 				},
 				NetworkMode: "service:zot",
@@ -156,6 +157,7 @@ services:
     depends_on:
       zot:
         condition: service_started
+        required: true
     networks:
       default: null
     volumes_from:
@@ -165,9 +167,11 @@ services:
     depends_on:
       bar:
         condition: service_healthy
+        required: true
       zot:
         condition: service_started
         restart: true
+        required: true
     network_mode: service:zot
   zot:
     networks:
@@ -197,21 +201,35 @@ func TestNormalizeImplicitDependencies(t *testing.T) {
 				Links:       []string{"corge"},
 				DependsOn: map[string]types.ServiceDependency{
 					// explicit dependency MUST not be overridden
-					"foo": {Condition: types.ServiceConditionHealthy, Restart: false},
+					"foo": {Condition: types.ServiceConditionHealthy, Restart: false, Required: true},
 				},
 			},
 		},
 	}
 
 	expected := types.DependsOnConfig{
-		"foo":   {Condition: types.ServiceConditionHealthy, Restart: false},
-		"bar":   {Condition: types.ServiceConditionStarted, Restart: true},
-		"baz":   {Condition: types.ServiceConditionStarted, Restart: true},
-		"qux":   {Condition: types.ServiceConditionStarted, Restart: true},
-		"quux":  {Condition: types.ServiceConditionStarted},
-		"corge": {Condition: types.ServiceConditionStarted, Restart: true},
+		"foo":   {Condition: types.ServiceConditionHealthy, Restart: false, Required: true},
+		"bar":   {Condition: types.ServiceConditionStarted, Restart: true, Required: true},
+		"baz":   {Condition: types.ServiceConditionStarted, Restart: true, Required: true},
+		"qux":   {Condition: types.ServiceConditionStarted, Restart: true, Required: true},
+		"quux":  {Condition: types.ServiceConditionStarted, Required: true},
+		"corge": {Condition: types.ServiceConditionStarted, Restart: true, Required: true},
 	}
 	err := Normalize(&project)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expected, project.Services[0].DependsOn)
+}
+
+func TestImplicitContextPath(t *testing.T) {
+	project := &types.Project{
+		Name: "myProject",
+		Services: types.Services{
+			types.ServiceConfig{
+				Name:  "test",
+				Build: &types.BuildConfig{},
+			},
+		},
+	}
+	assert.NilError(t, Normalize(project))
+	assert.Equal(t, ".", project.Services[0].Build.Context)
 }
