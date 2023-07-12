@@ -26,6 +26,12 @@ import (
 
 // ResolveRelativePaths resolves relative paths based on project WorkingDirectory
 func ResolveRelativePaths(project *types.Project) error {
+	absWorkingDir, err := filepath.Abs(project.WorkingDir)
+	if err != nil {
+		return err
+	}
+	project.WorkingDir = absWorkingDir
+
 	absComposeFiles, err := absComposeFiles(project.ComposeFiles)
 	if err != nil {
 		return err

@@ -18,7 +18,6 @@ package loader
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/compose-spec/compose-go/types"
@@ -103,7 +102,6 @@ func TestNormalizeVolumes(t *testing.T) {
 		},
 	}
 
-	absCwd, _ := filepath.Abs(".")
 	expected := types.Project{
 		Name:     "myProject",
 		Networks: types.Networks{"default": {Name: "myProject_default"}},
@@ -117,7 +115,6 @@ func TestNormalizeVolumes(t *testing.T) {
 				Name: "CustomName",
 			},
 		},
-		WorkingDir: absCwd,
 	}
 	err := Normalize(&project)
 	assert.NilError(t, err)
