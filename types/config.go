@@ -35,6 +35,7 @@ type ConfigDetails struct {
 	WorkingDir  string
 	ConfigFiles []ConfigFile
 	Environment map[string]string
+	HomeDir     string
 }
 
 // LookupEnv provides a lookup function for environment variables

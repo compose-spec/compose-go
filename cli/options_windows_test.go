@@ -17,25 +17,35 @@
 package cli
 
 import (
-	"os"
+	"path"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
 )
 
 func TestConvertWithEnvVar(t *testing.T) {
-	os.Setenv("COMPOSE_CONVERT_WINDOWS_PATHS", "1")
-	defer os.Unsetenv("COMPOSE_CONVERT_WINDOWS_PATHS")
-	opts, _ := NewProjectOptions([]string{"testdata/simple/compose-with-paths.yaml"},
+	workdir, err := filepath.EvalSymlinks(t.TempDir())
+	assert.NilError(t, err)
+	if !strings.HasPrefix(workdir, "C:\\") {
+		t.Skip("Test assumes C: as drive")
+	}
+
+	t.Setenv("COMPOSE_CONVERT_WINDOWS_PATHS", "1")
+	opts, err := NewProjectOptions([]string{"testdata/simple/compose-with-paths.yaml"},
 		WithOsEnv,
-		WithWorkingDirectory("C:\\project-dir\\"),
+		WithWorkingDirectory(workdir),
 		WithResolvedPaths(true))
+	assert.NilError(t, err)
 
 	p, err := ProjectFromOptions(opts)
 
 	assert.NilError(t, err)
 	assert.Equal(t, len(p.Services[0].Volumes), 3)
 	assert.Equal(t, p.Services[0].Volumes[0].Source, "/c/docker/project")
-	assert.Equal(t, p.Services[0].Volumes[1].Source, "/c/project-dir/relative")
-	assert.Equal(t, p.Services[0].Volumes[2].Source, "/c/project-dir/relative2")
+
+	unixStyleWorkdir := filepath.ToSlash("/c/" + strings.TrimPrefix(workdir, "C:\\"))
+	assert.Equal(t, p.Services[0].Volumes[1].Source, path.Join(unixStyleWorkdir, "relative"))
+	assert.Equal(t, p.Services[0].Volumes[2].Source, path.Join(unixStyleWorkdir, "relative2"))
 }

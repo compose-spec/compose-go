@@ -69,6 +69,7 @@ func loadInclude(configDetails types.ConfigDetails, model *types.Config, options
 			WorkingDir:  r.ProjectDirectory,
 			ConfigFiles: types.ToConfigFiles(r.Path),
 			Environment: env,
+			HomeDir:     configDetails.HomeDir,
 		}, loadOptions, loaded)
 		if err != nil {
 			return nil, err

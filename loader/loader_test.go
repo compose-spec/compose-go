@@ -52,6 +52,7 @@ func buildConfigDetailsMultipleFiles(env map[string]string, yamls ...string) typ
 		WorkingDir:  workingDir,
 		ConfigFiles: buildConfigFiles(yamls),
 		Environment: env,
+		HomeDir:     env["HOME"],
 	}
 }
 
@@ -1988,10 +1989,6 @@ func TestLoadWithExtends(t *testing.T) {
 	assert.NilError(t, err)
 
 	extendsDir := filepath.Join("testdata", "subdir")
-
-	expectedEnvFilePath, err := filepath.Abs(filepath.Join(extendsDir, "extra.env"))
-	assert.NilError(t, err)
-
 	expServices := types.Services{
 		{
 			Name:          "importer",
@@ -2000,7 +1997,7 @@ func TestLoadWithExtends(t *testing.T) {
 			Environment: types.MappingWithEquals{
 				"SOURCE": strPtr("extends"),
 			},
-			EnvFile:  []string{expectedEnvFilePath},
+			EnvFile:  []string{filepath.Join(extendsDir, "extra.env")},
 			Networks: map[string]*types.ServiceNetworkConfig{"default": nil},
 			Volumes: []types.ServiceVolumeConfig{{
 				Type:   "bind",

@@ -311,7 +311,7 @@ func load(configDetails types.ConfigDetails, opts *Options, loaded []string) (*t
 	}
 
 	if opts.ResolvePaths {
-		err := ResolveRelativePaths(project)
+		err := ResolveRelativePathsWithHomeDir(project, configDetails.HomeDir)
 		if err != nil {
 			return nil, err
 		}
@@ -454,6 +454,10 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 }
 
 func loadSections(filename string, config map[string]interface{}, configDetails types.ConfigDetails, opts *Options) (*types.Config, error) {
+	pathResolver := ProjectPathResolver{
+		ProjectDir: configDetails.WorkingDir,
+		HomeDir:    configDetails.HomeDir,
+	}
 	var err error
 	cfg := types.Config{
 		Filename: filename,
@@ -466,7 +470,7 @@ func loadSections(filename string, config map[string]interface{}, configDetails 
 		}
 	}
 	cfg.Name = name
-	cfg.Services, err = LoadServices(filename, getSection(config, "services"), configDetails.WorkingDir, configDetails.LookupEnv, opts)
+	cfg.Services, err = LoadServices(filename, getSection(config, "services"), pathResolver, configDetails.LookupEnv, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -659,7 +663,7 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 
 // LoadServices produces a ServiceConfig map from a compose file Dict
 // the servicesDict is not validated if directly used. Use Load() to enable validation
-func LoadServices(filename string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options) ([]types.ServiceConfig, error) {
+func LoadServices(filename string, servicesDict map[string]interface{}, pathResolver ProjectPathResolver, lookupEnv template.Mapping, opts *Options) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
 	x, ok := servicesDict[extensions]
@@ -672,7 +676,7 @@ func LoadServices(filename string, servicesDict map[string]interface{}, workingD
 	}
 
 	for name := range servicesDict {
-		serviceConfig, err := loadServiceWithExtends(filename, name, servicesDict, workingDir, lookupEnv, opts, &cycleTracker{})
+		serviceConfig, err := loadServiceWithExtends(filename, name, servicesDict, pathResolver, lookupEnv, opts, &cycleTracker{})
 		if err != nil {
 			return nil, err
 		}
@@ -683,7 +687,7 @@ func LoadServices(filename string, servicesDict map[string]interface{}, workingD
 	return services, nil
 }
 
-func loadServiceWithExtends(filename, name string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options, ct *cycleTracker) (*types.ServiceConfig, error) {
+func loadServiceWithExtends(filename, name string, servicesDict map[string]interface{}, pathResolver ProjectPathResolver, lookupEnv template.Mapping, opts *Options, ct *cycleTracker) (*types.ServiceConfig, error) {
 	if err := ct.Add(filename, name); err != nil {
 		return nil, err
 	}
@@ -707,14 +711,13 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 		var baseService *types.ServiceConfig
 		file := serviceConfig.Extends.File
 		if file == "" {
-			baseService, err = loadServiceWithExtends(filename, baseServiceName, servicesDict, workingDir, lookupEnv, opts, ct)
+			baseService, err = loadServiceWithExtends(filename, baseServiceName, servicesDict, pathResolver, lookupEnv, opts, ct)
 			if err != nil {
 				return nil, err
 			}
 		} else {
 			// Resolve the path to the imported file, and load it.
-			baseFilePath := absPath(workingDir, file)
-
+			baseFilePath := pathResolver.Resolve(file)
 			b, err := os.ReadFile(baseFilePath)
 			if err != nil {
 				return nil, err
@@ -725,19 +728,23 @@ func loadServiceWithExtends(filename, name string, servicesDict map[string]inter
 				return nil, err
 			}
 
+			basePathResolver := ProjectPathResolver{
+				// Make paths from the loaded file be relative in the same
+				// way that `extends.file` is
+				//
+				// For example: with extends.file: ./a/compose.yaml means
+				// the project dir will be `./a`.
+				// If `./a/compose.yaml` has a service with a relative
+				// path of `.`, this should become `./a` in the loaded service.
+				ProjectDir: filepath.Dir(file),
+				HomeDir:    pathResolver.HomeDir,
+			}
 			baseFileServices := getSection(baseFile, "services")
-			baseService, err = loadServiceWithExtends(baseFilePath, baseServiceName, baseFileServices, filepath.Dir(baseFilePath), lookupEnv, opts, ct)
+			baseService, err = loadServiceWithExtends(baseFilePath, baseServiceName, baseFileServices, basePathResolver, lookupEnv, opts, ct)
 			if err != nil {
 				return nil, err
 			}
-
-			// Make paths relative to the importing Compose file. Note that we
-			// make the paths relative to `file` rather than `baseFilePath` so
-			// that the resulting paths won't be absolute if `file` isn't an
-			// absolute path.
-
-			baseFileParent := filepath.Dir(file)
-			ResolveServiceRelativePaths(baseFileParent, baseService)
+			ResolveServiceRelativePaths(basePathResolver, baseService)
 		}
 
 		serviceConfig, err = _merge(baseService, serviceConfig)
@@ -788,33 +795,6 @@ func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConf
 
 	volume.Source = convertedSource
 	return volume
-}
-
-func resolveMaybeUnixPath(workingDir string, path string) string {
-	filePath := expandUser(path)
-	// Check if source is an absolute path (either Unix or Windows), to
-	// handle a Windows client with a Unix daemon or vice-versa.
-	//
-	// Note that this is not required for Docker for Windows when specifying
-	// a local Windows path, because Docker for Windows translates the Windows
-	// path into a valid path within the VM.
-	if !paths.IsAbs(filePath) && !isAbs(filePath) {
-		filePath = absPath(workingDir, filePath)
-	}
-	return filePath
-}
-
-// TODO: make this more robust
-func expandUser(path string) string {
-	if strings.HasPrefix(path, "~") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			logrus.Warn("cannot expand '~', because the environment lacks HOME")
-			return path
-		}
-		return filepath.Join(home, path[1:])
-	}
-	return path
 }
 
 func transformUlimits(data interface{}) (interface{}, error) {

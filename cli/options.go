@@ -75,6 +75,10 @@ type ProjectOptions struct {
 	// exist or an error will be returned during load.
 	EnvFiles []string
 
+	// HomeDir is the user's home directory to be used for resolving shell-style
+	// `~/foo` home-relative paths, which are supported by path fields in Compose.
+	HomeDir string
+
 	loadOptions []func(*loader.Options)
 }
 
@@ -116,11 +120,37 @@ func WithWorkingDirectory(wd string) ProjectOptionsFn {
 		if wd == "" {
 			return nil
 		}
-		abs, err := filepath.Abs(wd)
+		abs, err := RealAbsPath(wd)
 		if err != nil {
 			return err
 		}
 		o.WorkingDir = abs
+		return nil
+	}
+}
+
+// WithOsUserHomeDirectory sets the home directory based on os.UserHomeDir().
+func WithOsUserHomeDirectory(o *ProjectOptions) error {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	return WithHomeDirectory(homeDir)(o)
+}
+
+// WithHomeDirectory sets the home directory to a custom value.
+//
+// An error is returned if the path does not exist.
+func WithHomeDirectory(homeDir string) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		if homeDir == "" {
+			return nil
+		}
+		homeDir, err := RealAbsPath(homeDir)
+		if err != nil {
+			return err
+		}
+		o.HomeDir = homeDir
 		return nil
 	}
 }
@@ -136,7 +166,7 @@ func WithConfigFileEnv(o *ProjectOptions) error {
 	}
 	f, ok := o.Environment[consts.ComposeFilePath]
 	if ok {
-		paths, err := absolutePaths(strings.Split(f, sep))
+		paths, err := absoluteComposeFilePaths(strings.Split(f, sep))
 		o.ConfigPaths = paths
 		return err
 	}
@@ -307,20 +337,28 @@ var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.y
 // DefaultOverrideFileNames defines the Compose override file names for auto-discovery (in order of preference)
 var DefaultOverrideFileNames = []string{"compose.override.yml", "compose.override.yaml", "docker-compose.override.yml", "docker-compose.override.yaml"}
 
+// GetWorkingDir returns the absolute path to the project working directory.
 func (o ProjectOptions) GetWorkingDir() (string, error) {
-	if o.WorkingDir != "" {
-		return o.WorkingDir, nil
-	}
-	for _, path := range o.ConfigPaths {
-		if path != "-" {
-			absPath, err := filepath.Abs(path)
-			if err != nil {
-				return "", err
+	// explicitly defined takes precedence
+	workDir := o.WorkingDir
+	// otherwise, pick based on the first non-stdin config file
+	if workDir == "" {
+		for _, path := range o.ConfigPaths {
+			if path != "-" {
+				workDir = filepath.Dir(path)
+				break
 			}
-			return filepath.Dir(absPath), nil
 		}
 	}
-	return os.Getwd()
+	// fallback to OS working directory
+	if workDir == "" {
+		var err error
+		workDir, err = os.Getwd()
+		if err != nil {
+			return "", err
+		}
+	}
+	return RealAbsPath(workDir)
 }
 
 // ProjectFromOptions load a compose project based on command line options
@@ -339,10 +377,6 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 				return nil, err
 			}
 		} else {
-			f, err := filepath.Abs(f)
-			if err != nil {
-				return nil, err
-			}
 			b, err = os.ReadFile(f)
 			if err != nil {
 				return nil, err
@@ -358,19 +392,16 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 	if err != nil {
 		return nil, err
 	}
-	absWorkingDir, err := filepath.Abs(workingDir)
-	if err != nil {
-		return nil, err
-	}
 
 	options.loadOptions = append(options.loadOptions,
-		withNamePrecedenceLoad(absWorkingDir, options),
+		withNamePrecedenceLoad(workingDir, options),
 		withConvertWindowsPaths(options))
 
 	project, err := loader.Load(types.ConfigDetails{
 		ConfigFiles: configs,
 		WorkingDir:  workingDir,
 		Environment: options.Environment,
+		HomeDir:     options.HomeDir,
 	}, options.loadOptions...)
 	if err != nil {
 		return nil, err
@@ -406,7 +437,7 @@ func withConvertWindowsPaths(options *ProjectOptions) func(*loader.Options) {
 // getConfigPathsFromOptions retrieves the config files for project based on project options
 func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 	if len(options.ConfigPaths) != 0 {
-		return absolutePaths(options.ConfigPaths)
+		return absoluteComposeFilePaths(options.ConfigPaths)
 	}
 	return nil, errors.Wrap(errdefs.ErrNotFound, "no configuration file provided")
 }
@@ -422,19 +453,19 @@ func findFiles(names []string, pwd string) []string {
 	return candidates
 }
 
-func absolutePaths(p []string) ([]string, error) {
+// absoluteComposeFilePaths returns a slice of absolute paths for the input paths or an error
+// if any path cannot be resolved or does not exist.
+//
+// The special case of `-` is passed through as-is, which signifies stdin.
+func absoluteComposeFilePaths(p []string) ([]string, error) {
 	var paths []string
 	for _, f := range p {
 		if f == "-" {
 			paths = append(paths, f)
 			continue
 		}
-		abs, err := filepath.Abs(f)
+		f, err := RealAbsPath(f)
 		if err != nil {
-			return nil, err
-		}
-		f = abs
-		if _, err := os.Stat(f); err != nil {
 			return nil, err
 		}
 		paths = append(paths, f)

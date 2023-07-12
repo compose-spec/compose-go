@@ -18,41 +18,41 @@ package loader
 
 import (
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/compose-spec/compose-go/types"
 )
 
-// ResolveRelativePaths resolves relative paths based on project WorkingDirectory
+// ResolveRelativePaths resolves relative paths based on the project directory
+// and shell-style `~/foo` user-home relative paths.
 func ResolveRelativePaths(project *types.Project) error {
-	absWorkingDir, err := filepath.Abs(project.WorkingDir)
-	if err != nil {
-		return err
-	}
-	project.WorkingDir = absWorkingDir
+	homeDir, _ := os.UserHomeDir()
+	return ResolveRelativePathsWithHomeDir(project, homeDir)
+}
 
-	absComposeFiles, err := absComposeFiles(project.ComposeFiles)
-	if err != nil {
-		return err
+// ResolveRelativePathsWithHomeDir resolves relative paths based on the project directory
+// and shell-style `~/foo` user-home relative paths based on the homeDir.
+func ResolveRelativePathsWithHomeDir(project *types.Project, homeDir string) error {
+	ppr := ProjectPathResolver{
+		ProjectDir: project.WorkingDir,
+		HomeDir:    homeDir,
 	}
-	project.ComposeFiles = absComposeFiles
 
 	for i, s := range project.Services {
-		ResolveServiceRelativePaths(project.WorkingDir, &s)
+		ResolveServiceRelativePaths(ppr, &s)
 		project.Services[i] = s
 	}
 
 	for i, obj := range project.Configs {
 		if obj.File != "" {
-			obj.File = absPath(project.WorkingDir, obj.File)
+			obj.File = ppr.Resolve(obj.File)
 			project.Configs[i] = obj
 		}
 	}
 
 	for i, obj := range project.Secrets {
 		if obj.File != "" {
-			obj.File = resolveMaybeUnixPath(project.WorkingDir, obj.File)
+			obj.File = ppr.ResolveMaybeUnix(obj.File)
 			project.Secrets[i] = obj
 		}
 	}
@@ -60,17 +60,17 @@ func ResolveRelativePaths(project *types.Project) error {
 	for name, config := range project.Volumes {
 		if config.Driver == "local" && config.DriverOpts["o"] == "bind" {
 			// This is actually a bind mount
-			config.DriverOpts["device"] = resolveMaybeUnixPath(project.WorkingDir, config.DriverOpts["device"])
+			config.DriverOpts["device"] = ppr.ResolveMaybeUnix(config.DriverOpts["device"])
 			project.Volumes[name] = config
 		}
 	}
 	return nil
 }
 
-func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
+func ResolveServiceRelativePaths(r ProjectPathResolver, s *types.ServiceConfig) {
 	if s.Build != nil {
 		if !isRemoteContext(s.Build.Context) {
-			s.Build.Context = absPath(workingDir, s.Build.Context)
+			s.Build.Context = r.Resolve(s.Build.Context)
 		}
 		for name, path := range s.Build.AdditionalContexts {
 			if strings.Contains(path, "://") { // `docker-image://` or any builder specific context type
@@ -79,45 +79,23 @@ func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
 			if isRemoteContext(path) {
 				continue
 			}
-			s.Build.AdditionalContexts[name] = absPath(workingDir, path)
+			s.Build.AdditionalContexts[name] = r.Resolve(path)
 		}
 	}
-	for j, f := range s.EnvFile {
-		s.EnvFile[j] = absPath(workingDir, f)
+	for i := range s.EnvFile {
+		s.EnvFile[i] = r.Resolve(s.EnvFile[i])
 	}
 
 	if s.Extends != nil && s.Extends.File != "" {
-		s.Extends.File = absPath(workingDir, s.Extends.File)
+		s.Extends.File = r.Resolve(s.Extends.File)
 	}
 
 	for i, vol := range s.Volumes {
 		if vol.Type != types.VolumeTypeBind {
 			continue
 		}
-		s.Volumes[i].Source = resolveMaybeUnixPath(workingDir, vol.Source)
+		s.Volumes[i].Source = r.ResolveMaybeUnix(vol.Source)
 	}
-}
-
-func absPath(workingDir string, filePath string) string {
-	if strings.HasPrefix(filePath, "~") {
-		home, _ := os.UserHomeDir()
-		return filepath.Join(home, filePath[1:])
-	}
-	if filepath.IsAbs(filePath) {
-		return filePath
-	}
-	return filepath.Join(workingDir, filePath)
-}
-
-func absComposeFiles(composeFiles []string) ([]string, error) {
-	for i, composeFile := range composeFiles {
-		absComposefile, err := filepath.Abs(composeFile)
-		if err != nil {
-			return nil, err
-		}
-		composeFiles[i] = absComposefile
-	}
-	return composeFiles, nil
 }
 
 // isRemoteContext returns true if the value is a Git reference or HTTP(S) URL.

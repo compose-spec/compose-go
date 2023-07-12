@@ -65,10 +65,13 @@ func TestProjectName(t *testing.T) {
 	})
 
 	t.Run("by name empty working dir", func(t *testing.T) {
+		tmpdir := t.TempDir()
+		wd := filepath.Join(tmpdir, "proj")
+		assert.NilError(t, os.Mkdir(wd, 0o700))
 		opts, err := NewProjectOptions(
 			[]string{"testdata/simple/compose.yaml"},
 			WithName(""),
-			WithWorkingDirectory("/path/to/proj"),
+			WithWorkingDirectory(wd),
 		)
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
