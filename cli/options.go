@@ -17,6 +17,7 @@
 package cli
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -35,6 +36,8 @@ import (
 
 // ProjectOptions provides common configuration for loading a project.
 type ProjectOptions struct {
+	ctx context.Context
+
 	// Name is a valid Compose project name to be used or empty.
 	//
 	// If empty, the project loader will automatically infer a reasonable
@@ -301,6 +304,24 @@ func WithResolvedPaths(resolve bool) ProjectOptionsFn {
 	}
 }
 
+// WithContext sets the context used to load model and resources
+func WithContext(ctx context.Context) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.ctx = ctx
+		return nil
+	}
+}
+
+// WithResourceLoader register support for ResourceLoader to manage remote resources
+func WithResourceLoader(r loader.ResourceLoader) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
+			options.ResourceLoaders = append(options.ResourceLoaders, r)
+		})
+		return nil
+	}
+}
+
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
 var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
 
@@ -367,7 +388,12 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		withNamePrecedenceLoad(absWorkingDir, options),
 		withConvertWindowsPaths(options))
 
-	project, err := loader.Load(types.ConfigDetails{
+	ctx := options.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	project, err := loader.LoadWithContext(ctx, types.ConfigDetails{
 		ConfigFiles: configs,
 		WorkingDir:  workingDir,
 		Environment: options.Environment,

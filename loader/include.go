@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
@@ -43,12 +44,20 @@ var transformIncludeConfig TransformerFunc = func(data interface{}) (interface{}
 	}
 }
 
-func loadInclude(configDetails types.ConfigDetails, model *types.Config, options *Options, loaded []string) (*types.Config, error) {
+func loadInclude(ctx context.Context, configDetails types.ConfigDetails, model *types.Config, options *Options, loaded []string) (*types.Config, error) {
 	for _, r := range model.Include {
 		for i, p := range r.Path {
-			if !filepath.IsAbs(p) {
-				r.Path[i] = filepath.Join(configDetails.WorkingDir, p)
+			for _, loader := range options.ResourceLoaders {
+				if loader.Accept(p) {
+					path, err := loader.Load(ctx, p)
+					if err != nil {
+						return nil, err
+					}
+					p = path
+					break
+				}
 			}
+			r.Path[i] = absPath(configDetails.WorkingDir, p)
 		}
 		if r.ProjectDirectory == "" {
 			r.ProjectDirectory = filepath.Dir(r.Path[0])
@@ -65,7 +74,7 @@ func loadInclude(configDetails types.ConfigDetails, model *types.Config, options
 			return nil, err
 		}
 
-		imported, err := load(types.ConfigDetails{
+		imported, err := load(ctx, types.ConfigDetails{
 			WorkingDir:  r.ProjectDirectory,
 			ConfigFiles: types.ToConfigFiles(r.Path),
 			Environment: env,
