@@ -195,11 +195,12 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				"x-foo": "bar",
 			},
 			HealthCheck: &types.HealthCheckConfig{
-				Test:        types.HealthCheckTest([]string{"CMD-SHELL", "echo \"hello world\""}),
-				Interval:    durationPtr(10 * time.Second),
-				Timeout:     durationPtr(1 * time.Second),
-				Retries:     uint64Ptr(5),
-				StartPeriod: durationPtr(15 * time.Second),
+				Test:          types.HealthCheckTest([]string{"CMD-SHELL", "echo \"hello world\""}),
+				Interval:      durationPtr(10 * time.Second),
+				Timeout:       durationPtr(1 * time.Second),
+				Retries:       uint64Ptr(5),
+				StartPeriod:   durationPtr(15 * time.Second),
+				StartInterval: durationPtr(5 * time.Second),
 			},
 			Hostname: "foo",
 			Image:    "redis",
@@ -751,6 +752,7 @@ services:
       interval: 10s
       retries: 5
       start_period: 15s
+      start_interval: 5s
     image: redis
     ipc: host
     labels:
@@ -1358,7 +1360,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "timeout": "1s",
         "interval": "10s",
         "retries": 5,
-        "start_period": "15s"
+        "start_period": "15s",
+        "start_interval": "5s"
       },
       "image": "redis",
       "ipc": "host",
