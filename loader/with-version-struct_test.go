@@ -17,6 +17,8 @@
 package loader
 
 import (
+	"path/filepath"
+
 	"github.com/compose-spec/compose-go/types"
 )
 
@@ -29,12 +31,13 @@ func withVersionExampleConfig() *types.Config {
 }
 
 func withVersionServices() []types.ServiceConfig {
+	buildCtx, _ := filepath.Abs("./Dockerfile")
 	return []types.ServiceConfig{
 		{
 			Name: "web",
 
 			Build: &types.BuildConfig{
-				Context: "./Dockerfile",
+				Context: buildCtx,
 			},
 			Environment: types.MappingWithEquals{},
 			Networks: map[string]*types.ServiceNetworkConfig{
