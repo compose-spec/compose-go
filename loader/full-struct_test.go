@@ -60,7 +60,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				Target:             "foo",
 				Network:            "foo",
 				CacheFrom:          []string{"foo", "bar"},
-				AdditionalContexts: types.Mapping{"foo": "/bar"},
+				AdditionalContexts: types.Mapping{"foo": filepath.Join(workingDir, "bar")},
 				Labels:             map[string]string{"FOO": "BAR"},
 				Secrets: []types.ServiceSecretConfig{
 					{
@@ -619,7 +619,7 @@ services:
         - foo
         - bar
       additional_contexts:
-        foo: /bar
+        foo: %s
       network: foo
       target: foo
       secrets:
@@ -1041,6 +1041,7 @@ x-nested:
 `,
 		workingDir,
 		filepath.Join(workingDir, "dir"),
+		filepath.Join(workingDir, "bar"),
 		filepath.Join(workingDir, "example1.env"),
 		filepath.Join(workingDir, "example2.env"),
 		workingDir,
@@ -1152,7 +1153,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
   "services": {
     "bar": {
       "build": {
-        "context": %q,
+        "context": "%s",
         "dockerfile_inline": "FROM alpine\nRUN echo \"hello\" \u003e /world.txt\n"
       },
       "command": null,
@@ -1163,7 +1164,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "com.example.foo": "bar"
       },
       "build": {
-        "context": %q,
+        "context": "%s",
         "dockerfile": "Dockerfile",
         "args": {
           "foo": "bar"
@@ -1179,7 +1180,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
           "bar"
         ],
         "additional_contexts": {
-          "foo": "/bar"
+          "foo": "%s"
         },
         "network": "foo",
         "target": "foo",
@@ -1690,6 +1691,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
 		toPath(workingDir, "secret_data"),
 		toPath(workingDir),
 		toPath(workingDir, "dir"),
+		toPath(workingDir, "bar"),
 		toPath(workingDir, "example1.env"),
 		toPath(workingDir, "example2.env"),
 		toPath(workingDir),

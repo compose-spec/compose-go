@@ -84,6 +84,7 @@ func TestResolveBuildContextPaths(t *testing.T) {
 
 func TestResolveAdditionalContexts(t *testing.T) {
 	wd, _ := filepath.Abs(".")
+	absSubdir := filepath.Join(wd, "dir")
 	project := types.Project{
 		Name:       "myProject",
 		WorkingDir: wd,
@@ -96,7 +97,7 @@ func TestResolveAdditionalContexts(t *testing.T) {
 					AdditionalContexts: map[string]string{
 						"image":    "docker-image://foo",
 						"oci":      "oci-layout://foo",
-						"abs_path": "/tmp",
+						"abs_path": absSubdir,
 						"github":   "github.com/compose-spec/compose-go",
 						"rel_path": "./testdata",
 					},
@@ -117,7 +118,7 @@ func TestResolveAdditionalContexts(t *testing.T) {
 					AdditionalContexts: map[string]string{
 						"image":    "docker-image://foo",
 						"oci":      "oci-layout://foo",
-						"abs_path": "/tmp",
+						"abs_path": absSubdir,
 						"github":   "github.com/compose-spec/compose-go",
 						"rel_path": filepath.Join(wd, "testdata"),
 					},
