@@ -603,12 +603,13 @@ type DeployConfig struct {
 
 // HealthCheckConfig the healthcheck configuration for a service
 type HealthCheckConfig struct {
-	Test        HealthCheckTest `yaml:"test,omitempty" json:"test,omitempty"`
-	Timeout     *Duration       `yaml:"timeout,omitempty" json:"timeout,omitempty"`
-	Interval    *Duration       `yaml:"interval,omitempty" json:"interval,omitempty"`
-	Retries     *uint64         `yaml:"retries,omitempty" json:"retries,omitempty"`
-	StartPeriod *Duration       `yaml:"start_period,omitempty" json:"start_period,omitempty"`
-	Disable     bool            `yaml:"disable,omitempty" json:"disable,omitempty"`
+	Test          HealthCheckTest `yaml:"test,omitempty" json:"test,omitempty"`
+	Timeout       *Duration       `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+	Interval      *Duration       `yaml:"interval,omitempty" json:"interval,omitempty"`
+	Retries       *uint64         `yaml:"retries,omitempty" json:"retries,omitempty"`
+	StartPeriod   *Duration       `yaml:"start_period,omitempty" json:"start_period,omitempty"`
+	StartInterval *Duration       `yaml:"start_interval,omitempty" json:"start_interval,omitempty"`
+	Disable       bool            `yaml:"disable,omitempty" json:"disable,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
