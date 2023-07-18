@@ -360,6 +360,67 @@ services:
 	assert.DeepEqual(t, service.Command, types.ShellCommand{"/bin/ash", "-c", "rm -rf /tmp/might-not-exist"})
 }
 
+func TestLoadExtendsMultipleFiles(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Test creates real files on disk")
+	}
+
+	tmpdir := t.TempDir()
+
+	aDir := filepath.Join(tmpdir, "a")
+	assert.NilError(t, os.Mkdir(aDir, 0o700))
+	aYAML := `
+services:
+  a:
+    build: .
+`
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "a", "compose.yaml"), []byte(aYAML), 0o600))
+
+	bDir := filepath.Join(tmpdir, "b")
+	assert.NilError(t, os.Mkdir(bDir, 0o700))
+	bYAML := `
+services:
+  b:
+    build:
+      target: fake
+`
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "b", "compose.yaml"), []byte(bYAML), 0o600))
+
+	rootYAML := `
+services:
+  a:
+    extends:
+      file: ./a/compose.yaml
+      service: a
+  b:
+    extends:
+      file: ./b/compose.yaml
+      service: b
+`
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
+
+	actual, err := Load(types.ConfigDetails{
+		WorkingDir: tmpdir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(tmpdir, "compose.yaml"),
+		}},
+		Environment: nil,
+	}, func(options *Options) {
+		options.SkipNormalization = true
+		options.SkipConsistencyCheck = true
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(actual.Services, 2))
+
+	svcA, err := actual.GetService("a")
+	assert.NilError(t, err)
+	assert.Equal(t, svcA.Build.Context, aDir)
+
+	svcB, err := actual.GetService("b")
+	assert.NilError(t, err)
+	assert.Equal(t, svcB.Build.Context, bDir)
+}
+
 func TestLoadCredentialSpec(t *testing.T) {
 	actual, err := loadYAML(`
 name: load-credential-spec

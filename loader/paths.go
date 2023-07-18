@@ -68,13 +68,9 @@ func ResolveRelativePaths(project *types.Project) error {
 }
 
 func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
-	if s.Build != nil && s.Build.Context != "" && !isRemoteContext(s.Build.Context) {
-		// Build context might be a remote http/git context. Unfortunately supported "remote"
-		// syntax is highly ambiguous in moby/moby and not defined by compose-spec,
-		// so let's assume runtime will check
-		localContext := absPath(workingDir, s.Build.Context)
-		if _, err := os.Stat(localContext); err == nil {
-			s.Build.Context = localContext
+	if s.Build != nil {
+		if !isRemoteContext(s.Build.Context) {
+			s.Build.Context = absPath(workingDir, s.Build.Context)
 		}
 		for name, path := range s.Build.AdditionalContexts {
 			if strings.Contains(path, "://") { // `docker-image://` or any builder specific context type
@@ -83,10 +79,7 @@ func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
 			if isRemoteContext(path) {
 				continue
 			}
-			path = absPath(workingDir, path)
-			if _, err := os.Stat(path); err == nil {
-				s.Build.AdditionalContexts[name] = path
-			}
+			s.Build.AdditionalContexts[name] = absPath(workingDir, path)
 		}
 	}
 	for j, f := range s.EnvFile {
@@ -127,8 +120,13 @@ func absComposeFiles(composeFiles []string) ([]string, error) {
 	return composeFiles, nil
 }
 
+// isRemoteContext returns true if the value is a Git reference or HTTP(S) URL.
+//
+// Any other value is assumed to be a local filesystem path and returns false.
+//
+// See: https://github.com/moby/buildkit/blob/18fc875d9bfd6e065cd8211abc639434ba65aa56/frontend/dockerui/context.go#L76-L79
 func isRemoteContext(maybeURL string) bool {
-	for _, prefix := range []string{"https://", "http://", "git://", "github.com/", "git@"} {
+	for _, prefix := range []string{"https://", "http://", "git://", "ssh://", "github.com/", "git@"} {
 		if strings.HasPrefix(maybeURL, prefix) {
 			return true
 		}

@@ -25,7 +25,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-func TestMarshallProject(t *testing.T) {
+func TestMarshalProject(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	homeDir, err := os.UserHomeDir()
@@ -45,7 +45,7 @@ func TestMarshallProject(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func TestJSONMarshallProject(t *testing.T) {
+func TestJSONMarshalProject(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	homeDir, err := os.UserHomeDir()

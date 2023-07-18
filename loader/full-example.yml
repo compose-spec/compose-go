@@ -24,7 +24,7 @@ services:
         - bar
       labels: [FOO=BAR]
       additional_contexts:
-        foo: /bar
+        foo: ./bar
       secrets:
         - secret1
         - source: secret2
