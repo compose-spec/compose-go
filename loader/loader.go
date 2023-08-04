@@ -1038,7 +1038,12 @@ var transformServiceDeviceRequest TransformerFunc = func(data interface{}) (inte
 					value["count"] = -1
 					return value, nil
 				}
-				return data, errors.Errorf("invalid string value for 'count' (the only value allowed is 'all')")
+				i, err := strconv.ParseInt(val, 10, 64)
+				if err == nil {
+					value["count"] = i
+					return value, nil
+				}
+				return data, errors.Errorf("invalid string value for 'count' (the only value allowed is 'all' or a number)")
 			default:
 				return data, errors.Errorf("invalid type %T for device count", val)
 			}

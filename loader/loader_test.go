@@ -2044,7 +2044,24 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
 }
 
-func TestServiceDeviceRequestCount(t *testing.T) {
+func TestServiceDeviceRequestCountIntegerType(t *testing.T) {
+	_, err := loadYAML(`
+name: service-device-request-count
+services:
+  hello-world:
+    image: redis:alpine
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              count: 1
+`)
+	assert.NilError(t, err)
+}
+
+func TestServiceDeviceRequestCountStringType(t *testing.T) {
 	_, err := loadYAML(`
 name: service-device-request-count
 services:
@@ -2061,7 +2078,24 @@ services:
 	assert.NilError(t, err)
 }
 
-func TestServiceDeviceRequestCountType(t *testing.T) {
+func TestServiceDeviceRequestCountIntegerAsStringType(t *testing.T) {
+	_, err := loadYAML(`
+name: service-device-request-count-type
+services:
+  hello-world:
+    image: redis:alpine
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              count: "1"
+`)
+	assert.NilError(t, err)
+}
+
+func TestServiceDeviceRequestCountInvalidStringType(t *testing.T) {
 	_, err := loadYAML(`
 name: service-device-request-count-type
 services:
@@ -2075,7 +2109,7 @@ services:
               capabilities: [gpu]
               count: somestring
 `)
-	assert.ErrorContains(t, err, "invalid string value for 'count' (the only value allowed is 'all')")
+	assert.ErrorContains(t, err, "invalid string value for 'count' (the only value allowed is 'all' or a number)")
 }
 
 func TestServicePullPolicy(t *testing.T) {
