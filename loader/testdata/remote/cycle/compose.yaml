@@ -1,0 +1,5 @@
+services:
+  foo:
+    extends:
+      file: remote:cycle/compose-cycle.yaml
+      service: bar
