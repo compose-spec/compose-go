@@ -1,0 +1,5 @@
+services:
+  foo:
+    extends:
+      file: remote:nested/compose-nested.yaml
+      service: bar

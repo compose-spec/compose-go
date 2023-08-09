@@ -18,6 +18,7 @@ package loader
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -2527,7 +2528,7 @@ services:
 		},
 		{
 			Name:          "imported",
-			ContainerName: "imported",
+			ContainerName: "extends", // as defined by ./testdata/subdir/extra.env
 			Environment:   types.MappingWithEquals{"SOURCE": strPtr("extends")},
 			EnvFile: types.StringList{
 				filepath.Join(workingDir, "testdata", "subdir", "extra.env"),
@@ -2591,4 +2592,120 @@ services:
 			},
 		},
 	})
+}
+
+type customLoader struct {
+	prefix string
+}
+
+func (c customLoader) Accept(s string) bool {
+	return strings.HasPrefix(s, c.prefix+":")
+}
+
+func (c customLoader) Load(ctx context.Context, s string) (string, error) {
+	path := filepath.Join("testdata", c.prefix, s[len(c.prefix)+1:])
+	_, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Abs(path)
+}
+
+func TestLoadWithRemoteResources(t *testing.T) {
+	config := buildConfigDetails(`
+name: test-remote-resources
+services:
+  foo:
+    extends:
+      file: remote:compose.yaml
+      service: foo
+
+`, nil)
+	p, err := LoadWithContext(context.Background(), config, func(options *Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.ResourceLoaders = []ResourceLoader{
+			customLoader{prefix: "remote"},
+		}
+	})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services, types.Services{
+		{
+			Name:        "foo",
+			Image:       "foo",
+			Environment: types.MappingWithEquals{"FOO": strPtr("BAR")},
+			EnvFile: types.StringList{
+				filepath.Join(config.WorkingDir, "testdata", "remote", "env"),
+			},
+			Scale: 1,
+			Volumes: []types.ServiceVolumeConfig{
+				{
+					Type:   types.VolumeTypeBind,
+					Source: filepath.Join(config.WorkingDir, "testdata", "remote"),
+					Target: "/foo",
+					Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				},
+			},
+		},
+	})
+}
+
+func TestLoadWithMissingResources(t *testing.T) {
+	config := buildConfigDetails(`
+name: test-missing-resources
+services:
+  foo:
+    extends:
+      file: remote:unavailable.yaml
+      service: foo
+
+`, nil)
+	_, err := LoadWithContext(context.Background(), config, func(options *Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.ResourceLoaders = []ResourceLoader{
+			customLoader{prefix: "remote"},
+		}
+	})
+	assert.Check(t, os.IsNotExist(err))
+}
+
+func TestLoadWithNestedResources(t *testing.T) {
+	config := buildConfigDetails(`
+name: test-nested-resources
+include: 
+  - remote:nested/compose.yaml
+`, nil)
+	_, err := LoadWithContext(context.Background(), config, func(options *Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.ResourceLoaders = []ResourceLoader{
+			customLoader{prefix: "remote"},
+		}
+	})
+	assert.NilError(t, err)
+}
+
+func TestLoadWithResourcesCycle(t *testing.T) {
+	config := buildConfigDetails(`
+name: test-resources-cycle
+services:
+  foo:
+    extends:
+      file: remote:cycle/compose.yaml
+      service: foo
+
+`, nil)
+	_, err := LoadWithContext(context.Background(), config, func(options *Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.ResourceLoaders = []ResourceLoader{
+			customLoader{prefix: "remote"},
+		}
+	})
+	assert.ErrorContains(t, err, "Circular reference")
 }

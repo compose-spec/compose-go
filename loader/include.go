@@ -17,10 +17,12 @@
 package loader
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 
 	"github.com/compose-spec/compose-go/dotenv"
+	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/pkg/errors"
 )
@@ -43,12 +45,20 @@ var transformIncludeConfig TransformerFunc = func(data interface{}) (interface{}
 	}
 }
 
-func loadInclude(configDetails types.ConfigDetails, model *types.Config, options *Options, loaded []string) (*types.Config, error) {
+func loadInclude(ctx context.Context, configDetails types.ConfigDetails, model *types.Config, options *Options, loaded []string) (*types.Config, error) {
 	for _, r := range model.Include {
 		for i, p := range r.Path {
-			if !filepath.IsAbs(p) {
-				r.Path[i] = filepath.Join(configDetails.WorkingDir, p)
+			for _, loader := range options.ResourceLoaders {
+				if loader.Accept(p) {
+					path, err := loader.Load(ctx, p)
+					if err != nil {
+						return nil, err
+					}
+					p = path
+					break
+				}
 			}
+			r.Path[i] = absPath(configDetails.WorkingDir, p)
 		}
 		if r.ProjectDirectory == "" {
 			r.ProjectDirectory = filepath.Dir(r.Path[0])
@@ -65,11 +75,17 @@ func loadInclude(configDetails types.ConfigDetails, model *types.Config, options
 			return nil, err
 		}
 
-		imported, err := load(types.ConfigDetails{
+		config := types.ConfigDetails{
 			WorkingDir:  r.ProjectDirectory,
 			ConfigFiles: types.ToConfigFiles(r.Path),
 			Environment: env,
-		}, loadOptions, loaded)
+		}
+		loadOptions.Interpolate = &interp.Options{
+			Substitute:      options.Interpolate.Substitute,
+			LookupValue:     config.LookupEnv,
+			TypeCastMapping: options.Interpolate.TypeCastMapping,
+		}
+		imported, err := load(ctx, config, loadOptions, loaded)
 		if err != nil {
 			return nil, err
 		}
