@@ -423,11 +423,22 @@ func (p *Project) ForServices(names []string, options ...DependencyOption) error
 			}
 			enabled = append(enabled, s)
 		} else {
-			p.DisabledServices = append(p.DisabledServices, s)
+			p.DisableService(s)
 		}
 	}
 	p.Services = enabled
 	return nil
+}
+
+func (p *Project) DisableService(service ServiceConfig) {
+	// We should remove all dependencies which reference the disabled service
+	for i, s := range p.Services {
+		if _, ok := s.DependsOn[service.Name]; ok {
+			delete(s.DependsOn, service.Name)
+			p.Services[i] = s
+		}
+	}
+	p.DisabledServices = append(p.DisabledServices, service)
 }
 
 // ResolveImages updates services images to include digest computed by a resolver function
