@@ -2528,7 +2528,7 @@ services:
 		},
 		{
 			Name:          "imported",
-			ContainerName: "imported",
+			ContainerName: "extends", // as defined by ./testdata/subdir/extra.env
 			Environment:   types.MappingWithEquals{"SOURCE": strPtr("extends")},
 			EnvFile: types.StringList{
 				filepath.Join(workingDir, "testdata", "subdir", "extra.env"),

@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 
 	"github.com/compose-spec/compose-go/dotenv"
+	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/pkg/errors"
 )
@@ -74,11 +75,17 @@ func loadInclude(ctx context.Context, configDetails types.ConfigDetails, model *
 			return nil, err
 		}
 
-		imported, err := load(ctx, types.ConfigDetails{
+		config := types.ConfigDetails{
 			WorkingDir:  r.ProjectDirectory,
 			ConfigFiles: types.ToConfigFiles(r.Path),
 			Environment: env,
-		}, loadOptions, loaded)
+		}
+		loadOptions.Interpolate = &interp.Options{
+			Substitute:      options.Interpolate.Substitute,
+			LookupValue:     config.LookupEnv,
+			TypeCastMapping: options.Interpolate.TypeCastMapping,
+		}
+		imported, err := load(ctx, config, loadOptions, loaded)
 		if err != nil {
 			return nil, err
 		}
