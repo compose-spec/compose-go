@@ -29,9 +29,10 @@ import (
 func Test_ApplyProfiles(t *testing.T) {
 	p := makeProject()
 	p.ApplyProfiles([]string{"foo"})
-	assert.Equal(t, len(p.Services), 2)
+	assert.Equal(t, len(p.Services), 3)
 	assert.Equal(t, p.Services[0].Name, "service_1")
 	assert.Equal(t, p.Services[1].Name, "service_2")
+	assert.Equal(t, p.Services[2].Name, "service_6")
 	assert.Equal(t, len(p.DisabledServices), 3)
 	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
 	assert.Equal(t, p.DisabledServices[1].Name, "service_4")
@@ -40,11 +41,12 @@ func Test_ApplyProfiles(t *testing.T) {
 	err := p.EnableServices("service_4")
 	assert.NilError(t, err)
 
-	assert.Equal(t, len(p.Services), 4)
+	assert.Equal(t, len(p.Services), 5)
 	assert.Equal(t, p.Services[0].Name, "service_1")
 	assert.Equal(t, p.Services[1].Name, "service_2")
-	assert.Equal(t, p.Services[2].Name, "service_4")
-	assert.Equal(t, p.Services[3].Name, "service_5")
+	assert.Equal(t, p.Services[2].Name, "service_6")
+	assert.Equal(t, p.Services[3].Name, "service_4")
+	assert.Equal(t, p.Services[4].Name, "service_5")
 	assert.Equal(t, len(p.DisabledServices), 1)
 	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
 
@@ -74,9 +76,10 @@ func Test_WithoutUnnecessaryResources(t *testing.T) {
 func Test_NoProfiles(t *testing.T) {
 	p := makeProject()
 	p.ApplyProfiles(nil)
-	assert.Equal(t, len(p.Services), 1)
+	assert.Equal(t, len(p.Services), 2)
 	assert.Equal(t, len(p.DisabledServices), 4)
 	assert.Equal(t, p.Services[0].Name, "service_1")
+	assert.Equal(t, p.Services[1].Name, "service_6")
 }
 
 func Test_ServiceProfiles(t *testing.T) {
@@ -94,10 +97,22 @@ func Test_ForServices(t *testing.T) {
 	err := p.ForServices([]string{"service_2"})
 	assert.NilError(t, err)
 
-	assert.Equal(t, len(p.DisabledServices), 3)
+	assert.Equal(t, len(p.DisabledServices), 4)
 	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
 	assert.Equal(t, p.DisabledServices[1].Name, "service_4")
 	assert.Equal(t, p.DisabledServices[2].Name, "service_5")
+	assert.Equal(t, p.DisabledServices[3].Name, "service_6")
+
+	// Should not load the dependency service_1 when explicitly loading service_6
+	p = makeProject()
+	err = p.ForServices([]string{"service_6"})
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.DisabledServices), 5)
+	assert.Equal(t, p.DisabledServices[0].Name, "service_1")
+	assert.Equal(t, p.DisabledServices[1].Name, "service_2")
+	assert.Equal(t, p.DisabledServices[2].Name, "service_3")
+	assert.Equal(t, p.DisabledServices[3].Name, "service_4")
+	assert.Equal(t, p.DisabledServices[4].Name, "service_5")
 }
 
 func Test_ForServicesCycle(t *testing.T) {
@@ -127,6 +142,9 @@ func makeProject() Project {
 			}, ServiceConfig{
 				Name:     "service_5",
 				Profiles: []string{"zot"},
+			}, ServiceConfig{
+				Name:  "service_6",
+				Links: []string{"service_1"},
 			}),
 		Networks: Networks{},
 		Volumes:  Volumes{},
