@@ -368,3 +368,14 @@ func equalTrimSpace(x interface{}, y interface{}) is.Comparison {
 	}
 	return is.DeepEqual(trim(x), trim(y))
 }
+
+func TestMappingValues(t *testing.T) {
+	values := []string{"BAR=QIX", "FOO=BAR", "QIX=ZOT"}
+	mapping := NewMapping(values)
+	assert.DeepEqual(t, mapping, Mapping{
+		"FOO": "BAR",
+		"BAR": "QIX",
+		"QIX": "ZOT",
+	})
+	assert.DeepEqual(t, mapping.Values(), values)
+}
