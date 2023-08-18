@@ -250,6 +250,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	}
 	loaded = append(loaded, mainFile)
 
+	includeRefs := make(map[string][]types.IncludeConfig)
 	for i, file := range configDetails.ConfigFiles {
 		var postProcessor PostProcessor
 		configDict := file.Config
@@ -285,9 +286,13 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		}
 
 		if !opts.SkipInclude {
-			cfg, err = loadInclude(ctx, configDetails, cfg, opts, loaded)
+			var included map[string][]types.IncludeConfig
+			cfg, included, err = loadInclude(ctx, file.Filename, configDetails, cfg, opts, loaded)
 			if err != nil {
 				return nil, err
+			}
+			for k, v := range included {
+				includeRefs[k] = append(includeRefs[k], v...)
 			}
 		}
 
@@ -319,6 +324,10 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		Configs:     model.Configs,
 		Environment: configDetails.Environment,
 		Extensions:  model.Extensions,
+	}
+
+	if len(includeRefs) != 0 {
+		project.IncludeReferences = includeRefs
 	}
 
 	if !opts.SkipNormalization {
