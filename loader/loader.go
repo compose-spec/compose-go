@@ -777,6 +777,21 @@ func loadServiceWithExtends(ctx context.Context, filename, name string, services
 			ResolveServiceRelativePaths(baseFileParent, baseService)
 		}
 
+		baseService.VolumesFrom = nil
+		baseService.DependsOn = nil
+		maybeReferences := []*string{
+			&baseService.NetworkMode,
+			&baseService.Ipc,
+			&baseService.Pid,
+			&baseService.Uts,
+			&baseService.Cgroup,
+		}
+		for _, ref := range maybeReferences {
+			if _, ok := IsServiceDependency(*ref); ok {
+				*ref = ""
+			}
+		}
+
 		serviceConfig, err = _merge(baseService, serviceConfig)
 		if err != nil {
 			return nil, err

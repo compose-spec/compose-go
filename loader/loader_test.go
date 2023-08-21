@@ -2505,7 +2505,7 @@ func TestLoadWithInclude(t *testing.T) {
 name: 'test-include'
 
 include:
-  - path: ./testdata/subdir/compose-test-extends-imported.yaml
+  - path: ./testdata/subdir/compose-test-includes-imported.yaml
     env_file: ./testdata/subdir/extra.env
 
 services:
@@ -2518,6 +2518,11 @@ services:
 		options.ResolvePaths = true
 	})
 	assert.NilError(t, err)
+
+	sort.Slice(p.Services, func(i, j int) bool {
+		return p.Services[i].Name < p.Services[j].Name
+	})
+
 	assert.DeepEqual(t, p.Services, types.Services{
 		{
 			Name:        "foo",
@@ -2529,7 +2534,10 @@ services:
 		{
 			Name:          "imported",
 			ContainerName: "extends", // as defined by ./testdata/subdir/extra.env
-			Environment:   types.MappingWithEquals{"SOURCE": strPtr("extends")},
+			DependsOn: types.DependsOnConfig{
+				"imported-dep": {Condition: "service_healthy", Required: true},
+			},
+			Environment: types.MappingWithEquals{"SOURCE": strPtr("extends")},
 			EnvFile: types.StringList{
 				filepath.Join(workingDir, "testdata", "subdir", "extra.env"),
 			},
@@ -2544,11 +2552,19 @@ services:
 				},
 			},
 		},
+		{
+			Name: "imported-dep",
+			Build: &types.BuildConfig{
+				Context: filepath.Join(workingDir, "testdata", "subdir"),
+			},
+			Environment: make(types.MappingWithEquals),
+			Scale:       1,
+		},
 	})
 	assert.DeepEqual(t, p.IncludeReferences, map[string][]types.IncludeConfig{
 		filepath.Join(workingDir, "filename0.yml"): {
 			{
-				Path:             []string{filepath.Join(workingDir, "testdata", "subdir", "compose-test-extends-imported.yaml")},
+				Path:             []string{filepath.Join(workingDir, "testdata", "subdir", "compose-test-includes-imported.yaml")},
 				ProjectDirectory: workingDir,
 				EnvFile:          []string{filepath.Join(workingDir, "testdata", "subdir", "extra.env")},
 			},

@@ -7,4 +7,7 @@ services:
     volumes:
       - /opt/data:/var/lib/mysql
     depends_on:
-      - should-be-ignored
+      imported-dep:
+        condition: service_healthy
+  imported-dep:
+    build: .
