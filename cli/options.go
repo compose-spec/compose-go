@@ -194,7 +194,7 @@ func WithEnv(env []string) ProjectOptionsFn {
 	}
 }
 
-// WithDiscardEnvFiles sets discards the `env_file` section after resolving to
+// WithDiscardEnvFile sets discards the `env_file` section after resolving to
 // the `environment` section
 func WithDiscardEnvFile(o *ProjectOptions) error {
 	o.loadOptions = append(o.loadOptions, loader.WithDiscardEnvFiles)
@@ -207,6 +207,15 @@ func WithLoadOptions(loadOptions ...func(*loader.Options)) ProjectOptionsFn {
 		o.loadOptions = append(o.loadOptions, loadOptions...)
 		return nil
 	}
+}
+
+// WithDefaultProfiles uses the provided profiles (if any), and falls back to
+// profiles specified via the COMPOSE_PROFILES environment variable otherwise.
+func WithDefaultProfiles(profile ...string) ProjectOptionsFn {
+	if len(profile) == 0 {
+		profile = strings.Split(os.Getenv(consts.ComposeProfiles), ",")
+	}
+	return WithProfiles(profile)
 }
 
 // WithProfiles sets profiles to be activated
@@ -228,8 +237,9 @@ func WithOsEnv(o *ProjectOptions) error {
 	return nil
 }
 
-// WithEnvFile set an alternate env file
-// deprecated - use WithEnvFiles
+// WithEnvFile sets an alternate env file.
+//
+// Deprecated: use WithEnvFiles instead.
 func WithEnvFile(file string) ProjectOptionsFn {
 	var files []string
 	if file != "" {
