@@ -2555,6 +2555,25 @@ services:
 		},
 	})
 	assert.NilError(t, err)
+
+	p, err = Load(buildConfigDetails(`
+name: 'test-include'
+
+include:
+  - path: ./testdata/subdir/compose-test-extends-imported.yaml
+    env_file: ./testdata/subdir/extra.env
+
+services:
+  foo:
+    image: busybox
+    depends_on:
+      - imported
+`, map[string]string{"SOURCE": "override"}), func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services[1].ContainerName, "override")
 }
 
 func TestLoadWithIncludeCycle(t *testing.T) {

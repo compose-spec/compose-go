@@ -73,7 +73,7 @@ func loadInclude(ctx context.Context, filename string, configDetails types.Confi
 		loadOptions.SkipNormalization = true
 		loadOptions.SkipConsistencyCheck = true
 
-		env, err := dotenv.GetEnvFromFile(configDetails.Environment, r.ProjectDirectory, r.EnvFile)
+		envFromFile, err := dotenv.GetEnvFromFile(configDetails.Environment, r.ProjectDirectory, r.EnvFile)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -81,7 +81,7 @@ func loadInclude(ctx context.Context, filename string, configDetails types.Confi
 		config := types.ConfigDetails{
 			WorkingDir:  r.ProjectDirectory,
 			ConfigFiles: types.ToConfigFiles(r.Path),
-			Environment: env,
+			Environment: configDetails.Environment.Clone().Merge(envFromFile),
 		}
 		loadOptions.Interpolate = &interp.Options{
 			Substitute:      options.Interpolate.Substitute,
