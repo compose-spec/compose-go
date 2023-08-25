@@ -114,6 +114,12 @@ func importResources(model *types.Config, imported *types.Project, path []string
 		}
 		model.Services = append(model.Services, service)
 	}
+	for _, service := range imported.DisabledServices {
+		if _, ok := services[service.Name]; ok {
+			return fmt.Errorf("imported compose file %s defines conflicting service %s", path, service.Name)
+		}
+		model.Services = append(model.Services, service)
+	}
 	for n, network := range imported.Networks {
 		if _, ok := model.Networks[n]; ok {
 			return fmt.Errorf("imported compose file %s defines conflicting network %s", path, n)
