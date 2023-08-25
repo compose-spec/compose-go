@@ -516,6 +516,24 @@ func (m Mapping) Resolve(s string) (string, bool) {
 	return v, ok
 }
 
+func (m Mapping) Clone() Mapping {
+	clone := Mapping{}
+	for k, v := range m {
+		clone[k] = v
+	}
+	return clone
+}
+
+// Merge adds all values from second mapping which are not already defined
+func (m Mapping) Merge(o Mapping) Mapping {
+	for k, v := range o {
+		if _, set := m[k]; !set {
+			m[k] = v
+		}
+	}
+	return m
+}
+
 // Labels is a mapping type for labels
 type Labels map[string]string
 

@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/compose-spec/compose-go/types"
 	"gotest.tools/v3/assert"
 
 	"github.com/compose-spec/compose-go/consts"
@@ -314,13 +315,13 @@ func TestEnvVariablePrecedence(t *testing.T) {
 		name     string
 		dotEnv   string
 		osEnv    []string
-		expected map[string]string
+		expected types.Mapping
 	}{
 		{
 			"no value set in environment",
 			"FOO=foo\nBAR=${FOO}",
 			nil,
-			map[string]string{
+			types.Mapping{
 				"FOO": "foo",
 				"BAR": "foo",
 			},
@@ -329,7 +330,7 @@ func TestEnvVariablePrecedence(t *testing.T) {
 			"conflict with value set in environment",
 			"FOO=foo\nBAR=${FOO}",
 			[]string{"FOO=zot"},
-			map[string]string{
+			types.Mapping{
 				"FOO": "zot",
 				"BAR": "zot",
 			},

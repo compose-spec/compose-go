@@ -66,7 +66,7 @@ type ProjectOptions struct {
 	// NOTE: For security, the loader does not automatically expose any
 	// process environment variables. For convenience, WithOsEnv can be
 	// used if appropriate.
-	Environment map[string]string
+	Environment types.Mapping
 
 	// EnvFiles are file paths to ".env" files with additional environment
 	// variable data.
@@ -256,11 +256,7 @@ func WithDotEnv(o *ProjectOptions) error {
 	if err != nil {
 		return err
 	}
-	for k, v := range envMap {
-		if _, set := o.Environment[k]; !set {
-			o.Environment[k] = v
-		}
-	}
+	o.Environment.Merge(envMap)
 	return nil
 }
 
