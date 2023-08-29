@@ -2737,3 +2737,19 @@ services:
 	})
 	assert.ErrorContains(t, err, "Circular reference")
 }
+
+func TestLoadMulmtiDocumentYaml(t *testing.T) {
+	project, err := loadYAML(`
+name: load-multi-docs
+services:
+  test:
+    image: nginx:latest
+--- 
+services:
+  test:
+    image: nginx:override
+
+`)
+	assert.NilError(t, err)
+	assert.Equal(t, project.Services[0].Image, "nginx:override")
+}
