@@ -360,9 +360,6 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		}
 	}
 
-	if profiles, ok := project.Environment[consts.ComposeProfiles]; ok && len(opts.Profiles) == 0 {
-		opts.Profiles = strings.Split(profiles, ",")
-	}
 	project.ApplyProfiles(opts.Profiles)
 
 	err := project.ResolveServicesEnvironment(opts.discardEnvFiles)
