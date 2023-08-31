@@ -88,7 +88,7 @@ func ResolveRelativePaths(project *types.Project) error {
 
 func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
 	if s.Build != nil {
-		if !isRemoteContext(s.Build.Context) {
+		if s.Build.Context != "" && !isRemoteContext(s.Build.Context) {
 			s.Build.Context = absPath(workingDir, s.Build.Context)
 		}
 		for name, path := range s.Build.AdditionalContexts {
