@@ -24,10 +24,9 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/compose-spec/compose-go/utils"
-
 	"github.com/compose-spec/compose-go/dotenv"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/compose-spec/compose-go/utils"
+	"github.com/distribution/reference"
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
