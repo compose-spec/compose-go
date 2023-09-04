@@ -423,7 +423,14 @@ func (p *Project) ForServices(names []string, options ...DependencyOption) error
 		if _, ok := set[s.Name]; ok {
 			for _, option := range options {
 				if option == IgnoreDependencies {
-					s.DependsOn = nil
+					// remove all dependencies but those implied by explicitly selected services
+					dependencies := s.DependsOn
+					for d := range dependencies {
+						if _, ok := set[d]; !ok {
+							delete(dependencies, d)
+						}
+					}
+					s.DependsOn = dependencies
 				}
 			}
 			enabled = append(enabled, s)
