@@ -115,6 +115,28 @@ func Test_ForServices(t *testing.T) {
 	assert.Equal(t, p.DisabledServices[4].Name, "service_5")
 }
 
+func Test_ForServicesIgnoreDependencies(t *testing.T) {
+	p := makeProject()
+	err := p.ForServices([]string{"service_2"}, IgnoreDependencies)
+	assert.NilError(t, err)
+
+	assert.Equal(t, len(p.DisabledServices), 5)
+	service, err := p.GetService("service_2")
+	assert.NilError(t, err)
+	assert.Equal(t, len(service.DependsOn), 0)
+
+	p = makeProject()
+	err = p.ForServices([]string{"service_2", "service_3"}, IgnoreDependencies)
+	assert.NilError(t, err)
+
+	assert.Equal(t, len(p.DisabledServices), 4)
+	service, err = p.GetService("service_3")
+	assert.NilError(t, err)
+	assert.Equal(t, len(service.DependsOn), 1)
+	_, dependsOn := service.DependsOn["service_2"]
+	assert.Check(t, dependsOn)
+}
+
 func Test_ForServicesCycle(t *testing.T) {
 	p := makeProject()
 	p.Services[0].Links = []string{"service_2"}
