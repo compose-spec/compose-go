@@ -255,7 +255,6 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	loaded = append(loaded, mainFile)
 
 	includeRefs := make(map[string][]types.IncludeConfig)
-	first := true
 	for _, file := range configDetails.ConfigFiles {
 		var postProcessor PostProcessor
 		configDict := file.Config
@@ -285,22 +284,21 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 				}
 			}
 
-			if first {
-				first = false
+			if model == nil {
 				model = cfg
-				return nil
-			}
-			merged, err := merge([]*types.Config{model, cfg})
-			if err != nil {
-				return err
+			} else {
+				merged, err := merge([]*types.Config{model, cfg})
+				if err != nil {
+					return err
+				}
+				model = merged
 			}
 			if postProcessor != nil {
-				err = postProcessor.Apply(merged)
+				err = postProcessor.Apply(model)
 				if err != nil {
 					return err
 				}
 			}
-			model = merged
 			return nil
 		}
 

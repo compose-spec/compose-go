@@ -422,6 +422,27 @@ services:
 	assert.Equal(t, svcB.Build.Context, bDir)
 }
 
+func TestLoadExtendsWihReset(t *testing.T) {
+	actual, err := loadYAML(`
+name: load-extends
+services:
+  foo:
+    extends:
+      service: bar
+    volumes: !reset []
+  bar:
+    image: alpine
+    command: echo
+    volumes:
+       - .:/src
+`)
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(actual.Services, 2))
+	foo, err := actual.GetService("foo")
+	assert.NilError(t, err)
+	assert.Check(t, len(foo.Volumes) == 0)
+}
+
 func TestLoadCredentialSpec(t *testing.T) {
 	actual, err := loadYAML(`
 name: load-credential-spec
