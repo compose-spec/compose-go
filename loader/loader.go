@@ -335,6 +335,10 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		}
 	}
 
+	if model == nil {
+		return nil, errors.New("empty compose file")
+	}
+
 	project := &types.Project{
 		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
