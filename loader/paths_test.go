@@ -25,21 +25,17 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestResolveComposeFilePaths(t *testing.T) {
+func TestResolveProjectDirectory(t *testing.T) {
 	absWorkingDir, _ := filepath.Abs("testdata")
-	absComposeFile, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose.yaml"))
-	absOverrideFile, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose-with-overrides.yaml"))
 
 	project := types.Project{
-		Name:         "myProject",
-		WorkingDir:   absWorkingDir,
-		ComposeFiles: []string{filepath.Join("testdata", "simple", "compose.yaml"), filepath.Join("testdata", "simple", "compose-with-overrides.yaml")},
+		Name:       "myProject",
+		WorkingDir: "testdata",
 	}
 
 	expected := types.Project{
-		Name:         "myProject",
-		WorkingDir:   absWorkingDir,
-		ComposeFiles: []string{absComposeFile, absOverrideFile},
+		Name:       "myProject",
+		WorkingDir: absWorkingDir,
 	}
 	err := ResolveRelativePaths(&project)
 	assert.NilError(t, err)

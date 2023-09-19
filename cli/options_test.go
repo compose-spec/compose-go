@@ -223,7 +223,7 @@ func TestProjectComposefilesFromSetOfFiles(t *testing.T) {
 	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	absPath, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose.yaml"))
-	assert.DeepEqual(t, p.ComposeFiles, []string{absPath})
+	assert.DeepEqual(t, p.FileMeta.Path, absPath)
 }
 
 func TestProjectComposefilesFromWorkingDir(t *testing.T) {
@@ -235,8 +235,8 @@ func TestProjectComposefilesFromWorkingDir(t *testing.T) {
 	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
 	currentDir, _ := os.Getwd()
-	assert.DeepEqual(t, p.ComposeFiles, []string{
-		filepath.Join(currentDir, "testdata", "simple", "compose.yaml"),
+	assert.DeepEqual(t, p.FileMeta.Path, filepath.Join(currentDir, "testdata", "simple", "compose.yaml"))
+	assert.DeepEqual(t, p.FileMeta.OverrideFilePaths, []string{
 		filepath.Join(currentDir, "testdata", "simple", "compose-with-overrides.yaml"),
 	})
 }

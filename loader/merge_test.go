@@ -224,6 +224,12 @@ func TestLoadLogging(t *testing.T) {
 				Secrets:    types.Secrets{},
 				Configs:    types.Configs{},
 				Extensions: types.Extensions{},
+				FileMeta: types.FileMeta{
+					Path:              "base.yml",
+					OverrideFilePaths: []string{"override.yml"},
+					ProjectDirectory:  "",
+					Services:          []string{"foo"},
+				},
 			}, config)
 		})
 	}
@@ -379,6 +385,12 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 				Secrets:    types.Secrets{},
 				Configs:    types.Configs{},
 				Extensions: types.Extensions{},
+				FileMeta: types.FileMeta{
+					Path:              "base.yml",
+					OverrideFilePaths: []string{"override.yml"},
+					ProjectDirectory:  "",
+					Services:          []string{"foo"},
+				},
 			}, config)
 		})
 	}
@@ -505,6 +517,12 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 				Secrets:    types.Secrets{},
 				Configs:    types.Configs{},
 				Extensions: types.Extensions{},
+				FileMeta: types.FileMeta{
+					Path:              "base.yml",
+					OverrideFilePaths: []string{"override.yml"},
+					ProjectDirectory:  "",
+					Services:          []string{"foo"},
+				},
 			}, config)
 		})
 	}
@@ -631,6 +649,12 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 				Secrets:    types.Secrets{},
 				Configs:    types.Configs{},
 				Extensions: types.Extensions{},
+				FileMeta: types.FileMeta{
+					Path:              "base.yml",
+					OverrideFilePaths: []string{"override.yml"},
+					ProjectDirectory:  "",
+					Services:          []string{"foo"},
+				},
 			}, config)
 		})
 	}
@@ -747,6 +771,12 @@ func TestLoadMultipleUlimits(t *testing.T) {
 				Secrets:    types.Secrets{},
 				Configs:    types.Configs{},
 				Extensions: types.Extensions{},
+				FileMeta: types.FileMeta{
+					Path:              "base.yml",
+					OverrideFilePaths: []string{"override.yml"},
+					ProjectDirectory:  "",
+					Services:          []string{"foo"},
+				},
 			}, config)
 		})
 	}
@@ -866,6 +896,12 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 				Secrets:    types.Secrets{},
 				Configs:    types.Configs{},
 				Extensions: types.Extensions{},
+				FileMeta: types.FileMeta{
+					Path:              "base.yml",
+					OverrideFilePaths: []string{"override.yml"},
+					ProjectDirectory:  "",
+					Services:          []string{"foo"},
+				},
 			}, config)
 		})
 	}
@@ -1002,6 +1038,12 @@ func TestLoadMultipleConfigs(t *testing.T) {
 		Secrets:    types.Secrets{},
 		Configs:    types.Configs{},
 		Extensions: types.Extensions{},
+		FileMeta: types.FileMeta{
+			Path:              "base.yml",
+			OverrideFilePaths: []string{"override.yml"},
+			ProjectDirectory:  "",
+			Services:          []string{"bar", "foo"},
+		},
 	}, config)
 }
 
@@ -1073,6 +1115,12 @@ func TestLoadMultipleNetworks(t *testing.T) {
 		Secrets:    types.Secrets{},
 		Configs:    types.Configs{},
 		Extensions: types.Extensions{},
+		FileMeta: types.FileMeta{
+			Path:              "base.yml",
+			OverrideFilePaths: []string{"override.yml"},
+			ProjectDirectory:  "",
+			Services:          []string{"foo"},
+		},
 	}, config)
 }
 
@@ -1236,6 +1284,10 @@ func TestMergeTopLevelExtensions(t *testing.T) {
 				"base": "qix",
 			},
 			"x-zot": "zot",
+		},
+		FileMeta: types.FileMeta{
+			Path:              "base.yml",
+			OverrideFilePaths: []string{"override.yml"},
 		},
 	}, config)
 }
@@ -1432,6 +1484,12 @@ services:
 		Configs:     types.Configs{},
 		Extensions:  types.Extensions{},
 		Environment: map[string]string{consts.ComposeProjectName: "test"},
+		FileMeta: types.FileMeta{
+			Path:              "base.yml",
+			OverrideFilePaths: []string{"override.yml"},
+			ProjectDirectory:  "",
+			Services:          []string{"bar", "foo"},
+		},
 	}, config)
 }
 
@@ -1485,5 +1543,11 @@ services:
 		Configs:     types.Configs{},
 		Extensions:  types.Extensions{},
 		Environment: map[string]string{consts.ComposeProjectName: "test"},
+		FileMeta: types.FileMeta{
+			Path:              "base.yml",
+			OverrideFilePaths: []string{"override.yml"},
+			ProjectDirectory:  "",
+			Services:          []string{"foo"},
+		},
 	}, config)
 }

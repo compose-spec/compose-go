@@ -26,9 +26,12 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/exp/slices"
 
 	"github.com/compose-spec/compose-go/consts"
 	interp "github.com/compose-spec/compose-go/interpolation"
@@ -248,14 +251,21 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	mainFile := configDetails.ConfigFiles[0].Filename
 	for _, f := range loaded {
 		if f == mainFile {
-			loaded = append(loaded, mainFile)
 			return nil, errors.Errorf("include cycle detected:\n%s\n include %s", loaded[0], strings.Join(loaded[1:], "\n include "))
 		}
 	}
 	loaded = append(loaded, mainFile)
 
-	includeRefs := make(map[string][]types.IncludeConfig)
-	for _, file := range configDetails.ConfigFiles {
+	loadMeta := types.FileMeta{
+		Path:             mainFile,
+		ProjectDirectory: configDetails.WorkingDir,
+	}
+
+	for i, file := range configDetails.ConfigFiles {
+		if i != 0 {
+			loadMeta.OverrideFilePaths = append(loadMeta.OverrideFilePaths, file.Filename)
+		}
+
 		var postProcessor PostProcessor
 		configDict := file.Config
 
@@ -272,16 +282,20 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 			if err != nil {
 				return err
 			}
+			// collect the service names before loading includes
+			for _, svc := range cfg.Services {
+				if !slices.Contains(loadMeta.Services, svc.Name) {
+					loadMeta.Services = append(loadMeta.Services, svc.Name)
+				}
+			}
 
 			if !opts.SkipInclude {
-				var included map[string][]types.IncludeConfig
-				cfg, included, err = loadInclude(ctx, file.Filename, configDetails, cfg, opts, loaded)
+				var included []types.FileMeta
+				cfg, included, err = loadInclude(ctx, configDetails, cfg, opts, loaded)
 				if err != nil {
 					return err
 				}
-				for k, v := range included {
-					includeRefs[k] = append(includeRefs[k], v...)
-				}
+				loadMeta.Includes = append(loadMeta.Includes, included...)
 			}
 
 			if model == nil {
@@ -335,11 +349,14 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		}
 	}
 
+	sort.Strings(loadMeta.Services)
+
 	if model == nil {
 		return nil, errors.New("empty compose file")
 	}
 
 	project := &types.Project{
+		FileMeta:    loadMeta,
 		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
 		Services:    model.Services,
@@ -349,10 +366,6 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		Configs:     model.Configs,
 		Environment: configDetails.Environment,
 		Extensions:  model.Extensions,
-	}
-
-	if len(includeRefs) != 0 {
-		project.IncludeReferences = includeRefs
 	}
 
 	if !opts.SkipNormalization {
@@ -388,8 +401,10 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	project.ApplyProfiles(opts.Profiles)
 
 	err := project.ResolveServicesEnvironment(opts.discardEnvFiles)
-
-	return project, err
+	if err != nil {
+		return nil, err
+	}
+	return project, nil
 }
 
 func InvalidProjectNameErr(v string) error {

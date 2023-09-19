@@ -408,7 +408,6 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		return nil, err
 	}
 
-	project.ComposeFiles = configPaths
 	return project, nil
 }
 

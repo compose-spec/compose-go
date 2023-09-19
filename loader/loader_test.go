@@ -877,6 +877,11 @@ networks:
 				Attachable: true,
 			},
 		},
+		FileMeta: types.FileMeta{
+			Path:             "filename0.yml",
+			ProjectDirectory: workingDir,
+			Services:         []string{"web"},
+		},
 	}
 
 	assert.Check(t, is.DeepEqual(expected, config))
@@ -1650,6 +1655,11 @@ networks:
 		Environment: types.Mapping{
 			"COMPOSE_PROJECT_NAME": "load-network-with-name",
 		},
+		FileMeta: types.FileMeta{
+			Path:             "filename0.yml",
+			ProjectDirectory: workingDir,
+			Services:         []string{"hello-world"},
+		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
 }
@@ -1714,6 +1724,11 @@ networks:
 		},
 		Environment: types.Mapping{
 			"COMPOSE_PROJECT_NAME": "load-network-link-local-ips",
+		},
+		FileMeta: types.FileMeta{
+			Path:             "filename0.yml",
+			ProjectDirectory: workingDir,
+			Services:         []string{"foo"},
 		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
@@ -1898,6 +1913,11 @@ secrets:
 		Environment: types.Mapping{
 			"COMPOSE_PROJECT_NAME": "load-template-driver",
 		},
+		FileMeta: types.FileMeta{
+			Path:             "filename0.yml",
+			ProjectDirectory: workingDir,
+			Services:         []string{"hello-world"},
+		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
 }
@@ -1969,6 +1989,11 @@ secrets:
 		},
 		Environment: types.Mapping{
 			"COMPOSE_PROJECT_NAME": "load-secret-driver",
+		},
+		FileMeta: types.FileMeta{
+			Path:             "filename0.yml",
+			ProjectDirectory: workingDir,
+			Services:         []string{"hello-world"},
 		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
@@ -2520,9 +2545,12 @@ services:
 }
 
 func TestLoadWithInclude(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	p, err := Load(buildConfigDetails(`
+	p, err := LoadWithContext(ctx, buildConfigDetails(`
 name: 'test-include'
 
 include:
@@ -2566,18 +2594,22 @@ services:
 			},
 		},
 	})
-	assert.DeepEqual(t, p.IncludeReferences, map[string][]types.IncludeConfig{
-		filepath.Join(workingDir, "filename0.yml"): {
+	absSubdir := filepath.Join(workingDir, "testdata", "subdir")
+	assert.DeepEqual(t, p.FileMeta, types.FileMeta{
+		Path:             "filename0.yml",
+		ProjectDirectory: workingDir,
+		Services:         []string{"foo"},
+		Includes: []types.FileMeta{
 			{
-				Path:             []string{filepath.Join(workingDir, "testdata", "subdir", "compose-test-extends-imported.yaml")},
-				ProjectDirectory: workingDir,
-				EnvFile:          []string{filepath.Join(workingDir, "testdata", "subdir", "extra.env")},
+				Path:             filepath.Join(absSubdir, "compose-test-extends-imported.yaml"),
+				ProjectDirectory: absSubdir,
+				Services:         []string{"imported"},
 			},
 		},
 	})
 	assert.NilError(t, err)
 
-	p, err = Load(buildConfigDetails(`
+	p, err = LoadWithContext(ctx, buildConfigDetails(`
 name: 'test-include'
 
 include:

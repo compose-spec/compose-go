@@ -44,13 +44,8 @@ type Project struct {
 	Configs    Configs    `yaml:"configs,omitempty" json:"configs,omitempty"`
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"` // https://github.com/golang/go/issues/6213
 
-	// IncludeReferences is keyed by Compose YAML filename and contains config for
-	// other Compose YAML files it directly triggered a load of via `include`.
-	//
-	// Note: this is
-	IncludeReferences map[string][]IncludeConfig `yaml:"-" json:"-"`
-	ComposeFiles      []string                   `yaml:"-" json:"-"`
-	Environment       Mapping                    `yaml:"-" json:"-"`
+	FileMeta    FileMeta `yaml:"-" json:"-"`
+	Environment Mapping  `yaml:"-" json:"-"`
 
 	// DisabledServices track services which have been disable as profile is not active
 	DisabledServices Services `yaml:"-" json:"-"`

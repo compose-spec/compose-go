@@ -45,11 +45,9 @@ var transformIncludeConfig TransformerFunc = func(data interface{}) (interface{}
 	}
 }
 
-func loadInclude(ctx context.Context, filename string, configDetails types.ConfigDetails, model *types.Config, options *Options, loaded []string) (*types.Config, map[string][]types.IncludeConfig, error) {
-	included := make(map[string][]types.IncludeConfig)
+func loadInclude(ctx context.Context, configDetails types.ConfigDetails, model *types.Config, options *Options, loaded []string) (*types.Config, []types.FileMeta, error) {
+	var included []types.FileMeta
 	for _, r := range model.Include {
-		included[filename] = append(included[filename], r)
-
 		for i, p := range r.Path {
 			for _, loader := range options.ResourceLoaders {
 				if loader.Accept(p) {
@@ -92,9 +90,7 @@ func loadInclude(ctx context.Context, filename string, configDetails types.Confi
 		if err != nil {
 			return nil, nil, err
 		}
-		for k, v := range imported.IncludeReferences {
-			included[k] = append(included[k], v...)
-		}
+		included = append(included, imported.FileMeta)
 
 		err = importResources(model, imported, r.Path)
 		if err != nil {
