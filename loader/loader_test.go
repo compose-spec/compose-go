@@ -2774,3 +2774,55 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, project.Services[0].Image, "nginx:override")
 }
+
+func TestLoadDevelopConfig(t *testing.T) {
+	project, err := Load(buildConfigDetails(`
+name: load-develop
+services:
+  frontend:
+    image: example/webapp
+    build: ./webapp
+    develop:
+      watch: 
+        # sync static content
+        - path: ./webapp/html
+          action: sync
+          target: /var/www
+          ignore:
+            - node_modules/
+
+  backend:
+    image: example/backend
+    build: ./backend
+    develop:
+      watch: 
+        # rebuild image and recreate service
+        - path: ./backend/src
+          action: rebuild
+`, nil), func(options *Options) {
+		options.ResolvePaths = false
+	})
+	assert.NilError(t, err)
+	frontend, err := project.GetService("frontend")
+	assert.NilError(t, err)
+	assert.DeepEqual(t, *frontend.Develop, types.DevelopConfig{
+		Watch: []types.Trigger{
+			{
+				Path:   "./webapp/html",
+				Action: types.WatchActionSync,
+				Target: "/var/www",
+				Ignore: []string{"node_modules/"},
+			},
+		},
+	})
+	backend, err := project.GetService("backend")
+	assert.NilError(t, err)
+	assert.DeepEqual(t, *backend.Develop, types.DevelopConfig{
+		Watch: []types.Trigger{
+			{
+				Path:   "./backend/src",
+				Action: types.WatchActionRebuild,
+			},
+		},
+	})
+}
