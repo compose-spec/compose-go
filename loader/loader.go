@@ -61,6 +61,8 @@ type Options struct {
 	SkipExtends bool
 	// SkipInclude will ignore `include` and only load model from file(s) set by ConfigDetails
 	SkipInclude bool
+	// SkipResolveEnvironment will ignore computing `environment` for services
+	SkipResolveEnvironment bool
 	// Interpolation options
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
@@ -387,9 +389,14 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 
 	project.ApplyProfiles(opts.Profiles)
 
-	err := project.ResolveServicesEnvironment(opts.discardEnvFiles)
+	if !opts.SkipResolveEnvironment {
+		err := project.ResolveServicesEnvironment(opts.discardEnvFiles)
+		if err != nil {
+			return nil, err
+		}
+	}
 
-	return project, err
+	return project, nil
 }
 
 func InvalidProjectNameErr(v string) error {
