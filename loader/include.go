@@ -24,7 +24,6 @@ import (
 	"github.com/compose-spec/compose-go/dotenv"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/types"
-	"github.com/pkg/errors"
 )
 
 // LoadIncludeConfig parse the require config from raw yaml
@@ -32,17 +31,6 @@ func LoadIncludeConfig(source []interface{}) ([]types.IncludeConfig, error) {
 	var requires []types.IncludeConfig
 	err := Transform(source, &requires)
 	return requires, err
-}
-
-var transformIncludeConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return map[string]interface{}{"path": value}, nil
-	case map[string]interface{}:
-		return value, nil
-	default:
-		return data, errors.Errorf("invalid type %T for `include` configuration", value)
-	}
 }
 
 func loadInclude(ctx context.Context, filename string, configDetails types.ConfigDetails, model *types.Config, options *Options, loaded []string) (*types.Config, map[string][]types.IncludeConfig, error) {

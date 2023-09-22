@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package loader
+package transform
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ import (
 
 func TestParseVolumeAnonymousVolume(t *testing.T) {
 	for _, path := range []string{"/path", "/path/foo"} {
-		volume, err := ParseVolume(path)
+		volume, err := parseVolume(path)
 		expected := types.ServiceVolumeConfig{Type: "volume", Target: path, Volume: &types.ServiceVolumeVolume{}}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -36,7 +36,7 @@ func TestParseVolumeAnonymousVolume(t *testing.T) {
 
 func TestParseVolumeAnonymousVolumeWindows(t *testing.T) {
 	for _, path := range []string{"C:\\path", "Z:\\path\\foo"} {
-		volume, err := ParseVolume(path)
+		volume, err := parseVolume(path)
 		expected := types.ServiceVolumeConfig{Type: "volume", Target: path, Volume: &types.ServiceVolumeVolume{}}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -44,13 +44,13 @@ func TestParseVolumeAnonymousVolumeWindows(t *testing.T) {
 }
 
 func TestParseVolumeTooManyColons(t *testing.T) {
-	_, err := ParseVolume("/foo:/foo:ro:foo")
-	assert.Error(t, err, "invalid spec: /foo:/foo:ro:foo: too many colons")
+	_, err := parseVolume("/foo:/foo:ro:foo")
+	assert.Error(t, err, "invalid spec: /foo:/foo:ro:foo: too minterface{} colons")
 }
 
 func TestParseVolumeShortVolumes(t *testing.T) {
 	for _, path := range []string{".", "/a"} {
-		volume, err := ParseVolume(path)
+		volume, err := parseVolume(path)
 		expected := types.ServiceVolumeConfig{Type: "volume", Target: path}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -59,14 +59,14 @@ func TestParseVolumeShortVolumes(t *testing.T) {
 
 func TestParseVolumeMissingSource(t *testing.T) {
 	for _, spec := range []string{":foo", "/foo::ro"} {
-		_, err := ParseVolume(spec)
+		_, err := parseVolume(spec)
 		assert.ErrorContains(t, err, "empty section between colons")
 	}
 }
 
 func TestParseVolumeBindMount(t *testing.T) {
 	for _, path := range []string{"./foo", "~/thing", "../other", "/foo", "/home/user"} {
-		volume, err := ParseVolume(path + ":/target")
+		volume, err := parseVolume(path + ":/target")
 		expected := types.ServiceVolumeConfig{
 			Type:   "bind",
 			Source: path,
@@ -85,7 +85,7 @@ func TestParseVolumeRelativeBindMountWindows(t *testing.T) {
 		"../other",
 		"D:\\path", "/home/user",
 	} {
-		volume, err := ParseVolume(path + ":d:\\target")
+		volume, err := parseVolume(path + ":d:\\target")
 		expected := types.ServiceVolumeConfig{
 			Type:   "bind",
 			Source: path,
@@ -98,7 +98,7 @@ func TestParseVolumeRelativeBindMountWindows(t *testing.T) {
 }
 
 func TestParseVolumeWithBindOptions(t *testing.T) {
-	volume, err := ParseVolume("/source:/target:slave")
+	volume, err := parseVolume("/source:/target:slave")
 	expected := types.ServiceVolumeConfig{
 		Type:   "bind",
 		Source: "/source",
@@ -113,7 +113,7 @@ func TestParseVolumeWithBindOptions(t *testing.T) {
 }
 
 func TestParseVolumeWithBindOptionsSELinuxShared(t *testing.T) {
-	volume, err := ParseVolume("/source:/target:ro,z")
+	volume, err := parseVolume("/source:/target:ro,z")
 	expected := types.ServiceVolumeConfig{
 		Type:     "bind",
 		Source:   "/source",
@@ -129,7 +129,7 @@ func TestParseVolumeWithBindOptionsSELinuxShared(t *testing.T) {
 }
 
 func TestParseVolumeWithBindOptionsSELinuxPrivate(t *testing.T) {
-	volume, err := ParseVolume("/source:/target:ro,Z")
+	volume, err := parseVolume("/source:/target:ro,Z")
 	expected := types.ServiceVolumeConfig{
 		Type:     "bind",
 		Source:   "/source",
@@ -145,7 +145,7 @@ func TestParseVolumeWithBindOptionsSELinuxPrivate(t *testing.T) {
 }
 
 func TestParseVolumeWithBindOptionsWindows(t *testing.T) {
-	volume, err := ParseVolume("C:\\source\\foo:D:\\target:ro,rprivate")
+	volume, err := parseVolume("C:\\source\\foo:D:\\target:ro,rprivate")
 	expected := types.ServiceVolumeConfig{
 		Type:     "bind",
 		Source:   "C:\\source\\foo",
@@ -161,12 +161,12 @@ func TestParseVolumeWithBindOptionsWindows(t *testing.T) {
 }
 
 func TestParseVolumeWithInvalidVolumeOptions(t *testing.T) {
-	_, err := ParseVolume("name:/target:bogus")
+	_, err := parseVolume("name:/target:bogus")
 	assert.NilError(t, err)
 }
 
 func TestParseVolumeWithVolumeOptions(t *testing.T) {
-	volume, err := ParseVolume("name:/target:nocopy")
+	volume, err := parseVolume("name:/target:nocopy")
 	expected := types.ServiceVolumeConfig{
 		Type:   "volume",
 		Source: "name",
@@ -179,7 +179,7 @@ func TestParseVolumeWithVolumeOptions(t *testing.T) {
 
 func TestParseVolumeWithReadOnly(t *testing.T) {
 	for _, path := range []string{"./foo", "/home/user"} {
-		volume, err := ParseVolume(path + ":/target:ro")
+		volume, err := parseVolume(path + ":/target:ro")
 		expected := types.ServiceVolumeConfig{
 			Type:     "bind",
 			Source:   path,
@@ -194,7 +194,7 @@ func TestParseVolumeWithReadOnly(t *testing.T) {
 
 func TestParseVolumeWithRW(t *testing.T) {
 	for _, path := range []string{"./foo", "/home/user"} {
-		volume, err := ParseVolume(path + ":/target:rw")
+		volume, err := parseVolume(path + ":/target:rw")
 		expected := types.ServiceVolumeConfig{
 			Type:     "bind",
 			Source:   path,
@@ -208,7 +208,7 @@ func TestParseVolumeWithRW(t *testing.T) {
 }
 
 func TestParseVolumeWindowsNamedPipe(t *testing.T) {
-	volume, err := ParseVolume(`\\.\pipe\docker_engine:\\.\pipe\inside`)
+	volume, err := parseVolume(`\\.\pipe\docker_engine:\\.\pipe\inside`)
 	assert.NilError(t, err)
 	expected := types.ServiceVolumeConfig{
 		Type:   "bind",
@@ -263,7 +263,7 @@ func TestParseVolumeSplitCases(t *testing.T) {
 		// Cover directories with one-character name
 		{`/tmp/x/y:/foo/x/y`, -1, []string{`/tmp/x/y`, `/foo/x/y`}},
 	} {
-		parsed, _ := ParseVolume(x.input)
+		parsed, _ := parseVolume(x.input)
 
 		expected := len(x.expected) > 1
 		msg := fmt.Sprintf("Case %d: %s", casenumber, x.input)
@@ -272,12 +272,12 @@ func TestParseVolumeSplitCases(t *testing.T) {
 }
 
 func TestParseVolumeInvalidEmptySpec(t *testing.T) {
-	_, err := ParseVolume("")
+	_, err := parseVolume("")
 	assert.ErrorContains(t, err, "invalid empty volume spec")
 }
 
 func TestParseVolumeInvalidSections(t *testing.T) {
-	_, err := ParseVolume("/foo::rw")
+	_, err := parseVolume("/foo::rw")
 	assert.ErrorContains(t, err, "invalid spec")
 }
 

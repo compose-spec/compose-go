@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -34,9 +33,8 @@ import (
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
+	"github.com/compose-spec/compose-go/transform"
 	"github.com/compose-spec/compose-go/types"
-	"github.com/docker/go-units"
-	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -266,6 +264,11 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 				if err := schema.Validate(configDict); err != nil {
 					return fmt.Errorf("validating %s: %w", file.Filename, err)
 				}
+			}
+
+			configDict, err := transform.ExpandShortSyntax(configDict)
+			if err != nil {
+				return errors.Wrapf(err, "failed to expand short syntax")
 			}
 
 			configDict = groupXFieldsIntoExtensions(configDict)
@@ -502,6 +505,14 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 		if d, ok := value.(map[string]interface{}); ok {
 			dict[key] = groupXFieldsIntoExtensions(d)
 		}
+		if s, ok := value.([]interface{}); ok {
+			for i, item := range s {
+				if d, ok := item.(map[string]interface{}); ok {
+					s[i] = groupXFieldsIntoExtensions(d)
+				}
+			}
+		}
+
 	}
 	if len(extras) > 0 {
 		dict[extensions] = extras
@@ -521,6 +532,7 @@ func loadSections(ctx context.Context, filename string, config map[string]interf
 			return nil, errors.New("project name must be a string")
 		}
 	}
+
 	cfg.Name = name
 	cfg.Services, err = LoadServices(ctx, filename, getSection(config, "services"), configDetails.WorkingDir, configDetails.LookupEnv, opts)
 	if err != nil {
@@ -581,15 +593,15 @@ func (e *ForbiddenPropertiesError) Error() string {
 
 // Transform converts the source into the target struct with compose types transformer
 // and the specified transformers if any.
-func Transform(source interface{}, target interface{}, additionalTransformers ...Transformer) error {
+func Transform(source interface{}, target interface{}) error {
 	data := mapstructure.Metadata{}
 	config := &mapstructure.DecoderConfig{
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			createTransformHook(additionalTransformers...),
-			mapstructure.StringToTimeDurationHookFunc()),
 		Result:   target,
 		TagName:  "yaml",
 		Metadata: &data,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			decoderHook,
+			stringToDuration),
 	}
 	decoder, err := mapstructure.NewDecoder(config)
 	if err != nil {
@@ -598,55 +610,39 @@ func Transform(source interface{}, target interface{}, additionalTransformers ..
 	return decoder.Decode(source)
 }
 
-// TransformerFunc defines a function to perform the actual transformation
-type TransformerFunc func(interface{}) (interface{}, error)
-
-// Transformer defines a map to type transformer
-type Transformer struct {
-	TypeOf reflect.Type
-	Func   TransformerFunc
+func stringToDuration(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+	if f.Kind() != reflect.String {
+		return data, nil
+	}
+	if t != reflect.TypeOf(types.Duration(5)) {
+		return data, nil
+	}
+	// Convert it by parsing
+	return time.ParseDuration(data.(string))
 }
 
-func createTransformHook(additionalTransformers ...Transformer) mapstructure.DecodeHookFuncType {
-	transforms := map[reflect.Type]func(interface{}) (interface{}, error){
-		reflect.TypeOf(types.External{}):                         transformExternal,
-		reflect.TypeOf(types.HealthCheckTest{}):                  transformHealthCheckTest,
-		reflect.TypeOf(types.ShellCommand{}):                     transformShellCommand,
-		reflect.TypeOf(types.StringList{}):                       transformStringList,
-		reflect.TypeOf(map[string]string{}):                      transformMapStringString,
-		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
-		reflect.TypeOf(types.UnitBytes(0)):                       transformSize,
-		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
-		reflect.TypeOf(types.ServiceSecretConfig{}):              transformFileReferenceConfig,
-		reflect.TypeOf(types.ServiceConfigObjConfig{}):           transformFileReferenceConfig,
-		reflect.TypeOf(types.StringOrNumberList{}):               transformStringOrNumberList,
-		reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}): transformServiceNetworkMap,
-		reflect.TypeOf(types.Mapping{}):                          transformMappingOrListFunc("=", false),
-		reflect.TypeOf(types.MappingWithEquals{}):                transformMappingOrListFunc("=", true),
-		reflect.TypeOf(types.Labels{}):                           transformMappingOrListFunc("=", false),
-		reflect.TypeOf(types.MappingWithColon{}):                 transformMappingOrListFunc(":", false),
-		reflect.TypeOf(types.HostsList{}):                        transformMappingOrListFunc(":", false),
-		reflect.TypeOf(types.ServiceVolumeConfig{}):              transformServiceVolumeConfig,
-		reflect.TypeOf(types.BuildConfig{}):                      transformBuildConfig,
-		reflect.TypeOf(types.Duration(0)):                        transformStringToDuration,
-		reflect.TypeOf(types.DependsOnConfig{}):                  transformDependsOnConfig,
-		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
-		reflect.TypeOf(types.DeviceRequest{}):                    transformServiceDeviceRequest,
-		reflect.TypeOf(types.SSHConfig{}):                        transformSSHConfig,
-		reflect.TypeOf(types.IncludeConfig{}):                    transformIncludeConfig,
-	}
+// see https://github.com/mitchellh/mapstructure/pull/294
+type decoder interface {
+	DecodeMapstructure(interface{}) error
+}
 
-	for _, transformer := range additionalTransformers {
-		transforms[transformer.TypeOf] = transformer.Func
+// see https://github.com/mitchellh/mapstructure/issues/115#issuecomment-735287466
+func decoderHook(from reflect.Value, to reflect.Value) (interface{}, error) {
+	// If the destination implements the decoder interface
+	u, ok := to.Interface().(decoder)
+	if !ok {
+		return from.Interface(), nil
 	}
-
-	return func(_ reflect.Type, target reflect.Type, data interface{}) (interface{}, error) {
-		transform, ok := transforms[target]
-		if !ok {
-			return data, nil
-		}
-		return transform(data)
+	// If it is nil and a pointer, create and assign the target value first
+	if to.Type().Kind() == reflect.Ptr && to.IsNil() {
+		to.Set(reflect.New(to.Type().Elem()))
+		u = to.Interface().(decoder)
 	}
+	// Call the custom DecodeMapstructure method
+	if err := u.DecodeMapstructure(from.Interface()); err != nil {
+		return to.Interface(), err
+	}
+	return to.Interface(), nil
 }
 
 // keys need to be converted to strings for jsonschema
@@ -792,6 +788,11 @@ func loadServiceWithExtends(ctx context.Context, filename, name string, services
 			baseFile, _, err := parseConfig(decoder, opts)
 			if err != nil {
 				return nil, err
+			}
+
+			baseFile, err = transform.ExpandShortSyntax(baseFile)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to expand short syntax")
 			}
 
 			baseFileServices := getSection(baseFile, "services")
@@ -1029,350 +1030,4 @@ func loadFileObjectConfig(name string, objType string, obj types.FileObjectConfi
 	}
 
 	return obj, nil
-}
-
-var transformMapStringString TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case map[string]interface{}:
-		return toMapStringString(value, false), nil
-	case map[string]string:
-		return value, nil
-	default:
-		return data, errors.Errorf("invalid type %T for map[string]string", value)
-	}
-}
-
-var transformExternal TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case bool:
-		return map[string]interface{}{"external": value}, nil
-	case map[string]interface{}:
-		return map[string]interface{}{"external": true, "name": value["name"]}, nil
-	default:
-		return data, errors.Errorf("invalid type %T for external", value)
-	}
-}
-
-var transformServicePort TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch entries := data.(type) {
-	case []interface{}:
-		// We process the list instead of individual items here.
-		// The reason is that one entry might be mapped to multiple ServicePortConfig.
-		// Therefore we take an input of a list and return an output of a list.
-		var ports []interface{}
-		for _, entry := range entries {
-			switch value := entry.(type) {
-			case int:
-				parsed, err := types.ParsePortConfig(fmt.Sprint(value))
-				if err != nil {
-					return data, err
-				}
-				for _, v := range parsed {
-					ports = append(ports, v)
-				}
-			case string:
-				parsed, err := types.ParsePortConfig(value)
-				if err != nil {
-					return data, err
-				}
-				for _, v := range parsed {
-					ports = append(ports, v)
-				}
-			case map[string]interface{}:
-				published := value["published"]
-				if v, ok := published.(int); ok {
-					value["published"] = strconv.Itoa(v)
-				}
-				ports = append(ports, groupXFieldsIntoExtensions(value))
-			default:
-				return data, errors.Errorf("invalid type %T for port", value)
-			}
-		}
-		return ports, nil
-	default:
-		return data, errors.Errorf("invalid type %T for port", entries)
-	}
-}
-
-var transformServiceDeviceRequest TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case map[string]interface{}:
-		count, ok := value["count"]
-		if ok {
-			switch val := count.(type) {
-			case int:
-				return value, nil
-			case string:
-				if strings.ToLower(val) == "all" {
-					value["count"] = -1
-					return value, nil
-				}
-				i, err := strconv.ParseInt(val, 10, 64)
-				if err == nil {
-					value["count"] = i
-					return value, nil
-				}
-				return data, errors.Errorf("invalid string value for 'count' (the only value allowed is 'all' or a number)")
-			default:
-				return data, errors.Errorf("invalid type %T for device count", val)
-			}
-		}
-		return data, nil
-	default:
-		return data, errors.Errorf("invalid type %T for resource reservation", value)
-	}
-}
-
-var transformFileReferenceConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return map[string]interface{}{"source": value}, nil
-	case map[string]interface{}:
-		if target, ok := value["target"]; ok {
-			value["target"] = cleanTarget(target.(string))
-		}
-		return groupXFieldsIntoExtensions(value), nil
-	default:
-		return data, errors.Errorf("invalid type %T for secret", value)
-	}
-}
-
-func cleanTarget(target string) string {
-	if target == "" {
-		return ""
-	}
-	return paths.Clean(target)
-}
-
-var transformBuildConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return map[string]interface{}{"context": value}, nil
-	case map[string]interface{}:
-		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
-	default:
-		return data, errors.Errorf("invalid type %T for service build", value)
-	}
-}
-
-var transformDependsOnConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case []interface{}:
-		transformed := map[string]interface{}{}
-		for _, serviceIntf := range value {
-			service, ok := serviceIntf.(string)
-			if !ok {
-				return data, errors.Errorf("invalid type %T for service depends_on element, expected string", value)
-			}
-			transformed[service] = map[string]interface{}{"condition": types.ServiceConditionStarted, "required": true}
-		}
-		return transformed, nil
-	case map[string]interface{}:
-		transformed := map[string]interface{}{}
-		for service, val := range value {
-			dependsConfigIntf, ok := val.(map[string]interface{})
-			if !ok {
-				return data, errors.Errorf("invalid type %T for service depends_on element", value)
-			}
-			if _, ok := dependsConfigIntf["required"]; !ok {
-				dependsConfigIntf["required"] = true
-			}
-			transformed[service] = dependsConfigIntf
-		}
-		return groupXFieldsIntoExtensions(transformed), nil
-	default:
-		return data, errors.Errorf("invalid type %T for service depends_on", value)
-	}
-}
-
-var transformExtendsConfig TransformerFunc = func(value interface{}) (interface{}, error) {
-	switch value.(type) {
-	case string:
-		return map[string]interface{}{"service": value}, nil
-	case map[string]interface{}:
-		return value, nil
-	default:
-		return value, errors.Errorf("invalid type %T for extends", value)
-	}
-}
-
-var transformServiceVolumeConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		volume, err := ParseVolume(value)
-		volume.Target = cleanTarget(volume.Target)
-		return volume, err
-	case map[string]interface{}:
-		data := groupXFieldsIntoExtensions(data.(map[string]interface{}))
-		if target, ok := data["target"]; ok {
-			data["target"] = cleanTarget(target.(string))
-		}
-		return data, nil
-	default:
-		return data, errors.Errorf("invalid type %T for service volume", value)
-	}
-}
-
-var transformServiceNetworkMap TransformerFunc = func(value interface{}) (interface{}, error) {
-	if list, ok := value.([]interface{}); ok {
-		mapValue := map[interface{}]interface{}{}
-		for _, name := range list {
-			mapValue[name] = nil
-		}
-		return mapValue, nil
-	}
-	return value, nil
-}
-
-var transformSSHConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case map[string]interface{}:
-		var result []types.SSHKey
-		for key, val := range value {
-			if val == nil {
-				val = ""
-			}
-			result = append(result, types.SSHKey{ID: key, Path: val.(string)})
-		}
-		return result, nil
-	case []interface{}:
-		var result []types.SSHKey
-		for _, v := range value {
-			key, val := transformValueToMapEntry(v.(string), "=", false)
-			result = append(result, types.SSHKey{ID: key, Path: val.(string)})
-		}
-		return result, nil
-	case string:
-		return ParseShortSSHSyntax(value)
-	}
-	return nil, errors.Errorf("expected a sting, map or a list, got %T: %#v", data, data)
-}
-
-// ParseShortSSHSyntax parse short syntax for SSH authentications
-func ParseShortSSHSyntax(value string) ([]types.SSHKey, error) {
-	if value == "" {
-		value = "default"
-	}
-	key, val := transformValueToMapEntry(value, "=", false)
-	result := []types.SSHKey{{ID: key, Path: val.(string)}}
-	return result, nil
-}
-
-var transformStringOrNumberList TransformerFunc = func(value interface{}) (interface{}, error) {
-	list := value.([]interface{})
-	result := make([]string, len(list))
-	for i, item := range list {
-		result[i] = fmt.Sprint(item)
-	}
-	return result, nil
-}
-
-var transformStringList TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return []string{value}, nil
-	case []interface{}:
-		return value, nil
-	default:
-		return data, errors.Errorf("invalid type %T for string list", value)
-	}
-}
-
-func transformMappingOrListFunc(sep string, allowNil bool) TransformerFunc {
-	return func(data interface{}) (interface{}, error) {
-		return transformMappingOrList(data, sep, allowNil)
-	}
-}
-
-func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool) (interface{}, error) {
-	switch value := mappingOrList.(type) {
-	case map[string]interface{}:
-		return toMapStringString(value, allowNil), nil
-	case []interface{}:
-		result := make(map[string]interface{})
-		for _, value := range value {
-			key, val := transformValueToMapEntry(value.(string), sep, allowNil)
-			result[key] = val
-		}
-		return result, nil
-	}
-	return nil, errors.Errorf("expected a map or a list, got %T: %#v", mappingOrList, mappingOrList)
-}
-
-func transformValueToMapEntry(value string, separator string, allowNil bool) (string, interface{}) {
-	parts := strings.SplitN(value, separator, 2)
-	key := parts[0]
-	switch {
-	case len(parts) == 1 && allowNil:
-		return key, nil
-	case len(parts) == 1 && !allowNil:
-		return key, ""
-	default:
-		return key, parts[1]
-	}
-}
-
-var transformShellCommand TransformerFunc = func(value interface{}) (interface{}, error) {
-	if str, ok := value.(string); ok {
-		return shellwords.Parse(str)
-	}
-	return value, nil
-}
-
-var transformHealthCheckTest TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return append([]string{"CMD-SHELL"}, value), nil
-	case []interface{}:
-		return value, nil
-	default:
-		return value, errors.Errorf("invalid type %T for healthcheck.test", value)
-	}
-}
-
-var transformSize TransformerFunc = func(value interface{}) (interface{}, error) {
-	switch value := value.(type) {
-	case int:
-		return int64(value), nil
-	case int64, types.UnitBytes:
-		return value, nil
-	case string:
-		return units.RAMInBytes(value)
-	default:
-		return value, errors.Errorf("invalid type for size %T", value)
-	}
-}
-
-var transformStringToDuration TransformerFunc = func(value interface{}) (interface{}, error) {
-	switch value := value.(type) {
-	case string:
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return value, err
-		}
-		return types.Duration(d), nil
-	case types.Duration:
-		return value, nil
-	default:
-		return value, errors.Errorf("invalid type %T for duration", value)
-	}
-}
-
-func toMapStringString(value map[string]interface{}, allowNil bool) map[string]interface{} {
-	output := make(map[string]interface{})
-	for key, value := range value {
-		output[key] = toString(value, allowNil)
-	}
-	return output
-}
-
-func toString(value interface{}, allowNil bool) interface{} {
-	switch {
-	case value != nil:
-		return fmt.Sprint(value)
-	case allowNil:
-		return nil
-	default:
-		return ""
-	}
 }

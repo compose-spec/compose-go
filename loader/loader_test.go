@@ -1448,7 +1448,8 @@ func TestLoadVolumesWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
 	source := map[string]interface{}{
 		"foo": map[string]interface{}{
 			"external": map[string]interface{}{
-				"name": "oops",
+				"external": true,
+				"name":     "oops",
 			},
 		},
 	}
@@ -1462,7 +1463,6 @@ func TestLoadVolumesWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
 	}
 	assert.Check(t, is.DeepEqual(expected, volumes))
 	assert.Check(t, is.Contains(buf.String(), "volume.external.name is deprecated"))
-
 }
 
 func patchLogrus() (*bytes.Buffer, func()) {
@@ -1479,7 +1479,8 @@ func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
 	source := map[string]interface{}{
 		"foo": map[string]interface{}{
 			"external": map[string]interface{}{
-				"name": "oops",
+				"external": true,
+				"name":     "oops",
 			},
 		},
 	}
@@ -1533,7 +1534,8 @@ func TestLoadSecretsWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 	source := map[string]interface{}{
 		"foo": map[string]interface{}{
 			"external": map[string]interface{}{
-				"name": "oops",
+				"name":     "oops",
+				"external": true,
 			},
 		},
 	}
@@ -1556,7 +1558,8 @@ func TestLoadNetworksWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
 	source := map[string]interface{}{
 		"foo": map[string]interface{}{
 			"external": map[string]interface{}{
-				"name": "oops",
+				"name":     "oops",
+				"external": true,
 			},
 		},
 	}
@@ -1580,7 +1583,8 @@ func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
 	source := map[string]interface{}{
 		"foo": map[string]interface{}{
 			"external": map[string]interface{}{
-				"name": "oops",
+				"name":     "oops",
+				"external": true,
 			},
 		},
 	}
@@ -1807,30 +1811,6 @@ services:
 
 	assert.Assert(t, is.Len(config.Services, 1))
 	assert.Check(t, is.DeepEqual(expected, config.Services[0].Sysctls))
-}
-
-func TestTransform(t *testing.T) {
-	var source = []interface{}{
-		"80-82:8080-8082",
-		"90-92:8090-8092/udp",
-		"85:8500",
-		8600,
-		map[string]interface{}{
-			"protocol":  "udp",
-			"target":    53,
-			"published": 10053,
-		},
-		map[string]interface{}{
-			"mode":      "host",
-			"target":    22,
-			"published": 10022,
-		},
-	}
-	var ports []types.ServicePortConfig
-	err := Transform(source, &ports)
-	assert.NilError(t, err)
-
-	assert.Check(t, is.DeepEqual(samplePortsConfig, ports))
 }
 
 func TestLoadTemplateDriver(t *testing.T) {
@@ -2129,7 +2109,7 @@ services:
           devices:
             - driver: nvidia
               capabilities: [gpu]
-              count: somestring
+              count: some_string
 `)
 	assert.ErrorContains(t, err, "invalid string value for 'count' (the only value allowed is 'all' or a number)")
 }
@@ -2183,36 +2163,6 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 	service, err := p.GetService("Test")
 	assert.NilError(t, err)
 	assert.Equal(t, "YES", *service.Environment["HALLO"])
-}
-
-func TestLoadServiceWithVolumes(t *testing.T) {
-	m := map[string]interface{}{
-		"volumes": []interface{}{
-			"source:/path 1/",
-			map[string]interface{}{
-				"target": "/path 2/",
-			},
-		},
-		"configs": []interface{}{
-			map[string]interface{}{
-				"target": "/path 3/",
-			},
-		},
-		"secrets": []interface{}{
-			map[string]interface{}{
-				"target": "/path 4/",
-			},
-		},
-	}
-	s, err := LoadService("Test Name", m)
-	assert.NilError(t, err)
-	assert.Equal(t, len(s.Volumes), 2)
-	assert.Equal(t, "/path 1", s.Volumes[0].Target)
-	assert.Equal(t, "/path 2", s.Volumes[1].Target)
-	assert.Equal(t, len(s.Configs), 1)
-	assert.Equal(t, "/path 3", s.Configs[0].Target)
-	assert.Equal(t, len(s.Secrets), 1)
-	assert.Equal(t, "/path 4", s.Secrets[0].Target)
 }
 
 func TestLoadNoSSHInBuildConfig(t *testing.T) {

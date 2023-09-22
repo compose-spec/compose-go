@@ -504,6 +504,10 @@ func (p *Project) MarshalYAML() ([]byte, error) {
 
 // MarshalJSON makes Config implement json.Marshaler
 func (p *Project) MarshalJSON() ([]byte, error) {
+	return p.MarshalJSONIndent("", "")
+}
+
+func (p *Project) MarshalJSONIndent(prefix, indent string) ([]byte, error) {
 	m := map[string]interface{}{
 		"name":     p.Name,
 		"services": p.Services,
@@ -524,7 +528,7 @@ func (p *Project) MarshalJSON() ([]byte, error) {
 	for k, v := range p.Extensions {
 		m[k] = v
 	}
-	return json.Marshal(m)
+	return json.MarshalIndent(m, prefix, indent)
 }
 
 // ResolveServicesEnvironment parse env_files set for services to resolve the actual environment map for services

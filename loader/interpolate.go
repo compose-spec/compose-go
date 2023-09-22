@@ -22,6 +22,7 @@ import (
 
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/tree"
+	"github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -60,7 +61,6 @@ var interpolateTypeCastMapping = map[tree.Path]interp.Cast{
 	servicePath("secrets", tree.PathMatchList, "mode"):             toInt,
 	servicePath("shm_size"):                                        toUnitBytes,
 	servicePath("stdin_open"):                                      toBoolean,
-	servicePath("stop_grace_period"):                               toDuration,
 	servicePath("tty"):                                             toBoolean,
 	servicePath("ulimits", tree.PathMatchAll):                      toInt,
 	servicePath("ulimits", tree.PathMatchAll, "hard"):              toInt,
@@ -94,11 +94,7 @@ func toInt64(value string) (interface{}, error) {
 }
 
 func toUnitBytes(value string) (interface{}, error) {
-	return transformSize(value)
-}
-
-func toDuration(value string) (interface{}, error) {
-	return transformStringToDuration(value)
+	return units.RAMInBytes(value)
 }
 
 func toFloat(value string) (interface{}, error) {

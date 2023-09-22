@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package loader
+package transform
 
 import (
 	"strings"
@@ -27,8 +27,8 @@ import (
 
 const endOfSpec = rune(0)
 
-// ParseVolume parses a volume spec without any knowledge of the target platform
-func ParseVolume(spec string) (types.ServiceVolumeConfig, error) {
+// parseVolume parses a volume spec without interface{} knowledge of the target platform
+func parseVolume(spec string) (types.ServiceVolumeConfig, error) {
 	volume := types.ServiceVolumeConfig{}
 
 	switch len(spec) {
@@ -80,7 +80,7 @@ func populateFieldFromBuffer(char rune, buffer []rune, volume *types.ServiceVolu
 		volume.Target = strBuffer
 		return nil
 	case char == ':':
-		return errors.New("too many colons")
+		return errors.New("too minterface{} colons")
 	}
 	for _, option := range strings.Split(strBuffer, ",") {
 		switch option {
