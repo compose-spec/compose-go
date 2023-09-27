@@ -28,15 +28,12 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/compose-spec/compose-go/consts"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/types"
-	"github.com/docker/go-units"
-	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -586,7 +583,7 @@ func Transform(source interface{}, target interface{}, additionalTransformers ..
 	config := &mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			createTransformHook(additionalTransformers...),
-			mapstructure.StringToTimeDurationHookFunc()),
+			decoderHook),
 		Result:   target,
 		TagName:  "yaml",
 		Metadata: &data,
@@ -611,11 +608,9 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 	transforms := map[reflect.Type]func(interface{}) (interface{}, error){
 		reflect.TypeOf(types.External{}):                         transformExternal,
 		reflect.TypeOf(types.HealthCheckTest{}):                  transformHealthCheckTest,
-		reflect.TypeOf(types.ShellCommand{}):                     transformShellCommand,
 		reflect.TypeOf(types.StringList{}):                       transformStringList,
 		reflect.TypeOf(types.Options{}):                          transformMapStringString,
 		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
-		reflect.TypeOf(types.UnitBytes(0)):                       transformSize,
 		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
 		reflect.TypeOf(types.ServiceSecretConfig{}):              transformFileReferenceConfig,
 		reflect.TypeOf(types.ServiceConfigObjConfig{}):           transformFileReferenceConfig,
@@ -628,7 +623,6 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.HostsList{}):                        transformMappingOrListFunc(":", false),
 		reflect.TypeOf(types.ServiceVolumeConfig{}):              transformServiceVolumeConfig,
 		reflect.TypeOf(types.BuildConfig{}):                      transformBuildConfig,
-		reflect.TypeOf(types.Duration(0)):                        transformStringToDuration,
 		reflect.TypeOf(types.DependsOnConfig{}):                  transformDependsOnConfig,
 		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
 		reflect.TypeOf(types.DeviceRequest{}):                    transformServiceDeviceRequest,
@@ -1312,13 +1306,6 @@ func transformValueToMapEntry(value string, separator string, allowNil bool) (st
 	}
 }
 
-var transformShellCommand TransformerFunc = func(value interface{}) (interface{}, error) {
-	if str, ok := value.(string); ok {
-		return shellwords.Parse(str)
-	}
-	return value, nil
-}
-
 var transformHealthCheckTest TransformerFunc = func(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case string:
@@ -1327,34 +1314,6 @@ var transformHealthCheckTest TransformerFunc = func(data interface{}) (interface
 		return value, nil
 	default:
 		return value, errors.Errorf("invalid type %T for healthcheck.test", value)
-	}
-}
-
-var transformSize TransformerFunc = func(value interface{}) (interface{}, error) {
-	switch value := value.(type) {
-	case int:
-		return int64(value), nil
-	case int64, types.UnitBytes:
-		return value, nil
-	case string:
-		return units.RAMInBytes(value)
-	default:
-		return value, errors.Errorf("invalid type for size %T", value)
-	}
-}
-
-var transformStringToDuration TransformerFunc = func(value interface{}) (interface{}, error) {
-	switch value := value.(type) {
-	case string:
-		d, err := time.ParseDuration(value)
-		if err != nil {
-			return value, err
-		}
-		return types.Duration(d), nil
-	case types.Duration:
-		return value, nil
-	default:
-		return value, errors.Errorf("invalid type %T for duration", value)
 	}
 }
 
