@@ -584,13 +584,6 @@ type Resource struct {
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
-type DeviceRequest struct {
-	Capabilities []string `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
-	Driver       string   `yaml:"driver,omitempty" json:"driver,omitempty"`
-	Count        int64    `yaml:"count,omitempty" json:"count,omitempty"`
-	IDs          []string `yaml:"device_ids,omitempty" json:"device_ids,omitempty"`
-}
-
 // GenericResource represents a "user defined" resource which can
 // only be an integer (e.g: SSD=3) for a service
 type GenericResource struct {

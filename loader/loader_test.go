@@ -2129,9 +2129,9 @@ services:
           devices:
             - driver: nvidia
               capabilities: [gpu]
-              count: somestring
+              count: some_string
 `)
-	assert.ErrorContains(t, err, "invalid string value for 'count' (the only value allowed is 'all' or a number)")
+	assert.ErrorContains(t, err, `invalid value "some_string", the only value allowed is 'all' or a number`)
 }
 
 func TestServicePullPolicy(t *testing.T) {
