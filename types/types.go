@@ -327,13 +327,6 @@ type ThrottleDevice struct {
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
-// StringList is a type for fields that can be a string or list of strings
-type StringList []string
-
-// StringOrNumberList is a type for fields that can be a list of strings or
-// numbers
-type StringOrNumberList []string
-
 // MappingWithEquals is a mapping type that can be converted from a list of
 // key[=value] strings.
 // For the key with an empty value (`key=`), the mapped value is set to a pointer to `""`.

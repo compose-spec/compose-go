@@ -608,13 +608,11 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 	transforms := map[reflect.Type]func(interface{}) (interface{}, error){
 		reflect.TypeOf(types.External{}):                         transformExternal,
 		reflect.TypeOf(types.HealthCheckTest{}):                  transformHealthCheckTest,
-		reflect.TypeOf(types.StringList{}):                       transformStringList,
-		reflect.TypeOf(types.Options{}):                          transformMapStringString,
+		reflect.TypeOf(types.Options{}):                      transformMapStringString,
 		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
 		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
 		reflect.TypeOf(types.ServiceSecretConfig{}):              transformFileReferenceConfig,
 		reflect.TypeOf(types.ServiceConfigObjConfig{}):           transformFileReferenceConfig,
-		reflect.TypeOf(types.StringOrNumberList{}):               transformStringOrNumberList,
 		reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}): transformServiceNetworkMap,
 		reflect.TypeOf(types.Mapping{}):                          transformMappingOrListFunc("=", false),
 		reflect.TypeOf(types.MappingWithEquals{}):                transformMappingOrListFunc("=", true),
@@ -1219,26 +1217,6 @@ func ParseShortSSHSyntax(value string) ([]types.SSHKey, error) {
 	key, val := transformValueToMapEntry(value, "=", false)
 	result := []types.SSHKey{{ID: key, Path: val.(string)}}
 	return result, nil
-}
-
-var transformStringOrNumberList TransformerFunc = func(value interface{}) (interface{}, error) {
-	list := value.([]interface{})
-	result := make([]string, len(list))
-	for i, item := range list {
-		result[i] = fmt.Sprint(item)
-	}
-	return result, nil
-}
-
-var transformStringList TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return []string{value}, nil
-	case []interface{}:
-		return value, nil
-	default:
-		return data, errors.Errorf("invalid type %T for string list", value)
-	}
 }
 
 func transformMappingOrListFunc(sep string, allowNil bool) TransformerFunc {
