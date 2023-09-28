@@ -452,17 +452,6 @@ func (m Mapping) Merge(o Mapping) Mapping {
 // Options is a mapping type for options we pass as-is to container runtime
 type Options map[string]string
 
-// Labels is a mapping type for labels
-type Labels map[string]string
-
-func (l Labels) Add(key, value string) Labels {
-	if l == nil {
-		l = Labels{}
-	}
-	l[key] = value
-	return l
-}
-
 type SSHKey struct {
 	ID   string
 	Path string
