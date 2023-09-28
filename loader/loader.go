@@ -607,7 +607,6 @@ type Transformer struct {
 func createTransformHook(additionalTransformers ...Transformer) mapstructure.DecodeHookFuncType {
 	transforms := map[reflect.Type]func(interface{}) (interface{}, error){
 		reflect.TypeOf(types.External{}):                         transformExternal,
-		reflect.TypeOf(types.HealthCheckTest{}):                  transformHealthCheckTest,
 		reflect.TypeOf(types.Options{}):                      transformMapStringString,
 		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
 		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
@@ -1250,17 +1249,6 @@ func transformValueToMapEntry(value string, separator string, allowNil bool) (st
 		return key, ""
 	default:
 		return key, parts[1]
-	}
-}
-
-var transformHealthCheckTest TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return append([]string{"CMD-SHELL"}, value), nil
-	case []interface{}:
-		return value, nil
-	default:
-		return value, errors.Errorf("invalid type %T for healthcheck.test", value)
 	}
 }
 

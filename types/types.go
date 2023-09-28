@@ -529,22 +529,6 @@ type DeployConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
-// HealthCheckConfig the healthcheck configuration for a service
-type HealthCheckConfig struct {
-	Test          HealthCheckTest `yaml:"test,omitempty" json:"test,omitempty"`
-	Timeout       *Duration       `yaml:"timeout,omitempty" json:"timeout,omitempty"`
-	Interval      *Duration       `yaml:"interval,omitempty" json:"interval,omitempty"`
-	Retries       *uint64         `yaml:"retries,omitempty" json:"retries,omitempty"`
-	StartPeriod   *Duration       `yaml:"start_period,omitempty" json:"start_period,omitempty"`
-	StartInterval *Duration       `yaml:"start_interval,omitempty" json:"start_interval,omitempty"`
-	Disable       bool            `yaml:"disable,omitempty" json:"disable,omitempty"`
-
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
-}
-
-// HealthCheckTest is the command run to test the health of a service
-type HealthCheckTest []string
-
 // UpdateConfig the service update configuration
 type UpdateConfig struct {
 	Parallelism     *uint64  `yaml:"parallelism,omitempty" json:"parallelism,omitempty"`
