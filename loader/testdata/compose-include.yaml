@@ -1,6 +1,6 @@
 include:
-  - compose-include.yaml
+    - path: ./subdir/compose-test-extends-imported.yaml
 
 services:
-  foo:
-    image: foo
+  bar:
+    image: bar

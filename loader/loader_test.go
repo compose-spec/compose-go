@@ -2604,11 +2604,54 @@ func TestLoadWithIncludeCycle(t *testing.T) {
 		WorkingDir: filepath.Join(workingDir, "testdata"),
 		ConfigFiles: []types.ConfigFile{
 			{
-				Filename: filepath.Join(workingDir, "testdata", "compose-include.yaml"),
+				Filename: filepath.Join(workingDir, "testdata", "compose-include-cycle.yaml"),
 			},
 		},
 	})
 	assert.Check(t, strings.HasPrefix(err.Error(), "include cycle detected"))
+}
+
+func TestLoadWithMultipleInclude(t *testing.T) {
+	// include same service twice should not trigger an error
+	p, err := Load(buildConfigDetails(`
+name: 'test-multi-include'
+
+include:
+  - path: ./testdata/subdir/compose-test-extends-imported.yaml
+    env_file: ./testdata/subdir/extra.env
+  - path: ./testdata/compose-include.yaml
+
+services:
+  foo:
+    image: busybox
+    depends_on:
+      - imported
+`, map[string]string{"SOURCE": "override"}), func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services[1].ContainerName, "override")
+
+	// include 2 different services with same name should trigger an error
+	p, err = Load(buildConfigDetails(`
+name: 'test-multi-include'
+
+include:
+  - path: ./testdata/subdir/compose-test-extends-imported.yaml
+    env_file: ./testdata/subdir/extra.env
+  - path: ./testdata/compose-include.yaml
+    env_file: ./testdata/subdir/extra.env
+    
+
+services:
+  bar:
+    image: busybox
+`, map[string]string{"SOURCE": "override"}), func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+	})
+	assert.ErrorContains(t, err, "defines conflicting service bar", err)
 }
 
 func TestLoadWithDependsOn(t *testing.T) {
