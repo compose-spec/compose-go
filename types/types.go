@@ -535,6 +535,9 @@ func (m Mapping) Merge(o Mapping) Mapping {
 	return m
 }
 
+// Options is a mapping type for options we pass as-is to container runtime
+type Options map[string]string
+
 // Labels is a mapping type for labels
 type Labels map[string]string
 
@@ -609,8 +612,8 @@ func (h HostsList) MarshalJSON() ([]byte, error) {
 
 // LoggingConfig the logging configuration for a service
 type LoggingConfig struct {
-	Driver  string            `yaml:"driver,omitempty" json:"driver,omitempty"`
-	Options map[string]string `yaml:"options,omitempty" json:"options,omitempty"`
+	Driver  string  `yaml:"driver,omitempty" json:"driver,omitempty"`
+	Options Options `yaml:"options,omitempty" json:"options,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
@@ -955,16 +958,16 @@ func (u *UlimitsConfig) MarshalJSON() ([]byte, error) {
 
 // NetworkConfig for a network
 type NetworkConfig struct {
-	Name       string            `yaml:"name,omitempty" json:"name,omitempty"`
-	Driver     string            `yaml:"driver,omitempty" json:"driver,omitempty"`
-	DriverOpts map[string]string `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
-	Ipam       IPAMConfig        `yaml:"ipam,omitempty" json:"ipam,omitempty"`
-	External   External          `yaml:"external,omitempty" json:"external,omitempty"`
-	Internal   bool              `yaml:"internal,omitempty" json:"internal,omitempty"`
-	Attachable bool              `yaml:"attachable,omitempty" json:"attachable,omitempty"`
-	Labels     Labels            `yaml:"labels,omitempty" json:"labels,omitempty"`
-	EnableIPv6 bool              `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
-	Extensions Extensions        `yaml:"#extensions,inline" json:"-"`
+	Name       string     `yaml:"name,omitempty" json:"name,omitempty"`
+	Driver     string     `yaml:"driver,omitempty" json:"driver,omitempty"`
+	DriverOpts Options    `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
+	Ipam       IPAMConfig `yaml:"ipam,omitempty" json:"ipam,omitempty"`
+	External   External   `yaml:"external,omitempty" json:"external,omitempty"`
+	Internal   bool       `yaml:"internal,omitempty" json:"internal,omitempty"`
+	Attachable bool       `yaml:"attachable,omitempty" json:"attachable,omitempty"`
+	Labels     Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
+	EnableIPv6 bool       `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
+	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
 // IPAMConfig for a network
@@ -979,18 +982,18 @@ type IPAMPool struct {
 	Subnet             string                 `yaml:"subnet,omitempty" json:"subnet,omitempty"`
 	Gateway            string                 `yaml:"gateway,omitempty" json:"gateway,omitempty"`
 	IPRange            string                 `yaml:"ip_range,omitempty" json:"ip_range,omitempty"`
-	AuxiliaryAddresses map[string]string      `yaml:"aux_addresses,omitempty" json:"aux_addresses,omitempty"`
+	AuxiliaryAddresses Mapping                `yaml:"aux_addresses,omitempty" json:"aux_addresses,omitempty"`
 	Extensions         map[string]interface{} `yaml:",inline" json:"-"`
 }
 
 // VolumeConfig for a volume
 type VolumeConfig struct {
-	Name       string            `yaml:"name,omitempty" json:"name,omitempty"`
-	Driver     string            `yaml:"driver,omitempty" json:"driver,omitempty"`
-	DriverOpts map[string]string `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
-	External   External          `yaml:"external,omitempty" json:"external,omitempty"`
-	Labels     Labels            `yaml:"labels,omitempty" json:"labels,omitempty"`
-	Extensions Extensions        `yaml:"#extensions,inline" json:"-"`
+	Name       string     `yaml:"name,omitempty" json:"name,omitempty"`
+	Driver     string     `yaml:"driver,omitempty" json:"driver,omitempty"`
+	DriverOpts Options    `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
+	External   External   `yaml:"external,omitempty" json:"external,omitempty"`
+	Labels     Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
 // External identifies a Volume or Network as a reference to a resource that is

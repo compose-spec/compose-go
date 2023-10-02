@@ -613,7 +613,7 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.HealthCheckTest{}):                  transformHealthCheckTest,
 		reflect.TypeOf(types.ShellCommand{}):                     transformShellCommand,
 		reflect.TypeOf(types.StringList{}):                       transformStringList,
-		reflect.TypeOf(map[string]string{}):                      transformMapStringString,
+		reflect.TypeOf(types.Options{}):                          transformMapStringString,
 		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
 		reflect.TypeOf(types.UnitBytes(0)):                       transformSize,
 		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
