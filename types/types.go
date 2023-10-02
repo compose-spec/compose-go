@@ -21,46 +21,9 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/docker/go-connections/nat"
 )
-
-// Duration is a thin wrapper around time.Duration with improved JSON marshalling
-type Duration time.Duration
-
-func (d Duration) String() string {
-	return time.Duration(d).String()
-}
-
-// ConvertDurationPtr converts a type defined Duration pointer to a time.Duration pointer with the same value.
-func ConvertDurationPtr(d *Duration) *time.Duration {
-	if d == nil {
-		return nil
-	}
-	res := time.Duration(*d)
-	return &res
-}
-
-// MarshalJSON makes Duration implement json.Marshaler
-func (d Duration) MarshalJSON() ([]byte, error) {
-	return json.Marshal(d.String())
-}
-
-// MarshalYAML makes Duration implement yaml.Marshaler
-func (d Duration) MarshalYAML() (interface{}, error) {
-	return d.String(), nil
-}
-
-func (d *Duration) UnmarshalJSON(b []byte) error {
-	s := strings.Trim(string(b), "\"")
-	timeDuration, err := time.ParseDuration(s)
-	if err != nil {
-		return err
-	}
-	*d = Duration(timeDuration)
-	return nil
-}
 
 // Services is a list of ServiceConfig
 type Services []ServiceConfig
@@ -364,62 +327,6 @@ type ThrottleDevice struct {
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
-// ShellCommand is a string or list of string args.
-//
-// When marshaled to YAML, nil command fields will be omitted if `omitempty`
-// is specified as a struct tag. Explicitly empty commands (i.e. `[]` or
-// empty string will serialize to an empty array (`[]`).
-//
-// When marshaled to JSON, the `omitempty` struct must NOT be specified.
-// If the command field is nil, it will be serialized as `null`.
-// Explicitly empty commands (i.e. `[]` or empty string) will serialize to
-// an empty array (`[]`).
-//
-// The distinction between nil and explicitly empty is important to distinguish
-// between an unset value and a provided, but empty, value, which should be
-// preserved so that it can override any base value (e.g. container entrypoint).
-//
-// The different semantics between YAML and JSON are due to limitations with
-// JSON marshaling + `omitempty` in the Go stdlib, while gopkg.in/yaml.v3 gives
-// us more flexibility via the yaml.IsZeroer interface.
-//
-// In the future, it might make sense to make fields of this type be
-// `*ShellCommand` to avoid this situation, but that would constitute a
-// breaking change.
-type ShellCommand []string
-
-// IsZero returns true if the slice is nil.
-//
-// Empty (but non-nil) slices are NOT considered zero values.
-func (s ShellCommand) IsZero() bool {
-	// we do NOT want len(s) == 0, ONLY explicitly nil
-	return s == nil
-}
-
-// MarshalYAML returns nil (which will be serialized as `null`) for nil slices
-// and delegates to the standard marshaller behavior otherwise.
-//
-// NOTE: Typically the nil case here is not hit because IsZero has already
-// short-circuited marshalling, but this ensures that the type serializes
-// accurately if the `omitempty` struct tag is omitted/forgotten.
-//
-// A similar MarshalJSON() implementation is not needed because the Go stdlib
-// already serializes nil slices to `null`, whereas gopkg.in/yaml.v3 by default
-// serializes nil slices to `[]`.
-func (s ShellCommand) MarshalYAML() (interface{}, error) {
-	if s == nil {
-		return nil, nil
-	}
-	return []string(s), nil
-}
-
-// StringList is a type for fields that can be a string or list of strings
-type StringList []string
-
-// StringOrNumberList is a type for fields that can be a list of strings or
-// numbers
-type StringOrNumberList []string
-
 // MappingWithEquals is a mapping type that can be converted from a list of
 // key[=value] strings.
 // For the key with an empty value (`key=`), the mapped value is set to a pointer to `""`.
@@ -535,20 +442,6 @@ func (m Mapping) Merge(o Mapping) Mapping {
 	return m
 }
 
-// Options is a mapping type for options we pass as-is to container runtime
-type Options map[string]string
-
-// Labels is a mapping type for labels
-type Labels map[string]string
-
-func (l Labels) Add(key, value string) Labels {
-	if l == nil {
-		l = Labels{}
-	}
-	l[key] = value
-	return l
-}
-
 type SSHKey struct {
 	ID   string
 	Path string
@@ -633,22 +526,6 @@ type DeployConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
-// HealthCheckConfig the healthcheck configuration for a service
-type HealthCheckConfig struct {
-	Test          HealthCheckTest `yaml:"test,omitempty" json:"test,omitempty"`
-	Timeout       *Duration       `yaml:"timeout,omitempty" json:"timeout,omitempty"`
-	Interval      *Duration       `yaml:"interval,omitempty" json:"interval,omitempty"`
-	Retries       *uint64         `yaml:"retries,omitempty" json:"retries,omitempty"`
-	StartPeriod   *Duration       `yaml:"start_period,omitempty" json:"start_period,omitempty"`
-	StartInterval *Duration       `yaml:"start_interval,omitempty" json:"start_interval,omitempty"`
-	Disable       bool            `yaml:"disable,omitempty" json:"disable,omitempty"`
-
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
-}
-
-// HealthCheckTest is the command run to test the health of a service
-type HealthCheckTest []string
-
 // UpdateConfig the service update configuration
 type UpdateConfig struct {
 	Parallelism     *uint64  `yaml:"parallelism,omitempty" json:"parallelism,omitempty"`
@@ -681,13 +558,6 @@ type Resource struct {
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
-type DeviceRequest struct {
-	Capabilities []string `yaml:"capabilities,omitempty" json:"capabilities,omitempty"`
-	Driver       string   `yaml:"driver,omitempty" json:"driver,omitempty"`
-	Count        int64    `yaml:"count,omitempty" json:"count,omitempty"`
-	IDs          []string `yaml:"device_ids,omitempty" json:"device_ids,omitempty"`
-}
-
 // GenericResource represents a "user defined" resource which can
 // only be an integer (e.g: SSD=3) for a service
 type GenericResource struct {
@@ -705,19 +575,6 @@ type DiscreteGenericResource struct {
 	Value int64  `json:"value"`
 
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
-}
-
-// UnitBytes is the bytes type
-type UnitBytes int64
-
-// MarshalYAML makes UnitBytes implement yaml.Marshaller
-func (u UnitBytes) MarshalYAML() (interface{}, error) {
-	return fmt.Sprintf("%d", u), nil
-}
-
-// MarshalJSON makes UnitBytes implement json.Marshaler
-func (u UnitBytes) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`"%d"`, u)), nil
 }
 
 // RestartPolicy the service restart policy
