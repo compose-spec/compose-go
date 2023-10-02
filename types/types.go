@@ -442,9 +442,6 @@ func (m Mapping) Merge(o Mapping) Mapping {
 	return m
 }
 
-// Options is a mapping type for options we pass as-is to container runtime
-type Options map[string]string
-
 type SSHKey struct {
 	ID   string
 	Path string

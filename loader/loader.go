@@ -607,7 +607,7 @@ type Transformer struct {
 func createTransformHook(additionalTransformers ...Transformer) mapstructure.DecodeHookFuncType {
 	transforms := map[reflect.Type]func(interface{}) (interface{}, error){
 		reflect.TypeOf(types.External{}):                         transformExternal,
-		reflect.TypeOf(types.Options{}):                      transformMapStringString,
+		reflect.TypeOf(types.Options{}):                          transformOptions,
 		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
 		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
 		reflect.TypeOf(types.ServiceSecretConfig{}):              transformFileReferenceConfig,
@@ -1020,7 +1020,7 @@ func loadFileObjectConfig(name string, objType string, obj types.FileObjectConfi
 	return obj, nil
 }
 
-var transformMapStringString TransformerFunc = func(data interface{}) (interface{}, error) {
+var transformOptions TransformerFunc = func(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case map[string]interface{}:
 		return toMapStringString(value, false), nil
