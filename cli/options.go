@@ -52,7 +52,7 @@ type ProjectOptions struct {
 
 	// ConfigPaths are file paths to one or more Compose files.
 	//
-	// These are applied in order by the loader following the merge logic
+	// These are applied in order by the loader following the override logic
 	// as described in the spec.
 	//
 	// The first entry is required and is the primary Compose file.

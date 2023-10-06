@@ -51,3 +51,21 @@ func decoderHook(from reflect.Value, to reflect.Value) (interface{}, error) {
 	}
 	return to.Interface(), nil
 }
+
+func cast(from reflect.Value, to reflect.Value) (interface{}, error) {
+	if from.Type().Kind() == reflect.String {
+		switch to.Kind() {
+		case reflect.Bool:
+			return toBoolean(from.String())
+		case reflect.Int:
+			return toInt(from.String())
+		case reflect.Int64:
+			return toInt64(from.String())
+		case reflect.Float32:
+			return toFloat32(from.String())
+		case reflect.Float64:
+			return toFloat(from.String())
+		}
+	}
+	return from.Interface(), nil
+}

@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package loader
+package format
 
 import (
 	"fmt"

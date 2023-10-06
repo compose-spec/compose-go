@@ -11,82 +11,60 @@
    limitations under the License.
 */
 
-package merge
+package override
 
 import (
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
-func Test_mergeYamlEnvironmentSequence(t *testing.T) {
-	assertMergeYaml(t, `
+func Test_EnvironmentUnicity(t *testing.T) {
+	assertUnicity(t, `
 services:
   test:
     image: foo
     environment:
       - FOO=BAR
-`, `
-services:
-  test:
-    environment:
-      - QIX=ZOT
-      - EMPTY=
-      - NIL
+      - BAR=QIX
+      - QIX=
+      - ZOT
+      - FOO=ZOT
+      - QIX
+      - ZOT=
 `, `
 services:
   test:
     image: foo
     environment:
-      - FOO=BAR
-      - QIX=ZOT
-      - EMPTY=
-      - NIL
+      - FOO=ZOT
+      - BAR=QIX
+      - QIX
+      - ZOT=
 `)
 }
 
-func Test_mergeYamlEnvironmentMapping(t *testing.T) {
-	assertMergeYaml(t, `
+func Test_VolumeUnicity(t *testing.T) {
+	assertUnicity(t, `
 services:
   test:
     image: foo
-    environment:
-      FOO: BAR
-`, `
-services:
-  test:
-    environment:
-      EMPTY: ""
-      NIL: null
-      QIX: ZOT
+    volumes:
+      - .:/foo
+      - foo:/bar
+      - src:/foo
 `, `
 services:
   test:
     image: foo
-    environment:
-      - FOO=BAR
-      - EMPTY=
-      - NIL
-      - QIX=ZOT
+    volumes:
+      - src:/foo
+      - foo:/bar
 `)
 }
 
-func Test_mergeYamlEnvironmentMixed(t *testing.T) {
-	assertMergeYaml(t, `
-services:
-  test:
-    image: foo
-    environment:
-      FOO: BAR
-`, `
-services:
-  test:
-    environment:
-      - QIX=ZOT
-`, `
-services:
-  test:
-    image: foo
-    environment:
-      - FOO=BAR
-      - QIX=ZOT
-`)
+func assertUnicity(t *testing.T, before string, expected string) {
+	got, err := EnforceUnicity(unmarshall(t, before))
+	assert.NilError(t, err)
+	assert.DeepEqual(t, got, unmarshall(t, expected))
 }

@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/compose-spec/compose-go/tree"
-	"github.com/compose-spec/compose-go/types"
 	"gopkg.in/yaml.v3"
 )
 
@@ -74,7 +73,7 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 }
 
 // Apply finds the go attributes matching recorded paths and reset them to zero value
-func (p *ResetProcessor) Apply(target *types.Config) error {
+func (p *ResetProcessor) Apply(target any) error {
 	return p.applyNullOverrides(reflect.ValueOf(target), tree.NewPath())
 }
 
@@ -86,17 +85,6 @@ func (p *ResetProcessor) applyNullOverrides(val reflect.Value, path tree.Path) e
 	}
 	typ := val.Type()
 	switch {
-	case path == "services":
-		// Project.Services is a slice in compose-go, but a mapping in yaml
-		for i := 0; i < val.Len(); i++ {
-			service := val.Index(i)
-			name := service.FieldByName("Name")
-			next := path.Next(name.String())
-			err := p.applyNullOverrides(service, next)
-			if err != nil {
-				return err
-			}
-		}
 	case typ.Kind() == reflect.Map:
 		iter := val.MapRange()
 	KEYS:

@@ -14,15 +14,13 @@
    limitations under the License.
 */
 
-package merge
+package override
 
 import (
-	"sort"
 	"strings"
 
-	"github.com/compose-spec/compose-go/loader"
+	"github.com/compose-spec/compose-go/format"
 	"github.com/compose-spec/compose-go/tree"
-	"github.com/compose-spec/compose-go/utils"
 )
 
 type indexer func(interface{}) (string, error)
@@ -36,11 +34,19 @@ func init() {
 }
 
 // EnforceUnicity removes redefinition of elements declared in a sequence
-func EnforceUnicity(value interface{}, p tree.Path) (interface{}, error) {
+func EnforceUnicity(value map[string]interface{}) (map[string]interface{}, error) {
+	uniq, err := enforceUnicity(value, tree.NewPath())
+	if err != nil {
+		return nil, err
+	}
+	return uniq.(map[string]interface{}), nil
+}
+
+func enforceUnicity(value interface{}, p tree.Path) (interface{}, error) {
 	switch v := value.(type) {
 	case map[string]interface{}:
 		for k, e := range v {
-			u, err := EnforceUnicity(e, p.Next(k))
+			u, err := enforceUnicity(e, p.Next(k))
 			if err != nil {
 				return nil, err
 			}
@@ -48,24 +54,21 @@ func EnforceUnicity(value interface{}, p tree.Path) (interface{}, error) {
 		}
 		return v, nil
 	case []interface{}:
-		uniq := make(map[string]interface{}, len(v))
 		for pattern, indexer := range unique {
 			if p.Matches(pattern) {
+				var seq []interface{}
+				keys := map[string]int{}
 				for _, entry := range v {
 					key, err := indexer(entry)
 					if err != nil {
 						return nil, err
 					}
-					uniq[key] = entry
-				}
-				keys := utils.MapKeys(uniq)
-				sort.Strings(keys)
-
-				seq := make([]interface{}, len(uniq))
-				i := 0
-				for _, k := range keys {
-					seq[i] = uniq[k]
-					i++
+					if j, ok := keys[key]; ok {
+						seq[j] = entry
+					} else {
+						seq = append(seq, entry)
+						keys[key] = len(seq) - 1
+					}
 				}
 				return seq, nil
 			}
@@ -88,7 +91,7 @@ func volumeIndexer(y interface{}) (string, error) {
 	case map[string]interface{}:
 		return value["target"].(string), nil
 	case string:
-		volume, err := loader.ParseVolume(value)
+		volume, err := format.ParseVolume(value)
 		if err != nil {
 			return "", err
 		}
