@@ -18,9 +18,7 @@ package loader
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
-	"strings"
 
 	"github.com/compose-spec/compose-go/tree"
 	"gopkg.in/yaml.v3"
@@ -74,70 +72,38 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 
 // Apply finds the go attributes matching recorded paths and reset them to zero value
 func (p *ResetProcessor) Apply(target any) error {
-	return p.applyNullOverrides(reflect.ValueOf(target), tree.NewPath())
+	return p.applyNullOverrides(target, tree.NewPath())
 }
 
 // applyNullOverrides set val to Zero if it matches any of the recorded paths
-func (p *ResetProcessor) applyNullOverrides(val reflect.Value, path tree.Path) error {
-	val = reflect.Indirect(val)
-	if !val.IsValid() {
-		return nil
-	}
-	typ := val.Type()
-	switch {
-	case typ.Kind() == reflect.Map:
-		iter := val.MapRange()
+func (p *ResetProcessor) applyNullOverrides(target any, path tree.Path) error {
+	switch v := target.(type) {
+	case map[string]any:
 	KEYS:
-		for iter.Next() {
-			k := iter.Key()
-			next := path.Next(k.String())
+		for k, e := range v {
+			next := path.Next(k)
 			for _, pattern := range p.paths {
 				if next.Matches(pattern) {
-					val.SetMapIndex(k, reflect.Value{})
+					delete(v, k)
 					continue KEYS
 				}
 			}
-			return p.applyNullOverrides(iter.Value(), next)
+			err := p.applyNullOverrides(e, next)
+			if err != nil {
+				return err
+			}
 		}
-	case typ.Kind() == reflect.Slice:
+	case []any:
 	ITER:
-		for i := 0; i < val.Len(); i++ {
+		for i, e := range v {
 			next := path.Next(fmt.Sprintf("[%d]", i))
 			for _, pattern := range p.paths {
 				if next.Matches(pattern) {
-
 					continue ITER
+					// TODO(ndeloof) support removal from sequence
 				}
 			}
-			// TODO(ndeloof) support removal from sequence
-			return p.applyNullOverrides(val.Index(i), next)
-		}
-
-	case typ.Kind() == reflect.Struct:
-	FIELDS:
-		for i := 0; i < typ.NumField(); i++ {
-			field := typ.Field(i)
-			name := field.Name
-			attr := strings.ToLower(name)
-			tag := field.Tag.Get("yaml")
-			tag = strings.Split(tag, ",")[0]
-			if tag != "" && tag != "-" {
-				attr = tag
-			}
-			next := path.Next(attr)
-			f := val.Field(i)
-			for _, pattern := range p.paths {
-				if next.Matches(pattern) {
-					f := f
-					if !f.CanSet() {
-						return fmt.Errorf("can't override attribute %s", name)
-					}
-					// f.SetZero() requires go 1.20
-					f.Set(reflect.Zero(f.Type()))
-					continue FIELDS
-				}
-			}
-			err := p.applyNullOverrides(f, next)
+			err := p.applyNullOverrides(e, next)
 			if err != nil {
 				return err
 			}

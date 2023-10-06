@@ -85,9 +85,10 @@ func (m *MappingWithEquals) DecodeMapstructure(value interface{}) error {
 		for _, s := range v {
 			k, e, ok := strings.Cut(fmt.Sprint(s), "=")
 			if !ok {
-				return fmt.Errorf("invalid label %q", v)
+				mapping[k] = nil
+			} else {
+				mapping[k] = mappingValue(e)
 			}
-			mapping[k] = mappingValue(e)
 		}
 		*m = mapping
 	default:

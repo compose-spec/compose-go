@@ -17,13 +17,14 @@
 package override
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/compose-spec/compose-go/format"
 	"github.com/compose-spec/compose-go/tree"
 )
 
-type indexer func(interface{}) (string, error)
+type indexer func(any, tree.Path) (string, error)
 
 // mergeSpecials defines the custom rules applied by compose when merging yaml trees
 var unique = map[tree.Path]indexer{}
@@ -34,17 +35,17 @@ func init() {
 }
 
 // EnforceUnicity removes redefinition of elements declared in a sequence
-func EnforceUnicity(value map[string]interface{}) (map[string]interface{}, error) {
+func EnforceUnicity(value map[string]any) (map[string]any, error) {
 	uniq, err := enforceUnicity(value, tree.NewPath())
 	if err != nil {
 		return nil, err
 	}
-	return uniq.(map[string]interface{}), nil
+	return uniq.(map[string]any), nil
 }
 
-func enforceUnicity(value interface{}, p tree.Path) (interface{}, error) {
+func enforceUnicity(value any, p tree.Path) (any, error) {
 	switch v := value.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		for k, e := range v {
 			u, err := enforceUnicity(e, p.Next(k))
 			if err != nil {
@@ -53,13 +54,13 @@ func enforceUnicity(value interface{}, p tree.Path) (interface{}, error) {
 			v[k] = u
 		}
 		return v, nil
-	case []interface{}:
+	case []any:
 		for pattern, indexer := range unique {
 			if p.Matches(pattern) {
-				var seq []interface{}
+				var seq []any
 				keys := map[string]int{}
-				for _, entry := range v {
-					key, err := indexer(entry)
+				for i, entry := range v {
+					key, err := indexer(entry, p.Next(fmt.Sprintf("[%d]", i)))
 					if err != nil {
 						return nil, err
 					}
@@ -77,7 +78,7 @@ func enforceUnicity(value interface{}, p tree.Path) (interface{}, error) {
 	return value, nil
 }
 
-func environmentIndexer(y interface{}) (string, error) {
+func environmentIndexer(y any, p tree.Path) (string, error) {
 	value := y.(string)
 	key, _, found := strings.Cut(value, "=")
 	if !found {
@@ -86,10 +87,14 @@ func environmentIndexer(y interface{}) (string, error) {
 	return key, nil
 }
 
-func volumeIndexer(y interface{}) (string, error) {
+func volumeIndexer(y any, p tree.Path) (string, error) {
 	switch value := y.(type) {
-	case map[string]interface{}:
-		return value["target"].(string), nil
+	case map[string]any:
+		target, ok := value["target"].(string)
+		if !ok {
+			return "", fmt.Errorf("service volume %s is missing a mount target", p)
+		}
+		return target, nil
 	case string:
 		volume, err := format.ParseVolume(value)
 		if err != nil {

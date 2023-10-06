@@ -1,3 +1,19 @@
+/*
+   Copyright 2020 The Compose Specification Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package transform
 
 import (
@@ -9,13 +25,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-func trasformPorts(data interface{}, p tree.Path) (interface{}, error) {
+func transformPorts(data any, p tree.Path) (any, error) {
 	switch entries := data.(type) {
-	case []interface{}:
+	case []any:
 		// We process the list instead of individual items here.
 		// The reason is that one entry might be mapped to multiple ServicePortConfig.
 		// Therefore we take an input of a list and return an output of a list.
-		var ports []interface{}
+		var ports []any
 		for _, entry := range entries {
 			switch value := entry.(type) {
 			case int:
@@ -24,7 +40,7 @@ func trasformPorts(data interface{}, p tree.Path) (interface{}, error) {
 					return data, err
 				}
 				for _, v := range parsed {
-					m := map[string]interface{}{}
+					m := map[string]any{}
 					err := mapstructure.Decode(v, &m)
 					if err != nil {
 						return nil, err
@@ -37,14 +53,14 @@ func trasformPorts(data interface{}, p tree.Path) (interface{}, error) {
 					return data, err
 				}
 				for _, v := range parsed {
-					m := map[string]interface{}{}
+					m := map[string]any{}
 					err := mapstructure.Decode(v, &m)
 					if err != nil {
 						return nil, err
 					}
 					ports = append(ports, m)
 				}
-			case map[string]interface{}:
+			case map[string]any:
 				ports = append(ports, value)
 			default:
 				return data, errors.Errorf("invalid type %T for port", value)

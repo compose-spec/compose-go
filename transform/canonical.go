@@ -20,26 +20,33 @@ import (
 	"github.com/compose-spec/compose-go/tree"
 )
 
-type transformFunc func(data interface{}, p tree.Path) (interface{}, error)
+type transformFunc func(data any, p tree.Path) (any, error)
 
 var transformers = map[tree.Path]transformFunc{}
 
 func init() {
 	transformers["services"] = makeServicesSlice
 	transformers["services.*.networks"] = transformServiceNetworks
-	transformers["services.*.ports"] = trasformPorts
+	transformers["services.*.volumes.*"] = transformVolume
+	transformers["services.*.ports"] = transformPorts
+	transformers["services.*.build"] = transformBuild
+	transformers["services.*.ulimits.*"] = transformUlimits
+	transformers["volumes.*.external"] = transformExternal
+	transformers["networks.*.external"] = transformExternal
+	transformers["secrets.*.external"] = transformExternal
+	transformers["configs.*.external"] = transformExternal
 }
 
 // Canonical transforms a compose model into canonical syntax
-func Canonical(yaml map[string]interface{}) (map[string]interface{}, error) {
+func Canonical(yaml map[string]any) (map[string]any, error) {
 	canonical, err := transform(yaml, tree.NewPath())
 	if err != nil {
 		return nil, err
 	}
-	return canonical.(map[string]interface{}), nil
+	return canonical.(map[string]any), nil
 }
 
-func transform(data interface{}, p tree.Path) (interface{}, error) {
+func transform(data any, p tree.Path) (any, error) {
 	for pattern, transformer := range transformers {
 		if p.Matches(pattern) {
 			t, err := transformer(data, p)
@@ -49,28 +56,42 @@ func transform(data interface{}, p tree.Path) (interface{}, error) {
 			return t, nil
 		}
 	}
-	switch data.(type) {
-	case map[string]interface{}:
-		mapping := data.(map[string]interface{})
-		for k, v := range mapping {
-			t, err := transform(v, p.Next(k))
-			if err != nil {
-				return nil, err
-			}
-			mapping[k] = t
+	switch v := data.(type) {
+	case map[string]any:
+		a, err := transformMapping(v, p)
+		if err != nil {
+			return a, err
 		}
-		return mapping, nil
-	case []interface{}:
-		sequence := data.([]interface{})
-		for i, e := range sequence {
-			t, err := transform(e, p.Next("[]"))
-			if err != nil {
-				return nil, err
-			}
-			sequence[i] = t
+		return v, nil
+	case []any:
+		a, err := transformSequence(v, p)
+		if err != nil {
+			return a, err
 		}
-		return sequence, nil
+		return v, nil
 	default:
 		return data, nil
 	}
+}
+
+func transformSequence(v []any, p tree.Path) (any, error) {
+	for i, e := range v {
+		t, err := transform(e, p.Next("[]"))
+		if err != nil {
+			return nil, err
+		}
+		v[i] = t
+	}
+	return v, nil
+}
+
+func transformMapping(v map[string]any, p tree.Path) (any, error) {
+	for k, e := range v {
+		t, err := transform(e, p.Next(k))
+		if err != nil {
+			return nil, err
+		}
+		v[k] = t
+	}
+	return v, nil
 }

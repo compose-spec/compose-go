@@ -19,47 +19,52 @@ package loader
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/compose-spec/compose-go/override"
 	"github.com/compose-spec/compose-go/types"
 )
 
-func ApplyExtends(ctx context.Context, dict map[string]interface{}, opts *Options) error {
-	services := dict["services"].(map[string]interface{})
+func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, post ...PostProcessor) error {
+	services := dict["services"].(map[string]any)
 	for name, s := range services {
-		service := s.(map[string]interface{})
+		service := s.(map[string]any)
 		x, ok := service["extends"]
 		if !ok {
 			continue
 		}
-		extends := x.(map[string]interface{})
-		var base interface{}
+		extends := x.(map[string]any)
+		var base any
 		ref := extends["service"].(string)
 		if file, ok := extends["file"]; ok {
 			path := file.(string)
 			for _, loader := range opts.ResourceLoaders {
-				if loader.Accept(path) {
-					local, err := loader.Load(ctx, path)
-					if err != nil {
-						return err
-					}
-					source, err := loadYamlModel(ctx, []types.ConfigFile{
+				if !loader.Accept(path) {
+					continue
+				}
+				local, err := loader.Load(ctx, path)
+				if err != nil {
+					return err
+				}
+				source, err := loadYamlModel(ctx, types.ConfigDetails{
+					WorkingDir: filepath.Dir(path),
+					ConfigFiles: []types.ConfigFile{
 						{Filename: local},
-					}, opts)
-					if err != nil {
-						return err
+					},
+				}, opts)
+				if err != nil {
+					return err
+				}
+				services := source["services"].([]any)
+				for _, s := range services {
+					service := s.(map[string]any)
+					if service["name"] == ref {
+						base = service
+						break
 					}
-					services := source["services"].([]interface{})
-					for _, s := range services {
-						service := s.(map[string]interface{})
-						if service["name"] == ref {
-							base = service
-							break
-						}
-					}
-					if base == nil {
-						return fmt.Errorf("cannot extend service %q in %s: service not found", name, path)
-					}
+				}
+				if base == nil {
+					return fmt.Errorf("cannot extend service %q in %s: service not found", name, path)
 				}
 			}
 			if base == nil {
@@ -68,10 +73,18 @@ func ApplyExtends(ctx context.Context, dict map[string]interface{}, opts *Option
 		} else {
 			base, ok = services[ref]
 			if !ok {
-				return fmt.Errorf("cannot extend service %q in %s: service not found", name, "filename") //TODO track filename
+				return fmt.Errorf("cannot extend service %q in %s: service not found", name, "filename") // TODO track filename
 			}
 		}
-		merged, err := override.ExtendService(deepClone(base).(map[string]interface{}), service)
+		source := deepClone(base).(map[string]any)
+		for _, processor := range post {
+			processor.Apply(map[string]any{
+				"services": map[string]any{
+					name: source,
+				},
+			})
+		}
+		merged, err := override.ExtendService(source, service)
 		if err != nil {
 			return err
 		}
@@ -81,16 +94,16 @@ func ApplyExtends(ctx context.Context, dict map[string]interface{}, opts *Option
 	return nil
 }
 
-func deepClone(value interface{}) interface{} {
+func deepClone(value any) any {
 	switch v := value.(type) {
-	case []interface{}:
-		cp := make([]interface{}, len(v))
+	case []any:
+		cp := make([]any, len(v))
 		for i, e := range v {
 			cp[i] = deepClone(e)
 		}
 		return cp
-	case map[string]interface{}:
-		cp := make(map[string]interface{}, len(v))
+	case map[string]any:
+		cp := make(map[string]any, len(v))
 		for k, e := range v {
 			cp[k] = deepClone(e)
 		}

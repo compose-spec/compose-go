@@ -14,14 +14,22 @@
    limitations under the License.
 */
 
-package override
+package transform
 
-import "github.com/compose-spec/compose-go/tree"
+import (
+	"github.com/compose-spec/compose-go/tree"
+	"github.com/pkg/errors"
+)
 
-func ExtendService(base, override map[string]any) (map[string]any, error) {
-	yaml, err := mergeYaml(base, override, tree.NewPath("services.x"))
-	if err != nil {
-		return nil, err
+func transformUlimits(data any, p tree.Path) (any, error) {
+	switch v := data.(type) {
+	case map[string]any:
+		return v, nil
+	case int:
+		return map[string]any{
+			"single": v,
+		}, nil
+	default:
+		return data, errors.Errorf("invalid type %T for external", v)
 	}
-	return yaml.(map[string]any), nil
 }
