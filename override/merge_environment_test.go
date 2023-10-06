@@ -11,61 +11,82 @@
    limitations under the License.
 */
 
-package merge
+package override
 
 import (
 	"testing"
-
-	"github.com/compose-spec/compose-go/tree"
-	"gotest.tools/v3/assert"
 )
 
-func Test_EnvironmentUnicity(t *testing.T) {
-	assertUnicity(t, `
+func Test_mergeYamlEnvironmentSequence(t *testing.T) {
+	assertMergeYaml(t, `
 services:
   test:
     image: foo
     environment:
       - FOO=BAR
-      - BAR=QIX
-      - QIX=
-      - ZOT
-      - FOO=ZOT
-      - QIX
-      - ZOT=
+`, `
+services:
+  test:
+    environment:
+      - QIX=ZOT
+      - EMPTY=
+      - NIL
 `, `
 services:
   test:
     image: foo
     environment:
-      - BAR=QIX
-      - FOO=ZOT
-      - QIX
-      - ZOT=
+      - FOO=BAR
+      - QIX=ZOT
+      - EMPTY=
+      - NIL
 `)
 }
 
-func Test_VolumeUnicity(t *testing.T) {
-	assertUnicity(t, `
+func Test_mergeYamlEnvironmentMapping(t *testing.T) {
+	assertMergeYaml(t, `
 services:
   test:
     image: foo
-    volumes:
-      - .:/foo
-      - foo:/bar
-      - src:/foo
+    environment:
+      FOO: BAR
+`, `
+services:
+  test:
+    environment:
+      EMPTY: ""
+      NIL: null
+      QIX: ZOT
 `, `
 services:
   test:
     image: foo
-    volumes:
-      - foo:/bar
-      - src:/foo
+    environment:
+      - FOO=BAR
+      - EMPTY=
+      - NIL
+      - QIX=ZOT
 `)
 }
 
-func assertUnicity(t *testing.T, before string, expected string) {
-	got, err := EnforceUnicity(unmarshall(t, before), tree.NewPath())
-	assert.NilError(t, err)
-	assert.DeepEqual(t, got, unmarshall(t, expected))
+func Test_mergeYamlEnvironmentMixed(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    environment:
+      FOO: BAR
+`, `
+services:
+  test:
+    environment:
+      - QIX=ZOT
+`, `
+services:
+  test:
+    image: foo
+    environment:
+      - FOO=BAR
+      - QIX=ZOT
+`)
 }

@@ -11,7 +11,7 @@
    limitations under the License.
 */
 
-package merge
+package override
 
 import (
 	"testing"

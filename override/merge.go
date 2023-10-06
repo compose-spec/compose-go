@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package merge
+package override
 
 import (
 	"fmt"
@@ -23,18 +23,13 @@ import (
 	"golang.org/x/exp/slices"
 )
 
-// Merge applies subsequent overrides to a config model
-func Merge(configs ...map[string]interface{}) (map[string]interface{}, error) {
-	right := configs[0]
-	for i := 1; i < len(configs); i++ {
-		left := configs[i]
-		merged, err := mergeYaml(right, left, tree.NewPath())
-		if err != nil {
-			return nil, err
-		}
-		right = merged.(map[string]interface{})
+// Merge applies overrides to a config model
+func Merge(right, left map[string]interface{}) (map[string]interface{}, error) {
+	merged, err := mergeYaml(right, left, tree.NewPath())
+	if err != nil {
+		return nil, err
 	}
-	return right, nil
+	return merged.(map[string]interface{}), nil
 }
 
 type merger func(interface{}, interface{}, tree.Path) (interface{}, error)

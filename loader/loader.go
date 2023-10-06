@@ -30,9 +30,12 @@ import (
 	"strings"
 
 	"github.com/compose-spec/compose-go/consts"
+	"github.com/compose-spec/compose-go/format"
 	interp "github.com/compose-spec/compose-go/interpolation"
+	"github.com/compose-spec/compose-go/override"
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
+	"github.com/compose-spec/compose-go/transform"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -80,6 +83,26 @@ type ResourceLoader interface {
 	Accept(path string) bool
 	// Load returns the path to a local copy of remote resource identified by `path`.
 	Load(ctx context.Context, path string) (string, error)
+}
+
+type localResourceLoader struct {
+	WorkingDir string
+}
+
+func (l localResourceLoader) abs(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(l.WorkingDir, path)
+}
+
+func (l localResourceLoader) Accept(path string) bool {
+	_, err := os.Stat(l.abs(path))
+	return !os.IsNotExist(err)
+}
+
+func (l localResourceLoader) Load(ctx context.Context, path string) (string, error) {
+	return l.abs(path), nil
 }
 
 func (o *Options) clone() *Options {
@@ -179,7 +202,7 @@ type PostProcessor interface {
 	yaml.Unmarshaler
 
 	// Apply changes to compose model based on recorder metadata
-	Apply(config *types.Config) error
+	Apply(interface{}) error
 }
 
 func parseYAML(decoder *yaml.Decoder) (map[string]interface{}, PostProcessor, error) {
@@ -232,6 +255,7 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	for _, op := range options {
 		op(opts)
 	}
+	opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{configDetails.WorkingDir})
 
 	projectName, err := projectName(configDetails, opts)
 	if err != nil {
@@ -250,9 +274,80 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	return load(ctx, configDetails, opts, nil)
 }
 
-func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options, loaded []string) (*types.Project, error) {
-	var model *types.Config
+func loadYamlModel(ctx context.Context, configFiles []types.ConfigFile, opts *Options) (map[string]interface{}, error) {
+	var (
+		dict = map[string]interface{}{}
+		err  error
+	)
+	for _, file := range configFiles {
+		if len(file.Content) == 0 {
+			content, err := os.ReadFile(file.Filename)
+			if err != nil {
+				return nil, err
+			}
+			file.Content = content
+		}
 
+		r := bytes.NewReader(file.Content)
+		decoder := yaml.NewDecoder(r)
+		for {
+			var cfg map[string]interface{}
+			processor := ResetProcessor{target: &cfg}
+			err := decoder.Decode(&processor)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return nil, err
+			}
+
+			if !opts.SkipValidation {
+				if err := schema.Validate(cfg); err != nil {
+					return nil, fmt.Errorf("validating %s: %w", file.Filename, err)
+				}
+			}
+
+			err = processor.Apply(dict)
+			if err != nil {
+				return nil, err
+			}
+			dict, err = override.Merge(dict, cfg)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if opts.Interpolate != nil && !opts.SkipInterpolation {
+		dict, err = interp.Interpolate(dict, *opts.Interpolate)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !opts.SkipExtends {
+		err = ApplyExtends(ctx, dict, opts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	dict, err = override.EnforceUnicity(dict)
+	if err != nil {
+		return nil, err
+	}
+
+	dict = groupXFieldsIntoExtensions(dict)
+
+	dict, err = transform.Canonical(dict)
+	if err != nil {
+		return nil, err
+	}
+
+	return dict, nil
+}
+
+func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options, loaded []string) (*types.Project, error) {
 	mainFile := configDetails.ConfigFiles[0].Filename
 	for _, f := range loaded {
 		if f == mainFile {
@@ -263,88 +358,20 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	loaded = append(loaded, mainFile)
 
 	includeRefs := make(map[string][]types.IncludeConfig)
-	for _, file := range configDetails.ConfigFiles {
-		var postProcessor PostProcessor
-		configDict := file.Config
 
-		processYaml := func() error {
-			if !opts.SkipValidation {
-				if err := schema.Validate(configDict); err != nil {
-					return fmt.Errorf("validating %s: %w", file.Filename, err)
-				}
-			}
-
-			configDict = groupXFieldsIntoExtensions(configDict)
-
-			cfg, err := loadSections(ctx, file.Filename, configDict, configDetails, opts)
-			if err != nil {
-				return err
-			}
-
-			if !opts.SkipInclude {
-				var included map[string][]types.IncludeConfig
-				cfg, included, err = loadInclude(ctx, file.Filename, configDetails, cfg, opts, loaded)
-				if err != nil {
-					return err
-				}
-				for k, v := range included {
-					includeRefs[k] = append(includeRefs[k], v...)
-				}
-			}
-
-			if model == nil {
-				model = cfg
-			} else {
-				merged, err := merge([]*types.Config{model, cfg})
-				if err != nil {
-					return err
-				}
-				model = merged
-			}
-			if postProcessor != nil {
-				err = postProcessor.Apply(model)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-
-		if configDict == nil {
-			if len(file.Content) == 0 {
-				content, err := os.ReadFile(file.Filename)
-				if err != nil {
-					return nil, err
-				}
-				file.Content = content
-			}
-
-			r := bytes.NewReader(file.Content)
-			decoder := yaml.NewDecoder(r)
-			for {
-				dict, p, err := parseConfig(decoder, opts)
-				if err != nil {
-					if err != io.EOF {
-						return nil, fmt.Errorf("parsing %s: %w", file.Filename, err)
-					}
-					break
-				}
-				configDict = dict
-				postProcessor = p
-
-				if err := processYaml(); err != nil {
-					return nil, err
-				}
-			}
-		} else {
-			if err := processYaml(); err != nil {
-				return nil, err
-			}
-		}
+	dict, err := loadYamlModel(ctx, configDetails.ConfigFiles, opts)
+	if err != nil {
+		return nil, err
 	}
 
-	if model == nil {
+	if len(dict) == 0 {
 		return nil, errors.New("empty compose file")
+	}
+
+	var model types.Config
+	err = Transform(dict, &model)
+	if err != nil {
+		return nil, err
 	}
 
 	project := &types.Project{
@@ -583,12 +610,12 @@ func (e *ForbiddenPropertiesError) Error() string {
 
 // Transform converts the source into the target struct with compose types transformer
 // and the specified transformers if any.
-func Transform(source interface{}, target interface{}, additionalTransformers ...Transformer) error {
+func Transform(source interface{}, target interface{}) error {
 	data := mapstructure.Metadata{}
 	config := &mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			createTransformHook(additionalTransformers...),
-			decoderHook),
+			decoderHook,
+			cast),
 		Result:   target,
 		TagName:  "yaml",
 		Metadata: &data,
@@ -1164,7 +1191,7 @@ var transformExtendsConfig TransformerFunc = func(value interface{}) (interface{
 var transformServiceVolumeConfig TransformerFunc = func(data interface{}) (interface{}, error) {
 	switch value := data.(type) {
 	case string:
-		volume, err := ParseVolume(value)
+		volume, err := format.ParseVolume(value)
 		volume.Target = cleanTarget(volume.Target)
 		return volume, err
 	case map[string]interface{}:

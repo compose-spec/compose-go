@@ -64,27 +64,27 @@ func merge(configs []*types.Config) (*types.Config, error) {
 		base.Name = mergeNames(base.Name, override.Name)
 		base.Services, err = mergeServices(base.Services, override.Services)
 		if err != nil {
-			return base, errors.Wrapf(err, "cannot merge services from %s", override.Filename)
+			return base, errors.Wrapf(err, "cannot override services from %s", override.Filename)
 		}
 		base.Volumes, err = mergeVolumes(base.Volumes, override.Volumes)
 		if err != nil {
-			return base, errors.Wrapf(err, "cannot merge volumes from %s", override.Filename)
+			return base, errors.Wrapf(err, "cannot override volumes from %s", override.Filename)
 		}
 		base.Networks, err = mergeNetworks(base.Networks, override.Networks)
 		if err != nil {
-			return base, errors.Wrapf(err, "cannot merge networks from %s", override.Filename)
+			return base, errors.Wrapf(err, "cannot override networks from %s", override.Filename)
 		}
 		base.Secrets, err = mergeSecrets(base.Secrets, override.Secrets)
 		if err != nil {
-			return base, errors.Wrapf(err, "cannot merge secrets from %s", override.Filename)
+			return base, errors.Wrapf(err, "cannot override secrets from %s", override.Filename)
 		}
 		base.Configs, err = mergeConfigs(base.Configs, override.Configs)
 		if err != nil {
-			return base, errors.Wrapf(err, "cannot merge configs from %s", override.Filename)
+			return base, errors.Wrapf(err, "cannot override configs from %s", override.Filename)
 		}
 		base.Extensions, err = mergeExtensions(base.Extensions, override.Extensions)
 		if err != nil {
-			return base, errors.Wrapf(err, "cannot merge extensions from %s", override.Filename)
+			return base, errors.Wrapf(err, "cannot override extensions from %s", override.Filename)
 		}
 	}
 	return base, nil
@@ -105,7 +105,7 @@ func mergeServices(base, override []types.ServiceConfig) ([]types.ServiceConfig,
 		if baseService, ok := baseServices[name]; ok {
 			merged, err := _merge(&baseService, &overrideService)
 			if err != nil {
-				return nil, errors.Wrapf(err, "cannot merge service %s", name)
+				return nil, errors.Wrapf(err, "cannot override service %s", name)
 			}
 			baseServices[name] = *merged
 			continue

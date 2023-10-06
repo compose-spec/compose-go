@@ -48,7 +48,7 @@ func (s Services) MarshalJSON() ([]byte, error) {
 
 // ServiceConfig is the configuration of one service
 type ServiceConfig struct {
-	Name     string   `yaml:"-" json:"-"`
+	Name     string   `yaml:"name,omitempty" json:"-"`
 	Profiles []string `yaml:"profiles,omitempty" json:"profiles,omitempty"`
 
 	Annotations  Mapping        `yaml:"annotations,omitempty" json:"annotations,omitempty"`
@@ -160,10 +160,11 @@ func (s ServiceConfig) MarshalYAML() (interface{}, error) {
 	type t ServiceConfig
 	value := t(s)
 	value.Scale = 0 // deprecated, but default value "1" doesn't match omitempty
+	value.Name = "" // set during map to slice conversion, not part of the yaml representation
 	return value, nil
 }
 
-// MarshalJSON makes SSHKey implement json.Marshaller
+// MarshalJSON makes ServiceConfig implement json.Marshaller
 func (s ServiceConfig) MarshalJSON() ([]byte, error) {
 	type t ServiceConfig
 	value := t(s)
@@ -325,121 +326,6 @@ type ThrottleDevice struct {
 	Rate UnitBytes
 
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
-}
-
-// MappingWithEquals is a mapping type that can be converted from a list of
-// key[=value] strings.
-// For the key with an empty value (`key=`), the mapped value is set to a pointer to `""`.
-// For the key without value (`key`), the mapped value is set to nil.
-type MappingWithEquals map[string]*string
-
-// NewMappingWithEquals build a new Mapping from a set of KEY=VALUE strings
-func NewMappingWithEquals(values []string) MappingWithEquals {
-	mapping := MappingWithEquals{}
-	for _, env := range values {
-		tokens := strings.SplitN(env, "=", 2)
-		if len(tokens) > 1 {
-			mapping[tokens[0]] = &tokens[1]
-		} else {
-			mapping[env] = nil
-		}
-	}
-	return mapping
-}
-
-// OverrideBy update MappingWithEquals with values from another MappingWithEquals
-func (e MappingWithEquals) OverrideBy(other MappingWithEquals) MappingWithEquals {
-	for k, v := range other {
-		e[k] = v
-	}
-	return e
-}
-
-// Resolve update a MappingWithEquals for keys without value (`key`, but not `key=`)
-func (e MappingWithEquals) Resolve(lookupFn func(string) (string, bool)) MappingWithEquals {
-	for k, v := range e {
-		if v == nil {
-			if value, ok := lookupFn(k); ok {
-				e[k] = &value
-			}
-		}
-	}
-	return e
-}
-
-// RemoveEmpty excludes keys that are not associated with a value
-func (e MappingWithEquals) RemoveEmpty() MappingWithEquals {
-	for k, v := range e {
-		if v == nil {
-			delete(e, k)
-		}
-	}
-	return e
-}
-
-// Mapping is a mapping type that can be converted from a list of
-// key[=value] strings.
-// For the key with an empty value (`key=`), or key without value (`key`), the
-// mapped value is set to an empty string `""`.
-type Mapping map[string]string
-
-// NewMapping build a new Mapping from a set of KEY=VALUE strings
-func NewMapping(values []string) Mapping {
-	mapping := Mapping{}
-	for _, value := range values {
-		parts := strings.SplitN(value, "=", 2)
-		key := parts[0]
-		switch {
-		case len(parts) == 1:
-			mapping[key] = ""
-		default:
-			mapping[key] = parts[1]
-		}
-	}
-	return mapping
-}
-
-// convert values into a set of KEY=VALUE strings
-func (m Mapping) Values() []string {
-	values := make([]string, 0, len(m))
-	for k, v := range m {
-		values = append(values, fmt.Sprintf("%s=%s", k, v))
-	}
-	sort.Strings(values)
-	return values
-}
-
-// ToMappingWithEquals converts Mapping into a MappingWithEquals with pointer references
-func (m Mapping) ToMappingWithEquals() MappingWithEquals {
-	mapping := MappingWithEquals{}
-	for k, v := range m {
-		v := v
-		mapping[k] = &v
-	}
-	return mapping
-}
-
-func (m Mapping) Resolve(s string) (string, bool) {
-	v, ok := m[s]
-	return v, ok
-}
-
-func (m Mapping) Clone() Mapping {
-	clone := Mapping{}
-	for k, v := range m {
-		clone[k] = v
-	}
-	return clone
-}
-
-// Merge adds all values from second mapping which are not already defined
-func (m Mapping) Merge(o Mapping) Mapping {
-	for k, v := range o {
-		if _, set := m[k]; !set {
-			m[k] = v
-		}
-	}
-	return m
 }
 
 type SSHKey struct {

@@ -16,7 +16,9 @@
 
 package tree
 
-import "strings"
+import (
+	"strings"
+)
 
 const pathSeparator = "."
 

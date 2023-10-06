@@ -1153,7 +1153,7 @@ func TestInitOverride(t *testing.T) {
 
 func TestMergeServiceNetworkConfig(t *testing.T) {
 	base := map[string]*types.ServiceNetworkConfig{
-		"merge": {
+		"override": {
 			Aliases:     []string{"100", "101"},
 			Ipv4Address: "127.0.0.1",
 			Ipv6Address: "0:0:0:0:0:0:0:1",
@@ -1165,7 +1165,7 @@ func TestMergeServiceNetworkConfig(t *testing.T) {
 		},
 	}
 	override := map[string]*types.ServiceNetworkConfig{
-		"merge": {
+		"override": {
 			Aliases:     []string{"110", "111"},
 			Ipv4Address: "127.0.1.1",
 			Ipv6Address: "0:0:0:0:0:0:1:1",
@@ -1182,7 +1182,7 @@ func TestMergeServiceNetworkConfig(t *testing.T) {
 		t,
 		base,
 		map[string]*types.ServiceNetworkConfig{
-			"merge": {
+			"override": {
 				Aliases:     []string{"100", "101", "110", "111"},
 				Ipv4Address: "127.0.1.1",
 				Ipv6Address: "0:0:0:0:0:0:1:1",
