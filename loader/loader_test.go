@@ -752,6 +752,7 @@ services:
     volumes:
       - source: data
         type: volume
+        target: /data
         read_only: $thebool
         volume:
           nocopy: $thebool
@@ -852,6 +853,7 @@ networks:
 					{
 						Source:   "data",
 						Type:     "volume",
+						Target:   "/data",
 						ReadOnly: true,
 						Volume:   &types.ServiceVolumeVolume{NoCopy: true},
 					},

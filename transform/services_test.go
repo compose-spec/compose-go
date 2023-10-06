@@ -26,8 +26,8 @@ import (
 )
 
 func TestMakeServiceSlide(t *testing.T) {
-	var mapping interface{}
-	yaml.Unmarshal([]byte(`
+	var mapping any
+	err := yaml.Unmarshal([]byte(`
 foo:
   image: foo
 bar:
@@ -35,26 +35,27 @@ bar:
 zot:
   image: zot
 `), &mapping)
+	assert.NilError(t, err)
 
 	slice, err := makeServicesSlice(mapping, tree.NewPath("services"))
 	assert.NilError(t, err)
 
-	services := slice.([]interface{})
-	slices.SortFunc(services, func(a, b interface{}) bool {
-		right := a.(map[string]interface{})
-		left := b.(map[string]interface{})
+	services := slice.([]any)
+	slices.SortFunc(services, func(a, b any) bool {
+		right := a.(map[string]any)
+		left := b.(map[string]any)
 		return right["name"].(string) < left["name"].(string)
 	})
-	assert.DeepEqual(t, services, []interface{}{
-		map[string]interface{}{
+	assert.DeepEqual(t, services, []any{
+		map[string]any{
 			"name":  "bar",
 			"image": "bar",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"name":  "foo",
 			"image": "foo",
 		},
-		map[string]interface{}{
+		map[string]any{
 			"name":  "zot",
 			"image": "zot",
 		},

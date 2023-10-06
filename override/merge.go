@@ -24,15 +24,15 @@ import (
 )
 
 // Merge applies overrides to a config model
-func Merge(right, left map[string]interface{}) (map[string]interface{}, error) {
+func Merge(right, left map[string]any) (map[string]any, error) {
 	merged, err := mergeYaml(right, left, tree.NewPath())
 	if err != nil {
 		return nil, err
 	}
-	return merged.(map[string]interface{}), nil
+	return merged.(map[string]any), nil
 }
 
-type merger func(interface{}, interface{}, tree.Path) (interface{}, error)
+type merger func(any, any, tree.Path) (any, error)
 
 // mergeSpecials defines the custom rules applied by compose when merging yaml trees
 var mergeSpecials = map[tree.Path]merger{}
@@ -45,8 +45,8 @@ func init() {
 	mergeSpecials["services.*.environment"] = mergeEnvironment
 }
 
-// mergeYaml merges map[string]interface{} yaml trees handling special rules
-func mergeYaml(e interface{}, o interface{}, p tree.Path) (interface{}, error) {
+// mergeYaml merges map[string]any yaml trees handling special rules
+func mergeYaml(e any, o any, p tree.Path) (any, error) {
 	for pattern, merger := range mergeSpecials {
 		if p.Matches(pattern) {
 			merged, err := merger(e, o, p)
@@ -57,14 +57,14 @@ func mergeYaml(e interface{}, o interface{}, p tree.Path) (interface{}, error) {
 		}
 	}
 	switch value := e.(type) {
-	case map[string]interface{}:
-		other, ok := o.(map[string]interface{})
+	case map[string]any:
+		other, ok := o.(map[string]any)
 		if !ok {
 			return nil, fmt.Errorf("cannont override %s", p)
 		}
 		return mergeMappings(value, other, p)
-	case []interface{}:
-		other, ok := o.([]interface{})
+	case []any:
+		other, ok := o.([]any)
 		if !ok {
 			return nil, fmt.Errorf("cannont override %s", p)
 		}
@@ -74,7 +74,7 @@ func mergeYaml(e interface{}, o interface{}, p tree.Path) (interface{}, error) {
 	}
 }
 
-func mergeMappings(mapping map[string]interface{}, other map[string]interface{}, p tree.Path) (map[string]interface{}, error) {
+func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (map[string]any, error) {
 	for k, v := range other {
 		next := p.Next(k)
 		e, ok := mapping[k]
@@ -92,9 +92,9 @@ func mergeMappings(mapping map[string]interface{}, other map[string]interface{},
 }
 
 // logging driver options are merged only when both compose file define the same driver
-func mergeLogging(c interface{}, o interface{}, p tree.Path) (interface{}, error) {
-	config := c.(map[string]interface{})
-	other := o.(map[string]interface{})
+func mergeLogging(c any, o any, p tree.Path) (any, error) {
+	config := c.(map[string]any)
+	other := o.(map[string]any)
 	// we override logging config if source and override have the same driver set, or none
 	d, ok1 := other["driver"]
 	o, ok2 := config["driver"]
@@ -105,16 +105,16 @@ func mergeLogging(c interface{}, o interface{}, p tree.Path) (interface{}, error
 }
 
 // environment must be first converted into yaml sequence syntax so we can append
-func mergeEnvironment(c interface{}, o interface{}, p tree.Path) (interface{}, error) {
+func mergeEnvironment(c any, o any, p tree.Path) (any, error) {
 	right := convertIntoSequence(c)
 	left := convertIntoSequence(o)
 	return append(right, left...), nil
 }
 
-func convertIntoSequence(value interface{}) []interface{} {
+func convertIntoSequence(value any) []any {
 	switch v := value.(type) {
-	case map[string]interface{}:
-		seq := make([]interface{}, len(v))
+	case map[string]any:
+		seq := make([]any, len(v))
 		i := 0
 		for k, v := range v {
 			if v == nil {
@@ -124,16 +124,16 @@ func convertIntoSequence(value interface{}) []interface{} {
 			}
 			i++
 		}
-		slices.SortFunc(seq, func(a, b interface{}) bool {
+		slices.SortFunc(seq, func(a, b any) bool {
 			return a.(string) < b.(string)
 		})
 		return seq
-	case []interface{}:
+	case []any:
 		return v
 	}
 	return nil
 }
 
-func override(c interface{}, other interface{}, p tree.Path) (interface{}, error) {
+func override(c any, other any, p tree.Path) (any, error) {
 	return other, nil
 }

@@ -67,3 +67,16 @@ func (p Path) Matches(pattern Path) bool {
 	}
 	return true
 }
+
+func (p Path) Last() string {
+	parts := p.Parts()
+	return parts[len(parts)-1]
+}
+
+func (p Path) Parent() Path {
+	index := strings.LastIndex(string(p), pathSeparator)
+	if index > 0 {
+		return p[0:index]
+	}
+	return ""
+}

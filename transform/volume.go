@@ -17,36 +17,33 @@
 package transform
 
 import (
+	"github.com/compose-spec/compose-go/format"
 	"github.com/compose-spec/compose-go/tree"
+	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 )
 
-func makeServicesSlice(data any, p tree.Path) (any, error) {
-	services := data.(map[string]any)
-	servicesAsSlice := make([]any, len(services))
-	i := 0
-	for name, it := range services {
-		config := it.(map[string]any)
-		config["name"] = name
-		if _, ok := config["scale"]; !ok {
-			config["scale"] = 1 // TODO(ndeloof) we should make Scale a *int
-		}
-		canonical, err := transform(config, p.Next(name))
+func transformVolume(data any, p tree.Path) (any, error) {
+	switch v := data.(type) {
+	case map[string]any:
+		return v, nil
+	case string:
+		volume, err := format.ParseVolume(v) // TODO(ndeloof) ParseVolume should not rely on types and return map[string]
 		if err != nil {
 			return nil, err
 		}
-		servicesAsSlice[i] = canonical
-		i++
-	}
-	return servicesAsSlice, nil
-}
 
-func transformServiceNetworks(data any, p tree.Path) (any, error) {
-	if slice, ok := data.([]any); ok {
-		networks := make(map[string]any, len(slice))
-		for _, net := range slice {
-			networks[net.(string)] = nil
+		yaml := map[string]any{}
+		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+			TagName: "yaml",
+			Result:  &yaml,
+		})
+		if err != nil {
+			return nil, err
 		}
-		return networks, nil
+
+		return yaml, decoder.Decode(volume)
+	default:
+		return data, errors.Errorf("invalid type %T for build", v)
 	}
-	return data, nil
 }

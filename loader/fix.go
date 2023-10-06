@@ -14,14 +14,23 @@
    limitations under the License.
 */
 
-package override
+package loader
 
-import "github.com/compose-spec/compose-go/tree"
-
-func ExtendService(base, override map[string]any) (map[string]any, error) {
-	yaml, err := mergeYaml(base, override, tree.NewPath("services.x"))
-	if err != nil {
-		return nil, err
+// fixEmptyNotNull is a workaround for https://github.com/xeipuuv/gojsonschema/issues/141
+// as go-yaml `[]` will load as a `[]any(nil)`, which is not the same as an empty array
+func fixEmptyNotNull(value any) interface{} {
+	switch v := value.(type) {
+	case []any:
+		if v == nil {
+			return []any{}
+		}
+		for i, e := range v {
+			v[i] = fixEmptyNotNull(e)
+		}
+	case map[string]any:
+		for k, e := range v {
+			v[k] = fixEmptyNotNull(e)
+		}
 	}
-	return yaml.(map[string]any), nil
+	return value
 }

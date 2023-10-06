@@ -25,8 +25,8 @@ import (
 )
 
 func TestParseYAMLFiles(t *testing.T) {
-	model, err := loadYamlModel(context.TODO(),
-		[]types.ConfigFile{
+	model, err := loadYamlModel(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
 			{Filename: "test.yaml",
 				Content: []byte(`
 services:
@@ -43,7 +43,7 @@ services:
     image: bar
     command: echo world
     init: false
-`)}}, &Options{})
+`)}}}, &Options{})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, model, map[string]interface{}{
 		"services": map[string]interface{}{

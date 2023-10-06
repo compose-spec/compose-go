@@ -14,14 +14,25 @@
    limitations under the License.
 */
 
-package override
+package transform
 
-import "github.com/compose-spec/compose-go/tree"
+import (
+	"github.com/compose-spec/compose-go/tree"
+	"github.com/pkg/errors"
+)
 
-func ExtendService(base, override map[string]any) (map[string]any, error) {
-	yaml, err := mergeYaml(base, override, tree.NewPath("services.x"))
-	if err != nil {
-		return nil, err
+func transformBuild(data any, p tree.Path) (any, error) {
+	switch v := data.(type) {
+	case map[string]any:
+		if _, ok := v["context"]; !ok {
+			v["context"] = "." // TODO(ndeloof) maybe we miss an explicit "set-defaults" loading phase
+		}
+		return v, nil
+	case string:
+		return map[string]any{
+			"context": v,
+		}, nil
+	default:
+		return data, errors.Errorf("invalid type %T for build", v)
 	}
-	return yaml.(map[string]any), nil
 }

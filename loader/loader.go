@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	paths "path"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -33,6 +33,7 @@ import (
 	"github.com/compose-spec/compose-go/format"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/override"
+	"github.com/compose-spec/compose-go/paths"
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/transform"
@@ -51,9 +52,9 @@ type Options struct {
 	SkipInterpolation bool
 	// Skip normalization
 	SkipNormalization bool
-	// Resolve paths
+	// Resolve path
 	ResolvePaths bool
-	// Convert Windows paths
+	// Convert Windows path
 	ConvertWindowsPaths bool
 	// Skip consistency check
 	SkipConsistencyCheck bool
@@ -89,20 +90,20 @@ type localResourceLoader struct {
 	WorkingDir string
 }
 
-func (l localResourceLoader) abs(path string) string {
-	if filepath.IsAbs(path) {
-		return path
+func (l localResourceLoader) abs(p string) string {
+	if filepath.IsAbs(p) {
+		return p
 	}
-	return filepath.Join(l.WorkingDir, path)
+	return filepath.Join(l.WorkingDir, p)
 }
 
-func (l localResourceLoader) Accept(path string) bool {
-	_, err := os.Stat(l.abs(path))
+func (l localResourceLoader) Accept(p string) bool {
+	_, err := os.Stat(l.abs(p))
 	return !os.IsNotExist(err)
 }
 
-func (l localResourceLoader) Load(ctx context.Context, path string) (string, error) {
-	return l.abs(path), nil
+func (l localResourceLoader) Load(ctx context.Context, p string) (string, error) {
+	return l.abs(p), nil
 }
 
 func (o *Options) clone() *Options {
@@ -274,12 +275,12 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	return load(ctx, configDetails, opts, nil)
 }
 
-func loadYamlModel(ctx context.Context, configFiles []types.ConfigFile, opts *Options) (map[string]interface{}, error) {
+func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Options) (map[string]interface{}, error) {
 	var (
 		dict = map[string]interface{}{}
 		err  error
 	)
-	for _, file := range configFiles {
+	for _, file := range config.ConfigFiles {
 		if len(file.Content) == 0 {
 			content, err := os.ReadFile(file.Filename)
 			if err != nil {
@@ -291,8 +292,8 @@ func loadYamlModel(ctx context.Context, configFiles []types.ConfigFile, opts *Op
 		r := bytes.NewReader(file.Content)
 		decoder := yaml.NewDecoder(r)
 		for {
-			var cfg map[string]interface{}
-			processor := ResetProcessor{target: &cfg}
+			var raw interface{}
+			processor := ResetProcessor{target: &raw}
 			err := decoder.Decode(&processor)
 			if err == io.EOF {
 				break
@@ -300,6 +301,24 @@ func loadYamlModel(ctx context.Context, configFiles []types.ConfigFile, opts *Op
 			if err != nil {
 				return nil, err
 			}
+
+			converted, err := convertToStringKeysRecursive(raw, "")
+			if err != nil {
+				return nil, err
+			}
+			cfg, ok := converted.(map[string]interface{})
+			if !ok {
+				return nil, errors.New("Top-level object must be a mapping")
+			}
+
+			if opts.Interpolate != nil && !opts.SkipInterpolation {
+				cfg, err = interp.Interpolate(cfg, *opts.Interpolate)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			fixEmptyNotNull(cfg)
 
 			if !opts.SkipValidation {
 				if err := schema.Validate(cfg); err != nil {
@@ -311,24 +330,18 @@ func loadYamlModel(ctx context.Context, configFiles []types.ConfigFile, opts *Op
 			if err != nil {
 				return nil, err
 			}
+
+			if !opts.SkipExtends {
+				err = ApplyExtends(ctx, cfg, opts, &processor)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 			dict, err = override.Merge(dict, cfg)
 			if err != nil {
 				return nil, err
 			}
-		}
-	}
-
-	if opts.Interpolate != nil && !opts.SkipInterpolation {
-		dict, err = interp.Interpolate(dict, *opts.Interpolate)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if !opts.SkipExtends {
-		err = ApplyExtends(ctx, dict, opts)
-		if err != nil {
-			return nil, err
 		}
 	}
 
@@ -337,11 +350,20 @@ func loadYamlModel(ctx context.Context, configFiles []types.ConfigFile, opts *Op
 		return nil, err
 	}
 
-	dict = groupXFieldsIntoExtensions(dict)
-
 	dict, err = transform.Canonical(dict)
 	if err != nil {
 		return nil, err
+	}
+
+	dict = groupXFieldsIntoExtensions(dict)
+
+	// TODO(ndeloof) shall we implement this as a Validate func on types ?
+	if err := Validate(dict); err != nil {
+		return nil, err
+	}
+
+	if opts.ResolvePaths {
+		paths.ResolveRelativePaths(dict, config.WorkingDir)
 	}
 
 	return dict, nil
@@ -359,7 +381,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 
 	includeRefs := make(map[string][]types.IncludeConfig)
 
-	dict, err := loadYamlModel(ctx, configDetails.ConfigFiles, opts)
+	dict, err := loadYamlModel(ctx, configDetails, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -528,8 +550,15 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 			extras[key] = value
 			delete(dict, key)
 		}
-		if d, ok := value.(map[string]interface{}); ok {
-			dict[key] = groupXFieldsIntoExtensions(d)
+		switch v := value.(type) {
+		case map[string]interface{}:
+			dict[key] = groupXFieldsIntoExtensions(v)
+		case []interface{}:
+			for i, e := range v {
+				if m, ok := e.(map[string]interface{}); ok {
+					v[i] = groupXFieldsIntoExtensions(m)
+				}
+			}
 		}
 	}
 	if len(extras) > 0 {
@@ -662,11 +691,11 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 	}
 
 	return func(_ reflect.Type, target reflect.Type, data interface{}) (interface{}, error) {
-		transform, ok := transforms[target]
+		fn, ok := transforms[target]
 		if !ok {
 			return data, nil
 		}
-		return transform(data)
+		return fn(data)
 	}
 }
 
@@ -791,11 +820,11 @@ func loadServiceWithExtends(ctx context.Context, filename, name string, services
 		} else {
 			for _, loader := range opts.ResourceLoaders {
 				if loader.Accept(file) {
-					path, err := loader.Load(ctx, file)
+					p, err := loader.Load(ctx, file)
 					if err != nil {
 						return nil, err
 					}
-					file = path
+					file = p
 					break
 				}
 			}
@@ -821,9 +850,9 @@ func loadServiceWithExtends(ctx context.Context, filename, name string, services
 				return nil, err
 			}
 
-			// Make paths relative to the importing Compose file. Note that we
-			// make the paths relative to `file` rather than `baseFilePath` so
-			// that the resulting paths won't be absolute if `file` isn't an
+			// Make path relative to the importing Compose file. Note that we
+			// make the path relative to `file` rather than `baseFilePath` so
+			// that the resulting path won't be absolute if `file` isn't an
 			// absolute path.
 
 			baseFileParent := filepath.Dir(file)
@@ -865,8 +894,8 @@ func LoadService(name string, serviceDict map[string]interface{}) (*types.Servic
 	return serviceConfig, nil
 }
 
-// Windows paths, c:\\my\\path\\shiny, need to be changed to be compatible with
-// the Engine. Volume paths are expected to be linux style /c/my/path/shiny/
+// Windows path, c:\\my\\path\\shiny, need to be changed to be compatible with
+// the Engine. Volume path are expected to be linux style /c/my/path/shiny/
 func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConfig {
 	volumeName := strings.ToLower(filepath.VolumeName(volume.Source))
 	if len(volumeName) != 2 {
@@ -880,31 +909,31 @@ func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConf
 	return volume
 }
 
-func resolveMaybeUnixPath(workingDir string, path string) string {
-	filePath := expandUser(path)
+func resolveMaybeUnixPath(workingDir string, p string) string {
+	filePath := expandUser(p)
 	// Check if source is an absolute path (either Unix or Windows), to
 	// handle a Windows client with a Unix daemon or vice-versa.
 	//
 	// Note that this is not required for Docker for Windows when specifying
 	// a local Windows path, because Docker for Windows translates the Windows
 	// path into a valid path within the VM.
-	if !paths.IsAbs(filePath) && !isAbs(filePath) {
+	if !path.IsAbs(filePath) && !isAbs(filePath) {
 		filePath = absPath(workingDir, filePath)
 	}
 	return filePath
 }
 
 // TODO: make this more robust
-func expandUser(path string) string {
-	if strings.HasPrefix(path, "~") {
+func expandUser(p string) string {
+	if strings.HasPrefix(p, "~") {
 		home, err := os.UserHomeDir()
 		if err != nil {
 			logrus.Warn("cannot expand '~', because the environment lacks HOME")
-			return path
+			return p
 		}
-		return filepath.Join(home, path[1:])
+		return filepath.Join(home, p[1:])
 	}
-	return path
+	return p
 }
 
 func transformUlimits(data interface{}) (interface{}, error) {
@@ -1133,7 +1162,7 @@ func cleanTarget(target string) string {
 	if target == "" {
 		return ""
 	}
-	return paths.Clean(target)
+	return path.Clean(target)
 }
 
 var transformBuildConfig TransformerFunc = func(data interface{}) (interface{}, error) {
