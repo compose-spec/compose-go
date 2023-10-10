@@ -14,13 +14,23 @@
    limitations under the License.
 */
 
-package consts
+package validation
 
-const (
-	ComposeProjectName   = "COMPOSE_PROJECT_NAME"
-	ComposePathSeparator = "COMPOSE_PATH_SEPARATOR"
-	ComposeFilePath      = "COMPOSE_FILE"
-	ComposeProfiles      = "COMPOSE_PROFILES"
+import (
+	"fmt"
+
+	"github.com/compose-spec/compose-go/tree"
 )
 
-const Extensions = "#Extensions" // Using # prefix, we prevent risk to conflict with an actual yaml key
+func checkVolume(value any, p tree.Path) error {
+	v, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("expected volume, got %s", value)
+	}
+
+	err := checkExternalVolume(v, p)
+	if err != nil {
+		return err
+	}
+	return nil
+}
