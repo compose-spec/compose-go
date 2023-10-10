@@ -25,7 +25,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestMakeServiceSlide(t *testing.T) {
+func TestMakeServiceSlice(t *testing.T) {
 	var mapping any
 	err := yaml.Unmarshal([]byte(`
 foo:
@@ -50,14 +50,17 @@ zot:
 		map[string]any{
 			"name":  "bar",
 			"image": "bar",
+			"scale": 1,
 		},
 		map[string]any{
 			"name":  "foo",
 			"image": "foo",
+			"scale": 1,
 		},
 		map[string]any{
 			"name":  "zot",
 			"image": "zot",
+			"scale": 1,
 		},
 	})
 }
