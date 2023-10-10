@@ -89,6 +89,7 @@ func (r *relativePathsResolver) absPath(value any) (any, error) {
 			}
 			v[i] = abs
 		}
+		return v, nil
 	case string:
 		if strings.HasPrefix(v, "~") {
 			home, _ := os.UserHomeDir()

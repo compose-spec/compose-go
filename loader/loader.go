@@ -419,12 +419,14 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		}
 	}
 
+	/* this is now implemented by paths.ResolveRelativePaths
 	if opts.ResolvePaths {
 		err := ResolveRelativePaths(project)
 		if err != nil {
 			return nil, err
 		}
 	}
+	*/
 
 	if opts.ConvertWindowsPaths {
 		for i, service := range project.Services {
