@@ -25,7 +25,7 @@ import (
 	"github.com/compose-spec/compose-go/types"
 )
 
-func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, post ...PostProcessor) error {
+func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, ct *cycleTracker, post ...PostProcessor) error {
 	a, ok := dict["services"]
 	if !ok {
 		return nil
@@ -36,6 +36,9 @@ func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, post 
 		x, ok := service["extends"]
 		if !ok {
 			continue
+		}
+		if err := ct.Add(ctx.Value("compose-file").(string), name); err != nil {
+			return err
 		}
 		extends := x.(map[string]any)
 		var base any
@@ -55,7 +58,7 @@ func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, post 
 					ConfigFiles: []types.ConfigFile{
 						{Filename: local},
 					},
-				}, opts)
+				}, opts, ct)
 				if err != nil {
 					return err
 				}

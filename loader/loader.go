@@ -276,12 +276,13 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	return load(ctx, configDetails, opts, nil)
 }
 
-func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Options) (map[string]interface{}, error) {
+func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Options, ct *cycleTracker) (map[string]interface{}, error) {
 	var (
 		dict = map[string]interface{}{}
 		err  error
 	)
 	for _, file := range config.ConfigFiles {
+		fctx := context.WithValue(ctx, "compose-file", file.Filename)
 		if len(file.Content) == 0 {
 			content, err := os.ReadFile(file.Filename)
 			if err != nil {
@@ -333,7 +334,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			}
 
 			if !opts.SkipExtends {
-				err = ApplyExtends(ctx, cfg, opts, &processor)
+				err = ApplyExtends(fctx, cfg, opts, ct, &processor)
 				if err != nil {
 					return nil, err
 				}
@@ -382,7 +383,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 
 	includeRefs := make(map[string][]types.IncludeConfig)
 
-	dict, err := loadYamlModel(ctx, configDetails, opts)
+	dict, err := loadYamlModel(ctx, configDetails, opts, &cycleTracker{})
 	if err != nil {
 		return nil, err
 	}
@@ -791,10 +792,6 @@ func LoadServices(ctx context.Context, filename string, servicesDict map[string]
 }
 
 func loadServiceWithExtends(ctx context.Context, filename, name string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options, ct *cycleTracker) (*types.ServiceConfig, error) {
-	if err := ct.Add(filename, name); err != nil {
-		return nil, err
-	}
-
 	target, ok := servicesDict[name]
 	if !ok {
 		return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, filename)
