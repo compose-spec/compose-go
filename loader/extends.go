@@ -26,7 +26,11 @@ import (
 )
 
 func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, post ...PostProcessor) error {
-	services := dict["services"].(map[string]any)
+	a, ok := dict["services"]
+	if !ok {
+		return nil
+	}
+	services := a.(map[string]any)
 	for name, s := range services {
 		service := s.(map[string]any)
 		x, ok := service["extends"]
@@ -88,6 +92,7 @@ func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, post 
 		if err != nil {
 			return err
 		}
+		delete(merged, "extends")
 		services[name] = merged
 	}
 	dict["services"] = services

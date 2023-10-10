@@ -2013,8 +2013,7 @@ func TestLoadWithExtends(t *testing.T) {
 
 	extendsDir := filepath.Join("testdata", "subdir")
 
-	expectedEnvFilePath, err := filepath.Abs(filepath.Join(extendsDir, "extra.env"))
-	assert.NilError(t, err)
+	expectedEnvFilePath := filepath.Join(extendsDir, "extra.env")
 
 	expServices := types.Services{
 		{

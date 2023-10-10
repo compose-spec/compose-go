@@ -175,3 +175,30 @@ func (m Mapping) Merge(o Mapping) Mapping {
 	}
 	return m
 }
+
+func (m *Mapping) DecodeMapstructure(value interface{}) error {
+	switch v := value.(type) {
+	case map[string]interface{}:
+		mapping := make(Mapping, len(v))
+		for k, e := range v {
+			if e == nil {
+				e = ""
+			}
+			mapping[k] = fmt.Sprint(e)
+		}
+		*m = mapping
+	case []interface{}:
+		mapping := make(Mapping, len(v))
+		for _, s := range v {
+			k, e, ok := strings.Cut(fmt.Sprint(s), "=")
+			if !ok {
+				e = ""
+			}
+			mapping[k] = fmt.Sprint(e)
+		}
+		*m = mapping
+	default:
+		return fmt.Errorf("unexpected value type %T for mapping", value)
+	}
+	return nil
+}
