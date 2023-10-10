@@ -14,18 +14,16 @@
    limitations under the License.
 */
 
-package loader
+package validation
 
 import (
-	"fmt"
-
 	"github.com/compose-spec/compose-go/tree"
 )
 
 type checkerFunc func(value any, p tree.Path) error
 
 var checks = map[tree.Path]checkerFunc{
-	"volumes.*": checkExternalVolume,
+	"volumes.*": checkVolume,
 }
 
 func Validate(dict map[string]any) error {
@@ -51,29 +49,6 @@ func check(value any, p tree.Path) error {
 			err := check(e, p.Next("[]"))
 			if err != nil {
 				return err
-			}
-		}
-	}
-	return nil
-}
-
-func checkExternalVolume(value any, p tree.Path) error {
-	if v, ok := value.(map[string]any); ok {
-		if _, ok := v["external"]; !ok {
-			return nil
-		}
-		for k, e := range v {
-			switch k {
-			case "name", extensions:
-				continue
-			case "external":
-				vname := v["name"]
-				ename, ok := e.(map[string]any)["name"]
-				if ok && vname != nil && ename != vname {
-					return fmt.Errorf("volume %s: volume.external.name and volume.name conflict; only use volume.name", p.Last())
-				}
-			default:
-				return externalVolumeError(p.Last(), k)
 			}
 		}
 	}

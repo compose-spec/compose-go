@@ -38,6 +38,7 @@ import (
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/transform"
 	"github.com/compose-spec/compose-go/types"
+	"github.com/compose-spec/compose-go/validation"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -358,7 +359,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	dict = groupXFieldsIntoExtensions(dict)
 
 	// TODO(ndeloof) shall we implement this as a Validate func on types ?
-	if err := Validate(dict); err != nil {
+	if err := validation.Validate(dict); err != nil {
 		return nil, err
 	}
 
@@ -543,8 +544,6 @@ func parseConfig(decoder *yaml.Decoder, opts *Options) (map[string]interface{}, 
 	return yml, postProcessor, err
 }
 
-const extensions = "#extensions" // Using # prefix, we prevent risk to conflict with an actual yaml key
-
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
 	extras := map[string]interface{}{}
 	for key, value := range dict {
@@ -564,7 +563,7 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 		}
 	}
 	if len(extras) > 0 {
-		dict[extensions] = extras
+		dict[consts.Extensions] = extras
 	}
 	return dict
 }
@@ -606,7 +605,7 @@ func loadSections(ctx context.Context, filename string, config map[string]interf
 	if err != nil {
 		return nil, err
 	}
-	extensions := getSection(config, extensions)
+	extensions := getSection(config, consts.Extensions)
 	if len(extensions) > 0 {
 		cfg.Extensions = extensions
 	}
@@ -770,13 +769,13 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 func LoadServices(ctx context.Context, filename string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options) ([]types.ServiceConfig, error) {
 	var services []types.ServiceConfig
 
-	x, ok := servicesDict[extensions]
+	x, ok := servicesDict[consts.Extensions]
 	if ok {
-		// as a top-level attribute, "services" doesn't support extensions, and a service can be named `x-foo`
+		// as a top-level attribute, "services" doesn't support Extensions, and a service can be named `x-foo`
 		for k, v := range x.(map[string]interface{}) {
 			servicesDict[k] = v
 		}
-		delete(servicesDict, extensions)
+		delete(servicesDict, consts.Extensions)
 	}
 
 	for name := range servicesDict {
