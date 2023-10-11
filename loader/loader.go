@@ -365,7 +365,10 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	}
 
 	if opts.ResolvePaths {
-		paths.ResolveRelativePaths(dict, config.WorkingDir)
+		err = paths.ResolveRelativePaths(dict, config.WorkingDir)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return dict, nil
@@ -905,33 +908,6 @@ func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConf
 
 	volume.Source = convertedSource
 	return volume
-}
-
-func resolveMaybeUnixPath(workingDir string, p string) string {
-	filePath := expandUser(p)
-	// Check if source is an absolute path (either Unix or Windows), to
-	// handle a Windows client with a Unix daemon or vice-versa.
-	//
-	// Note that this is not required for Docker for Windows when specifying
-	// a local Windows path, because Docker for Windows translates the Windows
-	// path into a valid path within the VM.
-	if !path.IsAbs(filePath) && !isAbs(filePath) {
-		filePath = absPath(workingDir, filePath)
-	}
-	return filePath
-}
-
-// TODO: make this more robust
-func expandUser(p string) string {
-	if strings.HasPrefix(p, "~") {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			logrus.Warn("cannot expand '~', because the environment lacks HOME")
-			return p
-		}
-		return filepath.Join(home, p[1:])
-	}
-	return p
 }
 
 func transformUlimits(data interface{}) (interface{}, error) {

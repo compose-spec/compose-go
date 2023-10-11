@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package loader
+package paths
 
 // Copyright 2010 The Go Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style
@@ -30,7 +30,7 @@ func isSlash(c uint8) bool {
 }
 
 // isAbs reports whether the path is a Windows absolute path.
-func isAbs(path string) (b bool) {
+func isWindowsAbs(path string) (b bool) {
 	l := volumeNameLen(path)
 	if l == 0 {
 		return false

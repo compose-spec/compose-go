@@ -43,28 +43,6 @@ func ResolveRelativePaths(project *types.Project) error {
 		project.Services[i] = s
 	}
 
-	for i, obj := range project.Configs {
-		if obj.File != "" {
-			obj.File = absPath(project.WorkingDir, obj.File)
-			project.Configs[i] = obj
-		}
-	}
-
-	for i, obj := range project.Secrets {
-		if obj.File != "" {
-			obj.File = resolveMaybeUnixPath(project.WorkingDir, obj.File)
-			project.Secrets[i] = obj
-		}
-	}
-
-	for name, config := range project.Volumes {
-		if config.Driver == "local" && config.DriverOpts["o"] == "bind" {
-			// This is actually a bind mount
-			config.DriverOpts["device"] = resolveMaybeUnixPath(project.WorkingDir, config.DriverOpts["device"])
-			project.Volumes[name] = config
-		}
-	}
-
 	// don't coerce a nil map to an empty map
 	if project.IncludeReferences != nil {
 		absIncludes := make(map[string][]types.IncludeConfig, len(project.IncludeReferences))
@@ -101,27 +79,7 @@ func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
 			s.Build.AdditionalContexts[name] = absPath(workingDir, path)
 		}
 	}
-	for j, f := range s.EnvFile {
-		s.EnvFile[j] = absPath(workingDir, f)
-	}
 
-	if s.Extends != nil && s.Extends.File != "" {
-		s.Extends.File = absPath(workingDir, s.Extends.File)
-	}
-
-	for i, vol := range s.Volumes {
-		if vol.Type != types.VolumeTypeBind {
-			continue
-		}
-		s.Volumes[i].Source = resolveMaybeUnixPath(workingDir, vol.Source)
-	}
-
-	if s.Develop != nil {
-		for i, w := range s.Develop.Watch {
-			w.Path = absPath(workingDir, w.Path)
-			s.Develop.Watch[i] = w
-		}
-	}
 }
 
 func absPath(workingDir string, filePath string) string {
