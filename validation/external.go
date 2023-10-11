@@ -38,7 +38,7 @@ func checkExternalVolume(v map[string]any, p tree.Path) error {
 				return fmt.Errorf("volume %s: volume.external.name and volume.name conflict; only use volume.name", p.Last())
 			}
 		default:
-			return fmt.Errorf("conflicting parameters \"external\" and %q specified for volume %q", p.Last(), k)
+			return fmt.Errorf("conflicting parameters \"external\" and %q specified for volume %q", k, p.Last())
 		}
 	}
 	return nil
