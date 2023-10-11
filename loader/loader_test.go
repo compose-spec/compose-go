@@ -307,7 +307,7 @@ func TestLoadFromFile(t *testing.T) {
 
 func TestLoadExtensions(t *testing.T) {
 	actual, err := loadYAML(`
-name: load-Extensions
+name: load-extensions
 services:
   foo:
     image: busybox
