@@ -16,7 +16,10 @@
 
 package loader
 
-import "reflect"
+import (
+	"reflect"
+	"strconv"
+)
 
 // comparable to yaml.Unmarshaler, decoder allow a type to define it's own custom logic to convert value
 // see https://github.com/mitchellh/mapstructure/pull/294
@@ -53,7 +56,8 @@ func decoderHook(from reflect.Value, to reflect.Value) (interface{}, error) {
 }
 
 func cast(from reflect.Value, to reflect.Value) (interface{}, error) {
-	if from.Type().Kind() == reflect.String {
+	switch from.Type().Kind() {
+	case reflect.String:
 		switch to.Kind() {
 		case reflect.Bool:
 			return toBoolean(from.String())
@@ -65,6 +69,11 @@ func cast(from reflect.Value, to reflect.Value) (interface{}, error) {
 			return toFloat32(from.String())
 		case reflect.Float64:
 			return toFloat(from.String())
+		}
+	case reflect.Int:
+		switch to.Kind() {
+		case reflect.String:
+			return strconv.FormatInt(from.Int(), 10), nil
 		}
 	}
 	return from.Interface(), nil
