@@ -18,11 +18,11 @@ package paths
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/types"
+	"github.com/pkg/errors"
 )
 
 type resolver func(any) (any, error)
@@ -36,12 +36,13 @@ func ResolveRelativePaths(project map[string]any, base string) error {
 		"services.*.env_file":                    r.absPath,
 		"services.*.extends.file":                r.absPath,
 		"services.*.develop.watch.*.path":        r.absPath,
-		"services.*.volume.source":               r.absPath, // TODO(ndeloof) bind only, maybe unix path
-		"config.file":                            r.absPath,
-		"secret.file":                            r.absPath,
+		"services.*.volumes.*":                   r.absVolumeMount, // TODO(ndeloof) bind only, maybe unix path
+		"config.file":                            r.maybeUnixPath,
+		"secret.file":                            r.maybeUnixPath,
 		"include.path":                           r.absPath,
 		"include.project_directory":              r.absPath,
 		"include.env_file":                       r.absPath,
+		"volumes.*":                              r.volumeDriverOpts,
 	}
 	_, err := r.resolveRelativePaths(project, tree.NewPath())
 	return err
@@ -91,14 +92,49 @@ func (r *relativePathsResolver) absPath(value any) (any, error) {
 		}
 		return v, nil
 	case string:
-		if strings.HasPrefix(v, "~") {
-			home, _ := os.UserHomeDir()
-			return filepath.Join(home, v[1:]), nil
-		}
+		v = ExpandUser(v)
 		if filepath.IsAbs(v) {
 			return v, nil
 		}
 		return filepath.Join(r.workingDir, v), nil
 	}
 	return nil, fmt.Errorf("unexpected type %T", value)
+}
+
+func (r *relativePathsResolver) absVolumeMount(a any) (any, error) {
+	vol := a.(map[string]any)
+	if vol["type"] != types.VolumeTypeBind {
+		return vol, nil
+	}
+	src, ok := vol["source"]
+	if !ok {
+		return nil, errors.New(`invalid mount config for type "bind": field Source must not be empty`)
+	}
+	abs, err := r.maybeUnixPath(src.(string))
+	if err != nil {
+		return nil, err
+	}
+	vol["source"] = abs
+	return vol, nil
+}
+
+func (r *relativePathsResolver) volumeDriverOpts(a any) (any, error) {
+	vol := a.(map[string]any)
+	if vol["driver"] != "local" {
+		return vol, nil
+	}
+	do, ok := vol["driver_opts"]
+	if !ok {
+		return vol, nil
+	}
+	opts := do.(map[string]any)
+	if dev, ok := opts["device"]; opts["o"] == "bind" && ok {
+		// This is actually a bind mount
+		path, err := r.maybeUnixPath(dev)
+		if err != nil {
+			return nil, err
+		}
+		opts["device"] = path
+	}
+	return vol, nil
 }
