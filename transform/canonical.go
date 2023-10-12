@@ -27,10 +27,14 @@ var transformers = map[tree.Path]transformFunc{}
 func init() {
 	transformers["services"] = makeServicesSlice
 	transformers["services.*.networks"] = transformServiceNetworks
-	transformers["services.*.volumes.*"] = transformVolume
+	transformers["services.*.volumes.*"] = transformVolumeMount
 	transformers["services.*.ports"] = transformPorts
 	transformers["services.*.build"] = transformBuild
 	transformers["services.*.ulimits.*"] = transformUlimits
+	transformers["volumes.*"] = transformMaybeExternal
+	transformers["networks.*"] = transformMaybeExternal
+	transformers["secrets.*"] = transformMaybeExternal
+	transformers["configs.*"] = transformMaybeExternal
 	transformers["volumes.*.external"] = transformExternal
 	transformers["networks.*.external"] = transformExternal
 	transformers["secrets.*.external"] = transformExternal
@@ -74,7 +78,7 @@ func transform(data any, p tree.Path) (any, error) {
 	}
 }
 
-func transformSequence(v []any, p tree.Path) (any, error) {
+func transformSequence(v []any, p tree.Path) ([]any, error) {
 	for i, e := range v {
 		t, err := transform(e, p.Next("[]"))
 		if err != nil {
@@ -85,7 +89,7 @@ func transformSequence(v []any, p tree.Path) (any, error) {
 	return v, nil
 }
 
-func transformMapping(v map[string]any, p tree.Path) (any, error) {
+func transformMapping(v map[string]any, p tree.Path) (map[string]any, error) {
 	for k, e := range v {
 		t, err := transform(e, p.Next(k))
 		if err != nil {

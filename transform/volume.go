@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func transformVolume(data any, p tree.Path) (any, error) {
+func transformVolumeMount(data any, p tree.Path) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
 		return v, nil
