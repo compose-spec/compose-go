@@ -30,29 +30,31 @@ import (
 func TestLoadLogging(t *testing.T) {
 	loggingCases := []struct {
 		name            string
-		loggingBase     map[string]interface{}
-		loggingOverride map[string]interface{}
+		loggingBase     string
+		loggingOverride string
 		expected        *types.LoggingConfig
 	}{
 		{
 			name: "no_override_driver",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"driver": "json-file",
-					"options": map[string]interface{}{
-						"frequency": "2000",
-						"timeout":   "23",
-					},
-				},
-			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"options": map[string]interface{}{
-						"timeout":      "360",
-						"pretty-print": "on",
-					},
-				},
-			},
+			loggingBase: `
+name: test-load-logging
+services:
+  foo:
+    logging:
+      driver: json-file
+      options:
+        frequency: 2000
+        timeout: 23
+`,
+			loggingOverride: `
+services:
+  foo:
+    logging:
+      driver: json-file
+      options:
+        timeout: 360
+        pretty-print: on
+`,
 			expected: &types.LoggingConfig{
 				Driver: "json-file",
 				Options: map[string]string{
@@ -64,24 +66,25 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name: "override_driver",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"driver": "json-file",
-					"options": map[string]interface{}{
-						"frequency": "2000",
-						"timeout":   "23",
-					},
-				},
-			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"driver": "syslog",
-					"options": map[string]interface{}{
-						"timeout":      "360",
-						"pretty-print": "on",
-					},
-				},
-			},
+			loggingBase: `
+name: test-load-logging
+services:
+  foo:
+    logging:
+      driver: json-file
+      options:
+        frequency: 2000
+        timeout: 23
+`,
+			loggingOverride: `
+services:
+  foo:
+    logging:
+      driver: syslog
+      options:
+        timeout: 360
+        pretty-print: on
+`,
 			expected: &types.LoggingConfig{
 				Driver: "syslog",
 				Options: map[string]string{
@@ -92,23 +95,24 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name: "no_base_driver",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"options": map[string]interface{}{
-						"frequency": "2000",
-						"timeout":   "23",
-					},
-				},
-			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"driver": "json-file",
-					"options": map[string]interface{}{
-						"timeout":      "360",
-						"pretty-print": "on",
-					},
-				},
-			},
+			loggingBase: `
+name: test-load-logging
+services:
+  foo:
+    logging:
+      options:
+        frequency: 2000
+        timeout: 23
+`,
+			loggingOverride: `
+services:
+  foo:
+    logging:
+      driver: json-file
+      options:
+        timeout: 360
+        pretty-print: on
+`,
 			expected: &types.LoggingConfig{
 				Driver: "json-file",
 				Options: map[string]string{
@@ -120,22 +124,23 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name: "no_driver",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"options": map[string]interface{}{
-						"frequency": "2000",
-						"timeout":   "23",
-					},
-				},
-			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"options": map[string]interface{}{
-						"timeout":      "360",
-						"pretty-print": "on",
-					},
-				},
-			},
+			loggingBase: `
+name: test-load-logging
+services:
+  foo:
+    logging:
+      options:
+        frequency: 2000
+        timeout: 23
+`,
+			loggingOverride: `
+services:
+  foo:
+    logging:
+      options:
+        timeout: 360
+        pretty-print: on
+`,
 			expected: &types.LoggingConfig{
 				Options: map[string]string{
 					"frequency":    "2000",
@@ -146,35 +151,42 @@ func TestLoadLogging(t *testing.T) {
 		},
 		{
 			name: "no_override_options",
-			loggingBase: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"driver": "json-file",
-					"options": map[string]interface{}{
-						"frequency": "2000",
-						"timeout":   "23",
-					},
-				},
-			},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"driver": "syslog",
-				},
-			},
+			loggingBase: `
+name: test-load-logging
+services:
+  foo:
+    logging:
+      driver: json-file
+      options:
+        frequency: 2000
+        timeout: 23
+`,
+			loggingOverride: `
+services:
+  foo:
+    logging:
+      driver: syslog
+`,
 			expected: &types.LoggingConfig{
 				Driver: "syslog",
 			},
 		},
 		{
-			name:        "no_base",
-			loggingBase: map[string]interface{}{},
-			loggingOverride: map[string]interface{}{
-				"logging": map[string]interface{}{
-					"driver": "json-file",
-					"options": map[string]interface{}{
-						"frequency": "2000",
-					},
-				},
-			},
+			name: "no_base",
+			loggingBase: `
+name: test-load-logging
+services:
+  foo:
+    image: foo
+`,
+			loggingOverride: `
+services:
+  foo:
+    logging:
+      driver: json-file
+      options:
+        frequency: 2000
+`,
 			expected: &types.LoggingConfig{
 				Driver: "json-file",
 				Options: map[string]string{
@@ -190,41 +202,18 @@ func TestLoadLogging(t *testing.T) {
 				ConfigFiles: []types.ConfigFile{
 					{
 						Filename: "base.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
-								"foo": tc.loggingBase,
-							},
-						},
+						Content:  []byte(tc.loggingBase),
 					},
 					{
 						Filename: "override.yml",
-						Config: map[string]interface{}{
-							"services": map[string]interface{}{
-								"foo": tc.loggingOverride,
-							},
-						},
+						Content:  []byte(tc.loggingOverride),
 					},
 				},
+				Environment: types.Mapping{},
 			}
 			config, err := loadTestProject(configDetails)
 			assert.NilError(t, err)
-			assert.DeepEqual(t, &types.Project{
-				Name:       "",
-				WorkingDir: "",
-				Services: []types.ServiceConfig{
-					{
-						Name:        "foo",
-						Logging:     tc.expected,
-						Environment: types.MappingWithEquals{},
-						Scale:       1,
-					},
-				},
-				Networks:   types.Networks{},
-				Volumes:    types.Volumes{},
-				Secrets:    types.Secrets{},
-				Configs:    types.Configs{},
-				Extensions: types.Extensions{},
-			}, config)
+			assert.DeepEqual(t, tc.expected, config.Services[0].Logging)
 		})
 	}
 }
