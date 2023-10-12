@@ -861,137 +861,108 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 }
 
 func TestLoadMultipleConfigs(t *testing.T) {
-	base := map[string]interface{}{
-		"services": map[string]interface{}{
-			"foo": map[string]interface{}{
-				"image":      "foo",
-				"entrypoint": "echo",
-				"command":    "hellow world",
-				"build": map[string]interface{}{
-					"context":    ".",
-					"dockerfile": "bar.Dockerfile",
-				},
-				"ports": []interface{}{
-					"8080:80",
-					"9090:90",
-				},
-				"expose": []interface{}{
-					"8080",
-				},
-				"labels": []interface{}{
-					"foo=bar",
-				},
-				"cap_add": []interface{}{
-					"NET_ADMIN",
-				},
-			},
-		},
-		"volumes":  map[string]interface{}{},
-		"networks": map[string]interface{}{},
-		"secrets":  map[string]interface{}{},
-		"configs":  map[string]interface{}{},
-	}
-	override := map[string]interface{}{
-		"services": map[string]interface{}{
-			"foo": map[string]interface{}{
-				"image":      "baz",
-				"entrypoint": "ping",
-				"command":    "localhost",
-				"build": map[string]interface{}{
-					"dockerfile": "foo.Dockerfile",
-					"args": []interface{}{
-						"buildno=1",
-						"password=secret",
-					},
-				},
-				"ports": []interface{}{
-					map[string]interface{}{
-						"target":    81,
-						"published": 8080,
-					},
-				},
-				"expose": []interface{}{
-					"8080",
-				},
-				"labels": map[string]interface{}{
-					"foo": "baz",
-				},
-				"cap_add": []interface{}{
-					"SYS_ADMIN",
-				},
-			},
-			"bar": map[string]interface{}{
-				"image": "bar",
-			},
-		},
-		"volumes":  map[string]interface{}{},
-		"networks": map[string]interface{}{},
-		"secrets":  map[string]interface{}{},
-		"configs":  map[string]interface{}{},
-	}
+	base := `
+name: test-load-multiple-configs
+services:
+  foo:
+    image: foo
+    entrypoint: echo
+    command: hello world
+    build:
+      context: .
+      dockerfile: bar.Dockerfile
+    ports:
+      - 8080:80
+      - 9090:90
+    expose:
+      - 8080
+    labels:
+      - foo=bar
+    cap_add:
+      - NET_ADMIN
+`
+
+	override := `
+services:
+  foo:
+    image: baz
+    entrypoint: ping
+    command: localhost
+    build:
+      context: .
+      dockerfile: foo.Dockerfile
+      args:
+        - buildno=1
+        - password=secret
+    ports:
+      - 8080:81
+    expose:
+      - 8080
+    labels:
+      - foo=baz
+    cap_add:
+      - SYS_ADMIN
+  bar:
+    image: bar
+`
 	configDetails := types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "base.yml", Config: base},
-			{Filename: "override.yml", Config: override},
+			{Filename: "base.yml", Content: []byte(base)},
+			{Filename: "override.yml", Content: []byte(override)},
 		},
+		Environment: map[string]string{},
 	}
 	config, err := loadTestProject(configDetails)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, &types.Project{
-		Name:       "",
-		WorkingDir: "",
-		Services: []types.ServiceConfig{
-			{
-				Name:        "bar",
-				Image:       "bar",
-				Environment: types.MappingWithEquals{},
-				Scale:       1,
+	assert.DeepEqual(t, types.Services{
+		{
+			Name:       "foo",
+			Image:      "baz",
+			Entrypoint: types.ShellCommand{"ping"},
+			Command:    types.ShellCommand{"localhost"},
+			Build: &types.BuildConfig{
+				Context:    ".",
+				Dockerfile: "foo.Dockerfile",
+				Args: types.MappingWithEquals{
+					"buildno":  strPtr("1"),
+					"password": strPtr("secret"),
+				},
 			},
-			{
-				Name:       "foo",
-				Image:      "baz",
-				Entrypoint: types.ShellCommand{"ping"},
-				Command:    types.ShellCommand{"localhost"},
-				Build: &types.BuildConfig{
-					Context:    ".",
-					Dockerfile: "foo.Dockerfile",
-					Args: types.MappingWithEquals{
-						"buildno":  strPtr("1"),
-						"password": strPtr("secret"),
-					},
+			Expose: []string{"8080"},
+			Ports: []types.ServicePortConfig{
+				{
+					Mode:      "ingress",
+					Target:    80,
+					Published: "8080",
+					Protocol:  "tcp",
 				},
-				Expose: []string{"8080"},
-				Ports: []types.ServicePortConfig{
-					{
-						Mode:      "ingress",
-						Target:    80,
-						Published: "8080",
-						Protocol:  "tcp",
-					},
-					{
-						Target:    81,
-						Published: "8080",
-					},
-					{
-						Mode:      "ingress",
-						Target:    90,
-						Published: "9090",
-						Protocol:  "tcp",
-					},
+				{
+					Mode:      "ingress",
+					Target:    90,
+					Published: "9090",
+					Protocol:  "tcp",
 				},
-				Labels: types.Labels{
-					"foo": "baz",
+				{
+					Mode:      "ingress",
+					Target:    81,
+					Published: "8080",
+					Protocol:  "tcp",
 				},
-				CapAdd:      []string{"NET_ADMIN", "SYS_ADMIN"},
-				Environment: types.MappingWithEquals{},
-				Scale:       1,
-			}},
-		Networks:   types.Networks{},
-		Volumes:    types.Volumes{},
-		Secrets:    types.Secrets{},
-		Configs:    types.Configs{},
-		Extensions: types.Extensions{},
-	}, config)
+			},
+			Labels: types.Labels{
+				"foo": "baz",
+			},
+			CapAdd:      []string{"NET_ADMIN", "SYS_ADMIN"},
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+		},
+		{
+			Name:        "bar",
+			Image:       "bar",
+			Environment: types.MappingWithEquals{},
+			Scale:       1,
+		},
+	}, config.Services)
 }
 
 // Issue#972
