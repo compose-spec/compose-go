@@ -23,22 +23,16 @@ import (
 	"github.com/compose-spec/compose-go/tree"
 )
 
-func checkExternalVolume(v map[string]any, p tree.Path) error {
+func checkExternal(v map[string]any, p tree.Path) error {
 	if _, ok := v["external"]; !ok {
 		return nil
 	}
-	for k, e := range v {
+	for k, _ := range v {
 		switch k {
-		case "name", consts.Extensions:
+		case "name", "external", consts.Extensions:
 			continue
-		case "external":
-			vname := v["name"]
-			ename, ok := e.(map[string]any)["name"]
-			if ok && vname != nil && ename != vname {
-				return fmt.Errorf("volume %s: volume.external.name and volume.name conflict; only use volume.name", p.Last())
-			}
 		default:
-			return fmt.Errorf("conflicting parameters \"external\" and %q specified for volume %q", k, p.Last())
+			return fmt.Errorf("%s: conflicting parameters \"external\" and %q specified", p, k)
 		}
 	}
 	return nil

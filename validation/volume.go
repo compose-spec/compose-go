@@ -28,7 +28,7 @@ func checkVolume(value any, p tree.Path) error {
 		return fmt.Errorf("expected volume, got %s", value)
 	}
 
-	err := checkExternalVolume(v, p)
+	err := checkExternal(v, p)
 	if err != nil {
 		return err
 	}

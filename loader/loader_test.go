@@ -1002,8 +1002,7 @@ volumes:
     driver: foobar
 `)
 
-	assert.ErrorContains(t, err, "conflicting parameters \"external\" and \"driver\" specified for volume")
-	assert.ErrorContains(t, err, "external_volume")
+	assert.ErrorContains(t, err, `volumes.external_volume: conflicting parameters "external" and "driver" specified`)
 }
 
 func TestInvalidExternalAndDirverOptsCombination(t *testing.T) {
@@ -1016,8 +1015,7 @@ volumes:
       beep: boop
 `)
 
-	assert.ErrorContains(t, err, "conflicting parameters \"external\" and \"driver_opts\" specified for volume")
-	assert.ErrorContains(t, err, "external_volume")
+	assert.ErrorContains(t, err, `volumes.external_volume: conflicting parameters "external" and "driver_opts" specified`)
 }
 
 func TestInvalidExternalAndLabelsCombination(t *testing.T) {
@@ -1030,8 +1028,7 @@ volumes:
       - beep=boop
 `)
 
-	assert.ErrorContains(t, err, "conflicting parameters \"external\" and \"labels\" specified for volume")
-	assert.ErrorContains(t, err, "external_volume")
+	assert.ErrorContains(t, err, `volumes.external_volume: conflicting parameters "external" and "labels" specified`)
 }
 
 func TestLoadVolumeInvalidExternalNameAndNameCombination(t *testing.T) {
@@ -1044,8 +1041,7 @@ volumes:
       name: external_name
 `)
 
-	assert.ErrorContains(t, err, "volume.external.name and volume.name conflict; only use volume.name")
-	assert.ErrorContains(t, err, "external_volume")
+	assert.ErrorContains(t, err, "volumes.external_volume: name and external.name conflict; only use name")
 }
 
 func TestInterpolateInt(t *testing.T) {
@@ -1447,24 +1443,22 @@ func TestLoadVolumesWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
-				"name": "oops",
-			},
-		},
-	}
-	volumes, err := LoadVolumes(source)
+	project, err := loadYAML(`
+name: test-warn-on-deprecated-external-name
+volumes:
+  foo:
+    external:
+      name: oops
+`)
 	assert.NilError(t, err)
-	expected := map[string]types.VolumeConfig{
+	expected := types.Volumes{
 		"foo": {
 			Name:     "oops",
 			External: types.External{External: true},
 		},
 	}
-	assert.Check(t, is.DeepEqual(expected, volumes))
-	assert.Check(t, is.Contains(buf.String(), "volume.external.name is deprecated"))
-
+	assert.Check(t, is.DeepEqual(expected, project.Volumes))
+	assert.Check(t, is.Contains(buf.String(), "external.name is deprecated"))
 }
 
 func patchLogrus() (*bytes.Buffer, func()) {
