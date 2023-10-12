@@ -26,6 +26,7 @@ var transformers = map[tree.Path]transformFunc{}
 
 func init() {
 	transformers["services"] = makeServicesSlice
+	transformers["services.*.depends_on"] = transformDependsOn
 	transformers["services.*.networks"] = transformServiceNetworks
 	transformers["services.*.volumes.*"] = transformVolumeMount
 	transformers["services.*.ports"] = transformPorts
