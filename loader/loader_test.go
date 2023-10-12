@@ -2842,6 +2842,14 @@ services:
         # rebuild image and recreate service
         - path: ./backend/src
           action: rebuild
+  proxy:
+    image: example/proxy
+    build: ./proxy
+    develop:
+      watch: 
+        # rebuild image and recreate service
+        - path: ./proxy/proxy.conf
+          action: sync+restart
 `, nil), func(options *Options) {
 		options.ResolvePaths = false
 	})
@@ -2865,6 +2873,16 @@ services:
 			{
 				Path:   "./backend/src",
 				Action: types.WatchActionRebuild,
+			},
+		},
+	})
+	proxy, err := project.GetService("proxy")
+	assert.NilError(t, err)
+	assert.DeepEqual(t, *proxy.Develop, types.DevelopConfig{
+		Watch: []types.Trigger{
+			{
+				Path:   "./proxy/proxy.conf",
+				Action: types.WatchActionSyncRestart,
 			},
 		},
 	})
