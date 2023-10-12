@@ -188,17 +188,21 @@ func (m *Mapping) DecodeMapstructure(value interface{}) error {
 		}
 		*m = mapping
 	case []interface{}:
-		mapping := make(Mapping, len(v))
-		for _, s := range v {
-			k, e, ok := strings.Cut(fmt.Sprint(s), "=")
-			if !ok {
-				e = ""
-			}
-			mapping[k] = fmt.Sprint(e)
-		}
-		*m = mapping
+		*m = decodeMapping(v, "=")
 	default:
 		return fmt.Errorf("unexpected value type %T for mapping", value)
 	}
 	return nil
+}
+
+func decodeMapping(v []interface{}, sep string) map[string]string {
+	mapping := make(Mapping, len(v))
+	for _, s := range v {
+		k, e, ok := strings.Cut(fmt.Sprint(s), sep)
+		if !ok {
+			e = ""
+		}
+		mapping[k] = fmt.Sprint(e)
+	}
+	return mapping
 }
