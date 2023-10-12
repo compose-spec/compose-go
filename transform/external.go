@@ -28,7 +28,7 @@ func transformExternal(data any, p tree.Path) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
 		if _, ok := v["name"]; ok {
-			logrus.Warnf("%s: external.name is deprecated in favor of name", p.Parent())
+			logrus.Warnf("%s: external.name is deprecated. Please set name and external: true", p.Parent())
 		}
 		if _, ok := v["external"]; !ok {
 			v["external"] = true
