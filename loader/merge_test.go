@@ -1468,11 +1468,6 @@ services:
 				Scale:       1,
 			},
 		},
-		Networks:    types.Networks{},
-		Volumes:     types.Volumes{},
-		Secrets:     types.Secrets{},
-		Configs:     types.Configs{},
-		Extensions:  types.Extensions{},
 		Environment: map[string]string{consts.ComposeProjectName: "test"},
 	}, config)
 }
