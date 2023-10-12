@@ -1439,7 +1439,7 @@ services:
 	assert.Check(t, is.DeepEqual(expected, config.Services[0].ExtraHosts))
 }
 
-func TestLoadVolumesWarnOnDeprecatedExternalNameVersion34(t *testing.T) {
+func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
@@ -1458,7 +1458,7 @@ volumes:
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, project.Volumes))
-	assert.Check(t, is.Contains(buf.String(), "external.name is deprecated"))
+	assert.Check(t, is.Contains(buf.String(), "volumes.foo: external.name is deprecated. Please set name and external: true"))
 }
 
 func patchLogrus() (*bytes.Buffer, func()) {
@@ -1466,29 +1466,6 @@ func patchLogrus() (*bytes.Buffer, func()) {
 	out := logrus.StandardLogger().Out
 	logrus.SetOutput(buf)
 	return buf, func() { logrus.SetOutput(out) }
-}
-
-func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
-	buf, cleanup := patchLogrus()
-	defer cleanup()
-
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
-				"name": "oops",
-			},
-		},
-	}
-	volumes, err := LoadVolumes(source)
-	assert.NilError(t, err)
-	expected := map[string]types.VolumeConfig{
-		"foo": {
-			Name:     "oops",
-			External: types.External{External: true},
-		},
-	}
-	assert.Check(t, is.DeepEqual(expected, volumes))
-	assert.Check(t, strings.Contains(buf.String(), "volume foo: volume.external.name is deprecated in favor of volume.name"))
 }
 
 func TestLoadInvalidIsolation(t *testing.T) {
@@ -1518,78 +1495,53 @@ secrets:
       name: external_name
 `)
 
-	assert.ErrorContains(t, err, "secret.external.name and secret.name conflict; only use secret.name")
-	assert.ErrorContains(t, err, "external_secret")
+	assert.ErrorContains(t, err, "secrets.external_secret: name and external.name conflict; only use name")
 }
 
-func TestLoadSecretsWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
+func TestLoadSecretsWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
-				"name": "oops",
-			},
-		},
-	}
-	secrets, err := LoadSecrets(source)
+	project, err := loadYAML(`
+name: test-warn-on-deprecated-external-name
+secrets:
+  foo:
+     external:
+       name: oops
+`)
 	assert.NilError(t, err)
-	expected := map[string]types.SecretConfig{
+	expected := types.Secrets{
 		"foo": {
 			Name:     "oops",
 			External: types.External{External: true},
 		},
 	}
-	assert.Check(t, is.DeepEqual(expected, secrets))
-	assert.Check(t, is.Contains(buf.String(), "secret.external.name is deprecated"))
-}
-
-func TestLoadNetworksWarnOnDeprecatedExternalNameVersion35(t *testing.T) {
-	buf, cleanup := patchLogrus()
-	defer cleanup()
-
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
-				"name": "oops",
-			},
-		},
-	}
-	networks, err := LoadNetworks(source)
-	assert.NilError(t, err)
-	expected := map[string]types.NetworkConfig{
-		"foo": {
-			Name:     "oops",
-			External: types.External{External: true},
-		},
-	}
-	assert.Check(t, is.DeepEqual(expected, networks))
-	assert.Check(t, is.Contains(buf.String(), "network.external.name is deprecated"))
-
+	assert.Check(t, is.DeepEqual(expected, project.Secrets))
+	assert.Check(t, is.Contains(buf.String(), "secrets.foo: external.name is deprecated. Please set name and external: true"))
 }
 
 func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	source := map[string]interface{}{
-		"foo": map[string]interface{}{
-			"external": map[string]interface{}{
-				"name": "oops",
-			},
-		},
-	}
-	networks, err := LoadNetworks(source)
+	project, err := loadYAML(`
+name: test-warn-on-deprecated-external-name
+networks:
+  foo:
+    external:
+      name: oops
+`)
 	assert.NilError(t, err)
-	expected := map[string]types.NetworkConfig{
+	assert.NilError(t, err)
+	expected := types.Networks{
 		"foo": {
 			Name:     "oops",
 			External: types.External{External: true},
 		},
 	}
-	assert.Check(t, is.DeepEqual(expected, networks))
-	assert.Check(t, strings.Contains(buf.String(), "network foo: network.external.name is deprecated. Please set network.name with external: true"))
+	assert.Check(t, is.DeepEqual(expected, project.Networks))
+	assert.Check(t, is.Contains(buf.String(), "networks.foo: external.name is deprecated. Please set name and external: true"))
+
 }
 
 func TestLoadNetworkInvalidExternalNameAndNameCombination(t *testing.T) {
@@ -1602,8 +1554,7 @@ networks:
       name: external_name
 `)
 
-	assert.ErrorContains(t, err, "network.external.name and network.name conflict; only use network.name")
-	assert.ErrorContains(t, err, "foo")
+	assert.ErrorContains(t, err, "networks.foo: name and external.name conflict; only use name")
 }
 
 func TestLoadNetworkWithName(t *testing.T) {
