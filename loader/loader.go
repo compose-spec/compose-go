@@ -283,7 +283,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	)
 	for _, file := range config.ConfigFiles {
 		fctx := context.WithValue(ctx, "compose-file", file.Filename)
-		if len(file.Content) == 0 {
+		if len(file.Content) == 0 && file.Config == nil {
 			content, err := os.ReadFile(file.Filename)
 			if err != nil {
 				return nil, err
@@ -291,32 +291,20 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			file.Content = content
 		}
 
-		r := bytes.NewReader(file.Content)
-		decoder := yaml.NewDecoder(r)
-		for {
-			var raw interface{}
-			processor := ResetProcessor{target: &raw}
-			err := decoder.Decode(&processor)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return nil, err
-			}
-
+		processRawYaml := func(raw interface{}, processors ...PostProcessor) error {
 			converted, err := convertToStringKeysRecursive(raw, "")
 			if err != nil {
-				return nil, err
+				return err
 			}
 			cfg, ok := converted.(map[string]interface{})
 			if !ok {
-				return nil, errors.New("Top-level object must be a mapping")
+				return errors.New("Top-level object must be a mapping")
 			}
 
 			if opts.Interpolate != nil && !opts.SkipInterpolation {
 				cfg, err = interp.Interpolate(cfg, *opts.Interpolate)
 				if err != nil {
-					return nil, err
+					return err
 				}
 			}
 
@@ -324,24 +312,43 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 
 			if !opts.SkipValidation {
 				if err := schema.Validate(cfg); err != nil {
-					return nil, fmt.Errorf("validating %s: %w", file.Filename, err)
+					return fmt.Errorf("validating %s: %w", file.Filename, err)
 				}
 			}
 
-			err = processor.Apply(dict)
-			if err != nil {
-				return nil, err
+			for _, processor := range processors {
+				if err := processor.Apply(dict); err != nil {
+					return err
+				}
 			}
 
 			if !opts.SkipExtends {
-				err = ApplyExtends(fctx, cfg, opts, ct, &processor)
+				err = ApplyExtends(fctx, cfg, opts, ct, processors...)
 				if err != nil {
-					return nil, err
+					return err
 				}
 			}
 
 			dict, err = override.Merge(dict, cfg)
-			if err != nil {
+			return err
+		}
+
+		if file.Config == nil {
+			r := bytes.NewReader(file.Content)
+			decoder := yaml.NewDecoder(r)
+			for {
+				var raw interface{}
+				processor := &ResetProcessor{target: &raw}
+				err := decoder.Decode(processor)
+				if err == io.EOF {
+					break
+				}
+				if err := processRawYaml(raw, processor); err != nil {
+					return nil, err
+				}
+			}
+		} else {
+			if err := processRawYaml(file.Config); err != nil {
 				return nil, err
 			}
 		}
