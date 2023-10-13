@@ -686,15 +686,10 @@ func createTransformHook(additionalTransformers ...Transformer) mapstructure.Dec
 		reflect.TypeOf(types.ServiceSecretConfig{}):              transformFileReferenceConfig,
 		reflect.TypeOf(types.ServiceConfigObjConfig{}):           transformFileReferenceConfig,
 		reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}): transformServiceNetworkMap,
-		reflect.TypeOf(types.Mapping{}):                          transformMappingOrListFunc("=", false),
-		reflect.TypeOf(types.MappingWithEquals{}):                transformMappingOrListFunc("=", true),
-		reflect.TypeOf(types.MappingWithColon{}):                 transformMappingOrListFunc(":", false),
-		reflect.TypeOf(types.HostsList{}):                        transformMappingOrListFunc(":", false),
 		reflect.TypeOf(types.ServiceVolumeConfig{}):              transformServiceVolumeConfig,
 		reflect.TypeOf(types.BuildConfig{}):                      transformBuildConfig,
 		reflect.TypeOf(types.DependsOnConfig{}):                  transformDependsOnConfig,
 		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
-		reflect.TypeOf(types.SSHConfig{}):                        transformSSHConfig,
 		reflect.TypeOf(types.IncludeConfig{}):                    transformIncludeConfig,
 	}
 
@@ -1224,74 +1219,6 @@ var transformServiceNetworkMap TransformerFunc = func(value interface{}) (interf
 		return mapValue, nil
 	}
 	return value, nil
-}
-
-var transformSSHConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case map[string]interface{}:
-		var result []types.SSHKey
-		for key, val := range value {
-			if val == nil {
-				val = ""
-			}
-			result = append(result, types.SSHKey{ID: key, Path: val.(string)})
-		}
-		return result, nil
-	case []interface{}:
-		var result []types.SSHKey
-		for _, v := range value {
-			key, val := transformValueToMapEntry(v.(string), "=", false)
-			result = append(result, types.SSHKey{ID: key, Path: val.(string)})
-		}
-		return result, nil
-	case string:
-		return ParseShortSSHSyntax(value)
-	}
-	return nil, errors.Errorf("expected a sting, map or a list, got %T: %#v", data, data)
-}
-
-// ParseShortSSHSyntax parse short syntax for SSH authentications
-func ParseShortSSHSyntax(value string) ([]types.SSHKey, error) {
-	if value == "" {
-		value = "default"
-	}
-	key, val := transformValueToMapEntry(value, "=", false)
-	result := []types.SSHKey{{ID: key, Path: val.(string)}}
-	return result, nil
-}
-
-func transformMappingOrListFunc(sep string, allowNil bool) TransformerFunc {
-	return func(data interface{}) (interface{}, error) {
-		return transformMappingOrList(data, sep, allowNil)
-	}
-}
-
-func transformMappingOrList(mappingOrList interface{}, sep string, allowNil bool) (interface{}, error) {
-	switch value := mappingOrList.(type) {
-	case map[string]interface{}:
-		return toMapStringString(value, allowNil), nil
-	case []interface{}:
-		result := make(map[string]interface{})
-		for _, value := range value {
-			key, val := transformValueToMapEntry(value.(string), sep, allowNil)
-			result[key] = val
-		}
-		return result, nil
-	}
-	return nil, errors.Errorf("expected a map or a list, got %T: %#v", mappingOrList, mappingOrList)
-}
-
-func transformValueToMapEntry(value string, separator string, allowNil bool) (string, interface{}) {
-	parts := strings.SplitN(value, separator, 2)
-	key := parts[0]
-	switch {
-	case len(parts) == 1 && allowNil:
-		return key, nil
-	case len(parts) == 1 && !allowNil:
-		return key, ""
-	default:
-		return key, parts[1]
-	}
 }
 
 func toMapStringString(value map[string]interface{}, allowNil bool) map[string]interface{} {

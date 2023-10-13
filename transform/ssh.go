@@ -18,37 +18,35 @@ package transform
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/compose-spec/compose-go/tree"
 	"github.com/pkg/errors"
 )
 
-func transformDependsOn(data any, p tree.Path) (any, error) {
+func transformSSH(data any, p tree.Path) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
-		for i, e := range v {
-			d, ok := e.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("%s.%s: unsupported value %s", p, i, v)
-			}
-			if _, ok := d["condition"]; !ok {
-				d["condition"] = "service_started"
-			}
-			if _, ok := d["required"]; !ok {
-				d["required"] = true
-			}
-		}
 		return v, nil
-	case []string:
-		d := map[string]any{}
-		for _, k := range v {
-			d[k] = map[string]any{
-				"condition": "service_started",
-				"required":  true,
+	case []any:
+		result := make(map[string]any, len(v))
+		for _, e := range v {
+			s, ok := e.(string)
+			if !ok {
+				return nil, fmt.Errorf("invalid ssh key type %T", e)
 			}
+			id, path, ok := strings.Cut(s, "=")
+			if !ok {
+				if id != "default" {
+					return nil, fmt.Errorf("invalid ssh key %q", s)
+				}
+				result[id] = nil
+				continue
+			}
+			result[id] = path
 		}
-		return d, nil
+		return result, nil
 	default:
-		return data, errors.Errorf("invalid type %T for build", v)
+		return data, errors.Errorf("invalid type %T for ssh", v)
 	}
 }

@@ -27,7 +27,7 @@ func transformBuild(data any, p tree.Path) (any, error) {
 		if _, ok := v["context"]; !ok {
 			v["context"] = "." // TODO(ndeloof) maybe we miss an explicit "set-defaults" loading phase
 		}
-		return v, nil
+		return transformMapping(v, p)
 	case string:
 		return map[string]any{
 			"context": v,
