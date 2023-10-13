@@ -328,39 +328,6 @@ type ThrottleDevice struct {
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
 
-type SSHKey struct {
-	ID   string
-	Path string
-}
-
-// SSHConfig is a mapping type for SSH build config
-type SSHConfig []SSHKey
-
-func (s SSHConfig) Get(id string) (string, error) {
-	for _, sshKey := range s {
-		if sshKey.ID == id {
-			return sshKey.Path, nil
-		}
-	}
-	return "", fmt.Errorf("ID %s not found in SSH keys", id)
-}
-
-// MarshalYAML makes SSHKey implement yaml.Marshaller
-func (s SSHKey) MarshalYAML() (interface{}, error) {
-	if s.Path == "" {
-		return s.ID, nil
-	}
-	return fmt.Sprintf("%s: %s", s.ID, s.Path), nil
-}
-
-// MarshalJSON makes SSHKey implement json.Marshaller
-func (s SSHKey) MarshalJSON() ([]byte, error) {
-	if s.Path == "" {
-		return []byte(fmt.Sprintf(`%q`, s.ID)), nil
-	}
-	return []byte(fmt.Sprintf(`%q: %s`, s.ID, s.Path)), nil
-}
-
 // MappingWithColon is a mapping type that can be converted from a list of
 // 'key: value' strings
 type MappingWithColon map[string]string
