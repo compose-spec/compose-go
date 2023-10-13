@@ -34,6 +34,8 @@ func init() {
 	unique["services.*.environment"] = environmentIndexer
 	unique["services.*.volumes"] = volumeIndexer
 	unique["services.*.expose"] = exposeIndexer
+	unique["services.*.secrets"] = mountIndexer
+	unique["services.*.configs"] = mountIndexer
 }
 
 // EnforceUnicity removes redefinition of elements declared in a sequence
@@ -113,6 +115,17 @@ func exposeIndexer(a any, path tree.Path) (string, error) {
 		return v, nil
 	case int:
 		return strconv.Itoa(v), nil
+	default:
+		return "", fmt.Errorf("%s: unsupported expose value %s", path, a)
+	}
+}
+
+func mountIndexer(a any, path tree.Path) (string, error) {
+	switch v := a.(type) {
+	case string:
+		return v, nil
+	case map[string]any:
+		return v["source"].(string), nil
 	default:
 		return "", fmt.Errorf("%s: unsupported expose value %s", path, a)
 	}

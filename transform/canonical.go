@@ -29,6 +29,8 @@ func init() {
 	transformers["services.*.depends_on"] = transformDependsOn
 	transformers["services.*.networks"] = transformServiceNetworks
 	transformers["services.*.volumes.*"] = transformVolumeMount
+	transformers["services.*.secrets.*"] = transformFileMount
+	transformers["services.*.configs.*"] = transformFileMount
 	transformers["services.*.ports"] = transformPorts
 	transformers["services.*.build"] = transformBuild
 	transformers["services.*.build.ssh"] = transformSSH

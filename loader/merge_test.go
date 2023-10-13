@@ -363,11 +363,6 @@ func TestLoadMultipleServicePorts(t *testing.T) {
 						Scale:       1,
 					},
 				},
-				Networks:   types.Networks{},
-				Volumes:    types.Volumes{},
-				Secrets:    types.Secrets{},
-				Configs:    types.Configs{},
-				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -408,10 +403,10 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 			},
 			expected: []types.ServiceSecretConfig{
 				{
-					Source: "bar_secret",
+					Source: "foo_secret",
 				},
 				{
-					Source: "foo_secret",
+					Source: "bar_secret",
 				},
 			},
 		},
@@ -440,15 +435,15 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 			},
 			expected: []types.ServiceSecretConfig{
 				{
+					Source: "foo_secret",
+				},
+				{
 					Source: "bar_secret",
 					Target: "bof_secret",
 				},
 				{
 					Source: "baz_secret",
 					Target: "waw_secret",
-				},
-				{
-					Source: "foo_secret",
 				},
 			},
 		},
@@ -489,11 +484,6 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 						Scale:       1,
 					},
 				},
-				Networks:   types.Networks{},
-				Volumes:    types.Volumes{},
-				Secrets:    types.Secrets{},
-				Configs:    types.Configs{},
-				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
