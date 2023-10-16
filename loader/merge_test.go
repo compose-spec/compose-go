@@ -524,10 +524,10 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 			},
 			expected: []types.ServiceConfigObjConfig{
 				{
-					Source: "bar_config",
+					Source: "foo_config",
 				},
 				{
-					Source: "foo_config",
+					Source: "bar_config",
 				},
 			},
 		},
@@ -556,15 +556,15 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 			},
 			expected: []types.ServiceConfigObjConfig{
 				{
-					Source: "bar_config",
-					Target: "bof_config",
+					Source: "foo_config",
 				},
 				{
 					Source: "baz_config",
 					Target: "waw_config",
 				},
 				{
-					Source: "foo_config",
+					Source: "bar_config",
+					Target: "bof_config",
 				},
 			},
 		},
@@ -605,11 +605,6 @@ func TestLoadMultipleConfigobjsConfig(t *testing.T) {
 						Scale:       1,
 					},
 				},
-				Networks:   types.Networks{},
-				Volumes:    types.Volumes{},
-				Secrets:    types.Secrets{},
-				Configs:    types.Configs{},
-				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -835,11 +830,6 @@ func TestLoadMultipleServiceNetworks(t *testing.T) {
 						Scale:       1,
 					},
 				},
-				Networks:   types.Networks{},
-				Volumes:    types.Volumes{},
-				Secrets:    types.Secrets{},
-				Configs:    types.Configs{},
-				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
@@ -1096,22 +1086,13 @@ func TestMergeTopLevelExtensions(t *testing.T) {
 	}
 	config, err := loadTestProject(configDetails)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, &types.Project{
-		Name:       "",
-		WorkingDir: "",
-		Services:   nil,
-		Networks:   types.Networks{},
-		Volumes:    types.Volumes{},
-		Secrets:    types.Secrets{},
-		Configs:    types.Configs{},
-		Extensions: types.Extensions{
-			"x-foo": "foo",
-			"x-bar": map[string]interface{}{
-				"base": "qix",
-			},
-			"x-zot": "zot",
+	assert.DeepEqual(t, types.Extensions{
+		"x-foo": "foo",
+		"x-bar": map[string]interface{}{
+			"base": "qix",
 		},
-	}, config)
+		"x-zot": "zot",
+	}, config.Extensions)
 }
 
 func TestMergeCommands(t *testing.T) {

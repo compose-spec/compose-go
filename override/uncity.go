@@ -34,8 +34,8 @@ func init() {
 	unique["services.*.environment"] = environmentIndexer
 	unique["services.*.volumes"] = volumeIndexer
 	unique["services.*.expose"] = exposeIndexer
-	unique["services.*.secrets"] = mountIndexer
-	unique["services.*.configs"] = mountIndexer
+	unique["services.*.secrets"] = mountIndexer("/run/secrets")
+	unique["services.*.configs"] = mountIndexer("")
 }
 
 // EnforceUnicity removes redefinition of elements declared in a sequence
@@ -120,13 +120,19 @@ func exposeIndexer(a any, path tree.Path) (string, error) {
 	}
 }
 
-func mountIndexer(a any, path tree.Path) (string, error) {
-	switch v := a.(type) {
-	case string:
-		return v, nil
-	case map[string]any:
-		return v["source"].(string), nil
-	default:
-		return "", fmt.Errorf("%s: unsupported expose value %s", path, a)
+func mountIndexer(defaultPath string) indexer {
+	return func(a any, path tree.Path) (string, error) {
+		switch v := a.(type) {
+		case string:
+			return v, nil
+		case map[string]any:
+			t, ok := v["target"]
+			if ok {
+				return t.(string), nil
+			}
+			return fmt.Sprintf("%s/%s", defaultPath, v["source"]), nil
+		default:
+			return "", fmt.Errorf("%s: unsupported expose value %s", path, a)
+		}
 	}
 }

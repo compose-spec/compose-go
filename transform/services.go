@@ -37,7 +37,7 @@ func makeServicesSlice(data any, p tree.Path) (any, error) {
 		servicesAsSlice[i] = canonical
 		i++
 	}
-	return servicesAsSlice, nil
+	return servicesAsSlice, nil //TODO(ndeloof) required for loading but not actually canonical. Shall we change compose-go types?
 }
 
 func transformServiceNetworks(data any, p tree.Path) (any, error) {
