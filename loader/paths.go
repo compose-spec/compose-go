@@ -38,11 +38,6 @@ func ResolveRelativePaths(project *types.Project) error {
 	}
 	project.ComposeFiles = absComposeFiles
 
-	for i, s := range project.Services {
-		ResolveServiceRelativePaths(project.WorkingDir, &s)
-		project.Services[i] = s
-	}
-
 	// don't coerce a nil map to an empty map
 	if project.IncludeReferences != nil {
 		absIncludes := make(map[string][]types.IncludeConfig, len(project.IncludeReferences))
@@ -62,24 +57,6 @@ func ResolveRelativePaths(project *types.Project) error {
 	}
 
 	return nil
-}
-
-func ResolveServiceRelativePaths(workingDir string, s *types.ServiceConfig) {
-	if s.Build != nil {
-		if !isRemoteContext(s.Build.Context) {
-			s.Build.Context = absPath(workingDir, s.Build.Context)
-		}
-		for name, path := range s.Build.AdditionalContexts {
-			if strings.Contains(path, "://") { // `docker-image://` or any builder specific context type
-				continue
-			}
-			if isRemoteContext(path) {
-				continue
-			}
-			s.Build.AdditionalContexts[name] = absPath(workingDir, path)
-		}
-	}
-
 }
 
 func absPath(workingDir string, filePath string) string {
@@ -102,20 +79,6 @@ func absComposeFiles(composeFiles []string) ([]string, error) {
 		composeFiles[i] = absComposefile
 	}
 	return composeFiles, nil
-}
-
-// isRemoteContext returns true if the value is a Git reference or HTTP(S) URL.
-//
-// Any other value is assumed to be a local filesystem path and returns false.
-//
-// See: https://github.com/moby/buildkit/blob/18fc875d9bfd6e065cd8211abc639434ba65aa56/frontend/dockerui/context.go#L76-L79
-func isRemoteContext(maybeURL string) bool {
-	for _, prefix := range []string{"https://", "http://", "git://", "ssh://", "github.com/", "git@"} {
-		if strings.HasPrefix(maybeURL, prefix) {
-			return true
-		}
-	}
-	return false
 }
 
 func resolvePaths(basePath string, in types.StringList) types.StringList {

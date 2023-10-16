@@ -31,12 +31,12 @@ type resolver func(any) (any, error)
 func ResolveRelativePaths(project map[string]any, base string) error {
 	r := relativePathsResolver{workingDir: base}
 	r.resolvers = map[tree.Path]resolver{
-		"services.*.build.context":               r.absPath, // TODO(ndeloof) need to detect remote
-		"services.*.build.additional_contexts.*": r.absPath, // TODO(ndeloof) need to detect remote
+		"services.*.build.context":               r.absContextPath,
+		"services.*.build.additional_contexts.*": r.absContextPath,
 		"services.*.env_file":                    r.absPath,
 		"services.*.extends.file":                r.absPath,
 		"services.*.develop.watch.*.path":        r.absPath,
-		"services.*.volumes.*":                   r.absVolumeMount, // TODO(ndeloof) bind only, maybe unix path
+		"services.*.volumes.*":                   r.absVolumeMount,
 		"config.file":                            r.maybeUnixPath,
 		"secret.file":                            r.maybeUnixPath,
 		"include.path":                           r.absPath,

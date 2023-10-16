@@ -316,12 +316,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				}
 			}
 
-			for _, processor := range processors {
-				if err := processor.Apply(dict); err != nil {
-					return err
-				}
-			}
-
 			if !opts.SkipExtends {
 				err = ApplyExtends(fctx, cfg, opts, ct, processors...)
 				if err != nil {
@@ -329,7 +323,14 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				}
 			}
 
+			for _, processor := range processors {
+				if err := processor.Apply(dict); err != nil {
+					return err
+				}
+			}
+
 			dict, err = override.Merge(dict, cfg)
+
 			return err
 		}
 
@@ -579,66 +580,6 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 	return dict
 }
 
-func loadSections(ctx context.Context, filename string, config map[string]interface{}, configDetails types.ConfigDetails, opts *Options) (*types.Config, error) {
-	var err error
-	cfg := types.Config{
-		Filename: filename,
-	}
-	name := ""
-	if n, ok := config["name"]; ok {
-		name, ok = n.(string)
-		if !ok {
-			return nil, errors.New("project name must be a string")
-		}
-	}
-	cfg.Name = name
-	cfg.Services, err = LoadServices(ctx, filename, getSection(config, "services"), configDetails.WorkingDir, configDetails.LookupEnv, opts)
-	if err != nil {
-		return nil, err
-	}
-	cfg.Networks, err = LoadNetworks(getSection(config, "networks"))
-	if err != nil {
-		return nil, err
-	}
-	cfg.Volumes, err = LoadVolumes(getSection(config, "volumes"))
-	if err != nil {
-		return nil, err
-	}
-	cfg.Secrets, err = LoadSecrets(getSection(config, "secrets"))
-	if err != nil {
-		return nil, err
-	}
-	cfg.Configs, err = LoadConfigObjs(getSection(config, "configs"))
-	if err != nil {
-		return nil, err
-	}
-	cfg.Include, err = LoadIncludeConfig(getSequence(config, "include"))
-	if err != nil {
-		return nil, err
-	}
-	extensions := getSection(config, consts.Extensions)
-	if len(extensions) > 0 {
-		cfg.Extensions = extensions
-	}
-	return &cfg, nil
-}
-
-func getSection(config map[string]interface{}, key string) map[string]interface{} {
-	section, ok := config[key]
-	if !ok {
-		return make(map[string]interface{})
-	}
-	return section.(map[string]interface{})
-}
-
-func getSequence(config map[string]interface{}, key string) []interface{} {
-	section, ok := config[key]
-	if !ok {
-		return make([]interface{}, 0)
-	}
-	return section.([]interface{})
-}
-
 // ForbiddenPropertiesError is returned when there are properties in the Compose
 // file that are forbidden.
 type ForbiddenPropertiesError struct {
@@ -768,133 +709,6 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 		location = fmt.Sprintf("in %s", keyPrefix)
 	}
 	return errors.Errorf("Non-string key %s: %#v", location, key)
-}
-
-// LoadServices produces a ServiceConfig map from a compose file Dict
-// the servicesDict is not validated if directly used. Use Load() to enable validation
-func LoadServices(ctx context.Context, filename string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options) ([]types.ServiceConfig, error) {
-	var services []types.ServiceConfig
-
-	x, ok := servicesDict[consts.Extensions]
-	if ok {
-		// as a top-level attribute, "services" doesn't support Extensions, and a service can be named `x-foo`
-		for k, v := range x.(map[string]interface{}) {
-			servicesDict[k] = v
-		}
-		delete(servicesDict, consts.Extensions)
-	}
-
-	for name := range servicesDict {
-		serviceConfig, err := loadServiceWithExtends(ctx, filename, name, servicesDict, workingDir, lookupEnv, opts, &cycleTracker{})
-		if err != nil {
-			return nil, err
-		}
-
-		services = append(services, *serviceConfig)
-	}
-
-	return services, nil
-}
-
-func loadServiceWithExtends(ctx context.Context, filename, name string, servicesDict map[string]interface{}, workingDir string, lookupEnv template.Mapping, opts *Options, ct *cycleTracker) (*types.ServiceConfig, error) {
-	target, ok := servicesDict[name]
-	if !ok {
-		return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, filename)
-	}
-
-	if target == nil {
-		target = map[string]interface{}{}
-	}
-
-	serviceConfig, err := LoadService(name, target.(map[string]interface{}))
-	if err != nil {
-		return nil, err
-	}
-
-	if serviceConfig.Extends != nil && !opts.SkipExtends {
-		baseServiceName := serviceConfig.Extends.Service
-		var baseService *types.ServiceConfig
-		file := serviceConfig.Extends.File
-		if file == "" {
-			baseService, err = loadServiceWithExtends(ctx, filename, baseServiceName, servicesDict, workingDir, lookupEnv, opts, ct)
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			for _, loader := range opts.ResourceLoaders {
-				if loader.Accept(file) {
-					p, err := loader.Load(ctx, file)
-					if err != nil {
-						return nil, err
-					}
-					file = p
-					break
-				}
-			}
-			// Resolve the path to the imported file, and load it.
-			baseFilePath := absPath(workingDir, file)
-
-			b, err := os.ReadFile(baseFilePath)
-			if err != nil {
-				return nil, err
-			}
-
-			r := bytes.NewReader(b)
-			decoder := yaml.NewDecoder(r)
-
-			baseFile, _, err := parseConfig(decoder, opts)
-			if err != nil {
-				return nil, err
-			}
-
-			baseFileServices := getSection(baseFile, "services")
-			baseService, err = loadServiceWithExtends(ctx, baseFilePath, baseServiceName, baseFileServices, filepath.Dir(baseFilePath), lookupEnv, opts, ct)
-			if err != nil {
-				return nil, err
-			}
-
-			// Make path relative to the importing Compose file. Note that we
-			// make the path relative to `file` rather than `baseFilePath` so
-			// that the resulting path won't be absolute if `file` isn't an
-			// absolute path.
-
-			baseFileParent := filepath.Dir(file)
-			ResolveServiceRelativePaths(baseFileParent, baseService)
-		}
-
-		serviceConfig, err = _merge(baseService, serviceConfig)
-		if err != nil {
-			return nil, err
-		}
-		serviceConfig.Extends = nil
-	}
-
-	return serviceConfig, nil
-}
-
-// LoadService produces a single ServiceConfig from a compose file Dict
-// the serviceDict is not validated if directly used. Use Load() to enable validation
-func LoadService(name string, serviceDict map[string]interface{}) (*types.ServiceConfig, error) {
-	serviceConfig := &types.ServiceConfig{
-		Scale: 1,
-	}
-	if err := Transform(serviceDict, serviceConfig); err != nil {
-		return nil, err
-	}
-	serviceConfig.Name = name
-
-	for i, volume := range serviceConfig.Volumes {
-		if volume.Type != types.VolumeTypeBind {
-			continue
-		}
-		if volume.Source == "" {
-			return nil, errors.New(`invalid mount config for type "bind": field Source must not be empty`)
-		}
-
-		serviceConfig.Volumes[i] = volume
-	}
-
-	return serviceConfig, nil
 }
 
 // Windows path, c:\\my\\path\\shiny, need to be changed to be compatible with

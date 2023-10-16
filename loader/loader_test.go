@@ -1756,30 +1756,6 @@ services:
 	assert.Check(t, is.DeepEqual(expected, config.Services[0].Sysctls))
 }
 
-func TestTransform(t *testing.T) {
-	var source = []interface{}{
-		"80-82:8080-8082",
-		"90-92:8090-8092/udp",
-		"85:8500",
-		8600,
-		map[string]interface{}{
-			"protocol":  "udp",
-			"target":    53,
-			"published": 10053,
-		},
-		map[string]interface{}{
-			"mode":      "host",
-			"target":    22,
-			"published": 10022,
-		},
-	}
-	var ports []types.ServicePortConfig
-	err := Transform(source, &ports)
-	assert.NilError(t, err)
-
-	assert.Check(t, is.DeepEqual(samplePortsConfig, ports))
-}
-
 func TestLoadTemplateDriver(t *testing.T) {
 	config, err := loadYAML(`
 name: load-template-driver
