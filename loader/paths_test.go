@@ -83,50 +83,36 @@ func TestResolveBuildContextPaths(t *testing.T) {
 }
 
 func TestResolveAdditionalContexts(t *testing.T) {
-	wd, _ := filepath.Abs(".")
-	absSubdir := filepath.Join(wd, "dir")
-	project := types.Project{
-		Name:       "myProject",
-		WorkingDir: wd,
-		Services: types.Services{
-			types.ServiceConfig{
-				Name: "test",
-				Build: &types.BuildConfig{
-					Context:    ".",
-					Dockerfile: "Dockerfile",
-					AdditionalContexts: map[string]string{
-						"image":    "docker-image://foo",
-						"oci":      "oci-layout://foo",
-						"abs_path": absSubdir,
-						"github":   "github.com/compose-spec/compose-go",
-						"rel_path": "./testdata",
-					},
-				},
-			},
-		},
-	}
-
-	expected := types.Project{
-		Name:       "myProject",
-		WorkingDir: wd,
-		Services: types.Services{
-			types.ServiceConfig{
-				Name: "test",
-				Build: &types.BuildConfig{
-					Context:    wd,
-					Dockerfile: "Dockerfile",
-					AdditionalContexts: map[string]string{
-						"image":    "docker-image://foo",
-						"oci":      "oci-layout://foo",
-						"abs_path": absSubdir,
-						"github":   "github.com/compose-spec/compose-go",
-						"rel_path": filepath.Join(wd, "testdata"),
-					},
-				},
-			},
-		},
-	}
-	err := ResolveRelativePaths(&project)
+	yaml := `
+name: test-resolve-additional-contexts
+services:
+  test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        image: docker-image://foo
+        oci:  oci-layout://foo
+        abs_path: /dir
+        github:   github.com/compose-spec/compose-go
+        rel_path: ./testdata
+`
+	project, err := loadYAML(yaml)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, project)
+
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+
+	expected := types.BuildConfig{
+		Context:    wd,
+		Dockerfile: "Dockerfile",
+		AdditionalContexts: map[string]string{
+			"image":    "docker-image://foo",
+			"oci":      "oci-layout://foo",
+			"abs_path": "/dir",
+			"github":   "github.com/compose-spec/compose-go",
+			"rel_path": filepath.Join(wd, "testdata"),
+		},
+	}
+	assert.DeepEqual(t, expected, *project.Services[0].Build)
 }
