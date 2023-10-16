@@ -22,15 +22,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
 	"path/filepath"
-	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/consts"
-	"github.com/compose-spec/compose-go/format"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/override"
 	"github.com/compose-spec/compose-go/paths"
@@ -41,7 +37,6 @@ import (
 	"github.com/compose-spec/compose-go/validation"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -424,15 +419,6 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		}
 	}
 
-	/* this is now implemented by paths.ResolveRelativePaths
-	if opts.ResolvePaths {
-		err := ResolveRelativePaths(project)
-		if err != nil {
-			return nil, err
-		}
-	}
-	*/
-
 	if opts.ConvertWindowsPaths {
 		for i, service := range project.Services {
 			for j, volume := range service.Volumes {
@@ -536,18 +522,6 @@ func NormalizeProjectName(s string) string {
 	return strings.TrimLeft(s, "_-")
 }
 
-func parseConfig(decoder *yaml.Decoder, opts *Options) (map[string]interface{}, PostProcessor, error) {
-	yml, postProcessor, err := parseYAML(decoder)
-	if err != nil {
-		return nil, nil, err
-	}
-	if !opts.SkipInterpolation {
-		interpolated, err := interp.Interpolate(yml, *opts.Interpolate)
-		return interpolated, postProcessor, err
-	}
-	return yml, postProcessor, err
-}
-
 func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
 	extras := map[string]interface{}{}
 	for key, value := range dict {
@@ -573,16 +547,6 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 	return dict
 }
 
-// ForbiddenPropertiesError is returned when there are properties in the Compose
-// file that are forbidden.
-type ForbiddenPropertiesError struct {
-	Properties map[string]string
-}
-
-func (e *ForbiddenPropertiesError) Error() string {
-	return "Configuration contains forbidden properties"
-}
-
 // Transform converts the source into the target struct with compose types transformer
 // and the specified transformers if any.
 func Transform(source interface{}, target interface{}) error {
@@ -600,44 +564,6 @@ func Transform(source interface{}, target interface{}) error {
 		return err
 	}
 	return decoder.Decode(source)
-}
-
-// TransformerFunc defines a function to perform the actual transformation
-type TransformerFunc func(interface{}) (interface{}, error)
-
-// Transformer defines a map to type transformer
-type Transformer struct {
-	TypeOf reflect.Type
-	Func   TransformerFunc
-}
-
-func createTransformHook(additionalTransformers ...Transformer) mapstructure.DecodeHookFuncType {
-	transforms := map[reflect.Type]func(interface{}) (interface{}, error){
-		reflect.TypeOf(types.External{}):                         transformExternal,
-		reflect.TypeOf(types.Options{}):                          transformOptions,
-		reflect.TypeOf(types.UlimitsConfig{}):                    transformUlimits,
-		reflect.TypeOf([]types.ServicePortConfig{}):              transformServicePort,
-		reflect.TypeOf(types.ServiceSecretConfig{}):              transformFileReferenceConfig,
-		reflect.TypeOf(types.ServiceConfigObjConfig{}):           transformFileReferenceConfig,
-		reflect.TypeOf(map[string]*types.ServiceNetworkConfig{}): transformServiceNetworkMap,
-		reflect.TypeOf(types.ServiceVolumeConfig{}):              transformServiceVolumeConfig,
-		reflect.TypeOf(types.BuildConfig{}):                      transformBuildConfig,
-		reflect.TypeOf(types.DependsOnConfig{}):                  transformDependsOnConfig,
-		reflect.TypeOf(types.ExtendsConfig{}):                    transformExtendsConfig,
-		reflect.TypeOf(types.IncludeConfig{}):                    transformIncludeConfig,
-	}
-
-	for _, transformer := range additionalTransformers {
-		transforms[transformer.TypeOf] = transformer.Func
-	}
-
-	return func(_ reflect.Type, target reflect.Type, data interface{}) (interface{}, error) {
-		fn, ok := transforms[target]
-		if !ok {
-			return data, nil
-		}
-		return fn(data)
-	}
 }
 
 // keys need to be converted to strings for jsonschema
@@ -717,332 +643,4 @@ func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConf
 
 	volume.Source = convertedSource
 	return volume
-}
-
-func transformUlimits(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case int:
-		return types.UlimitsConfig{Single: value}, nil
-	case map[string]interface{}:
-		ulimit := types.UlimitsConfig{}
-		if v, ok := value["soft"]; ok {
-			ulimit.Soft = v.(int)
-		}
-		if v, ok := value["hard"]; ok {
-			ulimit.Hard = v.(int)
-		}
-		return ulimit, nil
-	default:
-		return data, errors.Errorf("invalid type %T for ulimits", value)
-	}
-}
-
-// LoadNetworks produces a NetworkConfig map from a compose file Dict
-// the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadNetworks(source map[string]interface{}) (map[string]types.NetworkConfig, error) {
-	networks := make(map[string]types.NetworkConfig)
-	err := Transform(source, &networks)
-	if err != nil {
-		return networks, err
-	}
-	for name, network := range networks {
-		if !network.External.External {
-			continue
-		}
-		switch {
-		case network.External.Name != "":
-			if network.Name != "" {
-				return nil, errors.Errorf("network %s: network.external.name and network.name conflict; only use network.name", name)
-			}
-			logrus.Warnf("network %s: network.external.name is deprecated. Please set network.name with external: true", name)
-			network.Name = network.External.Name
-			network.External.Name = ""
-		case network.Name == "":
-			network.Name = name
-		}
-		networks[name] = network
-	}
-	return networks, nil
-}
-
-func externalVolumeError(volume, key string) error {
-	return errors.Errorf(
-		"conflicting parameters \"external\" and %q specified for volume %q",
-		key, volume)
-}
-
-// LoadVolumes produces a VolumeConfig map from a compose file Dict
-// the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadVolumes(source map[string]interface{}) (map[string]types.VolumeConfig, error) {
-	volumes := make(map[string]types.VolumeConfig)
-	if err := Transform(source, &volumes); err != nil {
-		return volumes, err
-	}
-
-	for name, volume := range volumes {
-		if !volume.External.External {
-			continue
-		}
-		switch {
-		case volume.Driver != "":
-			return nil, externalVolumeError(name, "driver")
-		case len(volume.DriverOpts) > 0:
-			return nil, externalVolumeError(name, "driver_opts")
-		case len(volume.Labels) > 0:
-			return nil, externalVolumeError(name, "labels")
-		case volume.External.Name != "":
-			if volume.Name != "" {
-				return nil, errors.Errorf("volume %s: volume.external.name and volume.name conflict; only use volume.name", name)
-			}
-			logrus.Warnf("volume %s: volume.external.name is deprecated in favor of volume.name", name)
-			volume.Name = volume.External.Name
-			volume.External.Name = ""
-		case volume.Name == "":
-			volume.Name = name
-		}
-		volumes[name] = volume
-	}
-	return volumes, nil
-}
-
-// LoadSecrets produces a SecretConfig map from a compose file Dict
-// the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadSecrets(source map[string]interface{}) (map[string]types.SecretConfig, error) {
-	secrets := make(map[string]types.SecretConfig)
-	if err := Transform(source, &secrets); err != nil {
-		return secrets, err
-	}
-	for name, secret := range secrets {
-		obj, err := loadFileObjectConfig(name, "secret", types.FileObjectConfig(secret))
-		if err != nil {
-			return nil, err
-		}
-		secrets[name] = types.SecretConfig(obj)
-	}
-	return secrets, nil
-}
-
-// LoadConfigObjs produces a ConfigObjConfig map from a compose file Dict
-// the source Dict is not validated if directly used. Use Load() to enable validation
-func LoadConfigObjs(source map[string]interface{}) (map[string]types.ConfigObjConfig, error) {
-	configs := make(map[string]types.ConfigObjConfig)
-	if err := Transform(source, &configs); err != nil {
-		return configs, err
-	}
-	for name, config := range configs {
-		obj, err := loadFileObjectConfig(name, "config", types.FileObjectConfig(config))
-		if err != nil {
-			return nil, err
-		}
-		configs[name] = types.ConfigObjConfig(obj)
-	}
-	return configs, nil
-}
-
-func loadFileObjectConfig(name string, objType string, obj types.FileObjectConfig) (types.FileObjectConfig, error) {
-	// if "external: true"
-	switch {
-	case obj.External.External:
-		// handle deprecated external.name
-		if obj.External.Name != "" {
-			if obj.Name != "" {
-				return obj, errors.Errorf("%[1]s %[2]s: %[1]s.external.name and %[1]s.name conflict; only use %[1]s.name", objType, name)
-			}
-			logrus.Warnf("%[1]s %[2]s: %[1]s.external.name is deprecated in favor of %[1]s.name", objType, name)
-			obj.Name = obj.External.Name
-			obj.External.Name = ""
-		} else if obj.Name == "" {
-			obj.Name = name
-		}
-		// if not "external: true"
-	case obj.Driver != "":
-		if obj.File != "" {
-			return obj, errors.Errorf("%[1]s %[2]s: %[1]s.driver and %[1]s.file conflict; only use %[1]s.driver", objType, name)
-		}
-	}
-
-	return obj, nil
-}
-
-var transformOptions TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case map[string]interface{}:
-		return toMapStringString(value, false), nil
-	case map[string]string:
-		return value, nil
-	default:
-		return data, errors.Errorf("invalid type %T for map[string]string", value)
-	}
-}
-
-var transformExternal TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case bool:
-		return map[string]interface{}{"external": value}, nil
-	case map[string]interface{}:
-		return map[string]interface{}{"external": true, "name": value["name"]}, nil
-	default:
-		return data, errors.Errorf("invalid type %T for external", value)
-	}
-}
-
-var transformServicePort TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch entries := data.(type) {
-	case []interface{}:
-		// We process the list instead of individual items here.
-		// The reason is that one entry might be mapped to multiple ServicePortConfig.
-		// Therefore we take an input of a list and return an output of a list.
-		var ports []interface{}
-		for _, entry := range entries {
-			switch value := entry.(type) {
-			case int:
-				parsed, err := types.ParsePortConfig(fmt.Sprint(value))
-				if err != nil {
-					return data, err
-				}
-				for _, v := range parsed {
-					ports = append(ports, v)
-				}
-			case string:
-				parsed, err := types.ParsePortConfig(value)
-				if err != nil {
-					return data, err
-				}
-				for _, v := range parsed {
-					ports = append(ports, v)
-				}
-			case map[string]interface{}:
-				published := value["published"]
-				if v, ok := published.(int); ok {
-					value["published"] = strconv.Itoa(v)
-				}
-				ports = append(ports, groupXFieldsIntoExtensions(value))
-			default:
-				return data, errors.Errorf("invalid type %T for port", value)
-			}
-		}
-		return ports, nil
-	default:
-		return data, errors.Errorf("invalid type %T for port", entries)
-	}
-}
-
-var transformFileReferenceConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return map[string]interface{}{"source": value}, nil
-	case map[string]interface{}:
-		if target, ok := value["target"]; ok {
-			value["target"] = cleanTarget(target.(string))
-		}
-		return groupXFieldsIntoExtensions(value), nil
-	default:
-		return data, errors.Errorf("invalid type %T for secret", value)
-	}
-}
-
-func cleanTarget(target string) string {
-	if target == "" {
-		return ""
-	}
-	return path.Clean(target)
-}
-
-var transformBuildConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		return map[string]interface{}{"context": value}, nil
-	case map[string]interface{}:
-		return groupXFieldsIntoExtensions(data.(map[string]interface{})), nil
-	default:
-		return data, errors.Errorf("invalid type %T for service build", value)
-	}
-}
-
-var transformDependsOnConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case []interface{}:
-		transformed := map[string]interface{}{}
-		for _, serviceIntf := range value {
-			service, ok := serviceIntf.(string)
-			if !ok {
-				return data, errors.Errorf("invalid type %T for service depends_on element, expected string", value)
-			}
-			transformed[service] = map[string]interface{}{"condition": types.ServiceConditionStarted, "required": true}
-		}
-		return transformed, nil
-	case map[string]interface{}:
-		transformed := map[string]interface{}{}
-		for service, val := range value {
-			dependsConfigIntf, ok := val.(map[string]interface{})
-			if !ok {
-				return data, errors.Errorf("invalid type %T for service depends_on element", value)
-			}
-			if _, ok := dependsConfigIntf["required"]; !ok {
-				dependsConfigIntf["required"] = true
-			}
-			transformed[service] = dependsConfigIntf
-		}
-		return groupXFieldsIntoExtensions(transformed), nil
-	default:
-		return data, errors.Errorf("invalid type %T for service depends_on", value)
-	}
-}
-
-var transformExtendsConfig TransformerFunc = func(value interface{}) (interface{}, error) {
-	switch value.(type) {
-	case string:
-		return map[string]interface{}{"service": value}, nil
-	case map[string]interface{}:
-		return value, nil
-	default:
-		return value, errors.Errorf("invalid type %T for extends", value)
-	}
-}
-
-var transformServiceVolumeConfig TransformerFunc = func(data interface{}) (interface{}, error) {
-	switch value := data.(type) {
-	case string:
-		volume, err := format.ParseVolume(value)
-		volume.Target = cleanTarget(volume.Target)
-		return volume, err
-	case map[string]interface{}:
-		data := groupXFieldsIntoExtensions(data.(map[string]interface{}))
-		if target, ok := data["target"]; ok {
-			data["target"] = cleanTarget(target.(string))
-		}
-		return data, nil
-	default:
-		return data, errors.Errorf("invalid type %T for service volume", value)
-	}
-}
-
-var transformServiceNetworkMap TransformerFunc = func(value interface{}) (interface{}, error) {
-	if list, ok := value.([]interface{}); ok {
-		mapValue := map[interface{}]interface{}{}
-		for _, name := range list {
-			mapValue[name] = nil
-		}
-		return mapValue, nil
-	}
-	return value, nil
-}
-
-func toMapStringString(value map[string]interface{}, allowNil bool) map[string]interface{} {
-	output := make(map[string]interface{})
-	for key, value := range value {
-		output[key] = toString(value, allowNil)
-	}
-	return output
-}
-
-func toString(value interface{}, allowNil bool) interface{} {
-	switch {
-	case value != nil:
-		return fmt.Sprint(value)
-	case allowNil:
-		return nil
-	default:
-		return ""
-	}
 }

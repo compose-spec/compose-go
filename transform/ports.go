@@ -40,8 +40,7 @@ func transformPorts(data any, p tree.Path) (any, error) {
 					return data, err
 				}
 				for _, v := range parsed {
-					m := map[string]any{}
-					err := mapstructure.Decode(v, &m)
+					m, err := encode(v)
 					if err != nil {
 						return nil, err
 					}
@@ -52,9 +51,11 @@ func transformPorts(data any, p tree.Path) (any, error) {
 				if err != nil {
 					return data, err
 				}
+				if err != nil {
+					return nil, err
+				}
 				for _, v := range parsed {
-					m := map[string]any{}
-					err := mapstructure.Decode(v, &m)
+					m, err := encode(v)
 					if err != nil {
 						return nil, err
 					}
@@ -70,4 +71,14 @@ func transformPorts(data any, p tree.Path) (any, error) {
 	default:
 		return data, errors.Errorf("invalid type %T for port", entries)
 	}
+}
+
+func encode(v any) (map[string]any, error) {
+	m := map[string]any{}
+	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:  &m,
+		TagName: "yaml",
+	})
+	err = decoder.Decode(v)
+	return m, err
 }

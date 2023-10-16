@@ -23,6 +23,9 @@ import (
 )
 
 func checkVolume(value any, p tree.Path) error {
+	if value == nil {
+		return nil
+	}
 	v, ok := value.(map[string]any)
 	if !ok {
 		return fmt.Errorf("expected volume, got %s", value)

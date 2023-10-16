@@ -19,7 +19,6 @@ package transform
 import (
 	"github.com/compose-spec/compose-go/format"
 	"github.com/compose-spec/compose-go/tree"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 )
 
@@ -33,17 +32,8 @@ func transformVolumeMount(data any, p tree.Path) (any, error) {
 			return nil, err
 		}
 
-		yaml := map[string]any{}
-		decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-			TagName: "yaml",
-			Result:  &yaml,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return yaml, decoder.Decode(volume)
+		return encode(volume)
 	default:
-		return data, errors.Errorf("invalid type %T for build", v)
+		return data, errors.Errorf("invalid type %T for service volume mount", v)
 	}
 }

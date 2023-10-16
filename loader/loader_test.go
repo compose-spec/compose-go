@@ -794,7 +794,7 @@ networks:
 	assert.NilError(t, err)
 	typesDuration := types.Duration(duration)
 	expected := &types.Project{
-		Name:        "test",
+		Name:        "load-with-interpolation-cast-full",
 		Environment: env,
 		WorkingDir:  workingDir,
 		Services: []types.ServiceConfig{

@@ -423,14 +423,14 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			},
 			User: "someone",
 			Volumes: []types.ServiceVolumeConfig{
-				{Target: "/var/lib/mysql", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
-				{Source: "/opt/data", Target: "/var/lib/mysql", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
+				{Target: "/var/lib/anonymous", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
+				{Source: "/opt/data", Target: "/var/lib/data", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: workingDir, Target: "/code", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: filepath.Join(workingDir, "static"), Target: "/var/www/html", Type: "bind", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
 				{Source: filepath.Join(homeDir, "configs"), Target: "/etc/configs", Type: "bind", ReadOnly: true, Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
-				{Source: "datavolume", Target: "/var/lib/mysql", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
-				{Source: filepath.Join(workingDir, "opt"), Target: "/opt", Consistency: "cached", Type: "bind"},
-				{Target: "/opt", Type: "tmpfs", Tmpfs: &types.ServiceVolumeTmpfs{
+				{Source: "datavolume", Target: "/var/lib/volume", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
+				{Source: filepath.Join(workingDir, "opt"), Target: "/opt/cached", Consistency: "cached", Type: "bind"},
+				{Target: "/opt/tmpfs", Type: "tmpfs", Tmpfs: &types.ServiceVolumeTmpfs{
 					Size: types.UnitBytes(10000),
 				}},
 			},
@@ -908,11 +908,11 @@ services:
     uts: host
     volumes:
       - type: volume
-        target: /var/lib/mysql
+        target: /var/lib/anonymous
         volume: {}
       - type: bind
         source: /opt/data
-        target: /var/lib/mysql
+        target: /var/lib/data
         bind:
           create_host_path: true
       - type: bind
@@ -933,14 +933,14 @@ services:
           create_host_path: true
       - type: volume
         source: datavolume
-        target: /var/lib/mysql
+        target: /var/lib/data
         volume: {}
       - type: bind
         source: %s
-        target: /opt
+        target: /opt/cached
         consistency: cached
       - type: tmpfs
-        target: /opt
+        target: /opt/tmpfs
         tmpfs:
           size: "10000"
     working_dir: /code
@@ -1586,13 +1586,13 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "volumes": [
         {
           "type": "volume",
-          "target": "/var/lib/mysql",
+          "target": "/var/lib/anonymous",
           "volume": {}
         },
         {
           "type": "bind",
           "source": "/opt/data",
-          "target": "/var/lib/mysql",
+          "target": "/var/lib/data",
           "bind": {
             "create_host_path": true
           }
@@ -1625,18 +1625,18 @@ func fullExampleJSON(workingDir, homeDir string) string {
         {
           "type": "volume",
           "source": "datavolume",
-          "target": "/var/lib/mysql",
+          "target": "/var/lib/volume",
           "volume": {}
         },
         {
           "type": "bind",
           "source": "%s",
-          "target": "/opt",
+          "target": "/opt/cached",
           "consistency": "cached"
         },
         {
           "type": "tmpfs",
-          "target": "/opt",
+          "target": "/opt/tmpfs",
           "tmpfs": {
             "size": "10000"
           }
