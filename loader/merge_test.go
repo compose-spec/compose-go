@@ -1269,7 +1269,7 @@ services:
 services:
   foo:
     image: foo
-    build: !reset  
+    build: !reset {}
     read_only: !reset false
     environment:
       FOO: !reset
@@ -1284,34 +1284,25 @@ services:
 	}
 	config, err := loadTestProject(configDetails)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, &types.Project{
-		Name:       "test",
-		WorkingDir: "",
-		Services: []types.ServiceConfig{
-			{
-				Name:        "bar",
-				Image:       "test",
-				Environment: types.MappingWithEquals{},
-				Ports:       []types.ServicePortConfig{{Mode: "ingress", Target: 443, Published: "8443", Protocol: "tcp"}},
-				Scale:       1,
-			},
-			{
-				Build:       nil,
-				Name:        "foo",
-				Image:       "foo",
-				Environment: types.MappingWithEquals{},
-				Ports:       nil,
-				ReadOnly:    false,
-				Scale:       1,
-			},
+	got := serviceSort(config.Services)
+	assert.DeepEqual(t, []types.ServiceConfig{
+		{
+			Name:        "bar",
+			Image:       "test",
+			Environment: types.MappingWithEquals{},
+			Ports:       []types.ServicePortConfig{{Mode: "ingress", Target: 443, Published: "8443", Protocol: "tcp"}},
+			Scale:       1,
 		},
-		Networks:    types.Networks{},
-		Volumes:     types.Volumes{},
-		Secrets:     types.Secrets{},
-		Configs:     types.Configs{},
-		Extensions:  types.Extensions{},
-		Environment: map[string]string{consts.ComposeProjectName: "test"},
-	}, config)
+		{
+			Build:       nil,
+			Name:        "foo",
+			Image:       "foo",
+			Environment: types.MappingWithEquals{},
+			Ports:       nil,
+			ReadOnly:    false,
+			Scale:       1,
+		},
+	}, got)
 }
 
 func TestMergeExpose(t *testing.T) {

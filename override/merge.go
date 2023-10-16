@@ -79,7 +79,9 @@ func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (m
 		next := p.Next(k)
 		e, ok := mapping[k]
 		if !ok {
-			mapping[k] = v
+			if !isEmpty(v) {
+				mapping[k] = v
+			}
 			continue
 		}
 		merged, err := mergeYaml(e, v, next)
@@ -89,6 +91,17 @@ func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (m
 		mapping[k] = merged
 	}
 	return mapping, nil
+}
+
+func isEmpty(value any) bool {
+	switch v := value.(type) {
+	case map[string]any:
+		return len(v) == 0
+	case []any:
+		return len(v) == 0
+	default:
+		return false
+	}
 }
 
 // logging driver options are merged only when both compose file define the same driver
