@@ -721,11 +721,6 @@ func TestLoadMultipleUlimits(t *testing.T) {
 						Scale:       1,
 					},
 				},
-				Networks:   types.Networks{},
-				Volumes:    types.Volumes{},
-				Secrets:    types.Secrets{},
-				Configs:    types.Configs{},
-				Extensions: types.Extensions{},
 			}, config)
 		})
 	}
