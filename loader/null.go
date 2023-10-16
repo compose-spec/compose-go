@@ -42,30 +42,39 @@ func (p *ResetProcessor) UnmarshalYAML(value *yaml.Node) error {
 func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.Node, error) {
 	if node.Tag == "!reset" {
 		p.paths = append(p.paths, path)
+		return nil, nil
 	}
 	switch node.Kind {
 	case yaml.SequenceNode:
-		var err error
+		var nodes []*yaml.Node
 		for idx, v := range node.Content {
 			next := path.Next(strconv.Itoa(idx))
-			node.Content[idx], err = p.resolveReset(v, next)
+			resolved, err := p.resolveReset(v, next)
 			if err != nil {
 				return nil, err
 			}
+			if resolved != nil {
+				nodes = append(nodes, resolved)
+			}
 		}
+		node.Content = nodes
 	case yaml.MappingNode:
-		var err error
 		var key string
+		var nodes []*yaml.Node
 		for idx, v := range node.Content {
 			if idx%2 == 0 {
 				key = v.Value
 			} else {
-				node.Content[idx], err = p.resolveReset(v, path.Next(key))
+				resolved, err := p.resolveReset(v, path.Next(key))
 				if err != nil {
 					return nil, err
 				}
+				if resolved != nil {
+					nodes = append(nodes, node.Content[idx-1], resolved)
+				}
 			}
 		}
+		node.Content = nodes
 	}
 	return node, nil
 }
