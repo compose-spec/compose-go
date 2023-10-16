@@ -62,15 +62,9 @@ func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, ct *c
 				if err != nil {
 					return err
 				}
-				services := source["services"].([]any)
-				for _, s := range services {
-					service := s.(map[string]any)
-					if service["name"] == ref {
-						base = service
-						break
-					}
-				}
-				if base == nil {
+				services := source["services"].(map[string]any)
+				base, ok = services[ref]
+				if !ok {
 					return fmt.Errorf("cannot extend service %q in %s: service not found", name, path)
 				}
 			}

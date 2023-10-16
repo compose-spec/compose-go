@@ -438,12 +438,12 @@ func TestLoadMultipleSecretsConfig(t *testing.T) {
 					Source: "foo_secret",
 				},
 				{
-					Source: "bar_secret",
-					Target: "bof_secret",
-				},
-				{
 					Source: "baz_secret",
 					Target: "waw_secret",
+				},
+				{
+					Source: "bar_secret",
+					Target: "bof_secret",
 				},
 			},
 		},

@@ -25,27 +25,6 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// Services is a list of ServiceConfig
-type Services []ServiceConfig
-
-// MarshalYAML makes Services implement yaml.Marshaller
-func (s Services) MarshalYAML() (interface{}, error) {
-	services := map[string]ServiceConfig{}
-	for _, service := range s {
-		services[service.Name] = service
-	}
-	return services, nil
-}
-
-// MarshalJSON makes Services implement json.Marshaler
-func (s Services) MarshalJSON() ([]byte, error) {
-	data, err := s.MarshalYAML()
-	if err != nil {
-		return nil, err
-	}
-	return json.MarshalIndent(data, "", "  ")
-}
-
 // ServiceConfig is the configuration of one service
 type ServiceConfig struct {
 	Name     string   `yaml:"name,omitempty" json:"-"`

@@ -46,9 +46,8 @@ services:
 `)}}}, &Options{}, &cycleTracker{})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, model, map[string]interface{}{
-		"services": []interface{}{
-			map[string]interface{}{
-				"name":    "test",
+		"services": map[string]interface{}{
+			"test": map[string]interface{}{
 				"image":   "bar",
 				"command": "echo world",
 				"init":    false,
