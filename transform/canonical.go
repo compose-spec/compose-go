@@ -25,7 +25,7 @@ type transformFunc func(data any, p tree.Path) (any, error)
 var transformers = map[tree.Path]transformFunc{}
 
 func init() {
-	transformers["services"] = makeServicesSlice
+	transformers["services.*"] = transformService
 	transformers["services.*.build.secrets.*"] = transformFileMount
 	transformers["services.*.depends_on"] = transformDependsOn
 	transformers["services.*.networks"] = transformServiceNetworks

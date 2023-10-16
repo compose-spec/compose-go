@@ -14,27 +14,27 @@
    limitations under the License.
 */
 
-package transform
+package types
 
-import (
-	"github.com/compose-spec/compose-go/tree"
-)
+import "encoding/json"
 
-func transformService(data any, p tree.Path) (any, error) {
-	value := data.(map[string]any)
-	if _, ok := value["scale"]; !ok {
-		value["scale"] = 1 // TODO(ndeloof) we should make scale a *int
+// Services is a list of ServiceConfig
+type Services []ServiceConfig
+
+// MarshalYAML makes Services implement yaml.Marshaller
+func (s Services) MarshalYAML() (interface{}, error) {
+	services := map[string]ServiceConfig{}
+	for _, service := range s {
+		services[service.Name] = service
 	}
-	return transformMapping(value, p)
+	return services, nil
 }
 
-func transformServiceNetworks(data any, p tree.Path) (any, error) {
-	if slice, ok := data.([]any); ok {
-		networks := make(map[string]any, len(slice))
-		for _, net := range slice {
-			networks[net.(string)] = nil
-		}
-		return networks, nil
+// MarshalJSON makes Services implement json.Marshaler
+func (s Services) MarshalJSON() ([]byte, error) {
+	data, err := s.MarshalYAML()
+	if err != nil {
+		return nil, err
 	}
-	return data, nil
+	return json.MarshalIndent(data, "", "  ")
 }

@@ -23,7 +23,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/consts"
@@ -33,6 +35,7 @@ import (
 	"github.com/compose-spec/compose-go/schema"
 	"github.com/compose-spec/compose-go/template"
 	"github.com/compose-spec/compose-go/transform"
+	"github.com/compose-spec/compose-go/tree"
 	"github.com/compose-spec/compose-go/types"
 	"github.com/compose-spec/compose-go/validation"
 	"github.com/mitchellh/mapstructure"
@@ -318,6 +321,13 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				}
 			}
 
+			if !opts.SkipInclude {
+				err = ApplyInclude(ctx, file.Filename, config, cfg, opts)
+				if err != nil {
+					return err
+				}
+			}
+
 			for _, processor := range processors {
 				if err := processor.Apply(dict); err != nil {
 					return err
@@ -360,7 +370,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		return nil, err
 	}
 
-	dict = groupXFieldsIntoExtensions(dict)
+	dict = groupXFieldsIntoExtensions(dict, tree.NewPath())
 
 	// TODO(ndeloof) shall we implement this as a Validate func on types ?
 	if err := validation.Validate(dict); err != nil {
@@ -522,21 +532,36 @@ func NormalizeProjectName(s string) string {
 	return strings.TrimLeft(s, "_-")
 }
 
-func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interface{} {
+var userDefinedKeys = []tree.Path{
+	"services",
+	"volumes",
+	"networks",
+	"secrets",
+	"configs",
+}
+
+func groupXFieldsIntoExtensions(dict map[string]interface{}, p tree.Path) map[string]interface{} {
 	extras := map[string]interface{}{}
 	for key, value := range dict {
-		if strings.HasPrefix(key, "x-") {
+		skip := false
+		for _, uk := range userDefinedKeys {
+			if uk.Matches(p) {
+				skip = true
+				break
+			}
+		}
+		if !skip && strings.HasPrefix(key, "x-") {
 			extras[key] = value
 			delete(dict, key)
 			continue
 		}
 		switch v := value.(type) {
 		case map[string]interface{}:
-			dict[key] = groupXFieldsIntoExtensions(v)
+			dict[key] = groupXFieldsIntoExtensions(v, p.Next(key))
 		case []interface{}:
 			for i, e := range v {
 				if m, ok := e.(map[string]interface{}); ok {
-					v[i] = groupXFieldsIntoExtensions(m)
+					v[i] = groupXFieldsIntoExtensions(m, p.Next(strconv.Itoa(i)))
 				}
 			}
 		}
@@ -554,6 +579,7 @@ func Transform(source interface{}, target interface{}) error {
 	config := &mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			decoderHook,
+			makeServiceSlice,
 			cast),
 		Result:   target,
 		TagName:  "yaml",
@@ -564,6 +590,25 @@ func Transform(source interface{}, target interface{}) error {
 		return err
 	}
 	return decoder.Decode(source)
+}
+
+func makeServiceSlice(from reflect.Value, to reflect.Value) (interface{}, error) {
+	if to.Type() == reflect.TypeOf(types.Services{}) {
+		keys := from.MapKeys()
+		services := make([]any, len(keys))
+		i := 0
+		for _, key := range keys {
+			service := from.MapIndex(key).Elem()
+			if service.Kind() != reflect.Map {
+				return nil, fmt.Errorf("unexpected service type %T", service)
+			}
+			service.SetMapIndex(reflect.ValueOf("name"), key)
+			services[i] = service.Interface()
+			i++
+		}
+		return services, nil
+	}
+	return from.Interface(), nil
 }
 
 // keys need to be converted to strings for jsonschema

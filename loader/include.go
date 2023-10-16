@@ -18,17 +18,15 @@ package loader
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
-	"reflect"
 
 	"github.com/compose-spec/compose-go/dotenv"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/types"
 )
 
-// LoadIncludeConfig parse the require config from raw yaml
-func LoadIncludeConfig(source any) ([]types.IncludeConfig, error) {
+// loadIncludeConfig parse the require config from raw yaml
+func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	if source == nil {
 		return nil, nil
 	}
@@ -37,9 +35,13 @@ func LoadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	return requires, err
 }
 
-func ApplyInclude(ctx context.Context, filename string, configDetails types.ConfigDetails, model *types.Config, options *Options, loaded []string) (*types.Config, map[string][]types.IncludeConfig, error) {
+func ApplyInclude(ctx context.Context, filename string, configDetails types.ConfigDetails, model map[string]any, options *Options) error {
 	included := make(map[string][]types.IncludeConfig)
-	for _, r := range model.Include {
+	includeConfig, err := loadIncludeConfig(model["include"])
+	if err != nil {
+		return err
+	}
+	for _, r := range includeConfig {
 		included[filename] = append(included[filename], r)
 
 		for i, p := range r.Path {
@@ -47,7 +49,7 @@ func ApplyInclude(ctx context.Context, filename string, configDetails types.Conf
 				if loader.Accept(p) {
 					path, err := loader.Load(ctx, p)
 					if err != nil {
-						return nil, nil, err
+						return err
 					}
 					p = path
 					break
@@ -60,14 +62,13 @@ func ApplyInclude(ctx context.Context, filename string, configDetails types.Conf
 		}
 
 		loadOptions := options.clone()
-		loadOptions.SetProjectName(model.Name, true)
 		loadOptions.ResolvePaths = true
 		loadOptions.SkipNormalization = true
 		loadOptions.SkipConsistencyCheck = true
 
 		envFromFile, err := dotenv.GetEnvFromFile(configDetails.Environment, r.ProjectDirectory, r.EnvFile)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 
 		config := types.ConfigDetails{
@@ -80,79 +81,40 @@ func ApplyInclude(ctx context.Context, filename string, configDetails types.Conf
 			LookupValue:     config.LookupEnv,
 			TypeCastMapping: options.Interpolate.TypeCastMapping,
 		}
-		imported, err := load(ctx, config, loadOptions, loaded)
+		imported, err := loadYamlModel(ctx, config, loadOptions, &cycleTracker{})
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
-		for k, v := range imported.IncludeReferences {
-			included[k] = append(included[k], v...)
-		}
-
-		err = importResources(model, imported, r.Path)
+		err = importResources(imported, model)
 		if err != nil {
-			return nil, nil, err
+			return err
 		}
 	}
-	model.Include = nil
-	return model, included, nil
+	return nil
 }
 
 // importResources import into model all resources defined by imported, and report error on conflict
-func importResources(model *types.Config, imported *types.Project, path []string) error {
-	services := mapByName(model.Services)
-	for _, service := range imported.Services {
-		if present, ok := services[service.Name]; ok {
-			if reflect.DeepEqual(present, service) {
-				continue
-			}
-			return fmt.Errorf("imported compose file %s defines conflicting service %s", path, service.Name)
-		}
-		model.Services = append(model.Services, service)
-	}
-	for _, service := range imported.DisabledServices {
-		if disabled, ok := services[service.Name]; ok {
-			if reflect.DeepEqual(disabled, service) {
-				continue
-			}
-			return fmt.Errorf("imported compose file %s defines conflicting service %s", path, service.Name)
-		}
-		model.Services = append(model.Services, service)
-	}
-	for n, network := range imported.Networks {
-		if present, ok := model.Networks[n]; ok {
-			if reflect.DeepEqual(present, network) {
-				continue
-			}
-			return fmt.Errorf("imported compose file %s defines conflicting network %s", path, n)
-		}
-		model.Networks[n] = network
-	}
-	for n, volume := range imported.Volumes {
-		if present, ok := model.Volumes[n]; ok {
-			if reflect.DeepEqual(present, volume) {
-				continue
-			}
-			return fmt.Errorf("imported compose file %s defines conflicting volume %s", path, n)
-		}
-		model.Volumes[n] = volume
-	}
-	for n, secret := range imported.Secrets {
-		if present, ok := model.Secrets[n]; ok {
-			if reflect.DeepEqual(present, secret) {
-				continue
-			}
-			return fmt.Errorf("imported compose file %s defines conflicting secret %s", path, n)
-		}
-		model.Secrets[n] = secret
-	}
-	for n, config := range imported.Configs {
-		if present, ok := model.Configs[n]; ok {
-			if reflect.DeepEqual(present, config) {
-				continue
-			}
-			return fmt.Errorf("imported compose file %s defines conflicting config %s", path, n)
-		}
-		model.Configs[n] = config
-	}
+func importResources(source map[string]any, target map[string]any) error {
+	importResource(source, target, "services")
+	importResource(source, target, "volumes")
+	importResource(source, target, "networks")
+	importResource(source, target, "secrets")
+	importResource(source, target, "configs")
 	return nil
+}
+
+func importResource(source map[string]any, target map[string]any, key string) {
+	from := source[key]
+	if from != nil {
+		var target map[string]any
+		if v, ok := target[key]; ok {
+			target = v.(map[string]any)
+		} else {
+			target = map[string]any{}
+		}
+		for name, a := range from.(map[string]any) {
+			target[name] = a
+		}
+		target[key] = target
+	}
 }
