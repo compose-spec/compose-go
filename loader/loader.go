@@ -403,22 +403,14 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		return nil, errors.New("empty compose file")
 	}
 
-	var model types.Config
-	err = Transform(dict, &model)
-	if err != nil {
-		return nil, err
-	}
-
 	project := &types.Project{
 		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
-		Services:    model.Services,
-		Networks:    model.Networks,
-		Volumes:     model.Volumes,
-		Secrets:     model.Secrets,
-		Configs:     model.Configs,
 		Environment: configDetails.Environment,
-		Extensions:  model.Extensions,
+	}
+	err = Transform(dict, project)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(includeRefs) != 0 {
@@ -562,6 +554,7 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}) map[string]interfac
 		if strings.HasPrefix(key, "x-") {
 			extras[key] = value
 			delete(dict, key)
+			continue
 		}
 		switch v := value.(type) {
 		case map[string]interface{}:

@@ -18,6 +18,7 @@ package override
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/compose-spec/compose-go/tree"
 	"golang.org/x/exp/slices"
@@ -44,6 +45,8 @@ func init() {
 	mergeSpecials["services.*.healthcheck.test"] = override
 	mergeSpecials["services.*.environment"] = mergeEnvironment
 	mergeSpecials["services.*.ulimits.*"] = mergeUlimit
+	mergeSpecials["services.*.configs.*"] = mergeMount
+	mergeSpecials["services.*.secrets.*"] = mergeMount
 }
 
 // mergeYaml merges map[string]any yaml trees handling special rules
@@ -77,14 +80,12 @@ func mergeYaml(e any, o any, p tree.Path) (any, error) {
 
 func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (map[string]any, error) {
 	for k, v := range other {
-		next := p.Next(k)
 		e, ok := mapping[k]
-		if !ok {
-			if !isEmpty(v) {
-				mapping[k] = v
-			}
+		if !ok || strings.HasPrefix(k, "x-") {
+			mapping[k] = v
 			continue
 		}
+		next := p.Next(k)
 		merged, err := mergeYaml(e, v, next)
 		if err != nil {
 			return nil, err
@@ -92,17 +93,6 @@ func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (m
 		mapping[k] = merged
 	}
 	return mapping, nil
-}
-
-func isEmpty(value any) bool {
-	switch v := value.(type) {
-	case map[string]any:
-		return len(v) == 0
-	case []any:
-		return len(v) == 0
-	default:
-		return false
-	}
 }
 
 // logging driver options are merged only when both compose file define the same driver
@@ -131,6 +121,12 @@ func mergeUlimit(c any, o any, p tree.Path) (any, error) {
 		return mergeMappings(base, over, p)
 	}
 	return o, nil
+}
+
+func mergeMount(c any, o any, path tree.Path) (any, error) {
+	right := convertIntoSequence(c)
+	left := convertIntoSequence(o)
+	return append(right, left...), nil
 }
 
 func convertIntoSequence(value any) []any {

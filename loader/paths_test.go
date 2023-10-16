@@ -47,39 +47,26 @@ func TestResolveComposeFilePaths(t *testing.T) {
 }
 
 func TestResolveBuildContextPaths(t *testing.T) {
-	wd, _ := os.Getwd()
-	project := types.Project{
-		Name:       "myProject",
-		WorkingDir: wd,
-		Services: []types.ServiceConfig{
-			{
-				Name: "foo",
-				Build: &types.BuildConfig{
-					Context:    "./testdata",
-					Dockerfile: "Dockerfile-sample",
-				},
-				Scale: 1,
-			},
-		},
-	}
 
-	expected := types.Project{
-		Name:       "myProject",
-		WorkingDir: wd,
-		Services: []types.ServiceConfig{
-			{
-				Name: "foo",
-				Build: &types.BuildConfig{
-					Context:    filepath.Join(wd, "testdata"),
-					Dockerfile: "Dockerfile-sample",
-				},
-				Scale: 1,
-			},
-		},
-	}
-	err := ResolveRelativePaths(&project)
+	yaml := `
+name: test-resolve-build-context-paths
+services:
+  foo:
+    build:
+      context: ./testdata
+      dockerfile: Dockerfile-sample
+`
+	project, err := loadYAML(yaml)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, project)
+
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+
+	expected := types.BuildConfig{
+		Context:    filepath.Join(wd, "testdata"),
+		Dockerfile: "Dockerfile-sample",
+	}
+	assert.DeepEqual(t, expected, *project.Services[0].Build)
 }
 
 func TestResolveAdditionalContexts(t *testing.T) {
