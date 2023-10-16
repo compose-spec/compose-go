@@ -39,16 +39,16 @@ func transformDependsOn(data any, p tree.Path) (any, error) {
 			}
 		}
 		return v, nil
-	case []string:
+	case []any:
 		d := map[string]any{}
 		for _, k := range v {
-			d[k] = map[string]any{
+			d[k.(string)] = map[string]any{
 				"condition": "service_started",
 				"required":  true,
 			}
 		}
 		return d, nil
 	default:
-		return data, errors.Errorf("invalid type %T for build", v)
+		return data, errors.Errorf("invalid type %T for depend_on", v)
 	}
 }

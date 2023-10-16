@@ -71,7 +71,7 @@ func TestIsAbs(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		if r := isAbs(test.path); r != test.isAbs {
+		if r := isWindowsAbs(test.path); r != test.isAbs {
 			t.Errorf("IsAbs(%q) = %v, want %v", test.path, r, test.isAbs)
 		}
 	}

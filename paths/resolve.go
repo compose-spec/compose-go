@@ -37,8 +37,8 @@ func ResolveRelativePaths(project map[string]any, base string) error {
 		"services.*.extends.file":                r.absPath,
 		"services.*.develop.watch.*.path":        r.absPath,
 		"services.*.volumes.*":                   r.absVolumeMount,
-		"config.file":                            r.maybeUnixPath,
-		"secret.file":                            r.maybeUnixPath,
+		"configs.*.file":                         r.maybeUnixPath,
+		"secrets.*.file":                         r.maybeUnixPath,
 		"include.path":                           r.absPath,
 		"include.project_directory":              r.absPath,
 		"include.env_file":                       r.absPath,
@@ -119,6 +119,9 @@ func (r *relativePathsResolver) absVolumeMount(a any) (any, error) {
 }
 
 func (r *relativePathsResolver) volumeDriverOpts(a any) (any, error) {
+	if a == nil {
+		return nil, nil
+	}
 	vol := a.(map[string]any)
 	if vol["driver"] != "local" {
 		return vol, nil

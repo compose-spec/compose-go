@@ -295,22 +295,22 @@ services:
 
     volumes:
       # Just specify a path and let the Engine create a volume
-      - /var/lib/mysql
+      - /var/lib/anonymous
       # Specify an absolute path mapping
-      - /opt/data:/var/lib/mysql
+      - /opt/data:/var/lib/data
       # Path on the host, relative to the Compose file
       - .:/code
       - ./static:/var/www/html
       # User-relative path
       - ~/configs:/etc/configs:ro
       # Named volume
-      - datavolume:/var/lib/mysql
+      - datavolume:/var/lib/volume
       - type: bind
         source: ./opt
-        target: /opt
+        target: /opt/cached
         consistency: cached
       - type: tmpfs
-        target: /opt
+        target: /opt/tmpfs
         tmpfs:
           size: 10000
 
