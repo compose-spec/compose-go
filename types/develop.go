@@ -23,8 +23,9 @@ type DevelopConfig struct {
 type WatchAction string
 
 const (
-	WatchActionSync    WatchAction = "sync"
-	WatchActionRebuild WatchAction = "rebuild"
+	WatchActionSync        WatchAction = "sync"
+	WatchActionRebuild     WatchAction = "rebuild"
+	WatchActionSyncRestart WatchAction = "sync+restart"
 )
 
 type Trigger struct {
