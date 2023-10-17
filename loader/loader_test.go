@@ -2458,17 +2458,16 @@ services:
 			},
 		},
 	}))
-	// TODO(ndeloof) restore support for include tracking
-	/*
-		assert.DeepEqual(t, p.IncludeReferences, map[string][]types.IncludeConfig{
-			filepath.Join(workingDir, "filename0.yml"): {
-				{
-					Path:             []string{filepath.Join(workingDir, "testdata", "subdir", "compose-test-extends-imported.yaml")},
-					ProjectDirectory: workingDir,
-					EnvFile:          []string{filepath.Join(workingDir, "testdata", "subdir", "extra.env")},
-				},
+	/* TODO(ndeloof) restore support for include tracking
+	assert.DeepEqual(t, p.IncludeReferences, map[string][]types.IncludeConfig{
+		filepath.Join(workingDir, "filename0.yml"): {
+			{
+				Path:             []string{filepath.Join(workingDir, "testdata", "subdir", "compose-test-extends-imported.yaml")},
+				ProjectDirectory: workingDir,
+				EnvFile:          []string{filepath.Join(workingDir, "testdata", "subdir", "extra.env")},
 			},
-		})
+		},
+	})
 	*/
 
 	p, err = Load(buildConfigDetails(`

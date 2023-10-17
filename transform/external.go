@@ -45,7 +45,7 @@ func transformExternal(data any, p tree.Path) (any, error) {
 
 func transformMaybeExternal(data any, p tree.Path) (any, error) {
 	if data == nil {
-		return data, nil
+		return nil, nil
 	}
 	resource, err := transformMapping(data.(map[string]any), p)
 	if err != nil {
@@ -64,10 +64,8 @@ func transformMaybeExternal(data any, p tree.Path) (any, error) {
 			}
 			delete(external, "name")
 			resource["name"] = ename
-		} else {
-			if name == nil {
-				resource["name"] = p.Last()
-			}
+		} else if name == nil {
+			resource["name"] = p.Last()
 		}
 	}
 

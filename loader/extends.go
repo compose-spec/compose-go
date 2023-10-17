@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/compose-spec/compose-go/consts"
 	"github.com/compose-spec/compose-go/override"
 	"github.com/compose-spec/compose-go/types"
 )
@@ -37,7 +38,7 @@ func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, o
 		if !ok {
 			continue
 		}
-		if err := ct.Add(ctx.Value("compose-file").(string), name); err != nil {
+		if err := ct.Add(ctx.Value(consts.ComposeFileKey{}).(string), name); err != nil {
 			return err
 		}
 		extends := x.(map[string]any)

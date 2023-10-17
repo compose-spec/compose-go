@@ -79,6 +79,9 @@ func encode(v any) (map[string]any, error) {
 		Result:  &m,
 		TagName: "yaml",
 	})
+	if err != nil {
+		return nil, err
+	}
 	err = decoder.Decode(v)
 	return m, err
 }
