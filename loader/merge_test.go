@@ -889,7 +889,7 @@ services:
 	}
 	config, err := loadTestProject(configDetails)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, types.Services{
+	assert.DeepEqual(t, serviceSort(types.Services{
 		{
 			Name:       "foo",
 			Image:      "baz",
@@ -937,7 +937,7 @@ services:
 			Environment: types.MappingWithEquals{},
 			Scale:       1,
 		},
-	}, config.Services)
+	}), serviceSort(config.Services))
 }
 
 func TestMergeUlimitsConfig(t *testing.T) {
