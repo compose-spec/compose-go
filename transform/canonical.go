@@ -44,6 +44,7 @@ func init() {
 	transformers["networks.*.external"] = transformExternal
 	transformers["secrets.*.external"] = transformExternal
 	transformers["configs.*.external"] = transformExternal
+	transformers["include.*"] = transformInclude
 }
 
 // Canonical transforms a compose model into canonical syntax

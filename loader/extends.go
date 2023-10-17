@@ -25,7 +25,7 @@ import (
 	"github.com/compose-spec/compose-go/types"
 )
 
-func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, ct *cycleTracker, post ...PostProcessor) error {
+func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, opts *Options, ct *cycleTracker, post ...PostProcessor) error {
 	a, ok := dict["services"]
 	if !ok {
 		return nil
@@ -53,8 +53,12 @@ func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, ct *c
 				if err != nil {
 					return err
 				}
+				rel, err := filepath.Rel(workingdir, filepath.Dir(local))
+				if err != nil {
+					return err
+				}
 				source, err := loadYamlModel(ctx, types.ConfigDetails{
-					WorkingDir: filepath.Dir(path),
+					WorkingDir: rel,
 					ConfigFiles: []types.ConfigFile{
 						{Filename: local},
 					},
