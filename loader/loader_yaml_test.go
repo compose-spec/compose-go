@@ -43,7 +43,7 @@ services:
     image: bar
     command: echo world
     init: false
-`)}}}, &Options{}, &cycleTracker{})
+`)}}}, &Options{}, &cycleTracker{}, nil)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, model, map[string]interface{}{
 		"services": map[string]interface{}{

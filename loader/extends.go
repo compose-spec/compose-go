@@ -53,16 +53,24 @@ func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, o
 				if err != nil {
 					return err
 				}
-				rel, err := filepath.Rel(workingdir, filepath.Dir(local))
-				if err != nil {
-					return err
+				relworkingdir := filepath.Dir(local)
+				if !filepath.IsAbs(local) {
+					relworkingdir, err = filepath.Rel(workingdir, relworkingdir)
+					if err != nil {
+						return err
+					}
 				}
+				extendsOpts := opts.clone()
+				extendsOpts.ResolvePaths = true
+				extendsOpts.SkipNormalization = true
+				extendsOpts.SkipConsistencyCheck = true
+				extendsOpts.SkipInclude = true
 				source, err := loadYamlModel(ctx, types.ConfigDetails{
-					WorkingDir: rel,
+					WorkingDir: relworkingdir,
 					ConfigFiles: []types.ConfigFile{
 						{Filename: local},
 					},
-				}, opts, ct)
+				}, extendsOpts, ct, nil)
 				if err != nil {
 					return err
 				}

@@ -18,11 +18,15 @@ package loader
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
+	"reflect"
+	"strings"
 
 	"github.com/compose-spec/compose-go/dotenv"
 	interp "github.com/compose-spec/compose-go/interpolation"
 	"github.com/compose-spec/compose-go/types"
+	"github.com/pkg/errors"
 )
 
 // loadIncludeConfig parse the require config from raw yaml
@@ -35,7 +39,7 @@ func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	return requires, err
 }
 
-func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model map[string]any, options *Options) error {
+func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model map[string]any, options *Options, included []string) error {
 	includeConfig, err := loadIncludeConfig(model["include"])
 	if err != nil {
 		return err
@@ -54,8 +58,17 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 			}
 			r.Path[i] = absPath(configDetails.WorkingDir, p)
 		}
+
+		mainFile := r.Path[0]
+		for _, f := range included {
+			if f == mainFile {
+				included = append(included, mainFile)
+				return errors.Errorf("include cycle detected:\n%s\n include %s", included[0], strings.Join(included[1:], "\n include "))
+			}
+		}
+
 		if r.ProjectDirectory == "" {
-			r.ProjectDirectory = filepath.Dir(r.Path[0])
+			r.ProjectDirectory = filepath.Dir(mainFile)
 		}
 
 		loadOptions := options.clone()
@@ -78,7 +91,7 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 			LookupValue:     config.LookupEnv,
 			TypeCastMapping: options.Interpolate.TypeCastMapping,
 		}
-		imported, err := loadYamlModel(ctx, config, loadOptions, &cycleTracker{})
+		imported, err := loadYamlModel(ctx, config, loadOptions, &cycleTracker{}, included)
 		if err != nil {
 			return err
 		}
@@ -93,15 +106,25 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 
 // importResources import into model all resources defined by imported, and report error on conflict
 func importResources(source map[string]any, target map[string]any) error {
-	importResource(source, target, "services")
-	importResource(source, target, "volumes")
-	importResource(source, target, "networks")
-	importResource(source, target, "secrets")
-	importResource(source, target, "configs")
+	if err := importResource(source, target, "services"); err != nil {
+		return err
+	}
+	if err := importResource(source, target, "volumes"); err != nil {
+		return err
+	}
+	if err := importResource(source, target, "networks"); err != nil {
+		return err
+	}
+	if err := importResource(source, target, "secrets"); err != nil {
+		return err
+	}
+	if err := importResource(source, target, "configs"); err != nil {
+		return err
+	}
 	return nil
 }
 
-func importResource(source map[string]any, target map[string]any, key string) {
+func importResource(source map[string]any, target map[string]any, key string) error {
 	from := source[key]
 	if from != nil {
 		var to map[string]any
@@ -111,8 +134,15 @@ func importResource(source map[string]any, target map[string]any, key string) {
 			to = map[string]any{}
 		}
 		for name, a := range from.(map[string]any) {
+			if conflict, ok := to[name]; ok {
+				if reflect.DeepEqual(a, conflict) {
+					continue
+				}
+				return fmt.Errorf("%s.%s conflicts with imported resource", key, name)
+			}
 			to[name] = a
 		}
 		target[key] = to
 	}
+	return nil
 }

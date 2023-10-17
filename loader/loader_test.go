@@ -2431,7 +2431,7 @@ services:
 		options.ResolvePaths = true
 	})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Services, types.Services{
+	assert.DeepEqual(t, serviceSort(p.Services), serviceSort(types.Services{
 		{
 			Name:        "foo",
 			Image:       "busybox",
@@ -2457,7 +2457,7 @@ services:
 				},
 			},
 		},
-	})
+	}))
 	// TODO(ndeloof) restore support for include tracking
 	/*
 		assert.DeepEqual(t, p.IncludeReferences, map[string][]types.IncludeConfig{
@@ -2488,10 +2488,13 @@ services:
 		options.ResolvePaths = true
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, p.Services[1].ContainerName, "override")
+	imported, err := p.GetService("imported")
+	assert.NilError(t, err)
+	assert.Equal(t, imported.ContainerName, "override")
 }
 
 func TestLoadWithIncludeCycle(t *testing.T) {
+
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	_, err = Load(types.ConfigDetails{
@@ -2525,7 +2528,9 @@ services:
 		options.ResolvePaths = true
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, p.Services[1].ContainerName, "override")
+	imported, err := p.GetService("imported")
+	assert.NilError(t, err)
+	assert.Equal(t, imported.ContainerName, "override")
 
 	// include 2 different services with same name should trigger an error
 	p, err = Load(buildConfigDetails(`
@@ -2545,7 +2550,7 @@ services:
 		options.SkipNormalization = true
 		options.ResolvePaths = true
 	})
-	assert.ErrorContains(t, err, "defines conflicting service bar", err)
+	assert.ErrorContains(t, err, "services.bar conflicts with imported resource", err)
 }
 
 func TestLoadWithDependsOn(t *testing.T) {
