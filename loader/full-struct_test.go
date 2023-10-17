@@ -933,7 +933,7 @@ services:
           create_host_path: true
       - type: volume
         source: datavolume
-        target: /var/lib/data
+        target: /var/lib/volume
         volume: {}
       - type: bind
         source: %s

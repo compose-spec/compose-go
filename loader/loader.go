@@ -315,14 +315,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			}
 
 			if !opts.SkipExtends {
-				err = ApplyExtends(fctx, cfg, opts, ct, processors...)
-				if err != nil {
-					return err
-				}
-			}
-
-			if !opts.SkipInclude {
-				err = ApplyInclude(ctx, file.Filename, config, cfg, opts)
+				err = ApplyExtends(fctx, cfg, config.WorkingDir, opts, ct, processors...)
 				if err != nil {
 					return err
 				}
@@ -368,6 +361,13 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	dict, err = transform.Canonical(dict)
 	if err != nil {
 		return nil, err
+	}
+
+	if !opts.SkipInclude {
+		err = ApplyInclude(ctx, config, dict, opts)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	dict = groupXFieldsIntoExtensions(dict, tree.NewPath())

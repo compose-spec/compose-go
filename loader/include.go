@@ -35,15 +35,12 @@ func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	return requires, err
 }
 
-func ApplyInclude(ctx context.Context, filename string, configDetails types.ConfigDetails, model map[string]any, options *Options) error {
-	included := make(map[string][]types.IncludeConfig)
+func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model map[string]any, options *Options) error {
 	includeConfig, err := loadIncludeConfig(model["include"])
 	if err != nil {
 		return err
 	}
 	for _, r := range includeConfig {
-		included[filename] = append(included[filename], r)
-
 		for i, p := range r.Path {
 			for _, loader := range options.ResourceLoaders {
 				if loader.Accept(p) {
@@ -90,6 +87,7 @@ func ApplyInclude(ctx context.Context, filename string, configDetails types.Conf
 			return err
 		}
 	}
+	delete(model, "include")
 	return nil
 }
 
@@ -106,15 +104,15 @@ func importResources(source map[string]any, target map[string]any) error {
 func importResource(source map[string]any, target map[string]any, key string) {
 	from := source[key]
 	if from != nil {
-		var target map[string]any
+		var to map[string]any
 		if v, ok := target[key]; ok {
-			target = v.(map[string]any)
+			to = v.(map[string]any)
 		} else {
-			target = map[string]any{}
+			to = map[string]any{}
 		}
 		for name, a := range from.(map[string]any) {
-			target[name] = a
+			to[name] = a
 		}
-		target[key] = target
+		target[key] = to
 	}
 }
