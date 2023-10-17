@@ -33,7 +33,7 @@ func checkExternal(v map[string]any, p tree.Path) error {
 		return nil
 	}
 
-	for k, _ := range v {
+	for k := range v {
 		switch k {
 		case "name", "external", consts.Extensions:
 			continue

@@ -202,7 +202,7 @@ func decodeMapping(v []interface{}, sep string) map[string]string {
 		if !ok {
 			e = ""
 		}
-		mapping[k] = fmt.Sprint(e)
+		mapping[k] = e
 	}
 	return mapping
 }

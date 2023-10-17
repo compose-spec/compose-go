@@ -280,7 +280,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		err  error
 	)
 	for _, file := range config.ConfigFiles {
-		fctx := context.WithValue(ctx, "compose-file", file.Filename)
+		fctx := context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
 		if len(file.Content) == 0 && file.Config == nil {
 			content, err := os.ReadFile(file.Filename)
 			if err != nil {

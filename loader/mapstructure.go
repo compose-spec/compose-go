@@ -71,8 +71,7 @@ func cast(from reflect.Value, to reflect.Value) (interface{}, error) {
 			return toFloat(from.String())
 		}
 	case reflect.Int:
-		switch to.Kind() {
-		case reflect.String:
+		if to.Kind() == reflect.String {
 			return strconv.FormatInt(from.Int(), 10), nil
 		}
 	}
