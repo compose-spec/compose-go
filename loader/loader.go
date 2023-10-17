@@ -238,6 +238,15 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 		return nil, err
 	}
 	opts.projectName = projectName
+
+	// TODO(milas): this should probably ALWAYS set (overriding any existing)
+	if _, ok := configDetails.Environment[consts.ComposeProjectName]; !ok && projectName != "" {
+		if configDetails.Environment == nil {
+			configDetails.Environment = map[string]string{}
+		}
+		configDetails.Environment[consts.ComposeProjectName] = projectName
+	}
+
 	return load(ctx, configDetails, opts, nil)
 }
 
@@ -461,10 +470,6 @@ func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 		return "", InvalidProjectNameErr(projectName)
 	}
 
-	// TODO(milas): this should probably ALWAYS set (overriding any existing)
-	if _, ok := details.Environment[consts.ComposeProjectName]; !ok && projectName != "" {
-		details.Environment[consts.ComposeProjectName] = projectName
-	}
 	return projectName, nil
 }
 

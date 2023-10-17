@@ -2246,7 +2246,7 @@ func TestLoadLegacyBoolean(t *testing.T) {
 name: load-legacy-boolean
 services:
   test:
-    init: yes # used to be a valid YAML bool, removed in YAML 1.2 
+    init: yes # used to be a valid YAML bool, removed in YAML 1.2
 `)
 	assert.NilError(t, err)
 	assert.Check(t, *actual.Services[0].Init)
@@ -2276,7 +2276,7 @@ services:
   test:
     build:
       context: .
-      ssh: 
+      ssh:
         key1: value1
 `)
 	assert.NilError(t, err)
@@ -2294,7 +2294,7 @@ services:
   test:
     build:
       context: .
-      ssh: 
+      ssh:
         - key1=value1
         - key2=value2
 `)
@@ -2642,7 +2642,7 @@ include:
     env_file: ./testdata/subdir/extra.env
   - path: ./testdata/compose-include.yaml
     env_file: ./testdata/subdir/extra.env
-    
+
 
 services:
   bar:
@@ -2767,7 +2767,7 @@ services:
 func TestLoadWithNestedResources(t *testing.T) {
 	config := buildConfigDetails(`
 name: test-nested-resources
-include: 
+include:
   - remote:nested/compose.yaml
 `, nil)
 	_, err := LoadWithContext(context.Background(), config, func(options *Options) {
@@ -2808,7 +2808,7 @@ name: load-multi-docs
 services:
   test:
     image: nginx:latest
---- 
+---
 services:
   test:
     image: nginx:override
@@ -2826,7 +2826,7 @@ services:
     image: example/webapp
     build: ./webapp
     develop:
-      watch: 
+      watch:
         # sync static content
         - path: ./webapp/html
           action: sync
@@ -2838,7 +2838,7 @@ services:
     image: example/backend
     build: ./backend
     develop:
-      watch: 
+      watch:
         # rebuild image and recreate service
         - path: ./backend/src
           action: rebuild
@@ -2886,4 +2886,26 @@ services:
 			},
 		},
 	})
+}
+
+func TestBadServiceConfig(t *testing.T) {
+	yaml := `name: scratch
+services:
+  redis:
+    image: redis:6.2.6-alpine
+    network_mode: bridge
+    networks:
+      gratheon: null
+networks:
+  gratheon:
+    name: scratch_gratheon
+`
+	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.ErrorContains(t, err, "service redis declares mutually exclusive `network_mode` and `networks`")
 }
