@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -70,7 +71,9 @@ services:
 }
 
 func TestResolveAdditionalContexts(t *testing.T) {
-	yaml := `
+	abs, err := filepath.Abs("/dir")
+	assert.NilError(t, err)
+	yaml := fmt.Sprintf(`
 name: test-resolve-additional-contexts
 services:
   test:
@@ -80,10 +83,10 @@ services:
       additional_contexts:
         image: docker-image://foo
         oci:  oci-layout://foo
-        abs_path: /dir
+        abs_path: %s
         github:   github.com/compose-spec/compose-go
         rel_path: ./testdata
-`
+`, abs)
 	project, err := loadYAML(yaml)
 	assert.NilError(t, err)
 
@@ -96,7 +99,7 @@ services:
 		AdditionalContexts: map[string]string{
 			"image":    "docker-image://foo",
 			"oci":      "oci-layout://foo",
-			"abs_path": "/dir",
+			"abs_path": abs,
 			"github":   "github.com/compose-spec/compose-go",
 			"rel_path": filepath.Join(wd, "testdata"),
 		},
