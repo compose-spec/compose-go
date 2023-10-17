@@ -98,7 +98,7 @@ func (l localResourceLoader) abs(p string) string {
 
 func (l localResourceLoader) Accept(p string) bool {
 	_, err := os.Stat(l.abs(p))
-	return !os.IsNotExist(err)
+	return err == nil
 }
 
 func (l localResourceLoader) Load(ctx context.Context, p string) (string, error) {
