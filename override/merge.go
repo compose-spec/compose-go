@@ -45,8 +45,6 @@ func init() {
 	mergeSpecials["services.*.healthcheck.test"] = override
 	mergeSpecials["services.*.environment"] = mergeEnvironment
 	mergeSpecials["services.*.ulimits.*"] = mergeUlimit
-	mergeSpecials["services.*.configs.*"] = mergeMount
-	mergeSpecials["services.*.secrets.*"] = mergeMount
 }
 
 // mergeYaml merges map[string]any yaml trees handling special rules
@@ -115,20 +113,6 @@ func mergeEnvironment(c any, o any, p tree.Path) (any, error) {
 	return append(right, left...), nil
 }
 
-func mergeUlimit(c any, o any, p tree.Path) (any, error) {
-	over, ismapping := o.(map[string]any)
-	if base, ok := o.(map[string]any); ok && ismapping {
-		return mergeMappings(base, over, p)
-	}
-	return o, nil
-}
-
-func mergeMount(c any, o any, path tree.Path) (any, error) {
-	right := convertIntoSequence(c)
-	left := convertIntoSequence(o)
-	return append(right, left...), nil
-}
-
 func convertIntoSequence(value any) []any {
 	switch v := value.(type) {
 	case map[string]any:
@@ -150,6 +134,14 @@ func convertIntoSequence(value any) []any {
 		return v
 	}
 	return nil
+}
+
+func mergeUlimit(c any, o any, p tree.Path) (any, error) {
+	over, ismapping := o.(map[string]any)
+	if base, ok := o.(map[string]any); ok && ismapping {
+		return mergeMappings(base, over, p)
+	}
+	return o, nil
 }
 
 func override(c any, other any, p tree.Path) (any, error) {
