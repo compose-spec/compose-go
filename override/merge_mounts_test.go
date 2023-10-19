@@ -18,48 +18,33 @@ package override
 
 import (
 	"testing"
-
-	"gopkg.in/yaml.v3"
-	"gotest.tools/v3/assert"
 )
 
 // override using the same logging driver will override driver options
-func Test_mergeOverrides(t *testing.T) {
-	right := `
+func Test_mergeYamlServiceMount(t *testing.T) {
+	assertMergeYaml(t, `
 services:
   test:
     image: foo
-    scale: 1
-`
-	left := `
+    secrets:
+      - foo
+      - bar
+      - zot
+`, `
 services:
   test:
-    image: bar
-    scale: 2
-`
-	expected := `
+    image: foo
+    secrets:
+      - source: zot
+        target: /run/secrets/foo
+`, `
 services:
   test:
-    image: bar
-    scale: 2
-`
-
-	got, err := Merge(unmarshall(t, right), unmarshall(t, left))
-	assert.NilError(t, err)
-	assert.DeepEqual(t, got, unmarshall(t, expected))
-}
-
-func assertMergeYaml(t *testing.T, right string, left string, want string) {
-	got, err := Merge(unmarshall(t, right), unmarshall(t, left))
-	assert.NilError(t, err)
-	got, err = EnforceUnicity(got)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, got, unmarshall(t, want))
-}
-
-func unmarshall(t *testing.T, s string) map[string]any {
-	var val map[string]any
-	err := yaml.Unmarshal([]byte(s), &val)
-	assert.NilError(t, err)
-	return val
+    image: foo
+    secrets:
+      - source: zot
+        target: /run/secrets/foo
+      - bar
+      - zot
+`)
 }

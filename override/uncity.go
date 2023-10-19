@@ -124,7 +124,7 @@ func mountIndexer(defaultPath string) indexer {
 	return func(a any, path tree.Path) (string, error) {
 		switch v := a.(type) {
 		case string:
-			return v, nil
+			return fmt.Sprintf("%s/%s", defaultPath, v), nil
 		case map[string]any:
 			t, ok := v["target"]
 			if ok {
