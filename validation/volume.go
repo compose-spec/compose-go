@@ -19,7 +19,7 @@ package validation
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/v2/tree"
 )
 
 func checkVolume(value any, p tree.Path) error {

@@ -3,7 +3,7 @@ package dotenv
 import (
 	"testing"
 
-	"github.com/compose-spec/compose-go/template"
+	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/stretchr/testify/assert"
 )
 

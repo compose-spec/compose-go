@@ -22,7 +22,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/compose-spec/compose-go/types"
+	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
 
@@ -100,7 +100,7 @@ services:
 			"image":    "docker-image://foo",
 			"oci":      "oci-layout://foo",
 			"abs_path": abs,
-			"github":   "github.com/compose-spec/compose-go",
+			"github":   "github.com/compose-spec/compose-go/v2",
 			"rel_path": filepath.Join(wd, "testdata"),
 		},
 	}

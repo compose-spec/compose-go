@@ -21,9 +21,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/compose-spec/compose-go/consts"
-	"github.com/compose-spec/compose-go/override"
-	"github.com/compose-spec/compose-go/types"
+	"github.com/compose-spec/compose-go/v2/consts"
+	"github.com/compose-spec/compose-go/v2/override"
+	"github.com/compose-spec/compose-go/v2/types"
 )
 
 func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, opts *Options, ct *cycleTracker, post ...PostProcessor) error {

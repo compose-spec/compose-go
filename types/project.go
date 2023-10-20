@@ -24,8 +24,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/compose-spec/compose-go/dotenv"
-	"github.com/compose-spec/compose-go/utils"
+	"github.com/compose-spec/compose-go/v2/dotenv"
+	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"

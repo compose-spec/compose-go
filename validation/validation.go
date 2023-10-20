@@ -17,7 +17,7 @@
 package validation
 
 import (
-	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/v2/tree"
 )
 
 type checkerFunc func(value any, p tree.Path) error

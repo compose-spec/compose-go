@@ -23,9 +23,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/compose-spec/compose-go/dotenv"
-	interp "github.com/compose-spec/compose-go/interpolation"
-	"github.com/compose-spec/compose-go/types"
+	"github.com/compose-spec/compose-go/v2/dotenv"
+	interp "github.com/compose-spec/compose-go/v2/interpolation"
+	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/pkg/errors"
 )
 

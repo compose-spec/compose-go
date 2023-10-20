@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/v2/tree"
 	"gopkg.in/yaml.v3"
 )
 

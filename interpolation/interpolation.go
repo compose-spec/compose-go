@@ -19,8 +19,8 @@ package interpolation
 import (
 	"os"
 
-	"github.com/compose-spec/compose-go/template"
-	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/v2/template"
+	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/pkg/errors"
 )
 

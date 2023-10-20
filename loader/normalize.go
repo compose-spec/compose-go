@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/compose-spec/compose-go/errdefs"
-	"github.com/compose-spec/compose-go/types"
+	"github.com/compose-spec/compose-go/v2/errdefs"
+	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

@@ -17,7 +17,7 @@
 package transform
 
 import (
-	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/v2/tree"
 )
 
 type transformFunc func(data any, p tree.Path) (any, error)

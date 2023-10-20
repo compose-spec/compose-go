@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/v2/tree"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )

@@ -19,7 +19,7 @@ package transform
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/v2/tree"
 )
 
 func transformFileMount(data any, p tree.Path) (any, error) {

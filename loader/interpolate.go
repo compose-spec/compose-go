@@ -20,8 +20,8 @@ import (
 	"strconv"
 	"strings"
 
-	interp "github.com/compose-spec/compose-go/interpolation"
-	"github.com/compose-spec/compose-go/tree"
+	interp "github.com/compose-spec/compose-go/v2/interpolation"
+	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

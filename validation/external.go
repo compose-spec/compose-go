@@ -19,8 +19,8 @@ package validation
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/consts"
-	"github.com/compose-spec/compose-go/tree"
+	"github.com/compose-spec/compose-go/v2/consts"
+	"github.com/compose-spec/compose-go/v2/tree"
 )
 
 func checkExternal(v map[string]any, p tree.Path) error {

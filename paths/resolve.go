@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/compose-spec/compose-go/tree"
-	"github.com/compose-spec/compose-go/types"
+	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/pkg/errors"
 )
 
