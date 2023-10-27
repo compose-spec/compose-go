@@ -12,3 +12,4 @@ Go reference library for parsing and loading Compose files as specified by the
 * [compose-cli](https://github.com/docker/compose-cli)
 * [tilt.dev](https://github.com/tilt-dev/tilt)
 * [kompose](https://github.com/kubernetes/kompose)
+* [kurtosis](https://github.com/kurtosis-tech/kurtosis/)
