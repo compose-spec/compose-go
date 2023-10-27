@@ -66,10 +66,7 @@ func (l *Labels) DecodeMapstructure(value interface{}) error {
 	case []interface{}:
 		labels := make(map[string]string, len(v))
 		for _, s := range v {
-			k, e, ok := strings.Cut(fmt.Sprint(s), "=")
-			if !ok {
-				return fmt.Errorf("invalid label %q", v)
-			}
+			k, e, _ := strings.Cut(fmt.Sprint(s), "=")
 			labels[k] = labelValue(e)
 		}
 		*l = labels
