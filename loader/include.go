@@ -23,6 +23,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
 	"github.com/compose-spec/compose-go/v2/types"
@@ -39,7 +40,7 @@ func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	return requires, err
 }
 
-func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model map[string]any, options *Options, included []string) error {
+func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model map[string]any, options *Options) error {
 	includeConfig, err := loadIncludeConfig(model["include"])
 	if err != nil {
 		return err
@@ -60,11 +61,9 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 		}
 
 		mainFile := r.Path[0]
-		for _, f := range included {
-			if f == mainFile {
-				included = append(included, mainFile)
-				return errors.Errorf("include cycle detected:\n%s\n include %s", included[0], strings.Join(included[1:], "\n include "))
-			}
+		err := checkIncludeCycle(ctx, mainFile)
+		if err != nil {
+			return err
 		}
 
 		if r.ProjectDirectory == "" {
@@ -91,7 +90,7 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 			LookupValue:     config.LookupEnv,
 			TypeCastMapping: options.Interpolate.TypeCastMapping,
 		}
-		imported, err := loadYamlModel(ctx, config, loadOptions, &cycleTracker{}, included)
+		imported, err := loadYamlModel(ctx, config, loadOptions, &cycleTracker{})
 		if err != nil {
 			return err
 		}
@@ -101,6 +100,16 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 		}
 	}
 	delete(model, "include")
+	return nil
+}
+
+func checkIncludeCycle(ctx context.Context, mainFile string) error {
+	files, _ := ctx.Value(consts.ComposeFileKey{}).([]string)
+	for _, f := range files {
+		if f == mainFile {
+			return errors.Errorf("include cycle detected:\n%s\n include %s", strings.Join(files, "\n include "), mainFile)
+		}
+	}
 	return nil
 }
 

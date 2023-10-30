@@ -274,13 +274,16 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	return load(ctx, configDetails, opts, nil)
 }
 
-func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Options, ct *cycleTracker, included []string) (map[string]interface{}, error) {
+func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Options, ct *cycleTracker) (map[string]interface{}, error) {
 	var (
 		dict = map[string]interface{}{}
 		err  error
 	)
+
+	f, _ := ctx.Value(consts.ComposeFileKey{}).([]string)
+	ctx = context.WithValue(ctx, consts.ComposeFileKey{}, append(f, config.ConfigFiles[0].Filename))
+
 	for _, file := range config.ConfigFiles {
-		fctx := context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
 		if len(file.Content) == 0 && file.Config == nil {
 			content, err := os.ReadFile(file.Filename)
 			if err != nil {
@@ -315,7 +318,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			}
 
 			if !opts.SkipExtends {
-				err = ApplyExtends(fctx, cfg, config.WorkingDir, opts, ct, processors...)
+				err = ApplyExtends(ctx, cfg, config.WorkingDir, opts, ct, processors...)
 				if err != nil {
 					return err
 				}
@@ -364,8 +367,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	}
 
 	if !opts.SkipInclude {
-		included = append(included, config.ConfigFiles[0].Filename)
-		err = ApplyInclude(ctx, config, dict, opts, included)
+		err = ApplyInclude(ctx, config, dict, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -400,7 +402,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 
 	includeRefs := make(map[string][]types.IncludeConfig)
 
-	dict, err := loadYamlModel(ctx, configDetails, opts, &cycleTracker{}, nil)
+	dict, err := loadYamlModel(ctx, configDetails, opts, &cycleTracker{})
 	if err != nil {
 		return nil, err
 	}

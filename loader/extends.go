@@ -71,7 +71,7 @@ func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, o
 					ConfigFiles: []types.ConfigFile{
 						{Filename: local},
 					},
-				}, extendsOpts, ct, nil)
+				}, extendsOpts, ct)
 				if err != nil {
 					return err
 				}
