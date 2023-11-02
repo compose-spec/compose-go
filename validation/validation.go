@@ -17,6 +17,9 @@
 package validation
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/compose-spec/compose-go/v2/tree"
 )
 
@@ -24,6 +27,8 @@ type checkerFunc func(value any, p tree.Path) error
 
 var checks = map[tree.Path]checkerFunc{
 	"volumes.*": checkVolume,
+	"configs.*": checkFileObject("file", "environment", "content"),
+	"secrets.*": checkFileObject("file", "environment"),
 }
 
 func Validate(dict map[string]any) error {
@@ -53,4 +58,30 @@ func check(value any, p tree.Path) error {
 		}
 	}
 	return nil
+}
+
+func checkFileObject(keys ...string) checkerFunc {
+	return func(value any, p tree.Path) error {
+
+		v := value.(map[string]any)
+		count := 0
+		for _, s := range keys {
+			if _, ok := v[s]; ok {
+				count++
+			}
+		}
+		if count > 1 {
+			return fmt.Errorf("%s: %s attributes are mutually exclusive", p, strings.Join(keys, "|"))
+		}
+		if count == 0 {
+			if _, ok := v["driver"]; ok {
+				// User specified a custom driver, which might have it's own way to set content
+				return nil
+			}
+			if _, ok := v["external"]; !ok {
+				return fmt.Errorf("%s: one of %s must be set", p, strings.Join(keys, "|"))
+			}
+		}
+		return nil
+	}
 }
