@@ -1,6 +1,0 @@
-include:
-  - compose-include-cycle.yaml
-
-services:
-  foo:
-    image: foo

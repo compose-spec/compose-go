@@ -1,6 +1,0 @@
-name: compose-test-extends
-services:
-  importer:
-    extends:
-      file: subdir/compose-test-extends-imported.yaml
-      service: imported

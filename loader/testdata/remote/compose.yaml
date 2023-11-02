@@ -1,7 +1,0 @@
-services:
-  foo:
-    image: foo
-    env_file:
-      - ./env
-    volumes:
-      - .:/foo

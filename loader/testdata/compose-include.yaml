@@ -1,6 +1,0 @@
-include:
-    - path: ./subdir/compose-test-extends-imported.yaml
-
-services:
-  bar:
-    image: bar

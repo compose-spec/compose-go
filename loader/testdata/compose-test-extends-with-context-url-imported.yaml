@@ -1,4 +1,0 @@
-services:
-  imported-with-https-url:
-    build:
-      context: https://github.com/docker/compose.git
