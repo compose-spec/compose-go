@@ -52,7 +52,6 @@ func TestNormalizeNetworkNames(t *testing.T) {
 						"ZOT": nil,
 					},
 				},
-				Scale: 1,
 			},
 		},
 	}

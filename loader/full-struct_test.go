@@ -100,7 +100,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			},
 			Deploy: &types.DeployConfig{
 				Mode:     "replicated",
-				Replicas: uint64Ptr(6),
+				Replicas: intPtr(6),
 				Labels:   map[string]string{"FOO": "BAR"},
 				RollbackConfig: &types.UpdateConfig{
 					Parallelism:     uint64Ptr(3),
@@ -387,7 +387,6 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			Privileged: true,
 			ReadOnly:   true,
 			Restart:    types.RestartPolicyAlways,
-			Scale:      1,
 			Secrets: []types.ServiceSecretConfig{
 				{
 					Source: "secret1",
@@ -444,7 +443,6 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				DockerfileInline: "FROM alpine\nRUN echo \"hello\" > /world.txt\n",
 			},
 			Environment: types.MappingWithEquals{},
-			Scale:       1,
 		},
 	}
 }

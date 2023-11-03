@@ -51,7 +51,6 @@ services:
 				"image":   "bar",
 				"command": "echo world",
 				"init":    false,
-				"scale":   1,
 			},
 		},
 	})

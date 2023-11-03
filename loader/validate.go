@@ -106,6 +106,14 @@ func checkConsistency(project *types.Project) error {
 				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined secret %s", s.Name, secret.Source))
 			}
 		}
+
+		if s.Scale != nil && s.Deploy != nil {
+			if s.Deploy.Replicas != nil && *s.Scale != *s.Deploy.Replicas {
+				return errors.Wrap(errdefs.ErrInvalid, "can't set distinct values on 'scale' and 'deploy.replicas'")
+			}
+			s.Deploy.Replicas = s.Scale
+		}
+
 	}
 
 	for name, secret := range project.Secrets {
