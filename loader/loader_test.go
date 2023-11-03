@@ -859,19 +859,18 @@ networks:
 			},
 		},
 		Configs: map[string]types.ConfigObjConfig{
-			"appconfig": {External: types.External{External: true}, Name: "appconfig"},
+			"appconfig": {External: true},
 		},
 		Secrets: map[string]types.SecretConfig{
-			"super": {External: types.External{External: true}, Name: "super"},
+			"super": {External: true},
 		},
 		Volumes: map[string]types.VolumeConfig{
-			"data": {External: types.External{External: true}, Name: "data"},
+			"data": {External: true},
 		},
 		Networks: map[string]types.NetworkConfig{
 			"back": {},
 			"front": {
-				External:   types.External{External: true},
-				Name:       "front",
+				External:   true,
 				Internal:   true,
 				Attachable: true,
 			},
@@ -1455,7 +1454,7 @@ volumes:
 	expected := types.Volumes{
 		"foo": {
 			Name:     "oops",
-			External: types.External{External: true},
+			External: true,
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, project.Volumes))
@@ -1514,7 +1513,7 @@ secrets:
 	expected := types.Secrets{
 		"foo": {
 			Name:     "oops",
-			External: types.External{External: true},
+			External: true,
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, project.Secrets))
@@ -1537,7 +1536,7 @@ networks:
 	expected := types.Networks{
 		"foo": {
 			Name:     "oops",
-			External: types.External{External: true},
+			External: true,
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, project.Networks))
@@ -1805,14 +1804,14 @@ secrets:
 		Configs: map[string]types.ConfigObjConfig{
 			"config": {
 				Name:           "config",
-				External:       types.External{External: true},
+				External:       true,
 				TemplateDriver: "config-driver",
 			},
 		},
 		Secrets: map[string]types.SecretConfig{
 			"secret": {
 				Name:           "secret",
-				External:       types.External{External: true},
+				External:       true,
 				TemplateDriver: "secret-driver",
 			},
 		},
@@ -1874,7 +1873,7 @@ secrets:
 		Configs: map[string]types.ConfigObjConfig{
 			"config": {
 				Name:     "config",
-				External: types.External{External: true},
+				External: true,
 			},
 		},
 		Secrets: map[string]types.SecretConfig{

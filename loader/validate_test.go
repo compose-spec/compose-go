@@ -185,7 +185,7 @@ func TestValidateSecret(t *testing.T) {
 		project := &types.Project{
 			Secrets: types.Secrets{
 				"foo": types.SecretConfig{
-					External: types.External{External: true},
+					External: true,
 				},
 			},
 		}
@@ -206,9 +206,7 @@ func TestValidateSecret(t *testing.T) {
 		project := &types.Project{
 			Secrets: types.Secrets{
 				"foo": types.SecretConfig{
-					External: types.External{
-						External: true,
-					},
+					External: true,
 				},
 			},
 			Services: types.Services([]types.ServiceConfig{

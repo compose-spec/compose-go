@@ -656,28 +656,7 @@ type VolumeConfig struct {
 
 // External identifies a Volume or Network as a reference to a resource that is
 // not managed, and should already exist.
-// External.name is deprecated and replaced by Volume.name
-type External struct {
-	Name       string     `yaml:"name,omitempty" json:"name,omitempty"`
-	External   bool       `yaml:"external,omitempty" json:"external,omitempty"`
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
-}
-
-// MarshalYAML makes External implement yaml.Marshaller
-func (e External) MarshalYAML() (interface{}, error) {
-	if e.Name == "" {
-		return e.External, nil
-	}
-	return External{Name: e.Name}, nil
-}
-
-// MarshalJSON makes External implement json.Marshaller
-func (e External) MarshalJSON() ([]byte, error) {
-	if e.Name == "" {
-		return []byte(fmt.Sprintf("%v", e.External)), nil
-	}
-	return []byte(fmt.Sprintf(`{"name": %q}`, e.Name)), nil
-}
+type External bool
 
 // CredentialSpecConfig for credential spec on Windows
 type CredentialSpecConfig struct {

@@ -482,13 +482,12 @@ func networks() map[string]types.NetworkConfig {
 		},
 
 		"external-network": {
-			Name:     "external-network",
-			External: types.External{External: true},
+			External: true,
 		},
 
 		"other-external-network": {
 			Name:     "my-cool-network",
-			External: types.External{External: true},
+			External: true,
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
 				"x-foo": "bar",
@@ -519,16 +518,15 @@ func volumes() map[string]types.VolumeConfig {
 			},
 		},
 		"external-volume": {
-			Name:     "external-volume",
-			External: types.External{External: true},
+			External: true,
 		},
 		"other-external-volume": {
 			Name:     "my-cool-volume",
-			External: types.External{External: true},
+			External: true,
 		},
 		"external-volume3": {
 			Name:     "this-is-volume3",
-			External: types.External{External: true},
+			External: true,
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
 				"x-foo": "bar",
@@ -547,11 +545,10 @@ func configs(workingDir string, homeDir string) map[string]types.ConfigObjConfig
 		},
 		"config2": {
 			Name:     "my_config",
-			External: types.External{External: true},
+			External: true,
 		},
 		"config3": {
-			Name:     "config3",
-			External: types.External{External: true},
+			External: true,
 		},
 		"config4": {
 			Name: "foo",
@@ -574,11 +571,10 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 		},
 		"secret2": {
 			Name:     "my_secret",
-			External: types.External{External: true},
+			External: true,
 		},
 		"secret3": {
-			Name:     "secret3",
-			External: types.External{External: true},
+			External: true,
 		},
 		"secret4": {
 			Name:        "bar",
@@ -948,7 +944,6 @@ services:
     x-foo: bar
 networks:
   external-network:
-    name: external-network
     external: true
   other-external-network:
     name: my-cool-network
@@ -983,7 +978,6 @@ volumes:
       baz: "1"
       foo: bar
   external-volume:
-    name: external-volume
     external: true
   external-volume3:
     name: this-is-volume3
@@ -1010,7 +1004,6 @@ secrets:
     name: my_secret
     external: true
   secret3:
-    name: secret3
     external: true
   secret4:
     name: bar
@@ -1028,7 +1021,6 @@ configs:
     name: my_config
     external: true
   config3:
-    name: config3
     external: true
   config4:
     name: foo
@@ -1060,7 +1052,6 @@ func fullExampleJSON(workingDir, homeDir string) string {
   "configs": {
     "config1": {
       "file": "%s",
-      "external": false,
       "labels": {
         "foo": "bar"
       }
@@ -1070,19 +1061,16 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "external": true
     },
     "config3": {
-      "name": "config3",
       "external": true
     },
     "config4": {
       "name": "foo",
-      "file": "%s",
-      "external": false
+      "file": "%s"
     }
   },
   "name": "full_example_project_name",
   "networks": {
     "external-network": {
-      "name": "external-network",
       "ipam": {},
       "external": true
     },
@@ -1116,20 +1104,17 @@ func fullExampleJSON(workingDir, homeDir string) string {
           }
         ]
       },
-      "external": false,
       "labels": {
         "foo": "bar"
       }
     },
     "some-network": {
-      "ipam": {},
-      "external": false
+      "ipam": {}
     }
   },
   "secrets": {
     "secret1": {
       "file": "%s",
-      "external": false,
       "labels": {
         "foo": "bar"
       }
@@ -1139,17 +1124,14 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "external": true
     },
     "secret3": {
-      "name": "secret3",
       "external": true
     },
     "secret4": {
       "name": "bar",
-      "environment": "BAR",
-      "external": false
+      "environment": "BAR"
     },
     "secret5": {
-      "file": "/abs/secret_data",
-      "external": false
+      "file": "/abs/secret_data"
     }
   },
   "services": {
@@ -1653,11 +1635,9 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "driver_opts": {
         "baz": "1",
         "foo": "bar"
-      },
-      "external": false
+      }
     },
     "external-volume": {
-      "name": "external-volume",
       "external": true
     },
     "external-volume3": {
@@ -1674,14 +1654,11 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "baz": "1",
         "foo": "bar"
       },
-      "external": false,
       "labels": {
         "foo": "bar"
       }
     },
-    "some-volume": {
-      "external": false
-    }
+    "some-volume": {}
   },
   "x-bar": "baz",
   "x-foo": "bar",
