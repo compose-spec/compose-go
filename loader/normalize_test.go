@@ -35,7 +35,7 @@ func TestNormalizeNetworkNames(t *testing.T) {
 		Networks: types.Networks{
 			"myExternalnet": {
 				Name:     "myExternalnet", // this is automaticaly setup by loader for externa networks before reaching normalization
-				External: types.External{External: true},
+				External: true,
 			},
 			"mynet": {},
 			"myNamedNet": {
@@ -92,7 +92,7 @@ func TestNormalizeVolumes(t *testing.T) {
 		Volumes: types.Volumes{
 			"myExternalVol": {
 				Name:     "myExternalVol", // this is automaticaly setup by loader for externa networks before reaching normalization
-				External: types.External{External: true},
+				External: true,
 			},
 			"myvol": {},
 			"myNamedVol": {
@@ -107,7 +107,7 @@ func TestNormalizeVolumes(t *testing.T) {
 		Volumes: types.Volumes{
 			"myExternalVol": {
 				Name:     "myExternalVol",
-				External: types.External{External: true},
+				External: true,
 			},
 			"myvol": {Name: "myProject_myvol"},
 			"myNamedVol": {

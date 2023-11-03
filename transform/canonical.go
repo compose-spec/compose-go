@@ -41,10 +41,6 @@ func init() {
 	transformers["networks.*"] = transformMaybeExternal
 	transformers["secrets.*"] = transformMaybeExternal
 	transformers["configs.*"] = transformMaybeExternal
-	transformers["volumes.*.external"] = transformExternal
-	transformers["networks.*.external"] = transformExternal
-	transformers["secrets.*.external"] = transformExternal
-	transformers["configs.*.external"] = transformExternal
 	transformers["include.*"] = transformInclude
 }
 

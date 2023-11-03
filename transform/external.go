@@ -20,28 +20,8 @@ import (
 	"fmt"
 
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
-
-func transformExternal(data any, p tree.Path) (any, error) {
-	switch v := data.(type) {
-	case map[string]any:
-		if _, ok := v["name"]; ok {
-			logrus.Warnf("%s: external.name is deprecated. Please set name and external: true", p.Parent())
-		}
-		if _, ok := v["external"]; !ok {
-			v["external"] = true
-		}
-		return v, nil
-	case bool:
-		return map[string]any{
-			"external": v,
-		}, nil
-	default:
-		return data, errors.Errorf("invalid type %T for external", v)
-	}
-}
 
 func transformMaybeExternal(data any, p tree.Path) (any, error) {
 	if data == nil {
@@ -59,14 +39,15 @@ func transformMaybeExternal(data any, p tree.Path) (any, error) {
 		}
 		name := resource["name"]
 		if ename, ok := external["name"]; ok {
+			logrus.Warnf("%s: external.name is deprecated. Please set name and external: true", p)
 			if name != nil && ename != name {
 				return nil, fmt.Errorf("%s: name and external.name conflict; only use name", p)
 			}
-			delete(external, "name")
-			resource["name"] = ename
-		} else if name == nil {
-			resource["name"] = p.Last()
+			if name == nil {
+				resource["name"] = ename
+			}
 		}
+		resource["external"] = true
 	}
 
 	return resource, nil

@@ -37,10 +37,6 @@ func Normalize(project *types.Project) error {
 		project.Networks["default"] = types.NetworkConfig{}
 	}
 
-	if err := relocateExternalName(project); err != nil {
-		return err
-	}
-
 	for i, s := range project.Services {
 		if len(s.Networks) == 0 && s.NetworkMode == "" {
 			// Service without explicit network attachment are implicitly exposed on default network
@@ -222,49 +218,6 @@ func setNameFromKey(project *types.Project) {
 			project.Secrets[i] = s
 		}
 	}
-}
-
-func relocateExternalName(project *types.Project) error {
-	for i, n := range project.Networks {
-		if n.External.Name != "" {
-			if n.Name != "" {
-				return errors.Wrap(errdefs.ErrInvalid, "can't use both 'networks.external.name' (deprecated) and 'networks.name'")
-			}
-			n.Name = n.External.Name
-		}
-		project.Networks[i] = n
-	}
-
-	for i, v := range project.Volumes {
-		if v.External.Name != "" {
-			if v.Name != "" {
-				return errors.Wrap(errdefs.ErrInvalid, "can't use both 'volumes.external.name' (deprecated) and 'volumes.name'")
-			}
-			v.Name = v.External.Name
-		}
-		project.Volumes[i] = v
-	}
-
-	for i, s := range project.Secrets {
-		if s.External.Name != "" {
-			if s.Name != "" {
-				return errors.Wrap(errdefs.ErrInvalid, "can't use both 'secrets.external.name' (deprecated) and 'secrets.name'")
-			}
-			s.Name = s.External.Name
-		}
-		project.Secrets[i] = s
-	}
-
-	for i, c := range project.Configs {
-		if c.External.Name != "" {
-			if c.Name != "" {
-				return errors.Wrap(errdefs.ErrInvalid, "can't use both 'configs.external.name' (deprecated) and 'configs.name'")
-			}
-			c.Name = c.External.Name
-		}
-		project.Configs[i] = c
-	}
-	return nil
 }
 
 func relocateLogOpt(s *types.ServiceConfig) error {

@@ -117,7 +117,7 @@ func checkConsistency(project *types.Project) error {
 	}
 
 	for name, secret := range project.Secrets {
-		if secret.External.External {
+		if secret.External {
 			continue
 		}
 		if secret.File == "" && secret.Environment == "" {

@@ -28,8 +28,7 @@ func checkExternal(v map[string]any, p tree.Path) error {
 	if !ok {
 		return nil
 	}
-	x := b.(map[string]any)
-	if b, ok := x["external"]; ok && b == false {
+	if !b.(bool) {
 		return nil
 	}
 
