@@ -36,7 +36,13 @@ func (u UnitBytes) MarshalJSON() ([]byte, error) {
 }
 
 func (u *UnitBytes) DecodeMapstructure(value interface{}) error {
-	v, err := units.RAMInBytes(fmt.Sprint(value))
-	*u = UnitBytes(v)
-	return err
+	switch v := value.(type) {
+	case int:
+		*u = UnitBytes(v)
+	case string:
+		b, err := units.RAMInBytes(fmt.Sprint(value))
+		*u = UnitBytes(b)
+		return err
+	}
+	return nil
 }

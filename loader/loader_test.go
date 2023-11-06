@@ -2807,3 +2807,19 @@ networks:
 	})
 	assert.ErrorContains(t, err, "service redis declares mutually exclusive `network_mode` and `networks`")
 }
+
+func TestLoadUnitBytes(t *testing.T) {
+	project, err := loadYAML(`
+name: load-unit-bytes
+services:
+  test1:
+    image: test
+    memswap_limit: -1
+  test2:
+    image: test
+    memswap_limit: 640kb
+`)
+	assert.NilError(t, err)
+	assert.Equal(t, project.Services[0].MemSwapLimit, types.UnitBytes(-1))
+	assert.Equal(t, project.Services[1].MemSwapLimit, types.UnitBytes(640*1024))
+}
