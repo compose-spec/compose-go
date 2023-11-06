@@ -16,25 +16,20 @@
 
 package types
 
-import "encoding/json"
+// Services is a map of ServiceConfig
+type Services map[string]ServiceConfig
 
-// Services is a list of ServiceConfig
-type Services []ServiceConfig
-
-// MarshalYAML makes Services implement yaml.Marshaller
-func (s Services) MarshalYAML() (interface{}, error) {
-	services := map[string]ServiceConfig{}
+// GetProfiles retrieve the profiles implicitly enabled by explicitly targeting selected services
+func (s Services) GetProfiles() []string {
+	set := map[string]struct{}{}
 	for _, service := range s {
-		services[service.Name] = service
+		for _, p := range service.Profiles {
+			set[p] = struct{}{}
+		}
 	}
-	return services, nil
-}
-
-// MarshalJSON makes Services implement json.Marshaler
-func (s Services) MarshalJSON() ([]byte, error) {
-	data, err := s.MarshalYAML()
-	if err != nil {
-		return nil, err
+	var profiles []string
+	for k := range set {
+		profiles = append(profiles, k)
 	}
-	return json.MarshalIndent(data, "", "  ")
+	return profiles
 }

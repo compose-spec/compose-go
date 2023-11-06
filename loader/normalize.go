@@ -37,7 +37,7 @@ func Normalize(project *types.Project) error {
 		project.Networks["default"] = types.NetworkConfig{}
 	}
 
-	for i, s := range project.Services {
+	for name, s := range project.Services {
 		if len(s.Networks) == 0 && s.NetworkMode == "" {
 			// Service without explicit network attachment are implicitly exposed on default network
 			s.Networks = map[string]*types.ServiceNetworkConfig{"default": nil}
@@ -114,7 +114,7 @@ func Normalize(project *types.Project) error {
 
 		inferImplicitDependencies(&s)
 
-		project.Services[i] = s
+		project.Services[name] = s
 	}
 
 	setNameFromKey(project)

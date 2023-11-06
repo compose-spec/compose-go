@@ -67,7 +67,7 @@ services:
 		Context:    filepath.Join(wd, "testdata"),
 		Dockerfile: "Dockerfile-sample",
 	}
-	assert.DeepEqual(t, expected, *project.Services[0].Build)
+	assert.DeepEqual(t, expected, *project.Services["foo"].Build)
 }
 
 func TestResolveAdditionalContexts(t *testing.T) {
@@ -104,5 +104,5 @@ services:
 			"rel_path": filepath.Join(wd, "testdata"),
 		},
 	}
-	assert.DeepEqual(t, expected, *project.Services[0].Build)
+	assert.DeepEqual(t, expected, *project.Services["test"].Build)
 }
