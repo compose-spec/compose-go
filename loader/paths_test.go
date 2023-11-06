@@ -100,7 +100,7 @@ services:
 			"image":    "docker-image://foo",
 			"oci":      "oci-layout://foo",
 			"abs_path": abs,
-			"github":   "github.com/compose-spec/compose-go/v2",
+			"github":   "github.com/compose-spec/compose-go",
 			"rel_path": filepath.Join(wd, "testdata"),
 		},
 	}
