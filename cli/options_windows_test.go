@@ -34,8 +34,9 @@ func TestConvertWithEnvVar(t *testing.T) {
 	p, err := ProjectFromOptions(opts)
 
 	assert.NilError(t, err)
-	assert.Equal(t, len(p.Services[0].Volumes), 3)
-	assert.Equal(t, p.Services[0].Volumes[0].Source, "/c/docker/project")
-	assert.Equal(t, p.Services[0].Volumes[1].Source, "/c/project-dir/relative")
-	assert.Equal(t, p.Services[0].Volumes[2].Source, "/c/project-dir/relative2")
+	volumes := p.Services["test"].Volumes
+	assert.Equal(t, len(volumes), 3)
+	assert.Equal(t, volumes[0].Source, "/c/docker/project")
+	assert.Equal(t, volumes[1].Source, "/c/project-dir/relative")
+	assert.Equal(t, volumes[2].Source, "/c/project-dir/relative2")
 }

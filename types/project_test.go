@@ -29,26 +29,14 @@ import (
 func Test_ApplyProfiles(t *testing.T) {
 	p := makeProject()
 	p.ApplyProfiles([]string{"foo"})
-	assert.Equal(t, len(p.Services), 3)
-	assert.Equal(t, p.Services[0].Name, "service_1")
-	assert.Equal(t, p.Services[1].Name, "service_2")
-	assert.Equal(t, p.Services[2].Name, "service_6")
-	assert.Equal(t, len(p.DisabledServices), 3)
-	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
-	assert.Equal(t, p.DisabledServices[1].Name, "service_4")
-	assert.Equal(t, p.DisabledServices[2].Name, "service_5")
+	assert.DeepEqual(t, p.ServiceNames(), []string{"service_1", "service_2", "service_6"})
+	assert.DeepEqual(t, p.DisabledServiceNames(), []string{"service_3", "service_4", "service_5"})
 
 	err := p.EnableServices("service_4")
 	assert.NilError(t, err)
 
-	assert.Equal(t, len(p.Services), 5)
-	assert.Equal(t, p.Services[0].Name, "service_1")
-	assert.Equal(t, p.Services[1].Name, "service_2")
-	assert.Equal(t, p.Services[2].Name, "service_6")
-	assert.Equal(t, p.Services[3].Name, "service_4")
-	assert.Equal(t, p.Services[4].Name, "service_5")
-	assert.Equal(t, len(p.DisabledServices), 1)
-	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
+	assert.DeepEqual(t, p.ServiceNames(), []string{"service_1", "service_2", "service_4", "service_5", "service_6"})
+	assert.DeepEqual(t, p.DisabledServiceNames(), []string{"service_3"})
 
 }
 
@@ -78,8 +66,7 @@ func Test_NoProfiles(t *testing.T) {
 	p.ApplyProfiles(nil)
 	assert.Equal(t, len(p.Services), 2)
 	assert.Equal(t, len(p.DisabledServices), 4)
-	assert.Equal(t, p.Services[0].Name, "service_1")
-	assert.Equal(t, p.Services[1].Name, "service_6")
+	assert.DeepEqual(t, p.ServiceNames(), []string{"service_1", "service_6"})
 }
 
 func Test_ServiceProfiles(t *testing.T) {
@@ -97,22 +84,13 @@ func Test_ForServices(t *testing.T) {
 	err := p.ForServices([]string{"service_2"})
 	assert.NilError(t, err)
 
-	assert.Equal(t, len(p.DisabledServices), 4)
-	assert.Equal(t, p.DisabledServices[0].Name, "service_3")
-	assert.Equal(t, p.DisabledServices[1].Name, "service_4")
-	assert.Equal(t, p.DisabledServices[2].Name, "service_5")
-	assert.Equal(t, p.DisabledServices[3].Name, "service_6")
+	assert.DeepEqual(t, p.DisabledServiceNames(), []string{"service_3", "service_4", "service_5", "service_6"})
 
 	// Should not load the dependency service_1 when explicitly loading service_6
 	p = makeProject()
 	err = p.ForServices([]string{"service_6"})
 	assert.NilError(t, err)
-	assert.Equal(t, len(p.DisabledServices), 5)
-	assert.Equal(t, p.DisabledServices[0].Name, "service_1")
-	assert.Equal(t, p.DisabledServices[1].Name, "service_2")
-	assert.Equal(t, p.DisabledServices[2].Name, "service_3")
-	assert.Equal(t, p.DisabledServices[3].Name, "service_4")
-	assert.Equal(t, p.DisabledServices[4].Name, "service_5")
+	assert.DeepEqual(t, p.DisabledServiceNames(), []string{"service_1", "service_2", "service_3", "service_4", "service_5"})
 }
 
 func Test_ForServicesIgnoreDependencies(t *testing.T) {
@@ -139,35 +117,43 @@ func Test_ForServicesIgnoreDependencies(t *testing.T) {
 
 func Test_ForServicesCycle(t *testing.T) {
 	p := makeProject()
-	p.Services[0].Links = []string{"service_2"}
+	service := p.Services["service_1"]
+	service.Links = []string{"service_2"}
+	p.Services["service_1"] = service
 	err := p.ForServices([]string{"service_2"})
 	assert.NilError(t, err)
 }
 
 func makeProject() Project {
 	return Project{
-		Services: append(Services{},
-			ServiceConfig{
+		Services: Services{
+			"service_1": ServiceConfig{
 				Name: "service_1",
-			}, ServiceConfig{
+			},
+			"service_2": ServiceConfig{
 				Name:      "service_2",
 				Profiles:  []string{"foo"},
 				DependsOn: map[string]ServiceDependency{"service_1": {Required: true}},
-			}, ServiceConfig{
+			},
+			"service_3": ServiceConfig{
 				Name:      "service_3",
 				Profiles:  []string{"bar"},
 				DependsOn: map[string]ServiceDependency{"service_2": {Required: true}},
-			}, ServiceConfig{
+			},
+			"service_4": ServiceConfig{
 				Name:      "service_4",
 				Profiles:  []string{"zot"},
 				DependsOn: map[string]ServiceDependency{"service_2": {Required: false}},
-			}, ServiceConfig{
+			},
+			"service_5": ServiceConfig{
 				Name:     "service_5",
 				Profiles: []string{"zot"},
-			}, ServiceConfig{
+			},
+			"service_6": ServiceConfig{
 				Name:  "service_6",
 				Links: []string{"service_1"},
-			}),
+			},
+		},
 		Networks: Networks{},
 		Volumes:  Volumes{},
 		Secrets:  Secrets{},
@@ -208,10 +194,12 @@ func Test_ResolveImages(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		p.Services[0].Image = test.image
+		service := p.Services["service_1"]
+		service.Image = test.image
+		p.Services["service_1"] = service
 		err := p.ResolveImages(resolver)
 		assert.NilError(t, err)
-		assert.Equal(t, p.Services[0].Image, test.resolved)
+		assert.Equal(t, p.Services["service_1"].Image, test.resolved)
 	}
 }
 

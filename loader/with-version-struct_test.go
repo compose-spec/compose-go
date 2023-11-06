@@ -30,10 +30,10 @@ func withVersionExampleConfig() *types.Config {
 	}
 }
 
-func withVersionServices() []types.ServiceConfig {
+func withVersionServices() types.Services {
 	buildCtx, _ := filepath.Abs("./Dockerfile")
-	return []types.ServiceConfig{
-		{
+	return types.Services{
+		"web": {
 			Name: "web",
 
 			Build: &types.BuildConfig{
@@ -46,7 +46,7 @@ func withVersionServices() []types.ServiceConfig {
 			},
 			VolumesFrom: []string{"other"},
 		},
-		{
+		"other": {
 			Name: "other",
 
 			Image:       "busybox:1.31.0-uclibc",

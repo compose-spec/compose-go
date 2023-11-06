@@ -42,8 +42,8 @@ func TestNormalizeNetworkNames(t *testing.T) {
 				Name: "CustomName",
 			},
 		},
-		Services: []types.ServiceConfig{
-			{
+		Services: types.Services{
+			"foo": {
 				Name: "foo",
 				Build: &types.BuildConfig{
 					Context: "./testdata",
@@ -125,8 +125,8 @@ func TestNormalizeDependsOn(t *testing.T) {
 		Name:     "myProject",
 		Networks: types.Networks{},
 		Volumes:  types.Volumes{},
-		Services: []types.ServiceConfig{
-			{
+		Services: types.Services{
+			"foo": {
 				Name: "foo",
 				DependsOn: map[string]types.ServiceDependency{
 					"bar": { // explicit depends_on never should be overridden
@@ -137,14 +137,14 @@ func TestNormalizeDependsOn(t *testing.T) {
 				},
 				NetworkMode: "service:zot",
 			},
-			{
+			"bar": {
 				Name: "bar",
 				VolumesFrom: []string{
 					"zot",
 					"container:xxx",
 				},
 			},
-			{
+			"zot": {
 				Name: "zot",
 			},
 		},
@@ -190,7 +190,7 @@ func TestNormalizeImplicitDependencies(t *testing.T) {
 	project := types.Project{
 		Name: "myProject",
 		Services: types.Services{
-			types.ServiceConfig{
+			"test": types.ServiceConfig{
 				Name:        "test",
 				Ipc:         "service:foo",
 				Cgroup:      "service:bar",
@@ -216,19 +216,19 @@ func TestNormalizeImplicitDependencies(t *testing.T) {
 	}
 	err := Normalize(&project)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, project.Services[0].DependsOn)
+	assert.DeepEqual(t, expected, project.Services["test"].DependsOn)
 }
 
 func TestImplicitContextPath(t *testing.T) {
 	project := &types.Project{
 		Name: "myProject",
 		Services: types.Services{
-			types.ServiceConfig{
+			"test": types.ServiceConfig{
 				Name:  "test",
 				Build: &types.BuildConfig{},
 			},
 		},
 	}
 	assert.NilError(t, Normalize(project))
-	assert.Equal(t, ".", project.Services[0].Build.Context)
+	assert.Equal(t, ".", project.Services["test"].Build.Context)
 }

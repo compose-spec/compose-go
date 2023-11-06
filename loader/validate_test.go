@@ -26,8 +26,8 @@ import (
 
 func TestValidateAnonymousVolume(t *testing.T) {
 	project := &types.Project{
-		Services: types.Services([]types.ServiceConfig{
-			{
+		Services: types.Services{
+			"myservice": {
 				Name:  "myservice",
 				Image: "my/service",
 				Volumes: []types.ServiceVolumeConfig{
@@ -37,7 +37,7 @@ func TestValidateAnonymousVolume(t *testing.T) {
 					},
 				},
 			},
-		}),
+		},
 	}
 	err := checkConsistency(project)
 	assert.NilError(t, err)
@@ -45,8 +45,8 @@ func TestValidateAnonymousVolume(t *testing.T) {
 
 func TestValidateNamedVolume(t *testing.T) {
 	project := &types.Project{
-		Services: types.Services([]types.ServiceConfig{
-			{
+		Services: types.Services{
+			"myservice": {
 				Name:  "myservice",
 				Image: "my/service",
 				Volumes: []types.ServiceVolumeConfig{
@@ -57,7 +57,7 @@ func TestValidateNamedVolume(t *testing.T) {
 					},
 				},
 			},
-		}),
+		},
 	}
 	err := checkConsistency(project)
 	assert.Error(t, err, `service "myservice" refers to undefined volume myVolume: invalid compose project`)
@@ -73,11 +73,11 @@ func TestValidateNamedVolume(t *testing.T) {
 
 func TestValidateNoBuildNoImage(t *testing.T) {
 	project := &types.Project{
-		Services: types.Services([]types.ServiceConfig{
-			{
+		Services: types.Services{
+			"myservice": {
 				Name: "myservice",
 			},
-		}),
+		},
 	}
 	err := checkConsistency(project)
 	assert.Error(t, err, `service "myservice" has neither an image nor a build context specified: invalid compose project`)
@@ -86,17 +86,17 @@ func TestValidateNoBuildNoImage(t *testing.T) {
 func TestValidateNetworkMode(t *testing.T) {
 	t.Run("network_mode service fail", func(t *testing.T) {
 		project := &types.Project{
-			Services: types.Services([]types.ServiceConfig{
-				{
+			Services: types.Services{
+				"myservice1": {
 					Name:  "myservice1",
 					Image: "scratch",
 				},
-				{
+				"myservice2": {
 					Name:        "myservice2",
 					Image:       "scratch",
 					NetworkMode: "service:myservice1",
 				},
-			}),
+			},
 		}
 		err := checkConsistency(project)
 		assert.NilError(t, err)
@@ -104,17 +104,17 @@ func TestValidateNetworkMode(t *testing.T) {
 
 	t.Run("network_mode service fail", func(t *testing.T) {
 		project := &types.Project{
-			Services: types.Services([]types.ServiceConfig{
-				{
+			Services: types.Services{
+				"myservice1": {
 					Name:  "myservice1",
 					Image: "scratch",
 				},
-				{
+				"myservice2": {
 					Name:        "myservice2",
 					Image:       "scratch",
 					NetworkMode: "service:nonexistentservice",
 				},
-			}),
+			},
 		}
 		err := checkConsistency(project)
 		assert.Error(t, err, `service "nonexistentservice" not found for network_mode 'service:nonexistentservice'`)
@@ -122,18 +122,18 @@ func TestValidateNetworkMode(t *testing.T) {
 
 	t.Run("network_mode container", func(t *testing.T) {
 		project := &types.Project{
-			Services: types.Services([]types.ServiceConfig{
-				{
+			Services: types.Services{
+				"myservice1": {
 					Name:          "myservice1",
 					ContainerName: "mycontainer_name",
 					Image:         "scratch",
 				},
-				{
+				"myservice2": {
 					Name:        "myservice2",
 					Image:       "scratch",
 					NetworkMode: "container:mycontainer_name",
 				},
-			}),
+			},
 		}
 		err := checkConsistency(project)
 		assert.NilError(t, err)
@@ -142,8 +142,8 @@ func TestValidateNetworkMode(t *testing.T) {
 	t.Run("network_mode & networks can't both be defined", func(t *testing.T) {
 		project := &types.Project{
 			Networks: types.Networks{"mynetwork": types.NetworkConfig{}},
-			Services: types.Services([]types.ServiceConfig{
-				{
+			Services: types.Services{
+				"myservice1": {
 					Name:        "myservice1",
 					Image:       "scratch",
 					NetworkMode: "host",
@@ -151,7 +151,7 @@ func TestValidateNetworkMode(t *testing.T) {
 						"mynetwork": {},
 					},
 				},
-			}),
+			},
 		}
 		err := checkConsistency(project)
 		assert.Error(t, err, "service myservice1 declares mutually exclusive `network_mode` and `networks`: invalid compose project")
@@ -209,8 +209,8 @@ func TestValidateSecret(t *testing.T) {
 					External: true,
 				},
 			},
-			Services: types.Services([]types.ServiceConfig{
-				{
+			Services: types.Services{
+				"myservice": {
 					Name:  "myservice",
 					Image: "scratch",
 					Secrets: []types.ServiceSecretConfig{
@@ -219,7 +219,7 @@ func TestValidateSecret(t *testing.T) {
 						},
 					},
 				},
-			}),
+			},
 		}
 		err := checkConsistency(project)
 		assert.NilError(t, err)
@@ -227,8 +227,8 @@ func TestValidateSecret(t *testing.T) {
 
 	t.Run("service secret undefined", func(t *testing.T) {
 		project := &types.Project{
-			Services: types.Services([]types.ServiceConfig{
-				{
+			Services: types.Services{
+				"myservice": {
 					Name:  "myservice",
 					Image: "scratch",
 					Secrets: []types.ServiceSecretConfig{
@@ -237,7 +237,7 @@ func TestValidateSecret(t *testing.T) {
 						},
 					},
 				},
-			}),
+			},
 		}
 		err := checkConsistency(project)
 		assert.Error(t, err, `service "myservice" refers to undefined secret foo: invalid compose project`)
@@ -246,15 +246,15 @@ func TestValidateSecret(t *testing.T) {
 
 func TestValidateDependsOn(t *testing.T) {
 	project := types.Project{
-		Services: types.Services([]types.ServiceConfig{
-			{
+		Services: types.Services{
+			"myservice": {
 				Name:  "myservice",
 				Image: "scratch",
 				DependsOn: map[string]types.ServiceDependency{
 					"missingservice": {},
 				},
 			},
-		}),
+		},
 	}
 	err := checkConsistency(&project)
 	assert.Error(t, err, `service "myservice" depends on undefined service missingservice: invalid compose project`)

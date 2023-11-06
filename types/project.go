@@ -60,8 +60,18 @@ type Project struct {
 // ServiceNames return names for all services in this Compose config
 func (p *Project) ServiceNames() []string {
 	var names []string
-	for _, s := range p.Services {
-		names = append(names, s.Name)
+	for k := range p.Services {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// DisabledServiceNames return names for all disabled services in this Compose config
+func (p *Project) DisabledServiceNames() []string {
+	var names []string
+	for k := range p.DisabledServices {
+		names = append(names, k)
 	}
 	sort.Strings(names)
 	return names
@@ -109,9 +119,16 @@ func (p *Project) ConfigNames() []string {
 
 // GetServices retrieve services by names, or return all services if no name specified
 func (p *Project) GetServices(names ...string) (Services, error) {
-	services, servicesNotFound := p.getServicesByNames(names...)
-	if len(servicesNotFound) > 0 {
-		return services, fmt.Errorf("no such service: %s", servicesNotFound[0])
+	if len(names) == 0 {
+		return p.Services, nil
+	}
+	services := Services{}
+	for _, name := range names {
+		service, err := p.GetService(name)
+		if err != nil {
+			return nil, err
+		}
+		services[name] = service
 	}
 	return services, nil
 }
@@ -123,48 +140,46 @@ func (p *Project) getServicesByNames(names ...string) (Services, []string) {
 	services := Services{}
 	var servicesNotFound []string
 	for _, name := range names {
-		var serviceConfig *ServiceConfig
-		for _, s := range p.Services {
-			if s.Name == name {
-				serviceConfig = &s
-				break
-			}
-		}
-		if serviceConfig == nil {
+		service, ok := p.Services[name]
+		if !ok {
 			servicesNotFound = append(servicesNotFound, name)
 			continue
 		}
-		services = append(services, *serviceConfig)
+		services[name] = service
 	}
 	return services, servicesNotFound
 }
 
 // GetDisabledService retrieve disabled service by name
 func (p Project) GetDisabledService(name string) (ServiceConfig, error) {
-	for _, config := range p.DisabledServices {
-		if config.Name == name {
-			return config, nil
-		}
+	service, ok := p.DisabledServices[name]
+	if !ok {
+		return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
 	}
-	return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
+	return service, nil
 }
 
 // GetService retrieve a specific service by name
 func (p *Project) GetService(name string) (ServiceConfig, error) {
-	services, err := p.GetServices(name)
-	if err != nil {
-		return ServiceConfig{}, err
-	}
-	if len(services) == 0 {
+	service, ok := p.Services[name]
+	if !ok {
+		_, ok := p.DisabledServices[name]
+		if ok {
+			return ServiceConfig{}, fmt.Errorf("service %s is disabled", name)
+		}
 		return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
 	}
-	return services[0], nil
+	return service, nil
 }
 
 func (p *Project) AllServices() Services {
-	var all Services
-	all = append(all, p.Services...)
-	all = append(all, p.DisabledServices...)
+	all := Services{}
+	for name, service := range p.Services {
+		all[name] = service
+	}
+	for name, service := range p.DisabledServices {
+		all[name] = service
+	}
 	return all
 }
 
@@ -262,21 +277,6 @@ func (s ServiceConfig) HasProfile(profiles []string) bool {
 	return false
 }
 
-// GetProfiles retrieve the profiles implicitly enabled by explicitly targeting selected services
-func (s Services) GetProfiles() []string {
-	set := map[string]struct{}{}
-	for _, service := range s {
-		for _, p := range service.Profiles {
-			set[p] = struct{}{}
-		}
-	}
-	var profiles []string
-	for k := range set {
-		profiles = append(profiles, k)
-	}
-	return profiles
-}
-
 // ApplyProfiles disables service which don't match selected profiles
 func (p *Project) ApplyProfiles(profiles []string) {
 	for _, p := range profiles {
@@ -284,12 +284,13 @@ func (p *Project) ApplyProfiles(profiles []string) {
 			return
 		}
 	}
-	var enabled, disabled Services
-	for _, service := range p.AllServices() {
+	enabled := Services{}
+	disabled := Services{}
+	for name, service := range p.AllServices() {
 		if service.HasProfile(profiles) {
-			enabled = append(enabled, service)
+			enabled[name] = service
 		} else {
-			disabled = append(disabled, service)
+			disabled[name] = service
 		}
 	}
 	p.Services = enabled
@@ -302,29 +303,15 @@ func (p *Project) EnableServices(names ...string) error {
 	if len(names) == 0 {
 		return nil
 	}
-	var enabled []string
+
+	profiles := append([]string{}, p.Profiles...)
 	for _, name := range names {
-		_, err := p.GetService(name)
-		if err == nil {
+		if _, ok := p.Services[name]; ok {
 			// already enabled
 			continue
 		}
-		def, err := p.GetDisabledService(name)
-		if err != nil {
-			return err
-		}
-		enabled = append(enabled, def.Profiles...)
-	}
-
-	profiles := p.Profiles
-PROFILES:
-	for _, profile := range enabled {
-		for _, p := range profiles {
-			if p == profile {
-				continue PROFILES
-			}
-		}
-		profiles = append(profiles, profile)
+		service := p.DisabledServices[name]
+		profiles = append(profiles, service.Profiles...)
 	}
 	p.ApplyProfiles(profiles)
 
@@ -418,8 +405,8 @@ func (p *Project) ForServices(names []string, options ...DependencyOption) error
 	}
 
 	// Disable all services which are not explicit target or dependencies
-	var enabled Services
-	for _, s := range p.Services {
+	enabled := Services{}
+	for name, s := range p.Services {
 		if _, ok := set[s.Name]; ok {
 			for _, option := range options {
 				if option == IgnoreDependencies {
@@ -433,7 +420,7 @@ func (p *Project) ForServices(names []string, options ...DependencyOption) error
 					s.DependsOn = dependencies
 				}
 			}
-			enabled = append(enabled, s)
+			enabled[name] = s
 		} else {
 			p.DisableService(s)
 		}
@@ -450,7 +437,11 @@ func (p *Project) DisableService(service ServiceConfig) {
 			p.Services[i] = s
 		}
 	}
-	p.DisabledServices = append(p.DisabledServices, service)
+	delete(p.Services, service.Name)
+	if p.DisabledServices == nil {
+		p.DisabledServices = Services{}
+	}
+	p.DisabledServices[service.Name] = service
 }
 
 // ResolveImages updates services images to include digest computed by a resolver function

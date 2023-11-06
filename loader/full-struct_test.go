@@ -44,9 +44,9 @@ func fullExampleProject(workingDir, homeDir string) *types.Project {
 	}
 }
 
-func services(workingDir, homeDir string) []types.ServiceConfig {
-	return []types.ServiceConfig{
-		{
+func services(workingDir, homeDir string) types.Services {
+	return types.Services{
+		"foo": {
 			Name: "foo",
 
 			Annotations: map[string]string{
@@ -436,7 +436,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 			},
 			WorkingDir: "/code",
 		},
-		{
+		"bar": {
 			Name: "bar",
 			Build: &types.BuildConfig{
 				Context:          workingDir,

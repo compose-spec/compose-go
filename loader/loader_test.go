@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -214,8 +213,8 @@ func strPtr(val string) *string {
 }
 
 var sampleConfig = types.Config{
-	Services: []types.ServiceConfig{
-		{
+	Services: types.Services{
+		"foo": {
 			Name:        "foo",
 			Image:       "busybox",
 			Environment: map[string]*string{},
@@ -223,7 +222,7 @@ var sampleConfig = types.Config{
 				"with_me": nil,
 			},
 		},
-		{
+		"bar": {
 			Name:        "bar",
 			Image:       "busybox",
 			Environment: map[string]*string{"FOO": strPtr("1")},
@@ -232,7 +231,7 @@ var sampleConfig = types.Config{
 			},
 		},
 	},
-	Networks: map[string]types.NetworkConfig{
+	Networks: types.Networks{
 		"default": {
 			Driver: "bridge",
 			DriverOpts: map[string]string{
@@ -250,7 +249,7 @@ var sampleConfig = types.Config{
 			},
 		},
 	},
-	Volumes: map[string]types.VolumeConfig{
+	Volumes: types.Volumes{
 		"hello": {
 			Driver: "default",
 			DriverOpts: map[string]string{
@@ -272,7 +271,7 @@ func TestLoad(t *testing.T) {
 		options.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(serviceSort(sampleConfig.Services), serviceSort(actual.Services)))
+	assert.Check(t, is.DeepEqual(sampleConfig.Services, actual.Services))
 	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
 	assert.Check(t, is.DeepEqual(sampleConfig.Volumes, actual.Volumes))
 }
@@ -298,7 +297,7 @@ func TestLoadFromFile(t *testing.T) {
 		options.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(serviceSort(sampleConfig.Services), serviceSort(actual.Services)))
+	assert.Check(t, is.DeepEqual(sampleConfig.Services, actual.Services))
 	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
 	assert.Check(t, is.DeepEqual(sampleConfig.Volumes, actual.Volumes))
 }
@@ -312,7 +311,7 @@ services:
     x-foo: bar`)
 	assert.NilError(t, err)
 	assert.Check(t, is.Len(actual.Services, 1))
-	service := actual.Services[0]
+	service := actual.Services["foo"]
 	assert.Check(t, is.Equal("busybox", service.Image))
 	extras := types.Extensions{
 		"x-foo": "bar",
@@ -452,13 +451,13 @@ services:
 `)
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(actual.Services, 1))
-	assert.Check(t, is.Equal(actual.Services[0].CredentialSpec.Config, "0bt9dmxjvjiqermk6xrop3ekq"))
+	assert.Check(t, is.Equal(actual.Services["foo"].CredentialSpec.Config, "0bt9dmxjvjiqermk6xrop3ekq"))
 }
 
 func TestParseAndLoad(t *testing.T) {
 	actual, err := loadYAML(sampleYAML)
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(serviceSort(sampleConfig.Services), serviceSort(actual.Services)))
+	assert.Check(t, is.DeepEqual(sampleConfig.Services, actual.Services))
 	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
 	assert.Check(t, is.DeepEqual(sampleConfig.Volumes, actual.Volumes))
 }
@@ -699,7 +698,7 @@ volumes:
 		"default":     "default",
 	}
 
-	assert.Check(t, is.DeepEqual(expectedLabels, config.Services[0].Labels))
+	assert.Check(t, is.DeepEqual(expectedLabels, config.Services["test"].Labels))
 	assert.Check(t, is.Equal(home, config.Networks["test"].Driver))
 	assert.Check(t, is.Equal(home, config.Volumes["test"].Driver))
 }
@@ -792,11 +791,12 @@ networks:
 	assert.NilError(t, err)
 	typesDuration := types.Duration(duration)
 	expected := &types.Project{
-		Name:        "load-with-interpolation-cast-full",
-		Environment: env,
-		WorkingDir:  workingDir,
-		Services: []types.ServiceConfig{
-			{
+		Name:             "load-with-interpolation-cast-full",
+		Environment:      env,
+		WorkingDir:       workingDir,
+		DisabledServices: types.Services{},
+		Services: types.Services{
+			"web": {
 				Name: "web",
 				Configs: []types.ServiceConfigObjConfig{
 					{
@@ -877,7 +877,7 @@ networks:
 		},
 	}
 
-	assert.Check(t, is.DeepEqual(expected, config))
+	assert.DeepEqual(t, expected, config)
 }
 
 func TestUnsupportedProperties(t *testing.T) {
@@ -927,15 +927,15 @@ services:
 		options.ResolvePaths = false
 	})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, configWithEnvFiles.Services[0].EnvFile, types.StringList{"example1.env",
+	assert.DeepEqual(t, configWithEnvFiles.Services["web"].EnvFile, types.StringList{"example1.env",
 		"example2.env"})
-	assert.DeepEqual(t, configWithEnvFiles.Services[0].Environment, expectedEnvironmentMap)
+	assert.DeepEqual(t, configWithEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
 
 	// Custom behavior removes the `env_file` entries
 	configWithoutEnvFiles, err := Load(configDetails, WithDiscardEnvFiles)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, configWithoutEnvFiles.Services[0].EnvFile, types.StringList(nil))
-	assert.DeepEqual(t, configWithoutEnvFiles.Services[0].Environment, expectedEnvironmentMap)
+	assert.DeepEqual(t, configWithoutEnvFiles.Services["web"].EnvFile, types.StringList(nil))
+	assert.DeepEqual(t, configWithoutEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
 }
 
 func TestBuildProperties(t *testing.T) {
@@ -1050,7 +1050,8 @@ services:
 `, map[string]string{"FOO_SCALE": "2"})
 
 	assert.NilError(t, err)
-	assert.Equal(t, *project.Services[0].Scale, 2)
+	foo := project.Services["foo"]
+	assert.Equal(t, *foo.Scale, 2)
 }
 
 func durationPtr(value time.Duration) *types.Duration {
@@ -1090,7 +1091,7 @@ func TestFullExample(t *testing.T) {
 	expectedConfig := fullExampleProject(workingDir, homeDir)
 
 	assert.Check(t, is.DeepEqual(expectedConfig.Name, config.Name))
-	assert.Check(t, is.DeepEqual(serviceSort(expectedConfig.Services), serviceSort(config.Services)))
+	assert.Check(t, is.DeepEqual(expectedConfig.Services, config.Services))
 	assert.Check(t, is.DeepEqual(expectedConfig.Networks, config.Networks))
 	assert.Check(t, is.DeepEqual(expectedConfig.Volumes, config.Volumes))
 	assert.Check(t, is.DeepEqual(expectedConfig.Secrets, config.Secrets))
@@ -1123,8 +1124,8 @@ services:
 		}
 
 		assert.Assert(t, is.Len(config.Services, 1))
-		assert.Check(t, is.Len(config.Services[0].Volumes, 1))
-		assert.Check(t, is.DeepEqual(expected, config.Services[0].Volumes[0]))
+		assert.Check(t, is.Len(config.Services["tmpfs"].Volumes, 1))
+		assert.Check(t, is.DeepEqual(expected, config.Services["tmpfs"].Volumes[0]))
 	}
 }
 
@@ -1167,7 +1168,7 @@ func TestLoadBindMountSourceIsWindowsAbsolute(t *testing.T) {
 			yaml: `
 name: load-bind-mount-source-is-windows-absolute
 services:
-  windows:
+  test:
     image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2019
     volumes:
       - type: bind
@@ -1181,7 +1182,7 @@ services:
 			yaml: `
 name: load-bind-mount-source-is-windows-absolute
 services:
-  windows:
+  test:
     image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2019
     volumes:
       - type: bind
@@ -1195,7 +1196,7 @@ services:
 			yaml: `
 name: load-bind-mount-source-is-windows-absolute
 services:
-  windows:
+  test:
     image: mcr.microsoft.com/windows/servercore/iis:windowsservercore-ltsc2019
     volumes:
       - type: bind
@@ -1209,7 +1210,7 @@ services:
 			yaml: `
 name: load-bind-mount-source-is-windows-absolute
 services:
-  app:
+  test:
     image: app:latest
     volumes:
       - type: bind
@@ -1224,8 +1225,8 @@ services:
 		t.Run(tc.doc, func(t *testing.T) {
 			config, err := loadYAML(tc.yaml)
 			assert.NilError(t, err)
-			assert.Check(t, is.Len(config.Services[0].Volumes, 1))
-			assert.Check(t, is.DeepEqual(tc.expected, config.Services[0].Volumes[0]))
+			assert.Check(t, is.Len(config.Services["test"].Volumes, 1))
+			assert.Check(t, is.DeepEqual(tc.expected, config.Services["test"].Volumes[0]))
 		})
 	}
 }
@@ -1253,8 +1254,8 @@ services:
 	}
 
 	assert.Assert(t, is.Len(config.Services, 1))
-	assert.Check(t, is.Len(config.Services[0].Volumes, 1))
-	assert.Check(t, is.DeepEqual(expected, config.Services[0].Volumes[0]))
+	assert.Check(t, is.Len(config.Services["bind"].Volumes, 1))
+	assert.Check(t, is.DeepEqual(expected, config.Services["bind"].Volumes[0]))
 }
 
 func TestLoadTmpfsVolumeSizeCanBeZero(t *testing.T) {
@@ -1278,8 +1279,8 @@ services:
 	}
 
 	assert.Assert(t, is.Len(config.Services, 1))
-	assert.Check(t, is.Len(config.Services[0].Volumes, 1))
-	assert.Check(t, is.DeepEqual(expected, config.Services[0].Volumes[0]))
+	assert.Check(t, is.Len(config.Services["tmpfs"].Volumes, 1))
+	assert.Check(t, is.DeepEqual(expected, config.Services["tmpfs"].Volumes[0]))
 }
 
 func TestLoadTmpfsVolumeSizeMustBeGTEQZero(t *testing.T) {
@@ -1310,13 +1311,6 @@ services:
           size: 0.0001
 `)
 	assert.ErrorContains(t, err, "services.tmpfs.volumes.0.tmpfs.size must be a integer")
-}
-
-func serviceSort(services []types.ServiceConfig) []types.ServiceConfig {
-	sort.Slice(services, func(i, j int) bool {
-		return services[i].Name < services[j].Name
-	})
-	return services
 }
 
 func TestLoadAttachableNetwork(t *testing.T) {
@@ -1366,7 +1360,7 @@ services:
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Len(config.Services, 1))
-	assert.Check(t, is.DeepEqual(samplePortsConfig, config.Services[0].Ports))
+	assert.Check(t, is.DeepEqual(samplePortsConfig, config.Services["web"].Ports))
 }
 
 func TestLoadExpandedMountFormat(t *testing.T) {
@@ -1393,8 +1387,8 @@ volumes:
 	}
 
 	assert.Assert(t, is.Len(config.Services, 1))
-	assert.Check(t, is.Len(config.Services[0].Volumes, 1))
-	assert.Check(t, is.DeepEqual(expected, config.Services[0].Volumes[0]))
+	assert.Check(t, is.Len(config.Services["web"].Volumes, 1))
+	assert.Check(t, is.DeepEqual(expected, config.Services["web"].Volumes[0]))
 }
 
 func TestLoadExtraHostsMap(t *testing.T) {
@@ -1415,7 +1409,7 @@ services:
 	}
 
 	assert.Assert(t, is.Len(config.Services, 1))
-	assert.Check(t, is.DeepEqual(expected, config.Services[0].ExtraHosts))
+	assert.Check(t, is.DeepEqual(expected, config.Services["web"].ExtraHosts))
 }
 
 func TestLoadExtraHostsList(t *testing.T) {
@@ -1436,7 +1430,7 @@ services:
 	}
 
 	assert.Assert(t, is.Len(config.Services, 1))
-	assert.Check(t, is.DeepEqual(expected, config.Services[0].ExtraHosts))
+	assert.Check(t, is.DeepEqual(expected, config.Services["web"].ExtraHosts))
 }
 
 func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
@@ -1482,7 +1476,7 @@ configs:
 `)
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(actual.Services, 1))
-	assert.Check(t, is.Equal("invalid", actual.Services[0].Isolation))
+	assert.Check(t, is.Equal("invalid", actual.Services["foo"].Isolation))
 }
 
 func TestLoadSecretInvalidExternalNameAndNameCombination(t *testing.T) {
@@ -1580,7 +1574,7 @@ networks:
 		Name:       "load-network-with-name",
 		WorkingDir: workingDir,
 		Services: types.Services{
-			{
+			"hello-world": {
 				Name:  "hello-world",
 				Image: "redis:alpine",
 				Networks: map[string]*types.ServiceNetworkConfig{
@@ -1630,7 +1624,7 @@ networks:
 		Name:       "load-network-link-local-ips",
 		WorkingDir: workingDir,
 		Services: types.Services{
-			{
+			"foo": {
 				Name:  "foo",
 				Image: "alpine",
 				Networks: map[string]*types.ServiceNetworkConfig{
@@ -1708,7 +1702,7 @@ services:
 			config, err := loadYAML(testcase.yaml)
 			assert.NilError(t, err)
 			assert.Check(t, is.Len(config.Services, 1))
-			assert.Check(t, is.DeepEqual(config.Services[0].Init, testcase.init))
+			assert.Check(t, is.DeepEqual(config.Services["foo"].Init, testcase.init))
 		})
 	}
 }
@@ -1735,7 +1729,7 @@ services:
 	}
 
 	assert.Assert(t, is.Len(config.Services, 1))
-	assert.Check(t, is.DeepEqual(expected, config.Services[0].Sysctls))
+	assert.Check(t, is.DeepEqual(expected, config.Services["web"].Sysctls))
 
 	config, err = loadYAML(`
 name: load-sysctls
@@ -1751,7 +1745,7 @@ services:
 	assert.NilError(t, err)
 
 	assert.Assert(t, is.Len(config.Services, 1))
-	assert.Check(t, is.DeepEqual(expected, config.Services[0].Sysctls))
+	assert.Check(t, is.DeepEqual(expected, config.Services["web"].Sysctls))
 }
 
 func TestLoadTemplateDriver(t *testing.T) {
@@ -1786,7 +1780,7 @@ secrets:
 		Name:       "load-template-driver",
 		WorkingDir: workingDir,
 		Services: types.Services{
-			{
+			"hello-world": {
 				Name:  "hello-world",
 				Image: "redis:alpine",
 				Configs: []types.ServiceConfigObjConfig{
@@ -1855,7 +1849,7 @@ secrets:
 		Name:       "load-secret-driver",
 		WorkingDir: workingDir,
 		Services: types.Services{
-			{
+			"hello-world": {
 				Name:  "hello-world",
 				Image: "redis:alpine",
 				Configs: []types.ServiceConfigObjConfig{
@@ -1905,9 +1899,6 @@ func TestComposeFileWithVersion(t *testing.T) {
 
 	expectedConfig := withVersionExampleConfig()
 
-	sort.Slice(config.Services, func(i, j int) bool {
-		return config.Services[i].Name > config.Services[j].Name
-	})
 	assert.Check(t, is.DeepEqual(expectedConfig.Services, config.Services))
 	assert.Check(t, is.DeepEqual(expectedConfig.Networks, config.Networks))
 	assert.Check(t, is.DeepEqual(expectedConfig.Volumes, config.Volumes))
@@ -1933,7 +1924,7 @@ func TestLoadWithExtends(t *testing.T) {
 	expectedEnvFilePath := filepath.Join(extendsDir, "extra.env")
 
 	expServices := types.Services{
-		{
+		"importer": {
 			Name:          "importer",
 			Image:         "nginx",
 			ContainerName: "imported",
@@ -1969,7 +1960,7 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 	assert.NilError(t, err)
 
 	expServices := types.Services{
-		{
+		"importer-with-https-url": {
 			Name: "importer-with-https-url",
 			Build: &types.BuildConfig{
 				Context:    "https://github.com/docker/compose.git",
@@ -2099,16 +2090,16 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 		Environment: map[string]string{
 			"TEST": "YES",
 		},
-		Services: []types.ServiceConfig{
-			{
-				Name:    "Test",
+		Services: types.Services{
+			"test": {
+				Name:    "test",
 				EnvFile: []string{file.Name()},
 			},
 		},
 	}
 	err = p.ResolveServicesEnvironment(false)
 	assert.NilError(t, err)
-	service, err := p.GetService("Test")
+	service, err := p.GetService("test")
 	assert.NilError(t, err)
 	assert.Equal(t, "YES", *service.Environment["HALLO"])
 }
@@ -2147,7 +2138,7 @@ services:
     init: yes # used to be a valid YAML bool, removed in YAML 1.2
 `)
 	assert.NilError(t, err)
-	assert.Check(t, *actual.Services[0].Init)
+	assert.Check(t, *actual.Services["test"].Init)
 }
 
 func TestLoadSSHWithDefaultValueInBuildConfig(t *testing.T) {
@@ -2318,8 +2309,8 @@ services:
 
 	project, err := Load(configDetails)
 	assert.NilError(t, err)
-	assert.Equal(t, project.Services[0].Name, "extension")
-	assert.Equal(t, project.Services[0].Extensions["x-foo"], "bar")
+	assert.Equal(t, project.Services["extension"].Name, "extension")
+	assert.Equal(t, project.Services["extension"].Extensions["x-foo"], "bar")
 }
 
 func TestDeviceWriteBps(t *testing.T) {
@@ -2338,7 +2329,7 @@ func TestDeviceWriteBps(t *testing.T) {
 `)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
-		{
+		"foo": {
 			Name:        "foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
@@ -2381,7 +2372,7 @@ volumes:
 `)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
-		{
+		"foo": {
 			Name:        "foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
@@ -2406,7 +2397,7 @@ services:
 `)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
-		{
+		"x-foo": {
 			Name:        "x-foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
@@ -2434,14 +2425,14 @@ services:
 		options.ResolvePaths = true
 	})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, serviceSort(p.Services), serviceSort(types.Services{
-		{
+	assert.DeepEqual(t, p.Services, types.Services{
+		"foo": {
 			Name:        "foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
 			DependsOn:   types.DependsOnConfig{"imported": {Condition: "service_started", Required: true}},
 		},
-		{
+		"imported": {
 			Name:          "imported",
 			ContainerName: "extends", // as defined by ./testdata/subdir/extra.env
 			Environment:   types.MappingWithEquals{"SOURCE": strPtr("extends")},
@@ -2458,7 +2449,7 @@ services:
 				},
 			},
 		},
-	}))
+	})
 	/* TODO(ndeloof) restore support for include tracking
 	assert.DeepEqual(t, p.IncludeReferences, map[string][]types.IncludeConfig{
 		filepath.Join(workingDir, "filename0.yml"): {
@@ -2571,7 +2562,7 @@ services:
 `)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
-		{
+		"foo": {
 			Name:        "foo",
 			Image:       "nginx",
 			Environment: types.MappingWithEquals{},
@@ -2621,7 +2612,7 @@ services:
 	})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
-		{
+		"foo": {
 			Name:        "foo",
 			Image:       "foo",
 			Environment: types.MappingWithEquals{"FOO": strPtr("BAR")},
@@ -2712,7 +2703,7 @@ services:
 
 `)
 	assert.NilError(t, err)
-	assert.Equal(t, project.Services[0].Image, "nginx:override")
+	assert.Equal(t, project.Services["test"].Image, "nginx:override")
 }
 
 func TestLoadDevelopConfig(t *testing.T) {
@@ -2820,10 +2811,10 @@ services:
     memswap_limit: 640kb
 `)
 	assert.NilError(t, err)
-	test1, err := project.GetService("test1")
+	test1 := project.Services["test1"]
 	assert.NilError(t, err)
 	assert.Equal(t, test1.MemSwapLimit, types.UnitBytes(-1))
-	test2, err := project.GetService("test2")
+	test2 := project.Services["test2"]
 	assert.NilError(t, err)
 	assert.Equal(t, test2.MemSwapLimit, types.UnitBytes(640*1024))
 }

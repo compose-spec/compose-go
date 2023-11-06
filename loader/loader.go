@@ -580,8 +580,8 @@ func Transform(source interface{}, target interface{}) error {
 	data := mapstructure.Metadata{}
 	config := &mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			nameServices,
 			decoderHook,
-			makeServiceSlice,
 			cast),
 		Result:   target,
 		TagName:  "yaml",
@@ -594,21 +594,16 @@ func Transform(source interface{}, target interface{}) error {
 	return decoder.Decode(source)
 }
 
-func makeServiceSlice(from reflect.Value, to reflect.Value) (interface{}, error) {
+// nameServices create implicit `name` key for convenience accessing service
+func nameServices(from reflect.Value, to reflect.Value) (interface{}, error) {
 	if to.Type() == reflect.TypeOf(types.Services{}) {
-		keys := from.MapKeys()
-		services := make([]any, len(keys))
-		i := 0
-		for _, key := range keys {
-			service := from.MapIndex(key).Elem()
-			if service.Kind() != reflect.Map {
-				return nil, fmt.Errorf("unexpected service type %T", service)
-			}
-			service.SetMapIndex(reflect.ValueOf("name"), key)
-			services[i] = service.Interface()
-			i++
+		nameK := reflect.ValueOf("name")
+		iter := from.MapRange()
+		for iter.Next() {
+			name := iter.Key()
+			elem := iter.Value()
+			elem.Elem().SetMapIndex(nameK, name)
 		}
-		return services, nil
 	}
 	return from.Interface(), nil
 }

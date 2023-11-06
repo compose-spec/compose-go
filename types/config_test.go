@@ -24,8 +24,8 @@ import (
 
 func Test_WithServices(t *testing.T) {
 	p := Project{
-		Services: append(Services{},
-			ServiceConfig{
+		Services: Services{
+			"service_1": ServiceConfig{
 				Name: "service_1",
 				DependsOn: map[string]ServiceDependency{
 					"service_3": {
@@ -33,9 +33,11 @@ func Test_WithServices(t *testing.T) {
 						Required:  true,
 					},
 				},
-			}, ServiceConfig{
+			},
+			"service_2": ServiceConfig{
 				Name: "service_2",
-			}, ServiceConfig{
+			},
+			"service_3": ServiceConfig{
 				Name: "service_3",
 				DependsOn: map[string]ServiceDependency{
 					"service_2": {
@@ -43,7 +45,8 @@ func Test_WithServices(t *testing.T) {
 						Required:  true,
 					},
 				},
-			}),
+			},
+		},
 	}
 	order := []string{}
 	fn := func(service ServiceConfig) error {
