@@ -699,6 +699,7 @@ type FileObjectConfig struct {
 	Name           string            `yaml:"name,omitempty" json:"name,omitempty"`
 	File           string            `yaml:"file,omitempty" json:"file,omitempty"`
 	Environment    string            `yaml:"environment,omitempty" json:"environment,omitempty"`
+	Content        string            `yaml:"content,omitempty" json:"content,omitempty"`
 	External       External          `yaml:"external,omitempty" json:"external,omitempty"`
 	Labels         Labels            `yaml:"labels,omitempty" json:"labels,omitempty"`
 	Driver         string            `yaml:"driver,omitempty" json:"driver,omitempty"`
