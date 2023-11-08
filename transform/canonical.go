@@ -36,6 +36,7 @@ func init() {
 	transformers["services.*.build"] = transformBuild
 	transformers["services.*.build.ssh"] = transformSSH
 	transformers["services.*.ulimits.*"] = transformUlimits
+	transformers["services.*.build.ulimits.*"] = transformUlimits
 	transformers["volumes.*"] = transformMaybeExternal
 	transformers["networks.*"] = transformMaybeExternal
 	transformers["secrets.*"] = transformMaybeExternal
