@@ -2909,3 +2909,30 @@ networks:
 	})
 	assert.ErrorContains(t, err, "service redis declares mutually exclusive `network_mode` and `networks`")
 }
+
+func TestBuildUlimits(t *testing.T) {
+	yaml := `
+name: test-build-ulimits
+services:
+  test:
+    build:
+      context: .
+      ulimits:
+        nproc: 65535
+        nofile:
+          soft: 20000
+          hard: 40000
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services[0].Build.Ulimits, map[string]*types.UlimitsConfig{
+		"nproc":  {Single: 65535},
+		"nofile": {Soft: 20000, Hard: 40000},
+	})
+}
