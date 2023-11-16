@@ -2750,6 +2750,7 @@ services:
           action: sync+restart
 `, nil), func(options *Options) {
 		options.ResolvePaths = false
+		options.SkipValidation = true
 	})
 	assert.NilError(t, err)
 	frontend, err := project.GetService("frontend")

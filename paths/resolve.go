@@ -96,7 +96,10 @@ func (r *relativePathsResolver) absPath(value any) (any, error) {
 		if filepath.IsAbs(v) {
 			return v, nil
 		}
-		return filepath.Join(r.workingDir, v), nil
+		if v != "" {
+			return filepath.Join(r.workingDir, v), nil
+		}
+		return v, nil
 	}
 	return nil, fmt.Errorf("unexpected type %T", value)
 }
