@@ -18,17 +18,20 @@ package validation
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/pkg/errors"
 )
 
 type checkerFunc func(value any, p tree.Path) error
 
 var checks = map[tree.Path]checkerFunc{
-	"volumes.*": checkVolume,
-	"configs.*": checkFileObject("file", "environment", "content"),
-	"secrets.*": checkFileObject("file", "environment"),
+	"volumes.*":                       checkVolume,
+	"configs.*":                       checkFileObject("file", "environment", "content"),
+	"secrets.*":                       checkFileObject("file", "environment"),
+	"services.*.develop.watch.*.path": checkPath,
 }
 
 func Validate(dict map[string]any) error {
@@ -84,4 +87,15 @@ func checkFileObject(keys ...string) checkerFunc {
 		}
 		return nil
 	}
+}
+
+func checkPath(value any, p tree.Path) error {
+	v := value.(string)
+	if v == "" {
+		return errors.Errorf("%s: value can't be blank", p)
+	}
+	if _, err := os.Stat(v); err != nil {
+		return errors.Wrapf(err, "%s: invalid path %s", p, value)
+	}
+	return nil
 }

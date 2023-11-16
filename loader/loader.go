@@ -373,9 +373,10 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 
 	dict = groupXFieldsIntoExtensions(dict, tree.NewPath())
 
-	// TODO(ndeloof) shall we implement this as a Validate func on types ?
-	if err := validation.Validate(dict); err != nil {
-		return nil, err
+	if !opts.SkipValidation {
+		if err := validation.Validate(dict); err != nil {
+			return nil, err
+		}
 	}
 
 	if opts.ResolvePaths {
