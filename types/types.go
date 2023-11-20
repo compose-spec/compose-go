@@ -419,6 +419,7 @@ type ServiceNetworkConfig struct {
 	Ipv4Address  string   `yaml:"ipv4_address,omitempty" json:"ipv4_address,omitempty"`
 	Ipv6Address  string   `yaml:"ipv6_address,omitempty" json:"ipv6_address,omitempty"`
 	LinkLocalIPs []string `yaml:"link_local_ips,omitempty" json:"link_local_ips,omitempty"`
+	MacAddress   string   `yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
 }
