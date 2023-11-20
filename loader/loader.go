@@ -373,15 +373,15 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 
 	dict = groupXFieldsIntoExtensions(dict, tree.NewPath())
 
-	if !opts.SkipValidation {
-		if err := validation.Validate(dict); err != nil {
+	if opts.ResolvePaths {
+		err = paths.ResolveRelativePaths(dict, config.WorkingDir)
+		if err != nil {
 			return nil, err
 		}
 	}
 
-	if opts.ResolvePaths {
-		err = paths.ResolveRelativePaths(dict, config.WorkingDir)
-		if err != nil {
+	if !opts.SkipValidation {
+		if err := validation.Validate(dict); err != nil {
 			return nil, err
 		}
 	}
