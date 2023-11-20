@@ -233,6 +233,7 @@ func services(workingDir, homeDir string) []types.ServiceConfig {
 				"other-network": {
 					Ipv4Address: "172.16.238.10",
 					Ipv6Address: "2001:3984:3989::10",
+					MacAddress:  "02:42:72:98:65:08",
 				},
 				"other-other-network": nil,
 			},
@@ -775,6 +776,7 @@ services:
       other-network:
         ipv4_address: 172.16.238.10
         ipv6_address: 2001:3984:3989::10
+        mac_address: 02:42:72:98:65:08
       other-other-network: null
       some-network:
         aliases:
@@ -1392,7 +1394,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "networks": {
         "other-network": {
           "ipv4_address": "172.16.238.10",
-          "ipv6_address": "2001:3984:3989::10"
+          "ipv6_address": "2001:3984:3989::10",
+          "mac_address": "02:42:72:98:65:08"
         },
         "other-other-network": null,
         "some-network": {
