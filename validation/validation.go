@@ -18,7 +18,6 @@ package validation
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -93,9 +92,6 @@ func checkPath(value any, p tree.Path) error {
 	v := value.(string)
 	if v == "" {
 		return errors.Errorf("%s: value can't be blank", p)
-	}
-	if _, err := os.Stat(v); err != nil {
-		return errors.Wrapf(err, "%s: invalid path %s", p, value)
 	}
 	return nil
 }
