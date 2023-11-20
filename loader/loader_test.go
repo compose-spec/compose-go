@@ -2081,6 +2081,18 @@ services:
 	assert.NilError(t, err)
 }
 
+func TestEmptyFile(t *testing.T) {
+	_, err := LoadWithContext(context.TODO(),
+		types.ConfigDetails{
+			ConfigFiles: []types.ConfigFile{
+				{
+					Filename: filepath.Join("testdata", "empty.yaml"),
+				},
+			},
+		})
+	assert.Error(t, err, "empty compose file")
+}
+
 func TestLoadServiceWithEnvFile(t *testing.T) {
 	file, err := os.CreateTemp("", "test-compose-go")
 	assert.NilError(t, err)
