@@ -169,6 +169,24 @@ func (s *ServiceConfig) NetworksByPriority() []string {
 	return sorted
 }
 
+func (s *ServiceConfig) GetScale() int {
+	if s.Scale != nil {
+		return *s.Scale
+	}
+	if s.Deploy != nil && s.Deploy.Replicas != nil {
+		// this should not be required as compose-go enforce consistency between scale anr replicas
+		return *s.Deploy.Replicas
+	}
+	return 1
+}
+
+func (s *ServiceConfig) SetScale(scale int) {
+	s.Scale = &scale
+	if s.Deploy != nil {
+		s.Deploy.Replicas = &scale
+	}
+}
+
 const (
 	// PullPolicyAlways always pull images
 	PullPolicyAlways = "always"
