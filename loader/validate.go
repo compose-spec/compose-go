@@ -109,11 +109,23 @@ func checkConsistency(project *types.Project) error {
 
 		if s.Scale != nil && s.Deploy != nil {
 			if s.Deploy.Replicas != nil && *s.Scale != *s.Deploy.Replicas {
-				return errors.Wrap(errdefs.ErrInvalid, "can't set distinct values on 'scale' and 'deploy.replicas'")
+				return errors.Wrapf(errdefs.ErrInvalid,
+					"services.%s: can't set distinct values on 'scale' and 'deploy.replicas'",
+					s.Name)
 			}
 			s.Deploy.Replicas = s.Scale
 		}
 
+		if s.GetScale() > 1 && s.ContainerName != "" {
+			attr := "scale"
+			if s.Scale == nil {
+				attr = "deploy.replicas"
+			}
+			return errors.Wrapf(errdefs.ErrInvalid,
+				"services.%s: can't set container_name and %s as container name must be unique",
+				attr,
+				s.Name)
+		}
 	}
 
 	for name, secret := range project.Secrets {
