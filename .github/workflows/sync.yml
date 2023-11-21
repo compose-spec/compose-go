@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3.3.0
+        uses: actions/checkout@v4
 
       - name: Download schema
         run: curl -fSL -o schema/compose-spec.json https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
@@ -27,3 +27,26 @@ jobs:
           commit-message: Update compose-spec.json
           signoff: true
           branch: compose-spec
+  schema-v1:
+    name: Update Schema
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: v1
+
+      - name: Download schema
+        run: curl -fSL -o schema/compose-spec.json https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+
+      - name: Show diff
+        run: git diff schema/compose-spec.json
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v4
+        with:
+          title: Update compose-spec.json
+          commit-message: Update compose-spec.json
+          signoff: true
+          branch: compose-spec-v1
