@@ -22,9 +22,6 @@ import (
 
 func transformService(data any, p tree.Path) (any, error) {
 	value := data.(map[string]any)
-	if _, ok := value["scale"]; !ok {
-		value["scale"] = 1 // TODO(ndeloof) we should make scale a *int
-	}
 	return transformMapping(value, p)
 }
 

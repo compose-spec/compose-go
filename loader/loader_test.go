@@ -222,7 +222,6 @@ var sampleConfig = types.Config{
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_me": nil,
 			},
-			Scale: 1,
 		},
 		{
 			Name:        "bar",
@@ -231,7 +230,6 @@ var sampleConfig = types.Config{
 			Networks: map[string]*types.ServiceNetworkConfig{
 				"with_ipam": nil,
 			},
-			Scale: 1,
 		},
 	},
 	Networks: map[string]types.NetworkConfig{
@@ -817,7 +815,7 @@ networks:
 					Disable: true,
 				},
 				Deploy: &types.DeployConfig{
-					Replicas: uint64Ptr(555),
+					Replicas: intPtr(555),
 					UpdateConfig: &types.UpdateConfig{
 						Parallelism:     uint64Ptr(555),
 						MaxFailureRatio: 3.14,
@@ -844,7 +842,6 @@ networks:
 				},
 				Privileged:      true,
 				ReadOnly:        true,
-				Scale:           1,
 				ShmSize:         types.UnitBytes(2 * 1024 * 1024 * 1024),
 				StopGracePeriod: &typesDuration,
 				StdinOpen:       true,
@@ -1054,12 +1051,16 @@ services:
 `, map[string]string{"FOO_SCALE": "2"})
 
 	assert.NilError(t, err)
-	assert.Equal(t, project.Services[0].Scale, 2)
+	assert.Equal(t, *project.Services[0].Scale, 2)
 }
 
 func durationPtr(value time.Duration) *types.Duration {
 	result := types.Duration(value)
 	return &result
+}
+
+func intPtr(value int) *int {
+	return &value
 }
 
 func uint64Ptr(value uint64) *uint64 {
@@ -1583,7 +1584,6 @@ networks:
 			{
 				Name:  "hello-world",
 				Image: "redis:alpine",
-				Scale: 1,
 				Networks: map[string]*types.ServiceNetworkConfig{
 					"network1": nil,
 					"network3": nil,
@@ -1634,7 +1634,6 @@ networks:
 			{
 				Name:  "foo",
 				Image: "alpine",
-				Scale: 1,
 				Networks: map[string]*types.ServiceNetworkConfig{
 					"network1": {
 						Ipv4Address: "10.1.0.100",
@@ -1796,7 +1795,6 @@ secrets:
 						Source: "config",
 					},
 				},
-				Scale: 1,
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "secret",
@@ -1866,7 +1864,6 @@ secrets:
 						Source: "config",
 					},
 				},
-				Scale: 1,
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "secret",
@@ -1952,7 +1949,6 @@ func TestLoadWithExtends(t *testing.T) {
 				Target: "/var/lib/mysql",
 				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
 			}},
-			Scale: 1,
 		},
 	}
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
@@ -1982,7 +1978,6 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 			},
 			Environment: types.MappingWithEquals{},
 			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
-			Scale:       1,
 		},
 	}
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
@@ -2348,7 +2343,6 @@ func TestDeviceWriteBps(t *testing.T) {
 			Name:        "foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
-			Scale:       1,
 			BlkioConfig: &types.BlkioConfig{
 				DeviceReadBps: []types.ThrottleDevice{
 					{
@@ -2392,7 +2386,6 @@ volumes:
 			Name:        "foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
-			Scale:       1,
 			Volumes: []types.ServiceVolumeConfig{
 				{
 					Type:   types.VolumeTypeVolume,
@@ -2418,7 +2411,6 @@ services:
 			Name:        "x-foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
-			Scale:       1,
 		},
 	})
 }
@@ -2448,7 +2440,6 @@ services:
 			Name:        "foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
-			Scale:       1,
 			DependsOn:   types.DependsOnConfig{"imported": {Condition: "service_started", Required: true}},
 		},
 		{
@@ -2459,7 +2450,6 @@ services:
 				filepath.Join(workingDir, "testdata", "subdir", "extra.env"),
 			},
 			Image: "nginx",
-			Scale: 1,
 			Volumes: []types.ServiceVolumeConfig{
 				{
 					Type:   "bind",
@@ -2586,7 +2576,6 @@ services:
 			Name:        "foo",
 			Image:       "nginx",
 			Environment: types.MappingWithEquals{},
-			Scale:       1,
 			DependsOn: types.DependsOnConfig{
 				"bar": {Condition: types.ServiceConditionStarted, Required: true},
 				"baz": {Condition: types.ServiceConditionHealthy, Required: false},
@@ -2640,7 +2629,6 @@ services:
 			EnvFile: types.StringList{
 				filepath.Join(config.WorkingDir, "testdata", "remote", "env"),
 			},
-			Scale: 1,
 			Volumes: []types.ServiceVolumeConfig{
 				{
 					Type:   types.VolumeTypeBind,
@@ -2833,8 +2821,12 @@ services:
     memswap_limit: 640kb
 `)
 	assert.NilError(t, err)
-	assert.Equal(t, project.Services[0].MemSwapLimit, types.UnitBytes(-1))
-	assert.Equal(t, project.Services[1].MemSwapLimit, types.UnitBytes(640*1024))
+	test1, err := project.GetService("test1")
+	assert.NilError(t, err)
+	assert.Equal(t, test1.MemSwapLimit, types.UnitBytes(-1))
+	test2, err := project.GetService("test2")
+	assert.NilError(t, err)
+	assert.Equal(t, test2.MemSwapLimit, types.UnitBytes(640*1024))
 }
 
 func TestBuildUlimits(t *testing.T) {

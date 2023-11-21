@@ -116,11 +116,6 @@ func Normalize(project *types.Project) error {
 			return err
 		}
 
-		err = relocateScale(&s)
-		if err != nil {
-			return err
-		}
-
 		inferImplicitDependencies(&s)
 
 		project.Services[i] = s
@@ -196,21 +191,6 @@ func setIfMissing(d types.DependsOnConfig, service string, dep types.ServiceDepe
 		d[service] = dep
 	}
 	return d
-}
-
-func relocateScale(s *types.ServiceConfig) error {
-	scale := uint64(s.Scale)
-	if scale > 1 {
-		logrus.Warn("`scale` is deprecated. Use the `deploy.replicas` element")
-		if s.Deploy == nil {
-			s.Deploy = &types.DeployConfig{}
-		}
-		if s.Deploy.Replicas != nil && *s.Deploy.Replicas != scale {
-			return errors.Wrap(errdefs.ErrInvalid, "can't use both 'scale' (deprecated) and 'deploy.replicas'")
-		}
-		s.Deploy.Replicas = &scale
-	}
-	return nil
 }
 
 // Resources with no explicit name are actually named by their key in map

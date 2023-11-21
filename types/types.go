@@ -112,7 +112,7 @@ type ServiceConfig struct {
 	ReadOnly        bool                             `yaml:"read_only,omitempty" json:"read_only,omitempty"`
 	Restart         string                           `yaml:"restart,omitempty" json:"restart,omitempty"`
 	Runtime         string                           `yaml:"runtime,omitempty" json:"runtime,omitempty"`
-	Scale           int                              `yaml:"scale,omitempty" json:"scale,omitempty"`
+	Scale           *int                             `yaml:"scale,omitempty" json:"scale,omitempty"`
 	Secrets         []ServiceSecretConfig            `yaml:"secrets,omitempty" json:"secrets,omitempty"`
 	SecurityOpt     []string                         `yaml:"security_opt,omitempty" json:"security_opt,omitempty"`
 	ShmSize         UnitBytes                        `yaml:"shm_size,omitempty" json:"shm_size,omitempty"`
@@ -138,17 +138,8 @@ type ServiceConfig struct {
 func (s ServiceConfig) MarshalYAML() (interface{}, error) {
 	type t ServiceConfig
 	value := t(s)
-	value.Scale = 0 // deprecated, but default value "1" doesn't match omitempty
 	value.Name = "" // set during map to slice conversion, not part of the yaml representation
 	return value, nil
-}
-
-// MarshalJSON makes ServiceConfig implement json.Marshaller
-func (s ServiceConfig) MarshalJSON() ([]byte, error) {
-	type t ServiceConfig
-	value := t(s)
-	value.Scale = 0 // deprecated, but default value "1" doesn't match omitempty
-	return json.Marshal(value)
 }
 
 // NetworksByPriority return the service networks IDs sorted according to Priority
@@ -323,7 +314,7 @@ type LoggingConfig struct {
 // DeployConfig the deployment configuration for a service
 type DeployConfig struct {
 	Mode           string         `yaml:"mode,omitempty" json:"mode,omitempty"`
-	Replicas       *uint64        `yaml:"replicas,omitempty" json:"replicas,omitempty"`
+	Replicas       *int           `yaml:"replicas,omitempty" json:"replicas,omitempty"`
 	Labels         Labels         `yaml:"labels,omitempty" json:"labels,omitempty"`
 	UpdateConfig   *UpdateConfig  `yaml:"update_config,omitempty" json:"update_config,omitempty"`
 	RollbackConfig *UpdateConfig  `yaml:"rollback_config,omitempty" json:"rollback_config,omitempty"`
