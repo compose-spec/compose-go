@@ -20,28 +20,33 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // HostsList is a list of colon-separated host-ip mappings
 type HostsList map[string]string
 
-// AsList return host-ip mappings as a list of colon-separated strings
-func (h HostsList) AsList() []string {
+// AsList returns host-ip mappings as a list of strings, using the given
+// separator. The Docker Engine API expects ':' separators, the original format
+// for '--add-hosts'. But an '=' separator is used in YAML/JSON renderings to
+// make IPv6 addresses more readable (for example "my-host=::1" instead of
+// "my-host:::1").
+func (h HostsList) AsList(sep string) []string {
 	l := make([]string, 0, len(h))
 	for k, v := range h {
-		l = append(l, fmt.Sprintf("%s:%s", k, v))
+		l = append(l, fmt.Sprintf("%s%s%s", k, sep, v))
 	}
 	return l
 }
 
 func (h HostsList) MarshalYAML() (interface{}, error) {
-	list := h.AsList()
+	list := h.AsList("=")
 	sort.Strings(list)
 	return list, nil
 }
 
 func (h HostsList) MarshalJSON() ([]byte, error) {
-	list := h.AsList()
+	list := h.AsList("=")
 	sort.Strings(list)
 	return json.Marshal(list)
 }
@@ -58,9 +63,21 @@ func (h *HostsList) DecodeMapstructure(value interface{}) error {
 		}
 		*h = list
 	case []interface{}:
-		*h = decodeMapping(v, ":")
+		*h = decodeMapping(v, "=", ":")
 	default:
 		return fmt.Errorf("unexpected value type %T for mapping", value)
+	}
+	for host, ip := range *h {
+		// Check that there is a hostname and that it doesn't contain either
+		// of the allowed separators, to generate a clearer error than the
+		// engine would do if it splits the string differently.
+		if host == "" || strings.ContainsAny(host, ":=") {
+			return fmt.Errorf("bad host name '%s'", host)
+		}
+		// Remove brackets from IP addresses (for example "[::1]" -> "::1").
+		if len(ip) > 2 && ip[0] == '[' && ip[len(ip)-1] == ']' {
+			(*h)[host] = ip[1 : len(ip)-1]
+		}
 	}
 	return nil
 }

@@ -195,14 +195,23 @@ func (m *Mapping) DecodeMapstructure(value interface{}) error {
 	return nil
 }
 
-func decodeMapping(v []interface{}, sep string) map[string]string {
+// Generate a mapping by splitting strings at any of seps, which will be tried
+// in-order for each input string. (For example, to allow the preferred 'host=ip'
+// in 'extra_hosts', as well as 'host:ip' for backwards compatibility.)
+func decodeMapping(v []interface{}, seps ...string) map[string]string {
 	mapping := make(Mapping, len(v))
 	for _, s := range v {
-		k, e, ok := strings.Cut(fmt.Sprint(s), sep)
-		if !ok {
-			e = ""
+		for i, sep := range seps {
+			k, e, ok := strings.Cut(fmt.Sprint(s), sep)
+			if ok {
+				// Mapping found with this separator, stop here.
+				mapping[k] = e
+				break
+			} else if i == len(seps)-1 {
+				// No more separators to try, map to empty string.
+				mapping[k] = ""
+			}
 		}
-		mapping[k] = e
 	}
 	return mapping
 }
