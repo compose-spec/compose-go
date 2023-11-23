@@ -901,6 +901,14 @@ func transformUlimits(data interface{}) (interface{}, error) {
 // LoadNetworks produces a NetworkConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
 func LoadNetworks(source map[string]interface{}) (map[string]types.NetworkConfig, error) {
+	x, ok := source[extensions]
+	if ok {
+		// as a top-level attribute, "services" doesn't support extensions, and a service can be named `x-foo`
+		for k, v := range x.(map[string]interface{}) {
+			source[k] = v
+		}
+		delete(source, extensions)
+	}
 	networks := make(map[string]types.NetworkConfig)
 	err := Transform(source, &networks)
 	if err != nil {
@@ -935,6 +943,16 @@ func externalVolumeError(volume, key string) error {
 // LoadVolumes produces a VolumeConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
 func LoadVolumes(source map[string]interface{}) (map[string]types.VolumeConfig, error) {
+
+	x, ok := source[extensions]
+	if ok {
+		// as a top-level attribute, "volumes" doesn't support extensions, and a volume can be named `x-foo`
+		for k, v := range x.(map[string]interface{}) {
+			source[k] = v
+		}
+		delete(source, extensions)
+	}
+
 	volumes := make(map[string]types.VolumeConfig)
 	if err := Transform(source, &volumes); err != nil {
 		return volumes, err
@@ -969,6 +987,14 @@ func LoadVolumes(source map[string]interface{}) (map[string]types.VolumeConfig, 
 // LoadSecrets produces a SecretConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
 func LoadSecrets(source map[string]interface{}) (map[string]types.SecretConfig, error) {
+	x, ok := source[extensions]
+	if ok {
+		// as a top-level attribute, "secrets" doesn't support extensions, and a secret can be named `x-foo`
+		for k, v := range x.(map[string]interface{}) {
+			source[k] = v
+		}
+		delete(source, extensions)
+	}
 	secrets := make(map[string]types.SecretConfig)
 	if err := Transform(source, &secrets); err != nil {
 		return secrets, err
@@ -986,6 +1012,14 @@ func LoadSecrets(source map[string]interface{}) (map[string]types.SecretConfig, 
 // LoadConfigObjs produces a ConfigObjConfig map from a compose file Dict
 // the source Dict is not validated if directly used. Use Load() to enable validation
 func LoadConfigObjs(source map[string]interface{}) (map[string]types.ConfigObjConfig, error) {
+	x, ok := source[extensions]
+	if ok {
+		// as a top-level attribute, "config" doesn't support extensions, and a config can be named `x-foo`
+		for k, v := range x.(map[string]interface{}) {
+			source[k] = v
+		}
+		delete(source, extensions)
+	}
 	configs := make(map[string]types.ConfigObjConfig)
 	if err := Transform(source, &configs); err != nil {
 		return configs, err
