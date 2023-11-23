@@ -2394,15 +2394,31 @@ name: 'test-x-service'
 services:
   x-foo:
     image: busybox
+    volumes:
+      - x-volume:/dev/null
+    configs:
+      - x-config
+    secrets:
+      - x-secret
+    networks:
+      - x-network
+volumes:
+  x-volume:
+secrets:
+  x-secret:
+    external: true
+networks:
+  x-network:
+configs:
+  x-config:
+    external: true
 `)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Services, types.Services{
-		"x-foo": {
-			Name:        "x-foo",
-			Image:       "busybox",
-			Environment: types.MappingWithEquals{},
-		},
-	})
+	assert.DeepEqual(t, p.ServiceNames(), []string{"x-foo"})
+	assert.DeepEqual(t, p.SecretNames(), []string{"x-secret"})
+	assert.DeepEqual(t, p.VolumeNames(), []string{"x-volume"})
+	assert.DeepEqual(t, p.ConfigNames(), []string{"x-config"})
+	assert.DeepEqual(t, p.NetworkNames(), []string{"x-network"})
 }
 
 func TestLoadWithInclude(t *testing.T) {
