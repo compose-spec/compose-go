@@ -781,7 +781,6 @@ networks:
 	config, err := Load(buildConfigDetails(dict, env), func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
-		options.SetProjectName("test", true)
 	})
 	assert.NilError(t, err)
 

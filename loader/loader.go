@@ -415,6 +415,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		WorkingDir:  configDetails.WorkingDir,
 		Environment: configDetails.Environment,
 	}
+	delete(dict, "name") // project name set by yaml must be identified by caller as opts.projectName
 	err = Transform(dict, project)
 	if err != nil {
 		return nil, err
