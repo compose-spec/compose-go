@@ -37,14 +37,21 @@ func transformMaybeExternal(data any, p tree.Path) (any, error) {
 		if !ok {
 			return resource, nil
 		}
-		name := resource["name"]
-		if ename, ok := external["name"]; ok {
+		name, named := resource["name"]
+		extname, extNamed := external["name"]
+		if extNamed {
 			logrus.Warnf("%s: external.name is deprecated. Please set name and external: true", p)
-			if name != nil && ename != name {
+			if named && extname != name {
 				return nil, fmt.Errorf("%s: name and external.name conflict; only use name", p)
 			}
-			if name == nil {
-				resource["name"] = ename
+		}
+		if !named {
+			if extNamed {
+				// adopt (deprecated) external.name if set
+				resource["name"] = extname
+			} else {
+				// otherwise, just replicate the mapping key for convenience
+				resource["name"] = p
 			}
 		}
 		resource["external"] = true
