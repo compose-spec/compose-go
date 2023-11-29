@@ -191,31 +191,47 @@ func setIfMissing(d types.DependsOnConfig, service string, dep types.ServiceDepe
 
 // Resources with no explicit name are actually named by their key in map
 func setNameFromKey(project *types.Project) {
-	for i, n := range project.Networks {
+	for key, n := range project.Networks {
 		if n.Name == "" {
-			n.Name = fmt.Sprintf("%s_%s", project.Name, i)
-			project.Networks[i] = n
+			if n.External {
+				n.Name = key
+			} else {
+				n.Name = fmt.Sprintf("%s_%s", project.Name, key)
+			}
+			project.Networks[key] = n
 		}
 	}
 
-	for i, v := range project.Volumes {
+	for key, v := range project.Volumes {
 		if v.Name == "" {
-			v.Name = fmt.Sprintf("%s_%s", project.Name, i)
-			project.Volumes[i] = v
+			if v.External {
+				v.Name = key
+			} else {
+				v.Name = fmt.Sprintf("%s_%s", project.Name, key)
+			}
+			project.Volumes[key] = v
 		}
 	}
 
-	for i, c := range project.Configs {
+	for key, c := range project.Configs {
 		if c.Name == "" {
-			c.Name = fmt.Sprintf("%s_%s", project.Name, i)
-			project.Configs[i] = c
+			if c.External {
+				c.Name = key
+			} else {
+				c.Name = fmt.Sprintf("%s_%s", project.Name, key)
+			}
+			project.Configs[key] = c
 		}
 	}
 
-	for i, s := range project.Secrets {
+	for key, s := range project.Secrets {
 		if s.Name == "" {
-			s.Name = fmt.Sprintf("%s_%s", project.Name, i)
-			project.Secrets[i] = s
+			if s.External {
+				s.Name = key
+			} else {
+				s.Name = fmt.Sprintf("%s_%s", project.Name, key)
+			}
+			project.Secrets[key] = s
 		}
 	}
 }
