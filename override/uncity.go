@@ -82,7 +82,7 @@ func enforceUnicity(value any, p tree.Path) (any, error) {
 	return value, nil
 }
 
-func environmentIndexer(y any, p tree.Path) (string, error) {
+func environmentIndexer(y any, _ tree.Path) (string, error) {
 	value := y.(string)
 	key, _, found := strings.Cut(value, "=")
 	if !found {

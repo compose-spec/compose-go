@@ -21,7 +21,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func transformUlimits(data any, p tree.Path) (any, error) {
+func transformUlimits(data any, _ tree.Path) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
 		return v, nil

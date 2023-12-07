@@ -101,7 +101,7 @@ func (l localResourceLoader) Accept(p string) bool {
 	return err == nil
 }
 
-func (l localResourceLoader) Load(ctx context.Context, p string) (string, error) {
+func (l localResourceLoader) Load(_ context.Context, p string) (string, error) {
 	return l.abs(p), nil
 }
 

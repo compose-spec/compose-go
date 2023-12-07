@@ -107,7 +107,7 @@ func mergeLogging(c any, o any, p tree.Path) (any, error) {
 }
 
 // environment must be first converted into yaml sequence syntax so we can append
-func mergeEnvironment(c any, o any, p tree.Path) (any, error) {
+func mergeEnvironment(c any, o any, _ tree.Path) (any, error) {
 	right := convertIntoSequence(c)
 	left := convertIntoSequence(o)
 	return append(right, left...), nil
@@ -136,7 +136,7 @@ func convertIntoSequence(value any) []any {
 	return nil
 }
 
-func mergeUlimit(c any, o any, p tree.Path) (any, error) {
+func mergeUlimit(_ any, o any, p tree.Path) (any, error) {
 	over, ismapping := o.(map[string]any)
 	if base, ok := o.(map[string]any); ok && ismapping {
 		return mergeMappings(base, over, p)
@@ -144,6 +144,6 @@ func mergeUlimit(c any, o any, p tree.Path) (any, error) {
 	return o, nil
 }
 
-func override(c any, other any, p tree.Path) (any, error) {
+func override(_ any, other any, _ tree.Path) (any, error) {
 	return other, nil
 }

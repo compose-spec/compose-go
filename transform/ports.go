@@ -25,7 +25,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func transformPorts(data any, p tree.Path) (any, error) {
+func transformPorts(data any, _ tree.Path) (any, error) {
 	switch entries := data.(type) {
 	case []any:
 		// We process the list instead of individual items here.
