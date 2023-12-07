@@ -183,7 +183,7 @@ func (p *Project) AllServices() Services {
 	return all
 }
 
-type ServiceFunc func(service ServiceConfig) error
+type ServiceFunc func(name string, service ServiceConfig) error
 
 // WithServices run ServiceFunc on each service and dependencies according to DependencyPolicy
 func (p *Project) WithServices(names []string, fn ServiceFunc, options ...DependencyOption) error {
@@ -194,6 +194,16 @@ func (p *Project) WithServices(names []string, fn ServiceFunc, options ...Depend
 	return p.withServices(names, fn, map[string]bool{}, options, map[string]ServiceDependency{})
 }
 
+type withServicesOptions struct {
+	dependencyPolicy int
+}
+
+const (
+	includeDependencies = iota
+	includeDependents
+	ignoreDependencies
+)
+
 func (p *Project) withServices(names []string, fn ServiceFunc, seen map[string]bool, options []DependencyOption, dependencies map[string]ServiceDependency) error {
 	services, servicesNotFound := p.getServicesByNames(names...)
 	if len(servicesNotFound) > 0 {
@@ -203,23 +213,26 @@ func (p *Project) withServices(names []string, fn ServiceFunc, seen map[string]b
 			}
 		}
 	}
-	for _, service := range services {
-		if seen[service.Name] {
+	opts := withServicesOptions{
+		dependencyPolicy: includeDependencies,
+	}
+	for _, option := range options {
+		option(&opts)
+	}
+
+	for name, service := range services {
+		if seen[name] {
 			continue
 		}
-		seen[service.Name] = true
+		seen[name] = true
 		var dependencies map[string]ServiceDependency
-		for _, policy := range options {
-			switch policy {
-			case IncludeDependents:
-				dependencies = utils.MapsAppend(dependencies, p.dependentsForService(service))
-			case IncludeDependencies:
-				dependencies = utils.MapsAppend(dependencies, service.DependsOn)
-			case IgnoreDependencies:
-				// Noop
-			default:
-				return fmt.Errorf("unsupported dependency policy %d", policy)
-			}
+		switch opts.dependencyPolicy {
+		case includeDependents:
+			dependencies = utils.MapsAppend(dependencies, p.dependentsForService(service))
+		case includeDependencies:
+			dependencies = utils.MapsAppend(dependencies, service.DependsOn)
+		case ignoreDependencies:
+			// Noop
 		}
 		if len(dependencies) > 0 {
 			err := p.withServices(utils.MapKeys(dependencies), fn, seen, options, dependencies)
@@ -227,7 +240,7 @@ func (p *Project) withServices(names []string, fn ServiceFunc, seen map[string]b
 				return err
 			}
 		}
-		if err := fn(service); err != nil {
+		if err := fn(name, service); err != nil {
 			return err
 		}
 	}
@@ -380,13 +393,19 @@ func (p *Project) WithoutUnnecessaryResources() {
 	p.Configs = configs
 }
 
-type DependencyOption int
+type DependencyOption func(options *withServicesOptions)
 
-const (
-	IncludeDependencies = iota
-	IncludeDependents
-	IgnoreDependencies
-)
+func IncludeDependencies(options *withServicesOptions) {
+	options.dependencyPolicy = includeDependencies
+}
+
+func IncludeDependents(options *withServicesOptions) {
+	options.dependencyPolicy = includeDependents
+}
+
+func IgnoreDependencies(options *withServicesOptions) {
+	options.dependencyPolicy = ignoreDependencies
+}
 
 // ForServices restrict the project model to selected services and dependencies
 func (p *Project) ForServices(names []string, options ...DependencyOption) error {
@@ -395,9 +414,9 @@ func (p *Project) ForServices(names []string, options ...DependencyOption) error
 		return nil
 	}
 
-	set := map[string]struct{}{}
-	err := p.WithServices(names, func(service ServiceConfig) error {
-		set[service.Name] = struct{}{}
+	set := utils.NewSet[string]()
+	err := p.WithServices(names, func(name string, service ServiceConfig) error {
+		set.Add(name)
 		return nil
 	}, options...)
 	if err != nil {
@@ -407,19 +426,15 @@ func (p *Project) ForServices(names []string, options ...DependencyOption) error
 	// Disable all services which are not explicit target or dependencies
 	enabled := Services{}
 	for name, s := range p.Services {
-		if _, ok := set[s.Name]; ok {
-			for _, option := range options {
-				if option == IgnoreDependencies {
-					// remove all dependencies but those implied by explicitly selected services
-					dependencies := s.DependsOn
-					for d := range dependencies {
-						if _, ok := set[d]; !ok {
-							delete(dependencies, d)
-						}
-					}
-					s.DependsOn = dependencies
+		if _, ok := set[name]; ok {
+			// remove all dependencies but those implied by explicitly selected services
+			dependencies := s.DependsOn
+			for d := range dependencies {
+				if _, ok := set[d]; !ok {
+					delete(dependencies, d)
 				}
 			}
+			s.DependsOn = dependencies
 			enabled[name] = s
 		} else {
 			p.DisableService(s)

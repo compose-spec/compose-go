@@ -16,13 +16,17 @@
 
 package utils
 
-import "golang.org/x/exp/slices"
+import (
+	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/slices"
+)
 
-func MapKeys[T comparable, U any](theMap map[T]U) []T {
-	var result []T
+func MapKeys[T constraints.Ordered, U any](theMap map[T]U) []T {
+	result := make([]T, 0, len(theMap))
 	for key := range theMap {
 		result = append(result, key)
 	}
+	slices.Sort(result)
 	return result
 }
 
