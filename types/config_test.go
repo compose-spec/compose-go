@@ -49,8 +49,8 @@ func Test_WithServices(t *testing.T) {
 		},
 	}
 	order := []string{}
-	fn := func(service ServiceConfig) error {
-		order = append(order, service.Name)
+	fn := func(name string, _ ServiceConfig) error {
+		order = append(order, name)
 		return nil
 	}
 

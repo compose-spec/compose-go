@@ -206,16 +206,16 @@ func Test_ResolveImages(t *testing.T) {
 func TestWithServices(t *testing.T) {
 	p := makeProject()
 	var seen []string
-	err := p.WithServices([]string{"service_3"}, func(service ServiceConfig) error {
-		seen = append(seen, service.Name)
+	err := p.WithServices([]string{"service_3"}, func(name string, _ ServiceConfig) error {
+		seen = append(seen, name)
 		return nil
 	}, IncludeDependencies)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, seen, []string{"service_1", "service_2", "service_3"})
 
 	seen = []string{}
-	err = p.WithServices([]string{"service_1"}, func(service ServiceConfig) error {
-		seen = append(seen, service.Name)
+	err = p.WithServices([]string{"service_1"}, func(name string, _ ServiceConfig) error {
+		seen = append(seen, name)
 		return nil
 	}, IncludeDependents)
 	assert.NilError(t, err)
@@ -223,16 +223,16 @@ func TestWithServices(t *testing.T) {
 	assert.Check(t, utils.ArrayContains(seen, []string{"service_3", "service_4", "service_2", "service_1"}))
 
 	seen = []string{}
-	err = p.WithServices([]string{"service_1"}, func(service ServiceConfig) error {
-		seen = append(seen, service.Name)
+	err = p.WithServices([]string{"service_1"}, func(name string, _ ServiceConfig) error {
+		seen = append(seen, name)
 		return nil
 	}, IgnoreDependencies)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, seen, []string{"service_1"})
 
 	seen = []string{}
-	err = p.WithServices([]string{"service_4"}, func(service ServiceConfig) error {
-		seen = append(seen, service.Name)
+	err = p.WithServices([]string{"service_4"}, func(name string, _ ServiceConfig) error {
+		seen = append(seen, name)
 		return nil
 	}, IncludeDependencies)
 	assert.NilError(t, err)

@@ -19,7 +19,7 @@ func parseAndCompare(t *testing.T, rawEnvLine string, expectedKey string, expect
 	assert.NilError(t, err)
 	actualValue, ok := env[expectedKey]
 	if !ok {
-		t.Errorf("Key %q was not found in env: %v", expectedKey, env)
+		t.Errorf("key %q was not found in env: %v", expectedKey, env)
 	} else if actualValue != expectedValue {
 		t.Errorf("Expected '%v' to parse as '%v' => '%v', got '%v' => '%v' instead", rawEnvLine, expectedKey, expectedValue, expectedKey, actualValue)
 	}
