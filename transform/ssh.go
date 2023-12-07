@@ -24,7 +24,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func transformSSH(data any, p tree.Path) (any, error) {
+func transformSSH(data any, _ tree.Path) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
 		return v, nil

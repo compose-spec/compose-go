@@ -2598,7 +2598,7 @@ func (c customLoader) Accept(s string) bool {
 	return strings.HasPrefix(s, c.prefix+":")
 }
 
-func (c customLoader) Load(ctx context.Context, s string) (string, error) {
+func (c customLoader) Load(_ context.Context, s string) (string, error) {
 	path := filepath.Join("testdata", c.prefix, s[len(c.prefix)+1:])
 	_, err := os.Stat(path)
 	if err != nil {

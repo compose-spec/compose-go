@@ -25,7 +25,7 @@ func transformService(data any, p tree.Path) (any, error) {
 	return transformMapping(value, p)
 }
 
-func transformServiceNetworks(data any, p tree.Path) (any, error) {
+func transformServiceNetworks(data any, _ tree.Path) (any, error) {
 	if slice, ok := data.([]any); ok {
 		networks := make(map[string]any, len(slice))
 		for _, net := range slice {
