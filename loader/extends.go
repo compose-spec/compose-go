@@ -41,10 +41,20 @@ func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, o
 		if err := ct.Add(ctx.Value(consts.ComposeFileKey{}).(string), name); err != nil {
 			return err
 		}
-		extends := x.(map[string]any)
+		var (
+			ref  string
+			file any
+		)
+		switch v := x.(type) {
+		case map[string]any:
+			ref = v["service"].(string)
+			file = v["file"]
+		case string:
+			ref = v
+		}
+
 		var base any
-		ref := extends["service"].(string)
-		if file, ok := extends["file"]; ok {
+		if file != nil {
 			path := file.(string)
 			for _, loader := range opts.ResourceLoaders {
 				if !loader.Accept(path) {

@@ -325,8 +325,7 @@ name: load-extends
 services:
   foo:
     image: busybox
-    extends:
-      service: bar
+    extends: bar
   bar:
     image: alpine
     command: echo`)
