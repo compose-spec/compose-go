@@ -33,7 +33,7 @@ func ResolveRelativePaths(project map[string]any, base string) error {
 	r.resolvers = map[tree.Path]resolver{
 		"services.*.build.context":               r.absContextPath,
 		"services.*.build.additional_contexts.*": r.absContextPath,
-		"services.*.env_file":                    r.absPath,
+		"services.*.env_file.*.path":             r.absPath,
 		"services.*.extends.file":                r.absPath,
 		"services.*.develop.watch.*.path":        r.absPath,
 		"services.*.volumes.*":                   r.absVolumeMount,

@@ -533,15 +533,21 @@ func (p Project) ResolveServicesEnvironment(discardEnvFiles bool) error {
 			return p.Environment.Resolve(s)
 		}
 
-		for _, envFile := range service.EnvFile {
-			b, err := os.ReadFile(envFile)
+		for _, envFile := range service.EnvFiles {
+			if _, err := os.Stat(envFile.Path); os.IsNotExist(err) {
+				if envFile.Required {
+					return errors.Wrapf(err, "env file %s not found", envFile.Path)
+				}
+				continue
+			}
+			b, err := os.ReadFile(envFile.Path)
 			if err != nil {
-				return errors.Wrapf(err, "Failed to load %s", envFile)
+				return errors.Wrapf(err, "failed to load %s", envFile.Path)
 			}
 
 			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), resolve)
 			if err != nil {
-				return errors.Wrapf(err, "failed to read %s", envFile)
+				return errors.Wrapf(err, "failed to read %s", envFile.Path)
 			}
 			environment.OverrideBy(Mapping(fileVars).ToMappingWithEquals())
 		}
@@ -549,7 +555,7 @@ func (p Project) ResolveServicesEnvironment(discardEnvFiles bool) error {
 		service.Environment = environment.OverrideBy(service.Environment)
 
 		if discardEnvFiles {
-			service.EnvFile = nil
+			service.EnvFiles = nil
 		}
 		p.Services[i] = service
 	}

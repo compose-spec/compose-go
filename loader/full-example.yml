@@ -141,7 +141,8 @@ services:
     # env_file: .env
     env_file:
       - ./example1.env
-      - ./example2.env
+      - path: ./example2.env
+        required: false
 
     # Mapping or list
     # Mapping values can be strings, numbers or null

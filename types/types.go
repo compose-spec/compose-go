@@ -75,7 +75,7 @@ type ServiceConfig struct {
 	Entrypoint ShellCommand `yaml:"entrypoint,omitempty" json:"entrypoint"` // NOTE: we can NOT omitempty for JSON! see ShellCommand type for details.
 
 	Environment     MappingWithEquals                `yaml:"environment,omitempty" json:"environment,omitempty"`
-	EnvFile         StringList                       `yaml:"env_file,omitempty" json:"env_file,omitempty"`
+	EnvFiles        []EnvFile                        `yaml:"env_file,omitempty" json:"env_file,omitempty"`
 	Expose          StringOrNumberList               `yaml:"expose,omitempty" json:"expose,omitempty"`
 	Extends         *ExtendsConfig                   `yaml:"extends,omitempty" json:"extends,omitempty"`
 	ExternalLinks   []string                         `yaml:"external_links,omitempty" json:"external_links,omitempty"`

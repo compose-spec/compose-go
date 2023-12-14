@@ -22,7 +22,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func transformVolumeMount(data any, _ tree.Path) (any, error) {
+func transformVolumeMount(data any, p tree.Path) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
 		return v, nil
@@ -34,6 +34,6 @@ func transformVolumeMount(data any, _ tree.Path) (any, error) {
 
 		return encode(volume)
 	default:
-		return data, errors.Errorf("invalid type %T for service volume mount", v)
+		return data, errors.Errorf("%s: invalid type %T for service volume mount", p, v)
 	}
 }

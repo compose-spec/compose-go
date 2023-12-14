@@ -907,7 +907,8 @@ services:
     image: nginx
     env_file:
      - example1.env
-     - example2.env
+     - path: example2.env
+       required: false
 `
 	expectedEnvironmentMap := types.MappingWithEquals{
 		"FOO":                 strPtr("foo_from_env_file"),
@@ -925,14 +926,21 @@ services:
 		options.ResolvePaths = false
 	})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, configWithEnvFiles.Services["web"].EnvFile, types.StringList{"example1.env",
-		"example2.env"})
+	assert.DeepEqual(t, configWithEnvFiles.Services["web"].EnvFiles, []types.EnvFile{
+		{
+			Path:     "example1.env",
+			Required: true,
+		},
+		{
+			Path:     "example2.env",
+			Required: false,
+		}})
 	assert.DeepEqual(t, configWithEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
 
 	// Custom behavior removes the `env_file` entries
 	configWithoutEnvFiles, err := Load(configDetails, WithDiscardEnvFiles)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, configWithoutEnvFiles.Services["web"].EnvFile, types.StringList(nil))
+	assert.Equal(t, len(configWithoutEnvFiles.Services["web"].EnvFiles), 0)
 	assert.DeepEqual(t, configWithoutEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
 }
 
@@ -1929,7 +1937,11 @@ func TestLoadWithExtends(t *testing.T) {
 			Environment: types.MappingWithEquals{
 				"SOURCE": strPtr("extends"),
 			},
-			EnvFile:  []string{expectedEnvFilePath},
+			EnvFiles: []types.EnvFile{
+				{
+					Path:     expectedEnvFilePath,
+					Required: true,
+				}},
 			Networks: map[string]*types.ServiceNetworkConfig{"default": nil},
 			Volumes: []types.ServiceVolumeConfig{{
 				Type:   "bind",
@@ -2090,8 +2102,10 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 		},
 		Services: types.Services{
 			"test": {
-				Name:    "test",
-				EnvFile: []string{file.Name()},
+				Name: "test",
+				EnvFiles: []types.EnvFile{
+					{Path: file.Name(), Required: true},
+				},
 			},
 		},
 	}
@@ -2450,8 +2464,11 @@ services:
 			Name:          "imported",
 			ContainerName: "extends", // as defined by ./testdata/subdir/extra.env
 			Environment:   types.MappingWithEquals{"SOURCE": strPtr("extends")},
-			EnvFile: types.StringList{
-				filepath.Join(workingDir, "testdata", "subdir", "extra.env"),
+			EnvFiles: []types.EnvFile{
+				{
+					Path:     filepath.Join(workingDir, "testdata", "subdir", "extra.env"),
+					Required: true,
+				},
 			},
 			Image: "nginx",
 			Volumes: []types.ServiceVolumeConfig{
@@ -2630,8 +2647,11 @@ services:
 			Name:        "foo",
 			Image:       "foo",
 			Environment: types.MappingWithEquals{"FOO": strPtr("BAR")},
-			EnvFile: types.StringList{
-				filepath.Join(config.WorkingDir, "testdata", "remote", "env"),
+			EnvFiles: []types.EnvFile{
+				{
+					Path:     filepath.Join(config.WorkingDir, "testdata", "remote", "env"),
+					Required: true,
+				},
 			},
 			Volumes: []types.ServiceVolumeConfig{
 				{

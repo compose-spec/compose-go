@@ -21,7 +21,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func transformInclude(data any, _ tree.Path) (any, error) {
+func transformInclude(data any, p tree.Path) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
 		return v, nil
@@ -30,6 +30,6 @@ func transformInclude(data any, _ tree.Path) (any, error) {
 			"path": v,
 		}, nil
 	default:
-		return data, errors.Errorf("invalid type %T for external", v)
+		return data, errors.Errorf("%s: invalid type %T for external", p, v)
 	}
 }
