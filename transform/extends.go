@@ -30,6 +30,6 @@ func transformExtends(data any, p tree.Path) (any, error) {
 			"service": v,
 		}, nil
 	default:
-		return data, errors.Errorf("invalid type %T for extends", v)
+		return data, errors.Errorf("%s: invalid type %T for extends", p, v)
 	}
 }

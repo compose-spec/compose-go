@@ -33,6 +33,6 @@ func transformBuild(data any, p tree.Path) (any, error) {
 			"context": v,
 		}, nil
 	default:
-		return data, errors.Errorf("invalid type %T for build", v)
+		return data, errors.Errorf("%s: invalid type %T for build", p, v)
 	}
 }

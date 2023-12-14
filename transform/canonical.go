@@ -28,6 +28,7 @@ func init() {
 	transformers["services.*"] = transformService
 	transformers["services.*.build.secrets.*"] = transformFileMount
 	transformers["services.*.depends_on"] = transformDependsOn
+	transformers["services.*.env_file"] = transformEnvFile
 	transformers["services.*.extends"] = transformExtends
 	transformers["services.*.networks"] = transformServiceNetworks
 	transformers["services.*.volumes.*"] = transformVolumeMount

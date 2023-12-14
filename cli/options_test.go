@@ -270,7 +270,7 @@ func TestProjectWithDiscardEnvFile(t *testing.T) {
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
 	assert.Equal(t, *service.Environment["DEFAULT_PORT"], "8080")
-	assert.Assert(t, service.EnvFile == nil)
+	assert.Assert(t, len(service.EnvFiles) == 0)
 	assert.Equal(t, service.Ports[0].Published, "8000")
 }
 
@@ -287,7 +287,7 @@ func TestProjectWithMultipleEnvFile(t *testing.T) {
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
 	assert.Equal(t, *service.Environment["DEFAULT_PORT"], "9090")
-	assert.Assert(t, service.EnvFile == nil)
+	assert.Assert(t, len(service.EnvFiles) == 0)
 	assert.Equal(t, service.Ports[0].Published, "9000")
 }
 

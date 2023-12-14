@@ -17,38 +17,38 @@
 package transform
 
 import (
-	"fmt"
-
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/pkg/errors"
 )
 
-func transformDependsOn(data any, p tree.Path) (any, error) {
+func transformEnvFile(data any, p tree.Path) (any, error) {
 	switch v := data.(type) {
-	case map[string]any:
+	case string:
+		return []any{
+			transformEnvFileValue(v),
+		}, nil
+	case []any:
 		for i, e := range v {
-			d, ok := e.(map[string]any)
-			if !ok {
-				return nil, fmt.Errorf("%s.%s: unsupported value %s", p, i, v)
-			}
-			if _, ok := d["condition"]; !ok {
-				d["condition"] = "service_started"
-			}
-			if _, ok := d["required"]; !ok {
-				d["required"] = true
-			}
+			v[i] = transformEnvFileValue(e)
 		}
 		return v, nil
-	case []any:
-		d := map[string]any{}
-		for _, k := range v {
-			d[k.(string)] = map[string]any{
-				"condition": "service_started",
-				"required":  true,
-			}
-		}
-		return d, nil
 	default:
-		return data, errors.Errorf("%s: invalid type %T for depend_on", p, v)
+		return nil, errors.Errorf("%s: invalid type %T for env_file", p, v)
 	}
+}
+
+func transformEnvFileValue(data any) any {
+	switch v := data.(type) {
+	case string:
+		return map[string]any{
+			"path":     v,
+			"required": true,
+		}
+	case map[string]any:
+		if _, ok := v["required"]; !ok {
+			v["required"] = true
+		}
+		return v
+	}
+	return nil
 }

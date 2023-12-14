@@ -176,9 +176,15 @@ func services(workingDir, homeDir string) types.Services {
 				"ENV.WITH.DOT":        strPtr("ok"),
 				"ENV_WITH_UNDERSCORE": strPtr("ok"),
 			},
-			EnvFile: []string{
-				filepath.Join(workingDir, "example1.env"),
-				filepath.Join(workingDir, "example2.env"),
+			EnvFiles: []types.EnvFile{
+				{
+					Path:     filepath.Join(workingDir, "example1.env"),
+					Required: true,
+				},
+				{
+					Path:     filepath.Join(workingDir, "example2.env"),
+					Required: false,
+				},
 			},
 			Expose: []string{"3000", "8000"},
 			ExternalLinks: []string{
@@ -729,7 +735,8 @@ services:
       QUX: qux_from_environment
     env_file:
       - %s
-      - %s
+      - path: %s
+        required: false
     expose:
       - "3000"
       - "8000"
@@ -1324,7 +1331,10 @@ func fullExampleJSON(workingDir, homeDir string) string {
       },
       "env_file": [
         "%s",
-        "%s"
+        {
+          "path": "%s",
+          "required": false
+        }
       ],
       "expose": [
         "3000",
