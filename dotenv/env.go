@@ -24,14 +24,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-func GetEnvFromFile(currentEnv map[string]string, workingDir string, filenames []string) (map[string]string, error) {
+func GetEnvFromFile(currentEnv map[string]string, filenames []string) (map[string]string, error) {
 	envMap := make(map[string]string)
 
-	dotEnvFiles := filenames
-	if len(dotEnvFiles) == 0 {
-		dotEnvFiles = append(dotEnvFiles, filepath.Join(workingDir, ".env"))
-	}
-	for _, dotEnvFile := range dotEnvFiles {
+	for _, dotEnvFile := range filenames {
 		abs, err := filepath.Abs(dotEnvFile)
 		if err != nil {
 			return envMap, err
@@ -40,9 +36,6 @@ func GetEnvFromFile(currentEnv map[string]string, workingDir string, filenames [
 
 		s, err := os.Stat(dotEnvFile)
 		if os.IsNotExist(err) {
-			if len(filenames) == 0 {
-				return envMap, nil
-			}
 			return envMap, errors.Errorf("Couldn't find env file: %s", dotEnvFile)
 		}
 		if err != nil {

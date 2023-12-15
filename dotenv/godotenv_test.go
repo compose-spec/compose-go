@@ -703,9 +703,6 @@ func TestGetEnvFromFile(t *testing.T) {
 	err := os.Mkdir(f, 0o700)
 	assert.NilError(t, err)
 
-	_, err = GetEnvFromFile(nil, wd, nil)
-	assert.NilError(t, err)
-
-	_, err = GetEnvFromFile(nil, wd, []string{f})
+	_, err = GetEnvFromFile(nil, []string{f})
 	assert.Check(t, strings.HasSuffix(err.Error(), ".env is a directory"))
 }
