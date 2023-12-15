@@ -19,6 +19,7 @@ package loader
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -76,7 +77,14 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 		loadOptions.SkipNormalization = true
 		loadOptions.SkipConsistencyCheck = true
 
-		envFromFile, err := dotenv.GetEnvFromFile(configDetails.Environment, r.ProjectDirectory, r.EnvFile)
+		if len(r.EnvFile) == 0 {
+			f := filepath.Join(r.ProjectDirectory, ".env")
+			if s, err := os.Stat(f); err == nil && !s.IsDir() {
+				r.EnvFile = types.StringList{f}
+			}
+		}
+
+		envFromFile, err := dotenv.GetEnvFromFile(configDetails.Environment, r.EnvFile)
 		if err != nil {
 			return err
 		}

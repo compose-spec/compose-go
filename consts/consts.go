@@ -17,10 +17,11 @@
 package consts
 
 const (
-	ComposeProjectName   = "COMPOSE_PROJECT_NAME"
-	ComposePathSeparator = "COMPOSE_PATH_SEPARATOR"
-	ComposeFilePath      = "COMPOSE_FILE"
-	ComposeProfiles      = "COMPOSE_PROFILES"
+	ComposeProjectName           = "COMPOSE_PROJECT_NAME"
+	ComposePathSeparator         = "COMPOSE_PATH_SEPARATOR"
+	ComposeFilePath              = "COMPOSE_FILE"
+	ComposeDisableDefaultEnvFile = "COMPOSE_DISABLE_ENV_FILE"
+	ComposeProfiles              = "COMPOSE_PROFILES"
 )
 
 const Extensions = "#extensions" // Using # prefix, we prevent risk to conflict with an actual yaml key

@@ -182,7 +182,7 @@ func TestProjectName(t *testing.T) {
 		assert.NilError(t, err)
 		defer os.Chdir(wd) //nolint:errcheck
 
-		opts, err := NewProjectOptions(nil, WithDotEnv, WithConfigFileEnv)
+		opts, err := NewProjectOptions(nil, WithEnvFiles(), WithDotEnv, WithConfigFileEnv)
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(opts)
 		assert.NilError(t, err)
@@ -250,7 +250,7 @@ func TestProjectWithDotEnv(t *testing.T) {
 
 	opts, err := NewProjectOptions([]string{
 		"compose-with-variables.yaml",
-	}, WithName("my_project"), WithDotEnv)
+	}, WithName("my_project"), WithEnvFiles(), WithDotEnv)
 	assert.NilError(t, err)
 	p, err := ProjectFromOptions(opts)
 	assert.NilError(t, err)
@@ -346,7 +346,7 @@ func TestEnvVariablePrecedence(t *testing.T) {
 				// First load os.Env variable, higher in precedence rule
 				WithEnv(test.osEnv),
 				// Then load dotEnv file
-				WithWorkingDirectory(wd), WithDotEnv)
+				WithWorkingDirectory(wd), WithEnvFiles(), WithDotEnv)
 			assert.NilError(t, err)
 			assert.DeepEqual(t, test.expected, options.Environment)
 		})

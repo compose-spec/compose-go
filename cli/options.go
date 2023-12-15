@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -248,21 +249,44 @@ func WithEnvFile(file string) ProjectOptionsFn {
 	return WithEnvFiles(files...)
 }
 
-// WithEnvFiles set alternate env files
+// WithEnvFiles set env file(s) to be loaded to set project environment.
+// defaults to local .env file if no explicit file is selected, until COMPOSE_DISABLE_ENV_FILE is set
 func WithEnvFiles(file ...string) ProjectOptionsFn {
-	return func(options *ProjectOptions) error {
-		options.EnvFiles = file
+	return func(o *ProjectOptions) error {
+		if len(file) > 0 {
+			o.EnvFiles = file
+			return nil
+		}
+		if v, ok := os.LookupEnv(consts.ComposeDisableDefaultEnvFile); ok {
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return err
+			}
+			if b {
+				return nil
+			}
+		}
+
+		wd, err := o.GetWorkingDir()
+		if err != nil {
+			return err
+		}
+		defaultDotEnv := filepath.Join(wd, ".env")
+
+		s, err := os.Stat(defaultDotEnv)
+		if os.IsNotExist(err) {
+			return nil
+		}
+		if !s.IsDir() {
+			o.EnvFiles = []string{defaultDotEnv}
+		}
 		return nil
 	}
 }
 
 // WithDotEnv imports environment variables from .env file
 func WithDotEnv(o *ProjectOptions) error {
-	wd, err := o.GetWorkingDir()
-	if err != nil {
-		return err
-	}
-	envMap, err := dotenv.GetEnvFromFile(o.Environment, wd, o.EnvFiles)
+	envMap, err := dotenv.GetEnvFromFile(o.Environment, o.EnvFiles)
 	if err != nil {
 		return err
 	}
