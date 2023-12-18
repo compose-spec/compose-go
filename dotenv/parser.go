@@ -159,27 +159,34 @@ func (p *parser) extractVarValue(src string, envMap map[string]string, lookupFn 
 
 	previousCharIsEscape := false
 	// lookup quoted string terminator
+	var chars []byte
 	for i := 1; i < len(src); i++ {
-		if src[i] == '\n' {
+		char := src[i]
+		if char == '\n' {
 			p.line++
 		}
-		if char := src[i]; char != quote {
+		if char != quote {
 			if !previousCharIsEscape && char == '\\' {
 				previousCharIsEscape = true
-			} else {
-				previousCharIsEscape = false
+				continue
 			}
+			if previousCharIsEscape {
+				previousCharIsEscape = false
+				chars = append(chars, '\\')
+			}
+			chars = append(chars, char)
 			continue
 		}
 
 		// skip escaped quote symbol (\" or \', depends on quote)
 		if previousCharIsEscape {
 			previousCharIsEscape = false
+			chars = append(chars, char)
 			continue
 		}
 
 		// trim quotes
-		value := string(src[1:i])
+		value := string(chars)
 		if quote == prefixDoubleQuote {
 			// expand standard shell escape sequences & then interpolate
 			// variables on the result

@@ -171,6 +171,7 @@ func TestLoadQuotedEnv(t *testing.T) {
 second line
 third line
 and so on`,
+		"OPTION_K": "Let's go!",
 		"OPTION_Z": "last value",
 	}
 
