@@ -281,6 +281,7 @@ type BuildConfig struct {
 	Network            string                    `yaml:"network,omitempty" json:"network,omitempty"`
 	Target             string                    `yaml:"target,omitempty" json:"target,omitempty"`
 	Secrets            []ServiceSecretConfig     `yaml:"secrets,omitempty" json:"secrets,omitempty"`
+	ShmSize            UnitBytes                 `yaml:"shm_size,omitempty" json:"shm_size,omitempty"`
 	Tags               StringList                `yaml:"tags,omitempty" json:"tags,omitempty"`
 	Ulimits            map[string]*UlimitsConfig `yaml:"ulimits,omitempty" json:"ulimits,omitempty"`
 	Platforms          StringList                `yaml:"platforms,omitempty" json:"platforms,omitempty"`
