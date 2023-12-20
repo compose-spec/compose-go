@@ -944,6 +944,14 @@ services:
 	assert.DeepEqual(t, configWithoutEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
 }
 
+func TestDecodeErrors(t *testing.T) {
+	dict := "name: test\nservices:\n  web:\n    image: nginx\n\tbuild: ."
+
+	configDetails := buildConfigDetails(dict, nil)
+	_, err := Load(configDetails)
+	assert.Error(t, err, "yaml: line 4: found a tab character that violates indentation")
+}
+
 func TestBuildProperties(t *testing.T) {
 	dict := `
 name: test
@@ -2768,7 +2776,7 @@ services:
     image: example/proxy
     build: ./proxy
     develop:
-      watch: 
+      watch:
         # rebuild image and recreate service
         - path: ./proxy/proxy.conf
           action: sync+restart
