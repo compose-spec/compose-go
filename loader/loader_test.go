@@ -978,7 +978,7 @@ services:
 	})
 
 	assert.DeepEqual(t, actual.Services["db"].Build, &types.BuildConfig{
-		Context:    wd + "/db",
+		Context:    filepath.Join(wd, "db"),
 		Dockerfile: "Dockerfile",
 		ShmSize:    types.UnitBytes(2 * 1024 * 1024 * 1024),
 	})
