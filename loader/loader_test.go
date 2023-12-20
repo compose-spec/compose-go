@@ -965,10 +965,23 @@ services:
     image: db
     build:
      context: ./db
+     shm_size: 2gb
 `
 	configDetails := buildConfigDetails(dict, nil)
-	_, err := Load(configDetails)
+	actual, err := Load(configDetails)
 	assert.NilError(t, err)
+
+	wd, _ := os.Getwd()
+	assert.DeepEqual(t, actual.Services["web"].Build, &types.BuildConfig{
+		Context:    wd,
+		Dockerfile: "Dockerfile",
+	})
+
+	assert.DeepEqual(t, actual.Services["db"].Build, &types.BuildConfig{
+		Context:    wd + "/db",
+		Dockerfile: "Dockerfile",
+		ShmSize:    types.UnitBytes(2 * 1024 * 1024 * 1024),
+	})
 }
 
 func TestDeprecatedProperties(t *testing.T) {
