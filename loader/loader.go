@@ -342,6 +342,9 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				if err == io.EOF {
 					break
 				}
+				if err != nil {
+					return nil, err
+				}
 				if err := processRawYaml(raw, processor); err != nil {
 					return nil, err
 				}
