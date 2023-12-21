@@ -112,7 +112,7 @@ func TestBuildGraph(t *testing.T) {
 		desc             string
 		services         types.Services
 		disabled         types.Services
-		expectedVertices map[string]*vertex
+		expectedVertices map[string]*vertex[types.ServiceConfig]
 		expectedError    string
 	}{
 		{
@@ -123,12 +123,12 @@ func TestBuildGraph(t *testing.T) {
 					DependsOn: types.DependsOnConfig{},
 				},
 			},
-			expectedVertices: map[string]*vertex{
+			expectedVertices: map[string]*vertex[types.ServiceConfig]{
 				"test": {
 					key:      "test",
 					service:  &types.ServiceConfig{Name: "test"},
-					children: map[string]*vertex{},
-					parents:  map[string]*vertex{},
+					children: map[string]*vertex[types.ServiceConfig]{},
+					parents:  map[string]*vertex[types.ServiceConfig]{},
 				},
 			},
 		},
@@ -144,18 +144,18 @@ func TestBuildGraph(t *testing.T) {
 					DependsOn: types.DependsOnConfig{},
 				},
 			},
-			expectedVertices: map[string]*vertex{
+			expectedVertices: map[string]*vertex[types.ServiceConfig]{
 				"test": {
 					key:      "test",
 					service:  &types.ServiceConfig{Name: "test"},
-					children: map[string]*vertex{},
-					parents:  map[string]*vertex{},
+					children: map[string]*vertex[types.ServiceConfig]{},
+					parents:  map[string]*vertex[types.ServiceConfig]{},
 				},
 				"another": {
 					key:      "another",
 					service:  &types.ServiceConfig{Name: "another"},
-					children: map[string]*vertex{},
-					parents:  map[string]*vertex{},
+					children: map[string]*vertex[types.ServiceConfig]{},
+					parents:  map[string]*vertex[types.ServiceConfig]{},
 				},
 			},
 		},
@@ -173,20 +173,20 @@ func TestBuildGraph(t *testing.T) {
 					DependsOn: types.DependsOnConfig{},
 				},
 			},
-			expectedVertices: map[string]*vertex{
+			expectedVertices: map[string]*vertex[types.ServiceConfig]{
 				"test": {
 					key:     "test",
 					service: &types.ServiceConfig{Name: "test"},
-					children: map[string]*vertex{
+					children: map[string]*vertex[types.ServiceConfig]{
 						"another": {},
 					},
-					parents: map[string]*vertex{},
+					parents: map[string]*vertex[types.ServiceConfig]{},
 				},
 				"another": {
 					key:      "another",
 					service:  &types.ServiceConfig{Name: "another"},
-					children: map[string]*vertex{},
-					parents: map[string]*vertex{
+					children: map[string]*vertex[types.ServiceConfig]{},
+					parents: map[string]*vertex[types.ServiceConfig]{
 						"test": {},
 					},
 				},
@@ -204,12 +204,12 @@ func TestBuildGraph(t *testing.T) {
 					},
 				},
 			},
-			expectedVertices: map[string]*vertex{
+			expectedVertices: map[string]*vertex[types.ServiceConfig]{
 				"test": {
 					key:      "test",
 					service:  &types.ServiceConfig{Name: "test"},
-					children: map[string]*vertex{},
-					parents:  map[string]*vertex{},
+					children: map[string]*vertex[types.ServiceConfig]{},
+					parents:  map[string]*vertex[types.ServiceConfig]{},
 				},
 			},
 		},
@@ -268,30 +268,30 @@ func TestBuildGraph(t *testing.T) {
 					DependsOn: types.DependsOnConfig{},
 				},
 			},
-			expectedVertices: map[string]*vertex{
+			expectedVertices: map[string]*vertex[types.ServiceConfig]{
 				"test": {
 					key:     "test",
 					service: &types.ServiceConfig{Name: "test"},
-					children: map[string]*vertex{
+					children: map[string]*vertex[types.ServiceConfig]{
 						"another": {},
 					},
-					parents: map[string]*vertex{},
+					parents: map[string]*vertex[types.ServiceConfig]{},
 				},
 				"another": {
 					key:     "another",
 					service: &types.ServiceConfig{Name: "another"},
-					children: map[string]*vertex{
+					children: map[string]*vertex[types.ServiceConfig]{
 						"another_dep": {},
 					},
-					parents: map[string]*vertex{
+					parents: map[string]*vertex[types.ServiceConfig]{
 						"test": {},
 					},
 				},
 				"another_dep": {
 					key:      "another_dep",
 					service:  &types.ServiceConfig{Name: "another_dep"},
-					children: map[string]*vertex{},
-					parents: map[string]*vertex{
+					children: map[string]*vertex[types.ServiceConfig]{},
+					parents: map[string]*vertex[types.ServiceConfig]{
 						"another": {},
 					},
 				},
@@ -384,7 +384,7 @@ func TestWith_RootNodesAndUp(t *testing.T) {
 	}
 }
 
-func assertVertexEqual(t *testing.T, a, b vertex) {
+func assertVertexEqual(t *testing.T, a, b vertex[types.ServiceConfig]) {
 	assert.Equal(t, a.key, b.key)
 	assert.Equal(t, a.service.Name, b.service.Name)
 	for c := range a.children {
@@ -397,9 +397,9 @@ func assertVertexEqual(t *testing.T, a, b vertex) {
 	}
 }
 
-func exampleGraph() *graph {
-	graph := &graph{
-		vertices: map[string]*vertex{},
+func exampleGraph() *graph[types.ServiceConfig] {
+	graph := &graph[types.ServiceConfig]{
+		vertices: map[string]*vertex[types.ServiceConfig]{},
 	}
 
 	/** graph topology:

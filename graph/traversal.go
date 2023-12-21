@@ -20,42 +20,19 @@ import (
 	"context"
 	"sync"
 
-	"github.com/compose-spec/compose-go/v2/types"
 	"golang.org/x/exp/slices"
 	"golang.org/x/sync/errgroup"
 )
 
 // CollectorFn executes on each graph vertex based on visit order and return associated value
-type CollectorFn[T any] func(context.Context, string, types.ServiceConfig) (T, error)
+type CollectorFn[S any, T any] func(context.Context, string, S) (T, error)
 
 // VisitorFn executes on each graph nodes based on visit order
-type VisitorFn func(context.Context, string, types.ServiceConfig) error
+type VisitorFn[S any] func(context.Context, string, S) error
 
-// InDependencyOrder walk the service graph an invoke VisitorFn in respect to dependency order
-func InDependencyOrder(ctx context.Context, project *types.Project, fn VisitorFn, options ...func(*Options)) error {
-	_, err := CollectInDependencyOrder[any](ctx, project, func(ctx context.Context, s string, config types.ServiceConfig) (any, error) {
-		return nil, fn(ctx, s, config)
-	}, options...)
-	return err
-}
-
-// CollectInDependencyOrder walk the service graph an invoke CollectorFn in respect to dependency order, then return result for each call
-func CollectInDependencyOrder[T any](ctx context.Context, project *types.Project, fn CollectorFn[T], options ...func(*Options)) (map[string]T, error) {
-	graph, err := newGraph(project)
-	if err != nil {
-		return nil, err
-	}
-	t := newTraversal(fn)
-	for _, option := range options {
-		option(t.Options)
-	}
-	err = walk(ctx, graph, t)
-	return t.results, err
-}
-
-type traversal[T any] struct {
+type traversal[S any, T any] struct {
 	*Options
-	visitor CollectorFn[T]
+	visitor CollectorFn[S, T]
 
 	mu      sync.Mutex
 	status  map[string]int
@@ -76,8 +53,8 @@ const (
 	vertexVisited
 )
 
-func newTraversal[T any](fn CollectorFn[T]) *traversal[T] {
-	return &traversal[T]{
+func newTraversal[S, T any](fn CollectorFn[S, T]) *traversal[S, T] {
+	return &traversal[S, T]{
 		Options: &Options{},
 		status:  map[string]int{},
 		results: map[string]T{},
@@ -104,13 +81,13 @@ func WithRootNodesAndDown(nodes []string) func(*Options) {
 	}
 }
 
-func walk[T any](ctx context.Context, g *graph, t *traversal[T]) error {
+func walk[S, T any](ctx context.Context, g *graph[S], t *traversal[S, T]) error {
 	expect := len(g.vertices)
 	if expect == 0 {
 		return nil
 	}
 	// nodeCh need to allow n=expect writers while reader goroutine could have returned after ctx.Done
-	nodeCh := make(chan *vertex, expect)
+	nodeCh := make(chan *vertex[S], expect)
 	defer close(nodeCh)
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -144,7 +121,7 @@ func walk[T any](ctx context.Context, g *graph, t *traversal[T]) error {
 	return eg.Wait()
 }
 
-func (t *traversal[T]) visit(ctx context.Context, eg *errgroup.Group, node *vertex, nodeCh chan *vertex) {
+func (t *traversal[S, T]) visit(ctx context.Context, eg *errgroup.Group, node *vertex[S], nodeCh chan *vertex[S]) {
 	if !t.ready(node) {
 		// don't visit this service yet as dependencies haven't been visited
 		return
@@ -167,21 +144,21 @@ func (t *traversal[T]) visit(ctx context.Context, eg *errgroup.Group, node *vert
 	})
 }
 
-func (t *traversal[T]) extremityNodes(g *graph) []*vertex {
+func (t *traversal[S, T]) extremityNodes(g *graph[S]) []*vertex[S] {
 	if t.inverse {
 		return g.roots()
 	}
 	return g.leaves()
 }
 
-func (t *traversal[T]) adjacentNodes(v *vertex) map[string]*vertex {
+func (t *traversal[S, T]) adjacentNodes(v *vertex[S]) map[string]*vertex[S] {
 	if t.inverse {
 		return v.children
 	}
 	return v.parents
 }
 
-func (t *traversal[T]) ready(v *vertex) bool {
+func (t *traversal[S, T]) ready(v *vertex[S]) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -197,7 +174,7 @@ func (t *traversal[T]) ready(v *vertex) bool {
 	return true
 }
 
-func (t *traversal[T]) enter(v *vertex) bool {
+func (t *traversal[S, T]) enter(v *vertex[S]) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -208,14 +185,14 @@ func (t *traversal[T]) enter(v *vertex) bool {
 	return true
 }
 
-func (t *traversal[T]) done(v *vertex, result T) {
+func (t *traversal[S, T]) done(v *vertex[S], result T) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.status[v.key] = vertexVisited
 	t.results[v.key] = result
 }
 
-func (t *traversal[T]) skip(node *vertex) bool {
+func (t *traversal[S, T]) skip(node *vertex[S]) bool {
 	if len(t.after) == 0 {
 		return false
 	}

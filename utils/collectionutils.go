@@ -18,14 +18,12 @@ package utils
 
 import (
 	"golang.org/x/exp/constraints"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
 func MapKeys[T constraints.Ordered, U any](theMap map[T]U) []T {
-	result := make([]T, 0, len(theMap))
-	for key := range theMap {
-		result = append(result, key)
-	}
+	result := maps.Keys(theMap)
 	slices.Sort(result)
 	return result
 }
