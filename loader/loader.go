@@ -484,7 +484,17 @@ func projectName(details types.ConfigDetails, opts *Options) (string, error) {
 	if !projectNameImperativelySet {
 		var pjNameFromConfigFile string
 		for _, configFile := range details.ConfigFiles {
-			yml, err := ParseYAML(configFile.Content)
+			content := configFile.Content
+			if content == nil {
+				// This can be hit when Filename is set but Content is not. One
+				// example is when using ToConfigFiles().
+				d, err := os.ReadFile(configFile.Filename)
+				if err != nil {
+					return "", fmt.Errorf("failed to read file %q: %w", configFile.Filename, err)
+				}
+				content = d
+			}
+			yml, err := ParseYAML(content)
 			if err != nil {
 				// HACK: the way that loading is currently structured, this is
 				// a duplicative parse just for the `name`. if it fails, we

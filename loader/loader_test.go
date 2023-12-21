@@ -405,6 +405,7 @@ services:
 	}, func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
+		options.SetProjectName("project", true)
 	})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(actual.Services, 2))
@@ -2852,6 +2853,46 @@ networks:
 		},
 	})
 	assert.ErrorContains(t, err, "service redis declares mutually exclusive `network_mode` and `networks`")
+}
+
+func TestLoadEmptyContent(t *testing.T) {
+	yaml := `name: load-multi-docs
+services:
+  test:
+    image: nginx:latest`
+	tmpPath := filepath.Join(t.TempDir(), "docker-compose.yaml")
+	if err := os.WriteFile(tmpPath, []byte(yaml), 0o644); err != nil {
+		t.Fatalf("failed to write temporary file: %s", err)
+	}
+	_, err := Load(types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: tmpPath,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLoadEmptyContent_MissingProject(t *testing.T) {
+	yaml := `
+services:
+  test:
+    image: nginx:latest`
+	tmpPath := filepath.Join(t.TempDir(), "docker-compose.yaml")
+	if err := os.WriteFile(tmpPath, []byte(yaml), 0o644); err != nil {
+		t.Fatalf("failed to write temporary file: %s", err)
+	}
+	_, err := Load(types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: tmpPath,
+			},
+		},
+	})
+	assert.ErrorContains(t, err, "project name must not be empty")
 }
 
 func TestLoadUnitBytes(t *testing.T) {
