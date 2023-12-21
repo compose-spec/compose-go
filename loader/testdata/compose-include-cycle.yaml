@@ -1,6 +1,7 @@
 include:
   - compose-include-cycle.yaml
 
+name: project
 services:
   foo:
     image: foo
