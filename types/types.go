@@ -247,22 +247,6 @@ func (s ServiceConfig) GetDependents(p *Project) []string {
 	return dependent
 }
 
-type set map[string]struct{}
-
-func (s set) append(strs ...string) {
-	for _, str := range strs {
-		s[str] = struct{}{}
-	}
-}
-
-func (s set) toSlice() []string {
-	slice := make([]string, 0, len(s))
-	for v := range s {
-		slice = append(slice, v)
-	}
-	return slice
-}
-
 // BuildConfig is a type for build
 type BuildConfig struct {
 	Context            string                    `yaml:"context,omitempty" json:"context,omitempty"`

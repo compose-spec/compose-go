@@ -211,15 +211,6 @@ func assertContains(t *testing.T, portConfigs []ServicePortConfig, expected Serv
 	}
 }
 
-func TestSet(t *testing.T) {
-	s := make(set)
-	s.append("one")
-	s.append("two")
-	s.append("three")
-	s.append("two")
-	assert.Equal(t, len(s.toSlice()), 3)
-}
-
 type foo struct {
 	Bar string
 }
