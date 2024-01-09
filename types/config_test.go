@@ -49,12 +49,12 @@ func Test_WithServices(t *testing.T) {
 		},
 	}
 	order := []string{}
-	fn := func(name string, _ ServiceConfig) error {
+	fn := func(name string, _ *ServiceConfig) error {
 		order = append(order, name)
 		return nil
 	}
 
-	p, err := p.WithServices(nil, fn)
+	err := p.ForEachService(nil, fn)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, order, []string{"service_2", "service_3", "service_1"})
 }
