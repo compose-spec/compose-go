@@ -2131,7 +2131,7 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 			},
 		},
 	}
-	p, err = p.ResolveServicesEnvironment(false)
+	p, err = p.WithServicesEnvironmentResolved(false)
 	assert.NilError(t, err)
 	service, err := p.GetService("test")
 	assert.NilError(t, err)

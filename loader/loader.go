@@ -451,12 +451,12 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		}
 	}
 
-	if project, err = project.ApplyProfiles(opts.Profiles); err != nil {
+	if project, err = project.WithProfiles(opts.Profiles); err != nil {
 		return nil, err
 	}
 
 	if !opts.SkipResolveEnvironment {
-		project, err = project.ResolveServicesEnvironment(opts.discardEnvFiles)
+		project, err = project.WithServicesEnvironmentResolved(opts.discardEnvFiles)
 		if err != nil {
 			return nil, err
 		}

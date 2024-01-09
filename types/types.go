@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/mitchellh/copystructure"
 )
 
 // ServiceConfig is the configuration of one service
@@ -185,6 +186,14 @@ func (s *ServiceConfig) SetScale(scale int) {
 	if s.Deploy != nil {
 		s.Deploy.Replicas = &scale
 	}
+}
+
+func (s *ServiceConfig) deepCopy() *ServiceConfig {
+	instance, err := copystructure.Copy(s)
+	if err != nil {
+		panic(err)
+	}
+	return instance.(*ServiceConfig)
 }
 
 const (

@@ -186,21 +186,15 @@ func (p *Project) AllServices() Services {
 	return all
 }
 
-type ServiceFunc func(name string, service ServiceConfig) error
+type ServiceFunc func(name string, service *ServiceConfig) error
 
-// WithServices runs ServiceFunc on each service and dependencies according to DependencyPolicy
-// It returns a new Project instance with the changes and keep the original Project unchanged
-func (p *Project) WithServices(names []string, fn ServiceFunc, options ...DependencyOption) (*Project, error) {
-	newProject, err := p.deepCopy()
-	if err != nil {
-		return nil, err
-	}
+// ForEachService runs ServiceFunc on each service and dependencies according to DependencyPolicy
+func (p *Project) ForEachService(names []string, fn ServiceFunc, options ...DependencyOption) error {
 	if len(options) == 0 {
 		// backward compatibility
 		options = []DependencyOption{IncludeDependencies}
 	}
-	err = newProject.withServices(names, fn, map[string]bool{}, options, map[string]ServiceDependency{})
-	return newProject, err
+	return p.withServices(names, fn, map[string]bool{}, options, map[string]ServiceDependency{})
 }
 
 type withServicesOptions struct {
@@ -249,7 +243,7 @@ func (p *Project) withServices(names []string, fn ServiceFunc, seen map[string]b
 				return err
 			}
 		}
-		if err := fn(name, service); err != nil {
+		if err := fn(name, service.deepCopy()); err != nil {
 			return err
 		}
 	}
@@ -299,13 +293,10 @@ func (s ServiceConfig) HasProfile(profiles []string) bool {
 	return false
 }
 
-// ApplyProfiles disables service which don't match selected profiles
+// WithProfiles disables services which don't match selected profiles
 // It returns a new Project instance with the changes and keep the original Project unchanged
-func (p *Project) ApplyProfiles(profiles []string) (*Project, error) {
-	newProject, err := p.deepCopy()
-	if err != nil {
-		return nil, err
-	}
+func (p *Project) WithProfiles(profiles []string) (*Project, error) {
+	newProject := p.deepCopy()
 	for _, p := range profiles {
 		if p == "*" {
 			return newProject, nil
@@ -326,13 +317,10 @@ func (p *Project) ApplyProfiles(profiles []string) (*Project, error) {
 	return newProject, nil
 }
 
-// EnableServices ensures services are enabled and activate profiles accordingly
+// WithServicesEnabled ensures services are enabled and activate profiles accordingly
 // It returns a new Project instance with the changes and keep the original Project unchanged
-func (p *Project) EnableServices(names ...string) (*Project, error) {
-	newProject, err := p.deepCopy()
-	if err != nil {
-		return nil, err
-	}
+func (p *Project) WithServicesEnabled(names ...string) (*Project, error) {
+	newProject := p.deepCopy()
 	if len(names) == 0 {
 		return newProject, nil
 	}
@@ -346,18 +334,18 @@ func (p *Project) EnableServices(names ...string) (*Project, error) {
 		service := p.DisabledServices[name]
 		profiles = append(profiles, service.Profiles...)
 	}
-	newProject, err = newProject.ApplyProfiles(profiles)
+	newProject, err := newProject.WithProfiles(profiles)
 	if err != nil {
 		return newProject, err
 	}
 
-	return newProject.ResolveServicesEnvironment(true)
+	return newProject.WithServicesEnvironmentResolved(true)
 }
 
 // WithoutUnnecessaryResources drops networks/volumes/secrets/configs that are not referenced by active services
 // It returns a new Project instance with the changes and keep the original Project unchanged
-func (p *Project) WithoutUnnecessaryResources() (*Project, error) {
-	newProject, err := p.deepCopy()
+func (p *Project) WithoutUnnecessaryResources() *Project {
+	newProject := p.deepCopy()
 	requiredNetworks := map[string]struct{}{}
 	requiredVolumes := map[string]struct{}{}
 	requiredSecrets := map[string]struct{}{}
@@ -416,7 +404,7 @@ func (p *Project) WithoutUnnecessaryResources() (*Project, error) {
 		}
 	}
 	newProject.Configs = configs
-	return newProject, err
+	return newProject
 }
 
 type DependencyOption func(options *withServicesOptions)
@@ -433,16 +421,17 @@ func IgnoreDependencies(options *withServicesOptions) {
 	options.dependencyPolicy = ignoreDependencies
 }
 
-// ForServices restricts the project model to selected services and dependencies
+// WithSelectedServices restricts the project model to selected services and dependencies
 // It returns a new Project instance with the changes and keep the original Project unchanged
-func (p *Project) ForServices(names []string, options ...DependencyOption) (*Project, error) {
+func (p *Project) WithSelectedServices(names []string, options ...DependencyOption) (*Project, error) {
+	newProject := p.deepCopy()
 	if len(names) == 0 {
 		// All services
-		return p.deepCopy()
+		return newProject, nil
 	}
 
 	set := utils.NewSet[string]()
-	newProject, err := p.WithServices(names, func(name string, service ServiceConfig) error {
+	err := p.ForEachService(names, func(name string, service *ServiceConfig) error {
 		set.Add(name)
 		return nil
 	}, options...)
@@ -464,44 +453,43 @@ func (p *Project) ForServices(names []string, options ...DependencyOption) (*Pro
 			s.DependsOn = dependencies
 			enabled[name] = s
 		} else {
-			if newProject, err = newProject.DisableService(s); err != nil {
-				return nil, err
-			}
+			newProject = newProject.WithServicesDisabled(name)
 		}
 	}
 	newProject.Services = enabled
 	return newProject, nil
 }
 
-// DisableService removes from the project model the given service and its references in all dependencies
+// WithServicesDisabled removes from the project model the given services and their references in all dependencies
 // It returns a new Project instance with the changes and keep the original Project unchanged
-func (p *Project) DisableService(service ServiceConfig) (*Project, error) {
-	newProject, err := p.deepCopy()
-	if err != nil {
-		return nil, err
+func (p *Project) WithServicesDisabled(names ...string) *Project {
+	newProject := p.deepCopy()
+	if len(names) == 0 {
+		return newProject
 	}
-	// We should remove all dependencies which reference the disabled service
-	for i, s := range newProject.Services {
-		if _, ok := s.DependsOn[service.Name]; ok {
-			delete(s.DependsOn, service.Name)
-			newProject.Services[i] = s
-		}
-	}
-	delete(p.Services, service.Name)
 	if newProject.DisabledServices == nil {
 		newProject.DisabledServices = Services{}
 	}
-	newProject.DisabledServices[service.Name] = service
-	return newProject, err
+	for _, name := range names {
+		// We should remove all dependencies which reference the disabled service
+		for i, s := range newProject.Services {
+			if _, ok := s.DependsOn[name]; ok {
+				delete(s.DependsOn, name)
+				newProject.Services[i] = s
+			}
+		}
+		if service, ok := newProject.Services[name]; ok {
+			newProject.DisabledServices[name] = service
+			delete(newProject.Services, name)
+		}
+	}
+	return newProject
 }
 
-// ResolveImages updates services images to include digest computed by a resolver function
+// WithImagesResolved updates services images to include digest computed by a resolver function
 // It returns a new Project instance with the changes and keep the original Project unchanged
-func (p *Project) ResolveImages(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
-	newProject, err := p.deepCopy()
-	if err != nil {
-		return nil, err
-	}
+func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
+	newProject := p.deepCopy()
 	eg := errgroup.Group{}
 	for i, s := range newProject.Services {
 		idx := i
@@ -574,13 +562,10 @@ func (p *Project) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
-// ResolveServicesEnvironment parses env_files set for services to resolve the actual environment map for services
+// WithServicesEnvironmentResolved parses env_files set for services to resolve the actual environment map for services
 // It returns a new Project instance with the changes and keep the original Project unchanged
-func (p Project) ResolveServicesEnvironment(discardEnvFiles bool) (*Project, error) {
-	newProject, err := p.deepCopy()
-	if err != nil {
-		return nil, err
-	}
+func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project, error) {
+	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
 		service.Environment = service.Environment.Resolve(newProject.Environment.Resolve)
 
@@ -623,10 +608,10 @@ func (p Project) ResolveServicesEnvironment(discardEnvFiles bool) (*Project, err
 	return newProject, nil
 }
 
-func (p *Project) deepCopy() (*Project, error) {
+func (p *Project) deepCopy() *Project {
 	instance, err := copystructure.Copy(p)
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return instance.(*Project), nil
+	return instance.(*Project)
 }
