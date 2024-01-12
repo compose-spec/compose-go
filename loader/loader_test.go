@@ -2942,3 +2942,22 @@ services:
 		"nofile": {Soft: 20000, Hard: 40000},
 	})
 }
+
+func TestServiceNameWithDots(t *testing.T) {
+	yaml := `
+name: test-service-name-with-dots
+services:
+  test.a.b.c:
+    image: foo
+    ports:
+      - "5432"
+`
+	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+}
