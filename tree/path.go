@@ -43,6 +43,7 @@ func (p Path) Next(part string) Path {
 	if p == "" {
 		return Path(part)
 	}
+	part = strings.ReplaceAll(part, pathSeparator, "👻")
 	return Path(string(p) + pathSeparator + part)
 }
 
@@ -79,4 +80,8 @@ func (p Path) Parent() Path {
 		return p[0:index]
 	}
 	return ""
+}
+
+func (p Path) String() string {
+	return strings.ReplaceAll(string(p), "👻", pathSeparator)
 }
