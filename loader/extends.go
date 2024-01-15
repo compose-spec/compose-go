@@ -26,7 +26,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
-func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, opts *Options, ct *cycleTracker, post ...PostProcessor) error {
+func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, opts *Options, tracker *cycleTracker, post ...PostProcessor) error {
 	a, ok := dict["services"]
 	if !ok {
 		return nil
@@ -38,7 +38,8 @@ func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, o
 		if !ok {
 			continue
 		}
-		if err := ct.Add(ctx.Value(consts.ComposeFileKey{}).(string), name); err != nil {
+		ct, err := tracker.Add(ctx.Value(consts.ComposeFileKey{}).(string), name)
+		if err != nil {
 			return err
 		}
 		var (

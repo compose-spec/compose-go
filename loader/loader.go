@@ -144,7 +144,7 @@ type cycleTracker struct {
 	loaded []serviceRef
 }
 
-func (ct *cycleTracker) Add(filename, service string) error {
+func (ct *cycleTracker) Add(filename, service string) (*cycleTracker, error) {
 	toAdd := serviceRef{filename: filename, service: service}
 	for _, loaded := range ct.loaded {
 		if toAdd == loaded {
@@ -161,12 +161,16 @@ func (ct *cycleTracker) Add(filename, service string) error {
 				errLines = append(errLines, fmt.Sprintf("  extends %s in %s", service.service, service.filename))
 			}
 
-			return errors.New(strings.Join(errLines, "\n"))
+			return nil, errors.New(strings.Join(errLines, "\n"))
 		}
 	}
 
-	ct.loaded = append(ct.loaded, toAdd)
-	return nil
+	var branch []serviceRef
+	branch = append(branch, ct.loaded...)
+	branch = append(branch, toAdd)
+	return &cycleTracker{
+		loaded: branch,
+	}, nil
 }
 
 // WithDiscardEnvFiles sets the Options to discard the `env_file` section after resolving to

@@ -1,0 +1,7 @@
+services:
+  base:
+    image: base
+
+  another:
+    extends: base
+
