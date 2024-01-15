@@ -93,3 +93,22 @@ services:
       - QIX=ZOT
 `)
 }
+
+func Test_mergeYamlEnvironmentNumber(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    environment:
+      FOO: 1
+`, `
+services:
+  test:
+    environment:
+      FOO: 3
+`, `
+services:
+  test:
+    environment:
+      - FOO=3
+`)
+}
