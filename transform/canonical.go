@@ -27,6 +27,7 @@ var transformers = map[tree.Path]transformFunc{}
 func init() {
 	transformers["services.*"] = transformService
 	transformers["services.*.build.secrets.*"] = transformFileMount
+	transformers["services.*.build.additional_contexts"] = transformKeyValue
 	transformers["services.*.depends_on"] = transformDependsOn
 	transformers["services.*.env_file"] = transformEnvFile
 	transformers["services.*.extends"] = transformExtends
