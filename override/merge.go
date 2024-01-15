@@ -122,7 +122,7 @@ func convertIntoSequence(value any) []any {
 			if v == nil {
 				seq[i] = k
 			} else {
-				seq[i] = fmt.Sprintf("%s=%s", k, v)
+				seq[i] = fmt.Sprintf("%s=%v", k, v)
 			}
 			i++
 		}
