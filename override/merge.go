@@ -40,6 +40,7 @@ var mergeSpecials = map[tree.Path]merger{}
 
 func init() {
 	mergeSpecials["services.*.logging"] = mergeLogging
+	mergeSpecials["services.*.networks"] = mergeNetworks
 	mergeSpecials["services.*.command"] = override
 	mergeSpecials["services.*.entrypoint"] = override
 	mergeSpecials["services.*.healthcheck.test"] = override
@@ -106,6 +107,12 @@ func mergeLogging(c any, o any, p tree.Path) (any, error) {
 	return other, nil
 }
 
+func mergeNetworks(c any, o any, path tree.Path) (any, error) {
+	right := convertIntoMapping(c)
+	left := convertIntoMapping(o)
+	return mergeMappings(right, left, path)
+}
+
 // environment must be first converted into yaml sequence syntax so we can append
 func mergeEnvironment(c any, o any, _ tree.Path) (any, error) {
 	right := convertIntoSequence(c)
@@ -142,6 +149,20 @@ func mergeUlimit(_ any, o any, p tree.Path) (any, error) {
 		return mergeMappings(base, over, p)
 	}
 	return o, nil
+}
+
+func convertIntoMapping(a any) map[string]any {
+	switch v := a.(type) {
+	case map[string]any:
+		return v
+	case []any:
+		converted := map[string]any{}
+		for _, s := range v {
+			converted[s.(string)] = nil
+		}
+		return converted
+	}
+	return nil
 }
 
 func override(_ any, other any, _ tree.Path) (any, error) {
