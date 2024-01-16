@@ -66,6 +66,72 @@ services:
 `)
 }
 
+func Test_PortsShortUnicity(t *testing.T) {
+	assertUnicity(t, `
+services:
+  test:
+    image: foo
+    ports:
+      - "9080:80"
+      - "9081:81"
+      - "9080:80"
+      - "5000"
+      - "6060:6060/udp"
+      - "9080:6060/udp"
+`, `
+services:
+  test:
+    image: foo
+    ports:
+      - "9080:80"
+      - "9081:81"
+      - "5000"
+      - "6060:6060/udp"
+      - "9080:6060/udp"
+`)
+}
+
+func Test_PortsLongtUnicity(t *testing.T) {
+	assertUnicity(t, `
+services:
+  test:
+    image: foo
+    ports:
+      - target: 80
+        host_ip: 127.0.0.1
+        published: "8080"
+        protocol: tcp
+        mode: host
+      - target: 81
+        published: "8080"
+        protocol: tcp
+      - target: 80
+        host_ip: 127.0.0.2
+        published: "8080"
+        protocol: tcp
+      - target: 81
+        published: "8080"
+        protocol: tcp
+`, `
+services:
+  test:
+    image: foo
+    ports:
+      - target: 80
+        host_ip: 127.0.0.1
+        published: "8080"
+        protocol: tcp
+        mode: host
+      - target: 81
+        published: "8080"
+        protocol: tcp
+      - target: 80
+        host_ip: 127.0.0.2
+        published: "8080"
+        protocol: tcp
+`)
+}
+
 func assertUnicity(t *testing.T, before string, expected string) {
 	got, err := EnforceUnicity(unmarshall(t, before))
 	assert.NilError(t, err)

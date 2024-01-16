@@ -36,6 +36,7 @@ func init() {
 	unique["services.*.expose"] = exposeIndexer
 	unique["services.*.secrets"] = mountIndexer("/run/secrets")
 	unique["services.*.configs"] = mountIndexer("")
+	unique["services.*.ports"] = portIndexer
 }
 
 // EnforceUnicity removes redefinition of elements declared in a sequence
@@ -135,4 +136,35 @@ func mountIndexer(defaultPath string) indexer {
 			return "", fmt.Errorf("%s: unsupported expose value %s", path, a)
 		}
 	}
+}
+
+func portIndexer(y any, p tree.Path) (string, error) {
+	switch value := y.(type) {
+	case int:
+		return strconv.Itoa(value), nil
+	case map[string]any:
+		target, ok := value["target"].(int)
+		if !ok {
+			return "", fmt.Errorf("service ports %s is missing a target port", p)
+		}
+		published, ok := value["published"].(string)
+		if !ok {
+			// try to parse it as an int
+			if pub, ok := value["published"].(int); ok {
+				published = fmt.Sprintf("%d", pub)
+			}
+		}
+		host, ok := value["host_ip"].(string)
+		if !ok {
+			host = "0.0.0.0"
+		}
+		protocol, ok := value["protocol"].(string)
+		if !ok {
+			protocol = "tcp"
+		}
+		return fmt.Sprintf("%s:%s:%d/%s", host, published, target, protocol), nil
+	case string:
+		return value, nil
+	}
+	return "", nil
 }
