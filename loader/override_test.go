@@ -47,7 +47,7 @@ services:
           - alias1
           - alias2
 `
-	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "base",
@@ -60,4 +60,71 @@ services:
 		},
 	})
 	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["test"].Networks["test_network"].Aliases, []string{"alias1", "alias2"})
+}
+
+func TestOverrideBuildContext(t *testing.T) {
+	yaml := `
+name: test-override-networks
+services:
+  test:
+    build: .
+`
+
+	override := `
+services:
+  test:
+    build:
+      context: src
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "base",
+				Content:  []byte(yaml),
+			},
+			{
+				Filename: "override",
+				Content:  []byte(override),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["test"].Build.Context, "src")
+}
+
+func TestOverrideDepends_on(t *testing.T) {
+	yaml := `
+name: test-override-networks
+services:
+  test:
+    image: test
+    depends_on:
+      - foo
+  foo:
+    image: foo
+`
+
+	override := `
+services:
+  test:
+    depends_on:
+      foo:
+        condition: service_healthy
+        required: false
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "base",
+				Content:  []byte(yaml),
+			},
+			{
+				Filename: "override",
+				Content:  []byte(override),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	assert.Check(t, p.Services["test"].DependsOn["foo"].Required == false)
 }
