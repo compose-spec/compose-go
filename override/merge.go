@@ -39,6 +39,8 @@ type merger func(any, any, tree.Path) (any, error)
 var mergeSpecials = map[tree.Path]merger{}
 
 func init() {
+	mergeSpecials["services.*.build"] = mergeBuild
+	mergeSpecials["services.*.depends_on"] = mergeDependsOn
 	mergeSpecials["services.*.logging"] = mergeLogging
 	mergeSpecials["services.*.networks"] = mergeNetworks
 	mergeSpecials["services.*.command"] = override
@@ -107,9 +109,36 @@ func mergeLogging(c any, o any, p tree.Path) (any, error) {
 	return other, nil
 }
 
+func mergeBuild(c any, o any, path tree.Path) (any, error) {
+	toBuild := func(c any) map[string]any {
+		switch v := c.(type) {
+		case string:
+			return map[string]any{
+				"context": v,
+			}
+		case map[string]any:
+			return v
+		}
+		return nil
+	}
+	return mergeMappings(toBuild(c), toBuild(o), path)
+}
+
+func mergeDependsOn(c any, o any, path tree.Path) (any, error) {
+	right := convertIntoMapping(c, map[string]any{
+		"condition": "service_started",
+		"required":  true,
+	})
+	left := convertIntoMapping(o, map[string]any{
+		"condition": "service_started",
+		"required":  true,
+	})
+	return mergeMappings(right, left, path)
+}
+
 func mergeNetworks(c any, o any, path tree.Path) (any, error) {
-	right := convertIntoMapping(c)
-	left := convertIntoMapping(o)
+	right := convertIntoMapping(c, nil)
+	left := convertIntoMapping(o, nil)
 	return mergeMappings(right, left, path)
 }
 
@@ -151,14 +180,14 @@ func mergeUlimit(_ any, o any, p tree.Path) (any, error) {
 	return o, nil
 }
 
-func convertIntoMapping(a any) map[string]any {
+func convertIntoMapping(a any, defaultValue any) map[string]any {
 	switch v := a.(type) {
 	case map[string]any:
 		return v
 	case []any:
 		converted := map[string]any{}
 		for _, s := range v {
-			converted[s.(string)] = nil
+			converted[s.(string)] = defaultValue
 		}
 		return converted
 	}
