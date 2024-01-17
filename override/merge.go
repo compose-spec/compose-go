@@ -17,6 +17,7 @@
 package override
 
 import (
+	"cmp"
 	"fmt"
 	"strings"
 
@@ -179,7 +180,7 @@ func convertIntoSequence(value any) []any {
 			i++
 		}
 		slices.SortFunc(seq, func(a, b any) int {
-			return compare(a.(string), b.(string))
+			return cmp.Compare(a.(string), b.(string))
 		})
 		return seq
 	case []any:
