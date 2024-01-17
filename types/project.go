@@ -45,7 +45,7 @@ type Project struct {
 	Volumes    Volumes    `yaml:"volumes,omitempty" json:"volumes,omitempty"`
 	Secrets    Secrets    `yaml:"secrets,omitempty" json:"secrets,omitempty"`
 	Configs    Configs    `yaml:"configs,omitempty" json:"configs,omitempty"`
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"` // https://github.com/golang/go/issues/6213
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"` // https://github.com/golang/go/issues/6213
 
 	// IncludeReferences is keyed by Compose YAML filename and contains config for
 	// other Compose YAML files it directly triggered a load of via `include`.

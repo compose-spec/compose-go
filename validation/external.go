@@ -18,6 +18,7 @@ package validation
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -37,6 +38,10 @@ func checkExternal(v map[string]any, p tree.Path) error {
 		case "name", "external", consts.Extensions:
 			continue
 		default:
+			if strings.HasPrefix(k, "x-") {
+				// custom extension, ignored
+				continue
+			}
 			return fmt.Errorf("%s: conflicting parameters \"external\" and %q specified", p, k)
 		}
 	}

@@ -31,9 +31,15 @@ func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, o
 	if !ok {
 		return nil
 	}
-	services := a.(map[string]any)
+	services, ok := a.(map[string]any)
+	if !ok {
+		return fmt.Errorf("services must be a mapping")
+	}
 	for name, s := range services {
-		service := s.(map[string]any)
+		service, ok := s.(map[string]any)
+		if !ok {
+			return fmt.Errorf("services.%s must be a mapping", name)
+		}
 		x, ok := service["extends"]
 		if !ok {
 			continue

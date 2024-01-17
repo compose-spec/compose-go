@@ -128,3 +128,40 @@ services:
 	assert.NilError(t, err)
 	assert.Check(t, p.Services["test"].DependsOn["foo"].Required == false)
 }
+
+func TestOverridePartial(t *testing.T) {
+	yaml := `
+name: test-override-networks
+services:
+  test:
+    image: test
+    depends_on:
+      foo:
+        condition: service_healthy
+
+  foo: 
+    image: foo
+`
+
+	override := `
+services:
+  test:
+    depends_on:
+      foo:
+        # This is invalid according to json schema as condition is required
+        required: false
+`
+	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "base",
+				Content:  []byte(yaml),
+			},
+			{
+				Filename: "override",
+				Content:  []byte(override),
+			},
+		},
+	})
+	assert.NilError(t, err)
+}
