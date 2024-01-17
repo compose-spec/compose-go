@@ -312,12 +312,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 
 			fixEmptyNotNull(cfg)
 
-			if !opts.SkipValidation {
-				if err := schema.Validate(cfg); err != nil {
-					return fmt.Errorf("validating %s: %w", file.Filename, err)
-				}
-			}
-
 			if !opts.SkipExtends {
 				err = ApplyExtends(fctx, cfg, config.WorkingDir, opts, ct, processors...)
 				if err != nil {
@@ -332,6 +326,12 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			}
 
 			dict, err = override.Merge(dict, cfg)
+
+			if !opts.SkipValidation {
+				if err := schema.Validate(dict); err != nil {
+					return fmt.Errorf("validating %s: %w", file.Filename, err)
+				}
+			}
 
 			return err
 		}
@@ -378,8 +378,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		}
 	}
 
-	dict = groupXFieldsIntoExtensions(dict, tree.NewPath())
-
 	if !opts.SkipValidation {
 		if err := validation.Validate(dict); err != nil {
 			return nil, err
@@ -423,6 +421,8 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		Environment: configDetails.Environment,
 	}
 	delete(dict, "name") // project name set by yaml must be identified by caller as opts.projectName
+
+	dict = groupXFieldsIntoExtensions(dict, tree.NewPath())
 	err = Transform(dict, project)
 	if err != nil {
 		return nil, err

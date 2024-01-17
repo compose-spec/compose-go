@@ -30,7 +30,7 @@ type HealthCheckConfig struct {
 	StartInterval *Duration       `yaml:"start_interval,omitempty" json:"start_interval,omitempty"`
 	Disable       bool            `yaml:"disable,omitempty" json:"disable,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // HealthCheckTest is the command run to test the health of a service

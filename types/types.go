@@ -132,7 +132,7 @@ type ServiceConfig struct {
 	VolumesFrom     []string                         `yaml:"volumes_from,omitempty" json:"volumes_from,omitempty"`
 	WorkingDir      string                           `yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // MarshalYAML makes ServiceConfig implement yaml.Marshaller
@@ -280,7 +280,7 @@ type BuildConfig struct {
 	Platforms          StringList                `yaml:"platforms,omitempty" json:"platforms,omitempty"`
 	Privileged         bool                      `yaml:"privileged,omitempty" json:"privileged,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // BlkioConfig define blkio config
@@ -292,7 +292,7 @@ type BlkioConfig struct {
 	DeviceWriteBps  []ThrottleDevice `yaml:"device_write_bps,omitempty" json:"device_write_bps,omitempty"`
 	DeviceWriteIOps []ThrottleDevice `yaml:"device_write_iops,omitempty" json:"device_write_iops,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // WeightDevice is a structure that holds device:weight pair
@@ -300,7 +300,7 @@ type WeightDevice struct {
 	Path   string
 	Weight uint16
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ThrottleDevice is a structure that holds device:rate_per_second pair
@@ -308,7 +308,7 @@ type ThrottleDevice struct {
 	Path string
 	Rate UnitBytes
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // MappingWithColon is a mapping type that can be converted from a list of
@@ -320,7 +320,7 @@ type LoggingConfig struct {
 	Driver  string  `yaml:"driver,omitempty" json:"driver,omitempty"`
 	Options Options `yaml:"options,omitempty" json:"options,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // DeployConfig the deployment configuration for a service
@@ -335,7 +335,7 @@ type DeployConfig struct {
 	Placement      Placement      `yaml:"placement,omitempty" json:"placement,omitempty"`
 	EndpointMode   string         `yaml:"endpoint_mode,omitempty" json:"endpoint_mode,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // UpdateConfig the service update configuration
@@ -347,7 +347,7 @@ type UpdateConfig struct {
 	MaxFailureRatio float32  `yaml:"max_failure_ratio,omitempty" json:"max_failure_ratio,omitempty"`
 	Order           string   `yaml:"order,omitempty" json:"order,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // Resources the resource limits and reservations
@@ -355,7 +355,7 @@ type Resources struct {
 	Limits       *Resource `yaml:"limits,omitempty" json:"limits,omitempty"`
 	Reservations *Resource `yaml:"reservations,omitempty" json:"reservations,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // Resource is a resource to be limited or reserved
@@ -367,7 +367,7 @@ type Resource struct {
 	Devices          []DeviceRequest   `yaml:"devices,omitempty" json:"devices,omitempty"`
 	GenericResources []GenericResource `yaml:"generic_resources,omitempty" json:"generic_resources,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // GenericResource represents a "user defined" resource which can
@@ -375,7 +375,7 @@ type Resource struct {
 type GenericResource struct {
 	DiscreteResourceSpec *DiscreteGenericResource `yaml:"discrete_resource_spec,omitempty" json:"discrete_resource_spec,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // DiscreteGenericResource represents a "user defined" resource which is defined
@@ -386,7 +386,7 @@ type DiscreteGenericResource struct {
 	Kind  string `json:"kind"`
 	Value int64  `json:"value"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // RestartPolicy the service restart policy
@@ -396,7 +396,7 @@ type RestartPolicy struct {
 	MaxAttempts *uint64   `yaml:"max_attempts,omitempty" json:"max_attempts,omitempty"`
 	Window      *Duration `yaml:"window,omitempty" json:"window,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // Placement constraints for the service
@@ -405,14 +405,14 @@ type Placement struct {
 	Preferences []PlacementPreferences `yaml:"preferences,omitempty" json:"preferences,omitempty"`
 	MaxReplicas uint64                 `yaml:"max_replicas_per_node,omitempty" json:"max_replicas_per_node,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // PlacementPreferences is the preferences for a service placement
 type PlacementPreferences struct {
 	Spread string `yaml:"spread,omitempty" json:"spread,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ServiceNetworkConfig is the network configuration for a service
@@ -424,7 +424,7 @@ type ServiceNetworkConfig struct {
 	LinkLocalIPs []string `yaml:"link_local_ips,omitempty" json:"link_local_ips,omitempty"`
 	MacAddress   string   `yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ServicePortConfig is the port configuration for a service
@@ -435,7 +435,7 @@ type ServicePortConfig struct {
 	Published string `yaml:"published,omitempty" json:"published,omitempty"`
 	Protocol  string `yaml:"protocol,omitempty" json:"protocol,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ParsePortConfig parse short syntax for service port configuration
@@ -488,7 +488,7 @@ type ServiceVolumeConfig struct {
 	Volume      *ServiceVolumeVolume `yaml:"volume,omitempty" json:"volume,omitempty"`
 	Tmpfs       *ServiceVolumeTmpfs  `yaml:"tmpfs,omitempty" json:"tmpfs,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // String render ServiceVolumeConfig as a volume string, one can parse back using loader.ParseVolume
@@ -534,7 +534,7 @@ type ServiceVolumeBind struct {
 	Propagation    string `yaml:"propagation,omitempty" json:"propagation,omitempty"`
 	CreateHostPath bool   `yaml:"create_host_path,omitempty" json:"create_host_path,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // SELinux represents the SELinux re-labeling options.
@@ -565,7 +565,7 @@ const (
 type ServiceVolumeVolume struct {
 	NoCopy bool `yaml:"nocopy,omitempty" json:"nocopy,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ServiceVolumeTmpfs are options for a service volume of type tmpfs
@@ -574,7 +574,7 @@ type ServiceVolumeTmpfs struct {
 
 	Mode uint32 `yaml:"mode,omitempty" json:"mode,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // FileReferenceConfig for a reference to a swarm file object
@@ -585,7 +585,7 @@ type FileReferenceConfig struct {
 	GID    string  `yaml:"gid,omitempty" json:"gid,omitempty"`
 	Mode   *uint32 `yaml:"mode,omitempty" json:"mode,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ServiceConfigObjConfig is the config obj configuration for a service
@@ -600,7 +600,7 @@ type UlimitsConfig struct {
 	Soft   int `yaml:"soft,omitempty" json:"soft,omitempty"`
 	Hard   int `yaml:"hard,omitempty" json:"hard,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // MarshalYAML makes UlimitsConfig implement yaml.Marshaller
@@ -637,14 +637,14 @@ type NetworkConfig struct {
 	Attachable bool       `yaml:"attachable,omitempty" json:"attachable,omitempty"`
 	Labels     Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
 	EnableIPv6 bool       `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // IPAMConfig for a network
 type IPAMConfig struct {
 	Driver     string      `yaml:"driver,omitempty" json:"driver,omitempty"`
 	Config     []*IPAMPool `yaml:"config,omitempty" json:"config,omitempty"`
-	Extensions Extensions  `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions  `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // IPAMPool for a network
@@ -663,7 +663,7 @@ type VolumeConfig struct {
 	DriverOpts Options    `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
 	External   External   `yaml:"external,omitempty" json:"external,omitempty"`
 	Labels     Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // External identifies a Volume or Network as a reference to a resource that is
@@ -675,7 +675,7 @@ type CredentialSpecConfig struct {
 	Config     string     `yaml:"config,omitempty" json:"config,omitempty"` // Config was added in API v1.40
 	File       string     `yaml:"file,omitempty" json:"file,omitempty"`
 	Registry   string     `yaml:"registry,omitempty" json:"registry,omitempty"`
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // FileObjectConfig is a config type for a file used by a service
@@ -689,7 +689,7 @@ type FileObjectConfig struct {
 	Driver         string            `yaml:"driver,omitempty" json:"driver,omitempty"`
 	DriverOpts     map[string]string `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
 	TemplateDriver string            `yaml:"template_driver,omitempty" json:"template_driver,omitempty"`
-	Extensions     Extensions        `yaml:"#extensions,inline" json:"-"`
+	Extensions     Extensions        `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 const (
@@ -708,7 +708,7 @@ type DependsOnConfig map[string]ServiceDependency
 type ServiceDependency struct {
 	Condition  string     `yaml:"condition,omitempty" json:"condition,omitempty"`
 	Restart    bool       `yaml:"restart,omitempty" json:"restart,omitempty"`
-	Extensions Extensions `yaml:"#extensions,inline" json:"-"`
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 	Required   bool       `yaml:"required" json:"required"`
 }
 
