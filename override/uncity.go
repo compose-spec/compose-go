@@ -62,7 +62,7 @@ func enforceUnicity(value any, p tree.Path) (any, error) {
 	case []any:
 		for pattern, indexer := range unique {
 			if p.Matches(pattern) {
-				var seq []any
+				seq := []any{}
 				keys := map[string]int{}
 				for i, entry := range v {
 					key, err := indexer(entry, p.Next(fmt.Sprintf("[%d]", i)))
