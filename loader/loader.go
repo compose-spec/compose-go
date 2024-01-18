@@ -326,6 +326,14 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			}
 
 			dict, err = override.Merge(dict, cfg)
+			if err != nil {
+				return err
+			}
+
+			dict, err = override.EnforceUnicity(dict)
+			if err != nil {
+				return err
+			}
 
 			if !opts.SkipValidation {
 				if err := schema.Validate(dict); err != nil {
@@ -358,11 +366,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				return nil, err
 			}
 		}
-	}
-
-	dict, err = override.EnforceUnicity(dict)
-	if err != nil {
-		return nil, err
 	}
 
 	dict, err = transform.Canonical(dict)

@@ -165,3 +165,35 @@ services:
 	})
 	assert.NilError(t, err)
 }
+
+func TestOverrideVolume(t *testing.T) {
+	yaml := `
+name: test-override-volume
+services:
+  test:
+    image: test
+    volumes:
+      - ./src:/src
+`
+
+	override := `
+services:
+  test:
+    volumes:
+      - ./src:/src
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "base",
+				Content:  []byte(yaml),
+			},
+			{
+				Filename: "override",
+				Content:  []byte(override),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Services["test"].Volumes), 1)
+}
