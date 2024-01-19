@@ -26,9 +26,7 @@ func transformUlimits(data any, p tree.Path) (any, error) {
 	case map[string]any:
 		return v, nil
 	case int:
-		return map[string]any{
-			"single": v,
-		}, nil
+		return v, nil
 	default:
 		return data, errors.Errorf("%s: invalid type %T for external", p, v)
 	}

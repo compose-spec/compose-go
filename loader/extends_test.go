@@ -90,3 +90,28 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, p.Services["test"].Ports[0].Target, uint32(8000))
 }
+
+func TestExtendsUlimits(t *testing.T) {
+	yaml := `
+name: test-extends
+services:
+  test:
+    extends:
+      file: testdata/extends/base.yaml
+      service: withUlimits
+`
+	abs, err := filepath.Abs(".")
+	assert.NilError(t, err)
+
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content:  []byte(yaml),
+				Filename: "(inline)",
+			},
+		},
+		WorkingDir: abs,
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["test"].Ulimits["nproc"].Single, 65535)
+}
