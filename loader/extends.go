@@ -26,7 +26,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
-func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, opts *Options, tracker *cycleTracker, post ...PostProcessor) error {
+func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, tracker *cycleTracker, post ...PostProcessor) error {
 	a, ok := dict["services"]
 	if !ok {
 		return nil
@@ -71,14 +71,15 @@ func ApplyExtends(ctx context.Context, dict map[string]any, workingdir string, o
 				if err != nil {
 					return err
 				}
-				relworkingdir := filepath.Dir(local)
-				if !filepath.IsAbs(local) {
-					relworkingdir, err = filepath.Rel(workingdir, relworkingdir)
-					if err != nil {
-						return err
-					}
-				}
+				localdir := filepath.Dir(local)
+				relworkingdir := loader.Dir(path)
+
 				extendsOpts := opts.clone()
+				extendsOpts.ResourceLoaders = append([]ResourceLoader{}, opts.ResourceLoaders...)
+				// replace localResourceLoader with a new flavour, using extended file base path
+				extendsOpts.ResourceLoaders[len(opts.ResourceLoaders)-1] = localResourceLoader{
+					WorkingDir: localdir,
+				}
 				extendsOpts.ResolvePaths = true
 				extendsOpts.SkipNormalization = true
 				extendsOpts.SkipConsistencyCheck = true

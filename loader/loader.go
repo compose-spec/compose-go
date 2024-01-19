@@ -83,6 +83,8 @@ type ResourceLoader interface {
 	Accept(path string) bool
 	// Load returns the path to a local copy of remote resource identified by `path`.
 	Load(ctx context.Context, path string) (string, error)
+	// Dir computes path to resource"s parent folder, made relative if possible
+	Dir(path string) string
 }
 
 type localResourceLoader struct {
@@ -103,6 +105,15 @@ func (l localResourceLoader) Accept(p string) bool {
 
 func (l localResourceLoader) Load(_ context.Context, p string) (string, error) {
 	return l.abs(p), nil
+}
+
+func (l localResourceLoader) Dir(path string) string {
+	path = l.abs(filepath.Dir(path))
+	rel, err := filepath.Rel(l.WorkingDir, path)
+	if err != nil {
+		return path
+	}
+	return rel
 }
 
 func (o *Options) clone() *Options {
@@ -313,7 +324,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			fixEmptyNotNull(cfg)
 
 			if !opts.SkipExtends {
-				err = ApplyExtends(fctx, cfg, config.WorkingDir, opts, ct, processors...)
+				err = ApplyExtends(fctx, cfg, opts, ct, processors...)
 				if err != nil {
 					return err
 				}
