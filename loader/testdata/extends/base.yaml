@@ -8,3 +8,12 @@ services:
   with-port:
     ports:
       - 8000:8000
+
+  withUlimits:
+    image: test
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+      

@@ -603,6 +603,31 @@ type UlimitsConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {
+	switch v := value.(type) {
+	case *UlimitsConfig:
+		// this call to DecodeMapstructure is triggered after initial value conversion as we use a map[string]*UlimitsConfig
+		return nil
+	case int:
+		u.Single = v
+		u.Soft = 0
+		u.Hard = 0
+	case map[string]any:
+		u.Single = 0
+		soft, ok := v["soft"]
+		if ok {
+			u.Soft = soft.(int)
+		}
+		hard, ok := v["hard"]
+		if ok {
+			u.Hard = hard.(int)
+		}
+	default:
+		return fmt.Errorf("unexpected value type %T for ulimit", value)
+	}
+	return nil
+}
+
 // MarshalYAML makes UlimitsConfig implement yaml.Marshaller
 func (u *UlimitsConfig) MarshalYAML() (interface{}, error) {
 	if u.Single != 0 {
