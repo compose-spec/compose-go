@@ -17,8 +17,9 @@
 package transform
 
 import (
+	"fmt"
+
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 )
 
 func transformInclude(data any, p tree.Path) (any, error) {
@@ -30,6 +31,6 @@ func transformInclude(data any, p tree.Path) (any, error) {
 			"path": v,
 		}, nil
 	default:
-		return data, errors.Errorf("%s: invalid type %T for external", p, v)
+		return data, fmt.Errorf("%s: invalid type %T for external", p, v)
 	}
 }

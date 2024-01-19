@@ -17,11 +17,12 @@
 package interpolation
 
 import (
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 )
 
 // Options supported by Interpolate
@@ -80,7 +81,10 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 			return newValue, nil
 		}
 		casted, err := caster(newValue)
-		return casted, newPathError(path, errors.Wrap(err, "failed to cast to expected type"))
+		if err != nil {
+			return casted, newPathError(path, fmt.Errorf("failed to cast to expected type: %w", err))
+		}
+		return casted, nil
 
 	case map[string]interface{}:
 		out := map[string]interface{}{}
@@ -110,15 +114,16 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 }
 
 func newPathError(path tree.Path, err error) error {
-	switch err := err.(type) {
-	case nil:
+	var ite *template.InvalidTemplateError
+	switch {
+	case err == nil:
 		return nil
-	case *template.InvalidTemplateError:
-		return errors.Errorf(
+	case errors.As(err, &ite):
+		return fmt.Errorf(
 			"invalid interpolation format for %s.\nYou may need to escape any $ with another $.\n%s",
-			path, err.Template)
+			path, ite.Template)
 	default:
-		return errors.Wrapf(err, "error while interpolating %s", path)
+		return fmt.Errorf("error while interpolating %s: %w", path, err)
 	}
 }
 

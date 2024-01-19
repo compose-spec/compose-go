@@ -18,13 +18,13 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"github.com/compose-spec/compose-go/v2/consts"
@@ -472,7 +472,7 @@ func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
 	if len(options.ConfigPaths) != 0 {
 		return absolutePaths(options.ConfigPaths)
 	}
-	return nil, errors.Wrap(errdefs.ErrNotFound, "no configuration file provided")
+	return nil, fmt.Errorf("no configuration file provided: %w", errdefs.ErrNotFound)
 }
 
 func findFiles(names []string, pwd string) []string {

@@ -17,12 +17,13 @@
 package format
 
 import (
+	"errors"
+	"fmt"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
 	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/pkg/errors"
 )
 
 const endOfSpec = rune(0)
@@ -48,7 +49,7 @@ func ParseVolume(spec string) (types.ServiceVolumeConfig, error) {
 		case char == ':' || char == endOfSpec:
 			if err := populateFieldFromBuffer(char, buffer, &volume); err != nil {
 				populateType(&volume)
-				return volume, errors.Wrapf(err, "invalid spec: %s", spec)
+				return volume, fmt.Errorf("invalid spec: %s: %w", spec, err)
 			}
 			buffer = nil
 		default:

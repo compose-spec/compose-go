@@ -22,7 +22,6 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/errdefs"
 	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -246,7 +245,7 @@ func relocateLogOpt(s *types.ServiceConfig) error {
 			if _, ok := s.Logging.Options[k]; !ok {
 				s.Logging.Options[k] = v
 			} else {
-				return errors.Wrap(errdefs.ErrInvalid, "can't use both 'log_opt' (deprecated) and 'logging.options'")
+				return fmt.Errorf("can't use both 'log_opt' (deprecated) and 'logging.options': %w", errdefs.ErrInvalid)
 			}
 		}
 	}
@@ -262,7 +261,7 @@ func relocateLogDriver(s *types.ServiceConfig) error {
 		if s.Logging.Driver == "" {
 			s.Logging.Driver = s.LogDriver
 		} else {
-			return errors.Wrap(errdefs.ErrInvalid, "can't use both 'log_driver' (deprecated) and 'logging.driver'")
+			return fmt.Errorf("can't use both 'log_driver' (deprecated) and 'logging.driver': %w", errdefs.ErrInvalid)
 		}
 	}
 	return nil
@@ -277,7 +276,7 @@ func relocateDockerfile(s *types.ServiceConfig) error {
 		if s.Dockerfile == "" {
 			s.Build.Dockerfile = s.Dockerfile
 		} else {
-			return errors.Wrap(errdefs.ErrInvalid, "can't use both 'dockerfile' (deprecated) and 'build.dockerfile'")
+			return fmt.Errorf("can't use both 'dockerfile' (deprecated) and 'build.dockerfile': %w", errdefs.ErrInvalid)
 		}
 	}
 	return nil

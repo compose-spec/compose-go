@@ -17,12 +17,12 @@
 package loader
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -112,6 +112,6 @@ func toBoolean(value string) (interface{}, error) {
 		logrus.Warnf("%q for boolean is not supported by YAML 1.2, please use `false`", value)
 		return false, nil
 	default:
-		return nil, errors.Errorf("invalid boolean: %s", value)
+		return nil, fmt.Errorf("invalid boolean: %s", value)
 	}
 }

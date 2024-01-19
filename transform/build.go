@@ -17,8 +17,9 @@
 package transform
 
 import (
+	"fmt"
+
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 )
 
 func transformBuild(data any, p tree.Path) (any, error) {
@@ -33,6 +34,6 @@ func transformBuild(data any, p tree.Path) (any, error) {
 			"context": v,
 		}, nil
 	default:
-		return data, errors.Errorf("%s: invalid type %T for build", p, v)
+		return data, fmt.Errorf("%s: invalid type %T for build", p, v)
 	}
 }

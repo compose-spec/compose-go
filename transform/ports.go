@@ -22,7 +22,6 @@ import (
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 )
 
 func transformPorts(data any, p tree.Path) (any, error) {
@@ -64,12 +63,12 @@ func transformPorts(data any, p tree.Path) (any, error) {
 			case map[string]any:
 				ports = append(ports, value)
 			default:
-				return data, errors.Errorf("%s: invalid type %T for port", p, value)
+				return data, fmt.Errorf("%s: invalid type %T for port", p, value)
 			}
 		}
 		return ports, nil
 	default:
-		return data, errors.Errorf("%s: invalid type %T for port", p, entries)
+		return data, fmt.Errorf("%s: invalid type %T for port", p, entries)
 	}
 }
 

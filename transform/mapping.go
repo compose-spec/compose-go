@@ -17,10 +17,10 @@
 package transform
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 )
 
 func transformKeyValue(data any, p tree.Path) (any, error) {
@@ -32,12 +32,12 @@ func transformKeyValue(data any, p tree.Path) (any, error) {
 		for _, e := range v {
 			before, after, found := strings.Cut(e.(string), "=")
 			if !found {
-				return nil, errors.Errorf("%s: invalid value %s, expected key=value", p, e)
+				return nil, fmt.Errorf("%s: invalid value %s, expected key=value", p, e)
 			}
 			mapping[before] = after
 		}
 		return mapping, nil
 	default:
-		return nil, errors.Errorf("%s: invalid type %T", p, v)
+		return nil, fmt.Errorf("%s: invalid type %T", p, v)
 	}
 }

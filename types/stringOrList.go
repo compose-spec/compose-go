@@ -16,11 +16,7 @@
 
 package types
 
-import (
-	"fmt"
-
-	"github.com/pkg/errors"
-)
+import "fmt"
 
 // StringList is a type for fields that can be a string or list of strings
 type StringList []string
@@ -36,7 +32,7 @@ func (l *StringList) DecodeMapstructure(value interface{}) error {
 		}
 		*l = list
 	default:
-		return errors.Errorf("invalid type %T for string list", value)
+		return fmt.Errorf("invalid type %T for string list", value)
 	}
 	return nil
 }
@@ -55,7 +51,7 @@ func (l *StringOrNumberList) DecodeMapstructure(value interface{}) error {
 		}
 		*l = list
 	default:
-		return errors.Errorf("invalid type %T for string list", value)
+		return fmt.Errorf("invalid type %T for string list", value)
 	}
 	return nil
 }

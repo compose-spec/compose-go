@@ -19,6 +19,7 @@ package loader
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -39,7 +40,6 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -226,7 +226,7 @@ func parseYAML(decoder *yaml.Decoder) (map[string]interface{}, PostProcessor, er
 	}
 	cfgMap, ok := cfg.(map[interface{}]interface{})
 	if !ok {
-		return nil, nil, errors.Errorf("Top-level object must be a mapping")
+		return nil, nil, errors.New("Top-level object must be a mapping")
 	}
 	converted, err := convertToStringKeysRecursive(cfgMap, "")
 	if err != nil {
@@ -244,7 +244,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 // LoadWithContext reads a ConfigDetails and returns a fully loaded configuration
 func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	if len(configDetails.ConfigFiles) < 1 {
-		return nil, errors.Errorf("No files specified")
+		return nil, errors.New("No files specified")
 	}
 
 	opts := &Options{
@@ -351,7 +351,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				var raw interface{}
 				processor := &ResetProcessor{target: &raw}
 				err := decoder.Decode(processor)
-				if err == io.EOF {
+				if err != nil && errors.Is(err, io.EOF) {
 					break
 				}
 				if err != nil {
@@ -402,7 +402,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	for _, f := range loaded {
 		if f == mainFile {
 			loaded = append(loaded, mainFile)
-			return nil, errors.Errorf("include cycle detected:\n%s\n include %s", loaded[0], strings.Join(loaded[1:], "\n include "))
+			return nil, fmt.Errorf("include cycle detected:\n%s\n include %s", loaded[0], strings.Join(loaded[1:], "\n include "))
 		}
 	}
 	loaded = append(loaded, mainFile)
@@ -692,7 +692,7 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 	} else {
 		location = fmt.Sprintf("in %s", keyPrefix)
 	}
-	return errors.Errorf("Non-string key %s: %#v", location, key)
+	return fmt.Errorf("Non-string key %s: %#v", location, key)
 }
 
 // Windows path, c:\\my\\path\\shiny, need to be changed to be compatible with
