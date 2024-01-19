@@ -17,8 +17,9 @@
 package transform
 
 import (
+	"fmt"
+
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 )
 
 func transformExtends(data any, p tree.Path) (any, error) {
@@ -30,6 +31,6 @@ func transformExtends(data any, p tree.Path) (any, error) {
 			"service": v,
 		}, nil
 	default:
-		return data, errors.Errorf("%s: invalid type %T for extends", p, v)
+		return data, fmt.Errorf("%s: invalid type %T for extends", p, v)
 	}
 }

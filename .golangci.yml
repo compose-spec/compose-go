@@ -1,18 +1,20 @@
-run:
-  deadline: 2m
-
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
 linters:
   disable-all: true
   enable:
+  - errorlint
   - gocritic
   - gofmt
   - goimports
-  - revive
+  - gomodguard
   - gosimple
+  - govet
   - ineffassign
   - misspell
   - nakedret
-  - govet
+  - revive
 linters-settings:
   gocritic:
     # Enable multiple checks by tags, run `GL_DEBUG=gocritic golangci-lint run` to see all tags and checks.
@@ -25,3 +27,12 @@ linters-settings:
       - paramTypeCombine
       - unnamedResult
       - whyNoLint
+  gomodguard:
+    blocked:
+      modules:
+      - github.com/pkg/errors:
+          recommendations:
+          - errors
+          - fmt
+run:
+  timeout: 2m

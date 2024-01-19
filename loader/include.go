@@ -27,7 +27,6 @@ import (
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
 	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/pkg/errors"
 )
 
 // loadIncludeConfig parse the require config from raw yaml
@@ -64,7 +63,7 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 		for _, f := range included {
 			if f == mainFile {
 				included = append(included, mainFile)
-				return errors.Errorf("include cycle detected:\n%s\n include %s", included[0], strings.Join(included[1:], "\n include "))
+				return fmt.Errorf("include cycle detected:\n%s\n include %s", included[0], strings.Join(included[1:], "\n include "))
 			}
 		}
 

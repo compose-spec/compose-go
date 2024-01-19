@@ -17,24 +17,24 @@
 package loader
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/errdefs"
 	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/pkg/errors"
 )
 
 // checkConsistency validate a compose model is consistent
 func checkConsistency(project *types.Project) error {
 	for _, s := range project.Services {
 		if s.Build == nil && s.Image == "" {
-			return errors.Wrapf(errdefs.ErrInvalid, "service %q has neither an image nor a build context specified", s.Name)
+			return fmt.Errorf("service %q has neither an image nor a build context specified: %w", s.Name, errdefs.ErrInvalid)
 		}
 
 		if s.Build != nil {
 			if s.Build.DockerfileInline != "" && s.Build.Dockerfile != "" {
-				return errors.Wrapf(errdefs.ErrInvalid, "service %q declares mutualy exclusive dockerfile and dockerfile_inline", s.Name)
+				return fmt.Errorf("service %q declares mutualy exclusive dockerfile and dockerfile_inline: %w", s.Name, errdefs.ErrInvalid)
 			}
 
 			if len(s.Build.Platforms) > 0 && s.Platform != "" {
@@ -46,17 +46,17 @@ func checkConsistency(project *types.Project) error {
 					}
 				}
 				if !found {
-					return errors.Wrapf(errdefs.ErrInvalid, "service.build.platforms MUST include service.platform %q ", s.Platform)
+					return fmt.Errorf("service.build.platforms MUST include service.platform %q: %w", s.Platform, errdefs.ErrInvalid)
 				}
 			}
 		}
 
 		if s.NetworkMode != "" && len(s.Networks) > 0 {
-			return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %s declares mutually exclusive `network_mode` and `networks`", s.Name))
+			return fmt.Errorf("service %s declares mutually exclusive `network_mode` and `networks`: %w", s.Name, errdefs.ErrInvalid)
 		}
 		for network := range s.Networks {
 			if _, ok := project.Networks[network]; !ok {
-				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined network %s", s.Name, network))
+				return fmt.Errorf("service %q refers to undefined network %s: %w", s.Name, network, errdefs.ErrInvalid)
 			}
 		}
 
@@ -70,7 +70,7 @@ func checkConsistency(project *types.Project) error {
 
 		for dependedService := range s.DependsOn {
 			if _, err := project.GetService(dependedService); err != nil {
-				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q depends on undefined service %s", s.Name, dependedService))
+				return fmt.Errorf("service %q depends on undefined service %s: %w", s.Name, dependedService, errdefs.ErrInvalid)
 			}
 		}
 
@@ -84,34 +84,33 @@ func checkConsistency(project *types.Project) error {
 		for _, volume := range s.Volumes {
 			if volume.Type == types.VolumeTypeVolume && volume.Source != "" { // non anonymous volumes
 				if _, ok := project.Volumes[volume.Source]; !ok {
-					return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined volume %s", s.Name, volume.Source))
+					return fmt.Errorf("service %q refers to undefined volume %s: %w", s.Name, volume.Source, errdefs.ErrInvalid)
 				}
 			}
 		}
 		if s.Build != nil {
 			for _, secret := range s.Build.Secrets {
 				if _, ok := project.Secrets[secret.Source]; !ok {
-					return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined build secret %s", s.Name, secret.Source))
+					return fmt.Errorf("service %q refers to undefined build secret %s: %w", s.Name, secret.Source, errdefs.ErrInvalid)
 				}
 			}
 		}
 		for _, config := range s.Configs {
 			if _, ok := project.Configs[config.Source]; !ok {
-				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined config %s", s.Name, config.Source))
+				return fmt.Errorf("service %q refers to undefined config %s: %w", s.Name, config.Source, errdefs.ErrInvalid)
 			}
 		}
 
 		for _, secret := range s.Secrets {
 			if _, ok := project.Secrets[secret.Source]; !ok {
-				return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("service %q refers to undefined secret %s", s.Name, secret.Source))
+				return fmt.Errorf("service %q refers to undefined secret %s: %w", s.Name, secret.Source, errdefs.ErrInvalid)
 			}
 		}
 
 		if s.Scale != nil && s.Deploy != nil {
 			if s.Deploy.Replicas != nil && *s.Scale != *s.Deploy.Replicas {
-				return errors.Wrapf(errdefs.ErrInvalid,
-					"services.%s: can't set distinct values on 'scale' and 'deploy.replicas'",
-					s.Name)
+				return fmt.Errorf("services.%s: can't set distinct values on 'scale' and 'deploy.replicas': %w",
+					s.Name, errdefs.ErrInvalid)
 			}
 			s.Deploy.Replicas = s.Scale
 		}
@@ -121,10 +120,8 @@ func checkConsistency(project *types.Project) error {
 			if s.Scale == nil {
 				attr = "deploy.replicas"
 			}
-			return errors.Wrapf(errdefs.ErrInvalid,
-				"services.%s: can't set container_name and %s as container name must be unique",
-				attr,
-				s.Name)
+			return fmt.Errorf("services.%s: can't set container_name and %s as container name must be unique: %w", attr,
+				s.Name, errdefs.ErrInvalid)
 		}
 	}
 
@@ -133,7 +130,7 @@ func checkConsistency(project *types.Project) error {
 			continue
 		}
 		if secret.File == "" && secret.Environment == "" {
-			return errors.Wrap(errdefs.ErrInvalid, fmt.Sprintf("secret %q must declare either `file` or `environment`", name))
+			return fmt.Errorf("secret %q must declare either `file` or `environment`: %w", name, errdefs.ErrInvalid)
 		}
 	}
 

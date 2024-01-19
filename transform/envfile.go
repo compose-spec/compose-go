@@ -17,8 +17,9 @@
 package transform
 
 import (
+	"fmt"
+
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 )
 
 func transformEnvFile(data any, p tree.Path) (any, error) {
@@ -33,7 +34,7 @@ func transformEnvFile(data any, p tree.Path) (any, error) {
 		}
 		return v, nil
 	default:
-		return nil, errors.Errorf("%s: invalid type %T for env_file", p, v)
+		return nil, fmt.Errorf("%s: invalid type %T for env_file", p, v)
 	}
 }
 

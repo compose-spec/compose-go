@@ -17,10 +17,9 @@
 package types
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/pkg/errors"
 )
 
 type DeviceRequest struct {
@@ -43,11 +42,11 @@ func (c *DeviceCount) DecodeMapstructure(value interface{}) error {
 		}
 		i, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			return errors.Errorf("invalid value %q, the only value allowed is 'all' or a number", v)
+			return fmt.Errorf("invalid value %q, the only value allowed is 'all' or a number", v)
 		}
 		*c = DeviceCount(i)
 	default:
-		return errors.Errorf("invalid type %T for device count", v)
+		return fmt.Errorf("invalid type %T for device count", v)
 	}
 	return nil
 }

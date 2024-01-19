@@ -2,6 +2,7 @@ package dotenv
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,7 +49,8 @@ func loadEnvAndCompareValues(t *testing.T, loader func(files ...string) error, e
 
 func TestLoadWithNoArgsLoadsDotEnv(t *testing.T) {
 	err := Load()
-	pathError := err.(*os.PathError)
+	var pathError *os.PathError
+	errors.As(err, &pathError)
 	if pathError == nil || pathError.Op != "open" || pathError.Path != ".env" {
 		t.Errorf("Didn't try and open .env by default")
 	}

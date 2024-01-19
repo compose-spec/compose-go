@@ -21,7 +21,6 @@ import (
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 )
 
 func transformSSH(data any, p tree.Path) (any, error) {
@@ -47,6 +46,6 @@ func transformSSH(data any, p tree.Path) (any, error) {
 		}
 		return result, nil
 	default:
-		return data, errors.Errorf("%s: invalid type %T for ssh", p, v)
+		return data, fmt.Errorf("%s: invalid type %T for ssh", p, v)
 	}
 }

@@ -17,12 +17,12 @@
 package paths
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/pkg/errors"
 )
 
 type resolver func(any) (any, error)

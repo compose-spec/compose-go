@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/pkg/errors"
 )
 
 func transformDependsOn(data any, p tree.Path) (any, error) {
@@ -49,6 +48,6 @@ func transformDependsOn(data any, p tree.Path) (any, error) {
 		}
 		return d, nil
 	default:
-		return data, errors.Errorf("%s: invalid type %T for depend_on", p, v)
+		return data, fmt.Errorf("%s: invalid type %T for depend_on", p, v)
 	}
 }

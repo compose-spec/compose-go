@@ -29,7 +29,6 @@ import (
 	"github.com/distribution/reference"
 	"github.com/mitchellh/copystructure"
 	godigest "github.com/opencontainers/go-digest"
-	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 )
@@ -582,18 +581,18 @@ func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project
 		for _, envFile := range service.EnvFiles {
 			if _, err := os.Stat(envFile.Path); os.IsNotExist(err) {
 				if envFile.Required {
-					return nil, errors.Wrapf(err, "env file %s not found", envFile.Path)
+					return nil, fmt.Errorf("env file %s not found: %w", envFile.Path, err)
 				}
 				continue
 			}
 			b, err := os.ReadFile(envFile.Path)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to load %s", envFile.Path)
+				return nil, fmt.Errorf("failed to load %s: %w", envFile.Path, err)
 			}
 
 			fileVars, err := dotenv.ParseWithLookup(bytes.NewBuffer(b), resolve)
 			if err != nil {
-				return nil, errors.Wrapf(err, "failed to read %s", envFile.Path)
+				return nil, fmt.Errorf("failed to read %s: %w", envFile.Path, err)
 			}
 			environment.OverrideBy(Mapping(fileVars).ToMappingWithEquals())
 		}

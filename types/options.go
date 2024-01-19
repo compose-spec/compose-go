@@ -16,11 +16,7 @@
 
 package types
 
-import (
-	"fmt"
-
-	"github.com/pkg/errors"
-)
+import "fmt"
 
 // Options is a mapping type for options we pass as-is to container runtime
 type Options map[string]string
@@ -40,7 +36,7 @@ func (d *Options) DecodeMapstructure(value interface{}) error {
 	case map[string]string:
 		*d = v
 	default:
-		return errors.Errorf("invalid type %T for options", value)
+		return fmt.Errorf("invalid type %T for options", value)
 	}
 	return nil
 }
