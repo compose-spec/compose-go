@@ -2636,13 +2636,21 @@ func (c customLoader) Accept(s string) bool {
 	return strings.HasPrefix(s, c.prefix+":")
 }
 
+func (c customLoader) path(s string) string {
+	return filepath.Join("testdata", c.prefix, s[len(c.prefix)+1:])
+}
+
 func (c customLoader) Load(_ context.Context, s string) (string, error) {
-	path := filepath.Join("testdata", c.prefix, s[len(c.prefix)+1:])
+	path := c.path(s)
 	_, err := os.Stat(path)
 	if err != nil {
 		return "", err
 	}
 	return filepath.Abs(path)
+}
+
+func (c customLoader) Dir(s string) string {
+	return filepath.Dir(c.path(s))
 }
 
 func TestLoadWithRemoteResources(t *testing.T) {

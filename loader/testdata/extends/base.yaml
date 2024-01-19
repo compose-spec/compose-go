@@ -16,4 +16,9 @@ services:
       nofile:
         soft: 20000
         hard: 40000
-      
+
+  with-build:
+    extends:
+      file: sibling.yaml
+      service: test
+

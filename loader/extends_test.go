@@ -115,3 +115,30 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, p.Services["test"].Ulimits["nproc"].Single, 65535)
 }
+
+func TestExtendsRelativePath(t *testing.T) {
+	yaml := `
+name: test-extends-port
+services:
+  test:
+    extends: 
+      file: testdata/extends/base.yaml
+      service: with-build
+`
+	abs, err := filepath.Abs(".")
+	assert.NilError(t, err)
+
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content:  []byte(yaml),
+				Filename: "(inline)",
+			},
+		},
+		WorkingDir: abs,
+	}, func(options *Options) {
+		options.ResolvePaths = false
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["test"].Build.Context, filepath.Join("testdata", "extends"))
+}
