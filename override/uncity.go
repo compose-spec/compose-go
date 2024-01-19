@@ -143,22 +143,22 @@ func portIndexer(y any, p tree.Path) (string, error) {
 	case int:
 		return strconv.Itoa(value), nil
 	case map[string]any:
-		target, ok := value["target"].(int)
+		target, ok := value["target"]
 		if !ok {
 			return "", fmt.Errorf("service ports %s is missing a target port", p)
 		}
-		published, ok := value["published"].(string)
+		published, ok := value["published"]
 		if !ok {
 			// try to parse it as an int
-			if pub, ok := value["published"].(int); ok {
+			if pub, ok := value["published"]; ok {
 				published = fmt.Sprintf("%d", pub)
 			}
 		}
-		host, ok := value["host_ip"].(string)
+		host, ok := value["host_ip"]
 		if !ok {
 			host = "0.0.0.0"
 		}
-		protocol, ok := value["protocol"].(string)
+		protocol, ok := value["protocol"]
 		if !ok {
 			protocol = "tcp"
 		}

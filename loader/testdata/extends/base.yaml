@@ -5,3 +5,6 @@ services:
   another:
     extends: base
 
+  with-port:
+    ports:
+      - 8000:8000
