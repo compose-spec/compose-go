@@ -64,3 +64,29 @@ services:
 	assert.Equal(t, p.Services["test2"].Hostname, "test2")
 	assert.Equal(t, p.Services["test3"].Hostname, "test3")
 }
+
+func TestExtendsPort(t *testing.T) {
+	yaml := `
+name: test-extends-port
+services:
+  test:
+    image: test
+    extends: 
+      file: testdata/extends/base.yaml
+      service: with-port
+`
+	abs, err := filepath.Abs(".")
+	assert.NilError(t, err)
+
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content:  []byte(yaml),
+				Filename: "(inline)",
+			},
+		},
+		WorkingDir: abs,
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["test"].Ports[0].Target, uint32(8000))
+}
