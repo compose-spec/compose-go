@@ -31,7 +31,8 @@ type indexer func(any, tree.Path) (string, error)
 var unique = map[tree.Path]indexer{}
 
 func init() {
-	unique["services.*.environment"] = environmentIndexer
+	unique["services.*.environment"] = keyValueIndexer
+	unique["services.*.build.args"] = keyValueIndexer
 	unique["services.*.volumes"] = volumeIndexer
 	unique["services.*.expose"] = exposeIndexer
 	unique["services.*.secrets"] = mountIndexer("/run/secrets")
@@ -83,7 +84,7 @@ func enforceUnicity(value any, p tree.Path) (any, error) {
 	return value, nil
 }
 
-func environmentIndexer(y any, _ tree.Path) (string, error) {
+func keyValueIndexer(y any, _ tree.Path) (string, error) {
 	value := y.(string)
 	key, _, found := strings.Cut(value, "=")
 	if !found {
