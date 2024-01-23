@@ -15,6 +15,7 @@ linters:
   - misspell
   - nakedret
   - revive
+  - testifylint
 linters-settings:
   gocritic:
     # Enable multiple checks by tags, run `GL_DEBUG=gocritic golangci-lint run` to see all tags and checks.
@@ -34,5 +35,20 @@ linters-settings:
           recommendations:
           - errors
           - fmt
+  testifylint:
+    disable:
+    - float-compare
+    - go-require
+    enable:
+    - bool-compare
+    - compares
+    - empty
+    - error-is-as
+    - error-nil
+    - expected-actual
+    - len
+    - require-error
+    - suite-dont-use-pkg
+    - suite-extra-assert-call
 run:
-  timeout: 2m
+  timeout: 5m
