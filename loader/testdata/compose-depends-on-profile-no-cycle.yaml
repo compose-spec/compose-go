@@ -1,0 +1,14 @@
+name : depends-on-cycle
+services:
+  service1:
+    image: service1
+    depends_on:
+      - service2
+  service2:
+    image: service2
+    depends_on:
+      - service3
+  service3:
+    image: service3
+    depends_on:
+      - service1

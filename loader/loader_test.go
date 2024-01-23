@@ -2552,6 +2552,20 @@ func TestLoadWithIncludeCycle(t *testing.T) {
 	assert.Check(t, strings.HasPrefix(err.Error(), "include cycle detected"))
 }
 
+func TestLoadDependsOnCycle(t *testing.T) {
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+		WorkingDir: filepath.Join(workingDir, "testdata"),
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: filepath.Join(workingDir, "testdata", "compose-depends-on-cycle.yaml"),
+			},
+		},
+	})
+	assert.Error(t, err, "dependency cycle detected: service2 -> service3 -> service1", err)
+}
+
 func TestLoadWithMultipleInclude(t *testing.T) {
 	// include same service twice should not trigger an error
 	p, err := Load(buildConfigDetails(`
