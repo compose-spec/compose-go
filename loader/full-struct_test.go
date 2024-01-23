@@ -411,6 +411,7 @@ func services(workingDir, homeDir string) types.Services {
 			},
 			StdinOpen:       true,
 			StopSignal:      "SIGUSR1",
+			StorageOpt:      map[string]string{"size": "20G"},
 			StopGracePeriod: durationPtr(20 * time.Second),
 			Sysctls: map[string]string{
 				"net.core.somaxconn":      "1024",
@@ -895,6 +896,8 @@ services:
     stdin_open: true
     stop_grace_period: 20s
     stop_signal: SIGUSR1
+    storage_opt:
+      size: 20G
     sysctls:
       net.core.somaxconn: "1024"
       net.ipv4.tcp_syncookies: "0"
@@ -1558,6 +1561,9 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "stdin_open": true,
       "stop_grace_period": "20s",
       "stop_signal": "SIGUSR1",
+      "storage_opt": {
+        "size": "20G"
+      },
       "sysctls": {
         "net.core.somaxconn": "1024",
         "net.ipv4.tcp_syncookies": "0"

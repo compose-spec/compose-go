@@ -120,6 +120,7 @@ type ServiceConfig struct {
 	StdinOpen       bool                             `yaml:"stdin_open,omitempty" json:"stdin_open,omitempty"`
 	StopGracePeriod *Duration                        `yaml:"stop_grace_period,omitempty" json:"stop_grace_period,omitempty"`
 	StopSignal      string                           `yaml:"stop_signal,omitempty" json:"stop_signal,omitempty"`
+	StorageOpt      map[string]string                `yaml:"storage_opt,omitempty" json:"storage_opt,omitempty"`
 	Sysctls         Mapping                          `yaml:"sysctls,omitempty" json:"sysctls,omitempty"`
 	Tmpfs           StringList                       `yaml:"tmpfs,omitempty" json:"tmpfs,omitempty"`
 	Tty             bool                             `yaml:"tty,omitempty" json:"tty,omitempty"`
