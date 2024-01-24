@@ -72,7 +72,7 @@ func mergeYaml(e any, o any, p tree.Path) (any, error) {
 	case []any:
 		other, ok := o.([]any)
 		if !ok {
-			return nil, fmt.Errorf("cannont override %s", p)
+			return nil, fmt.Errorf("cannot override %s", p)
 		}
 		return append(value, other...), nil
 	default:
