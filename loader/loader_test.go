@@ -2969,3 +2969,73 @@ services:
 	})
 	assert.NilError(t, err)
 }
+
+func TestLoadProjectName(t *testing.T) {
+	const projectName = "testproject"
+
+	tests := []struct {
+		name    string
+		env     map[string]string
+		options func(*Options)
+		wantErr string
+	}{
+		{
+			name:    "default",
+			options: func(o *Options) {},
+			wantErr: "project name must not be empty",
+		},
+		{
+			name:    "project name from environment",
+			env:     map[string]string{"COMPOSE_PROJECT_NAME": projectName},
+			options: func(o *Options) {},
+			wantErr: "project name must not be empty",
+		},
+		{
+			name:    "project name from options, not imperatively set; no env",
+			options: withProjectName(projectName, false),
+		},
+		{
+			name:    "project name from options, imperatively set; no env",
+			options: withProjectName(projectName, true),
+		},
+		{
+			name:    "project name from options, not imperatively set; empty env",
+			env:     map[string]string{},
+			options: withProjectName(projectName, false),
+		},
+		{
+			name:    "project name from options, imperatively set; empty env",
+			env:     map[string]string{},
+			options: withProjectName(projectName, true),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			project, err := LoadWithContext(context.Background(), types.ConfigDetails{
+				ConfigFiles: []types.ConfigFile{{
+					Content: []byte(`
+services:
+  web:
+    image: web
+    container_name: ${COMPOSE_PROJECT_NAME}-web`),
+				}},
+				Environment: tt.env,
+			}, tt.options)
+			if tt.wantErr != "" {
+				assert.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			assert.NilError(t, err)
+			assert.Equal(t, project.Name, projectName)
+			assert.Equal(t, project.Environment["COMPOSE_PROJECT_NAME"], projectName)
+			assert.Equal(t, project.Services["web"].ContainerName, projectName+"-web")
+		})
+	}
+}
+
+func withProjectName(projectName string, imperativelySet bool) func(*Options) {
+	return func(opts *Options) {
+		opts.SetProjectName(projectName, imperativelySet)
+	}
+}
