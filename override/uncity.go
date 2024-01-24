@@ -32,6 +32,7 @@ var unique = map[tree.Path]indexer{}
 
 func init() {
 	unique["services.*.environment"] = keyValueIndexer
+	unique["services.*.annotations"] = keyValueIndexer
 	unique["services.*.labels"] = keyValueIndexer
 	unique["services.*.build.args"] = keyValueIndexer
 	unique["services.*.volumes"] = volumeIndexer

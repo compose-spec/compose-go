@@ -48,6 +48,7 @@ func init() {
 	mergeSpecials["services.*.entrypoint"] = override
 	mergeSpecials["services.*.healthcheck.test"] = override
 	mergeSpecials["services.*.environment"] = mergeToSequence
+	mergeSpecials["services.*.annotations"] = mergeToSequence
 	mergeSpecials["services.*.labels"] = mergeToSequence
 	mergeSpecials["services.*.ulimits.*"] = mergeUlimit
 }
