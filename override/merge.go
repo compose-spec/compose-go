@@ -51,6 +51,7 @@ func init() {
 	mergeSpecials["services.*.annotations"] = mergeToSequence
 	mergeSpecials["services.*.labels"] = mergeToSequence
 	mergeSpecials["services.*.extra_hosts"] = mergeToSequence
+	mergeSpecials["services.*.sysctls"] = mergeToSequence
 	mergeSpecials["services.*.ulimits.*"] = mergeUlimit
 }
 
