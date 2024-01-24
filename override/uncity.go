@@ -34,6 +34,7 @@ func init() {
 	unique["services.*.environment"] = keyValueIndexer
 	unique["services.*.annotations"] = keyValueIndexer
 	unique["services.*.labels"] = keyValueIndexer
+	unique["services.*.extra_hosts"] = keyValueIndexer
 	unique["services.*.build.args"] = keyValueIndexer
 	unique["services.*.volumes"] = volumeIndexer
 	unique["services.*.expose"] = exposeIndexer

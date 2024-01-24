@@ -133,7 +133,7 @@ services:
 }
 
 func assertUnicity(t *testing.T, before string, expected string) {
-	got, err := EnforceUnicity(unmarshall(t, before))
+	got, err := EnforceUnicity(unmarshal(t, before))
 	assert.NilError(t, err)
-	assert.DeepEqual(t, got, unmarshall(t, expected))
+	assert.DeepEqual(t, got, unmarshal(t, expected))
 }
