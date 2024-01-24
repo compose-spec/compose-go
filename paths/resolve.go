@@ -28,13 +28,16 @@ import (
 type resolver func(any) (any, error)
 
 // ResolveRelativePaths make relative paths absolute
-func ResolveRelativePaths(project map[string]any, base string) error {
-	r := relativePathsResolver{workingDir: base}
+func ResolveRelativePaths(project map[string]any, base string, remotes []RemoteResource) error {
+	r := relativePathsResolver{
+		workingDir: base,
+		remotes:    remotes,
+	}
 	r.resolvers = map[tree.Path]resolver{
 		"services.*.build.context":               r.absContextPath,
 		"services.*.build.additional_contexts.*": r.absContextPath,
 		"services.*.env_file.*.path":             r.absPath,
-		"services.*.extends.file":                r.absPath,
+		"services.*.extends.file":                r.absExtendsPath,
 		"services.*.develop.watch.*.path":        r.absPath,
 		"services.*.volumes.*":                   r.absVolumeMount,
 		"configs.*.file":                         r.maybeUnixPath,
@@ -48,9 +51,21 @@ func ResolveRelativePaths(project map[string]any, base string) error {
 	return err
 }
 
+type RemoteResource func(path string) bool
+
 type relativePathsResolver struct {
 	workingDir string
+	remotes    []RemoteResource
 	resolvers  map[tree.Path]resolver
+}
+
+func (r *relativePathsResolver) isRemoteResource(path string) bool {
+	for _, remote := range r.remotes {
+		if remote(path) {
+			return true
+		}
+	}
+	return false
 }
 
 func (r *relativePathsResolver) resolveRelativePaths(value any, p tree.Path) (any, error) {
