@@ -38,7 +38,7 @@ type ConfigDetails struct {
 }
 
 // LookupEnv provides a lookup function for environment variables
-func (cd ConfigDetails) LookupEnv(key string) (string, bool) {
+func (cd *ConfigDetails) LookupEnv(key string) (string, bool) {
 	v, ok := cd.Environment[key]
 	if !isCaseInsensitiveEnvVars || ok {
 		return v, ok
