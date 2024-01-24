@@ -44,22 +44,24 @@ services:
     scale: 2
 `
 
-	got, err := Merge(unmarshall(t, right), unmarshall(t, left))
+	got, err := Merge(unmarshal(t, right), unmarshal(t, left))
 	assert.NilError(t, err)
-	assert.DeepEqual(t, got, unmarshall(t, expected))
+	assert.DeepEqual(t, got, unmarshal(t, expected))
 }
 
 func assertMergeYaml(t *testing.T, right string, left string, want string) {
-	got, err := Merge(unmarshall(t, right), unmarshall(t, left))
+	t.Helper()
+	got, err := Merge(unmarshal(t, right), unmarshal(t, left))
 	assert.NilError(t, err)
 	got, err = EnforceUnicity(got)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, got, unmarshall(t, want))
+	assert.DeepEqual(t, got, unmarshal(t, want))
 }
 
-func unmarshall(t *testing.T, s string) map[string]any {
+func unmarshal(t *testing.T, s string) map[string]any {
+	t.Helper()
 	var val map[string]any
 	err := yaml.Unmarshal([]byte(s), &val)
-	assert.NilError(t, err)
+	assert.NilError(t, err, s)
 	return val
 }
