@@ -40,6 +40,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/mitchellh/mapstructure"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -85,6 +86,21 @@ type ResourceLoader interface {
 	Load(ctx context.Context, path string) (string, error)
 	// Dir computes path to resource"s parent folder, made relative if possible
 	Dir(path string) string
+}
+
+// RemoteResourceLoaders excludes localResourceLoader from ResourceLoaders
+func (o Options) RemoteResourceLoaders() []ResourceLoader {
+	var loaders []ResourceLoader
+	for i, loader := range o.ResourceLoaders {
+		if _, ok := loader.(localResourceLoader); ok {
+			if i != len(o.ResourceLoaders)-1 {
+				logrus.Warning("misconfiguration of ResourceLoaders: localResourceLoader should be last")
+			}
+			continue
+		}
+		loaders = append(loaders, loader)
+	}
+	return loaders
 }
 
 type localResourceLoader struct {
@@ -399,7 +415,11 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	}
 
 	if opts.ResolvePaths {
-		err = paths.ResolveRelativePaths(dict, config.WorkingDir)
+		var remotes []paths.RemoteResource
+		for _, loader := range opts.RemoteResourceLoaders() {
+			remotes = append(remotes, loader.Accept)
+		}
+		err = paths.ResolveRelativePaths(dict, config.WorkingDir, remotes)
 		if err != nil {
 			return nil, err
 		}

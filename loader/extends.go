@@ -35,96 +35,119 @@ func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, track
 	if !ok {
 		return fmt.Errorf("services must be a mapping")
 	}
-	for name, s := range services {
-		service, ok := s.(map[string]any)
-		if !ok {
-			return fmt.Errorf("services.%s must be a mapping", name)
-		}
-		x, ok := service["extends"]
-		if !ok {
-			continue
-		}
-		ct, err := tracker.Add(ctx.Value(consts.ComposeFileKey{}).(string), name)
+	for name := range services {
+		merged, err := applyServiceExtends(ctx, name, services, opts, tracker, post...)
 		if err != nil {
 			return err
 		}
-		var (
-			ref  string
-			file any
-		)
-		switch v := x.(type) {
-		case map[string]any:
-			ref = v["service"].(string)
-			file = v["file"]
-		case string:
-			ref = v
-		}
-
-		var base any
-		if file != nil {
-			path := file.(string)
-			for _, loader := range opts.ResourceLoaders {
-				if !loader.Accept(path) {
-					continue
-				}
-				local, err := loader.Load(ctx, path)
-				if err != nil {
-					return err
-				}
-				localdir := filepath.Dir(local)
-				relworkingdir := loader.Dir(path)
-
-				extendsOpts := opts.clone()
-				extendsOpts.ResourceLoaders = append([]ResourceLoader{}, opts.ResourceLoaders...)
-				// replace localResourceLoader with a new flavour, using extended file base path
-				extendsOpts.ResourceLoaders[len(opts.ResourceLoaders)-1] = localResourceLoader{
-					WorkingDir: localdir,
-				}
-				extendsOpts.ResolvePaths = true
-				extendsOpts.SkipNormalization = true
-				extendsOpts.SkipConsistencyCheck = true
-				extendsOpts.SkipInclude = true
-				source, err := loadYamlModel(ctx, types.ConfigDetails{
-					WorkingDir: relworkingdir,
-					ConfigFiles: []types.ConfigFile{
-						{Filename: local},
-					},
-				}, extendsOpts, ct, nil)
-				if err != nil {
-					return err
-				}
-				services := source["services"].(map[string]any)
-				base, ok = services[ref]
-				if !ok {
-					return fmt.Errorf("cannot extend service %q in %s: service not found", name, path)
-				}
-			}
-			if base == nil {
-				return fmt.Errorf("cannot read %s", path)
-			}
-		} else {
-			base, ok = services[ref]
-			if !ok {
-				return fmt.Errorf("cannot extend service %q in %s: service not found", name, "filename") // TODO track filename
-			}
-		}
-		source := deepClone(base).(map[string]any)
-		for _, processor := range post {
-			processor.Apply(map[string]any{
-				"services": map[string]any{
-					name: source,
-				},
-			})
-		}
-		merged, err := override.ExtendService(source, service)
-		if err != nil {
-			return err
-		}
-		delete(merged, "extends")
 		services[name] = merged
 	}
 	dict["services"] = services
 	return nil
+}
+
+func applyServiceExtends(ctx context.Context, name string, services map[string]any, opts *Options, tracker *cycleTracker, post ...PostProcessor) (any, error) {
+	s := services[name]
+	service, ok := s.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("services.%s must be a mapping", name)
+	}
+	extends, ok := service["extends"]
+	if !ok {
+		return s, nil
+	}
+	filename := ctx.Value(consts.ComposeFileKey{}).(string)
+	tracker, err := tracker.Add(filename, name)
+	if err != nil {
+		return nil, err
+	}
+	var (
+		ref  string
+		file any
+	)
+	switch v := extends.(type) {
+	case map[string]any:
+		ref = v["service"].(string)
+		file = v["file"]
+	case string:
+		ref = v
+	}
+
+	var base any
+	if file != nil {
+		path := file.(string)
+		services, err = getExtendsBaseFromFile(ctx, ref, path, opts, tracker)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		_, ok := services[ref]
+		if !ok {
+			return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, filename)
+		}
+	}
+	// recursively apply `extends`
+	base, err = applyServiceExtends(ctx, ref, services, opts, tracker, post...)
+	if err != nil {
+		return nil, err
+	}
+
+	source := deepClone(base).(map[string]any)
+	for _, processor := range post {
+		processor.Apply(map[string]any{
+			"services": map[string]any{
+				name: source,
+			},
+		})
+	}
+	merged, err := override.ExtendService(source, service)
+	if err != nil {
+		return nil, err
+	}
+	delete(merged, "extends")
+	return merged, nil
+}
+
+func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts *Options, ct *cycleTracker) (map[string]any, error) {
+	for _, loader := range opts.ResourceLoaders {
+		if !loader.Accept(path) {
+			continue
+		}
+		local, err := loader.Load(ctx, path)
+		if err != nil {
+			return nil, err
+		}
+		localdir := filepath.Dir(local)
+		relworkingdir := loader.Dir(path)
+
+		extendsOpts := opts.clone()
+		// replace localResourceLoader with a new flavour, using extended file base path
+		extendsOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{
+			WorkingDir: localdir,
+		})
+		extendsOpts.ResolvePaths = true
+		extendsOpts.SkipNormalization = true
+		extendsOpts.SkipConsistencyCheck = true
+		extendsOpts.SkipInclude = true
+		extendsOpts.SkipExtends = true    // we manage extends recursively based on raw service definition
+		extendsOpts.SkipValidation = true // we validate the merge result
+		source, err := loadYamlModel(ctx, types.ConfigDetails{
+			WorkingDir: relworkingdir,
+			ConfigFiles: []types.ConfigFile{
+				{Filename: local},
+			},
+		}, extendsOpts, ct, nil)
+		if err != nil {
+			return nil, err
+		}
+		services := source["services"].(map[string]any)
+		_, ok := services[name]
+		if !ok {
+			return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, path)
+		}
+		return services, nil
+	}
+	return nil, fmt.Errorf("cannot read %s", path)
 }
 
 func deepClone(value any) any {
