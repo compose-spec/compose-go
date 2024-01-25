@@ -33,6 +33,10 @@ var unique = map[tree.Path]indexer{}
 func init() {
 	unique["services.*.annotations"] = keyValueIndexer
 	unique["services.*.build.args"] = keyValueIndexer
+	unique["services.*.build.additional_contexts"] = keyValueIndexer
+	unique["services.*.build.extra_hosts"] = keyValueIndexer
+	unique["services.*.build.platform"] = keyValueIndexer
+	unique["services.*.build.tags"] = keyValueIndexer
 	unique["services.*.build.labels"] = keyValueIndexer
 	unique["services.*.configs"] = mountIndexer("")
 	unique["services.*.deploy.labels"] = keyValueIndexer

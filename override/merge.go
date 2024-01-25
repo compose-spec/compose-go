@@ -42,6 +42,7 @@ func init() {
 	mergeSpecials["services.*.annotations"] = mergeToSequence
 	mergeSpecials["services.*.build"] = mergeBuild
 	mergeSpecials["services.*.build.args"] = mergeToSequence
+	mergeSpecials["services.*.build.additional_contexts"] = mergeToSequence
 	mergeSpecials["services.*.build.labels"] = mergeToSequence
 	mergeSpecials["services.*.command"] = override
 	mergeSpecials["services.*.depends_on"] = mergeDependsOn
