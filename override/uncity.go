@@ -31,17 +31,21 @@ type indexer func(any, tree.Path) (string, error)
 var unique = map[tree.Path]indexer{}
 
 func init() {
-	unique["services.*.environment"] = keyValueIndexer
 	unique["services.*.annotations"] = keyValueIndexer
-	unique["services.*.labels"] = keyValueIndexer
-	unique["services.*.extra_hosts"] = keyValueIndexer
-	unique["services.*.sysctls"] = keyValueIndexer
 	unique["services.*.build.args"] = keyValueIndexer
-	unique["services.*.volumes"] = volumeIndexer
-	unique["services.*.expose"] = exposeIndexer
-	unique["services.*.secrets"] = mountIndexer("/run/secrets")
+	unique["services.*.build.labels"] = keyValueIndexer
 	unique["services.*.configs"] = mountIndexer("")
+	unique["services.*.deploy.labels"] = keyValueIndexer
+	unique["services.*.dns"] = keyValueIndexer
+	unique["services.*.dns_search"] = keyValueIndexer
+	unique["services.*.environment"] = keyValueIndexer
+	unique["services.*.expose"] = exposeIndexer
+	unique["services.*.extra_hosts"] = keyValueIndexer
+	unique["services.*.labels"] = keyValueIndexer
 	unique["services.*.ports"] = portIndexer
+	unique["services.*.secrets"] = mountIndexer("/run/secrets")
+	unique["services.*.sysctls"] = keyValueIndexer
+	unique["services.*.volumes"] = volumeIndexer
 }
 
 // EnforceUnicity removes redefinition of elements declared in a sequence
