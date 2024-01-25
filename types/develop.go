@@ -18,6 +18,8 @@ package types
 
 type DevelopConfig struct {
 	Watch []Trigger `json:"watch,omitempty"`
+
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 type WatchAction string

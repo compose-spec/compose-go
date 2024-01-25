@@ -305,18 +305,40 @@ func TestLoadFromFile(t *testing.T) {
 func TestLoadExtensions(t *testing.T) {
 	actual, err := loadYAML(`
 name: load-extensions
+x-project: project
+
+configs:
+  x-config-name:
+    external: true
+    x-config-ext: config
 services:
   foo:
     image: busybox
-    x-foo: bar`)
+    x-foo: bar
+    healthcheck:
+      x-healthcheck: health
+    develop:
+      x-dev: dev`)
 	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(types.Extensions{
+		"x-project": "project",
+	}, actual.Extensions))
 	assert.Check(t, is.Len(actual.Services, 1))
 	service := actual.Services["foo"]
 	assert.Check(t, is.Equal("busybox", service.Image))
-	extras := types.Extensions{
+
+	assert.Check(t, is.DeepEqual(types.Extensions{
 		"x-foo": "bar",
-	}
-	assert.Check(t, is.DeepEqual(extras, service.Extensions))
+	}, service.Extensions))
+	assert.Check(t, is.DeepEqual(types.Extensions{
+		"x-config-ext": "config",
+	}, actual.Configs["x-config-name"].Extensions))
+	assert.Check(t, is.DeepEqual(types.Extensions{
+		"x-dev": "dev",
+	}, service.Develop.Extensions))
+	assert.Check(t, is.DeepEqual(types.Extensions{
+		"x-healthcheck": "health",
+	}, service.HealthCheck.Extensions))
 }
 
 func TestLoadExtends(t *testing.T) {
