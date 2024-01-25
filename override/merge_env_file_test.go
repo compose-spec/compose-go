@@ -82,10 +82,9 @@ services:
 		assertMergeYaml(t, r, l, `
 services:
   test:
-    image: foo
     env_file:
-      - bar.env
       - foo.env
+      - bar.env
 `)
 	})
 
@@ -93,10 +92,9 @@ services:
 		assertMergeYaml(t, l, r, `
 services:
   test:
-    image: foo
     env_file:
-      - foo.env
       - bar.env
+      - foo.env
 `)
 	})
 }

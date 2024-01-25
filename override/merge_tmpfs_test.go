@@ -84,7 +84,7 @@ services:
 services:
   test:
     image: foo
-    annotations:
+    tmpfs:
       - /foo
       - /bar
 `)
@@ -95,7 +95,7 @@ services:
 services:
   test:
     image: foo
-    annotations:
+    tmpfs:
       - /bar
       - /foo
 `)
