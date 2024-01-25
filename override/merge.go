@@ -47,11 +47,13 @@ func init() {
 	mergeSpecials["services.*.command"] = override
 	mergeSpecials["services.*.entrypoint"] = override
 	mergeSpecials["services.*.healthcheck.test"] = override
+	mergeSpecials["services.*.env_file"] = mergeToSequence
 	mergeSpecials["services.*.environment"] = mergeToSequence
 	mergeSpecials["services.*.annotations"] = mergeToSequence
 	mergeSpecials["services.*.labels"] = mergeToSequence
 	mergeSpecials["services.*.extra_hosts"] = mergeToSequence
 	mergeSpecials["services.*.sysctls"] = mergeToSequence
+	mergeSpecials["services.*.tmpfs"] = mergeToSequence
 	mergeSpecials["services.*.ulimits.*"] = mergeUlimit
 }
 
@@ -175,6 +177,8 @@ func convertIntoSequence(value any) []any {
 		return seq
 	case []any:
 		return v
+	case string:
+		return []any{v}
 	}
 	return nil
 }
