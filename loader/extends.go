@@ -48,6 +48,9 @@ func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, track
 
 func applyServiceExtends(ctx context.Context, name string, services map[string]any, opts *Options, tracker *cycleTracker, post ...PostProcessor) (any, error) {
 	s := services[name]
+	if s == nil {
+		return nil, nil
+	}
 	service, ok := s.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("services.%s must be a mapping", name)
@@ -92,6 +95,9 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 		return nil, err
 	}
 
+	if base == nil {
+		return service, nil
+	}
 	source := deepClone(base).(map[string]any)
 	for _, processor := range post {
 		processor.Apply(map[string]any{

@@ -21,8 +21,12 @@ import (
 )
 
 func transformService(data any, p tree.Path) (any, error) {
-	value := data.(map[string]any)
-	return transformMapping(value, p)
+	switch value := data.(type) {
+	case map[string]any:
+		return transformMapping(value, p)
+	default:
+		return value, nil
+	}
 }
 
 func transformServiceNetworks(data any, _ tree.Path) (any, error) {
