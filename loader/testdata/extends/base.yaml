@@ -22,3 +22,4 @@ services:
       file: sibling.yaml
       service: test
 
+  nil: #left intentionally empty
