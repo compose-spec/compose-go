@@ -48,6 +48,7 @@ func init() {
 	unique["services.*.expose"] = exposeIndexer
 	unique["services.*.extra_hosts"] = keyValueIndexer
 	unique["services.*.labels"] = keyValueIndexer
+	unique["services.*.links"] = keyValueIndexer
 	unique["services.*.networks.*.aliases"] = keyValueIndexer
 	unique["services.*.networks.*.link_local_ips"] = keyValueIndexer
 	unique["services.*.ports"] = portIndexer
