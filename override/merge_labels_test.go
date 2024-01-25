@@ -112,3 +112,213 @@ services:
       - FOO=3
 `)
 }
+
+func Test_mergeYamlDeployLabelsSequence(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    deploy:
+      labels:
+        - FOO=BAR
+`, `
+services:
+  test:
+    deploy:
+      labels:
+        - QIX=ZOT
+        - EMPTY=
+        - NIL
+`, `
+services:
+  test:
+    image: foo
+    deploy:
+      labels:
+        - FOO=BAR
+        - QIX=ZOT
+        - EMPTY=
+        - NIL
+`)
+}
+
+func Test_mergeYamlDeployLabelsMapping(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    deploy:
+      labels:
+        FOO: BAR
+`, `
+services:
+  test:
+    deploy:
+      labels:
+        EMPTY: ""
+        NIL: null
+        QIX: ZOT
+`, `
+services:
+  test:
+    image: foo
+    deploy:
+      labels:
+        - FOO=BAR
+        - EMPTY=
+        - NIL
+        - QIX=ZOT
+`)
+}
+
+func Test_mergeYamlDeployLabelsMixed(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    deploy:
+      labels:
+        FOO: BAR
+`, `
+services:
+  test:
+    deploy:
+      labels:
+        - QIX=ZOT
+`, `
+services:
+  test:
+    image: foo
+    deploy:
+      labels:
+        - FOO=BAR
+        - QIX=ZOT
+`)
+}
+
+func Test_mergeYamlDeployLabelsNumber(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    deploy:
+      labels:
+        FOO: 1
+`, `
+services:
+  test:
+    deploy:
+      labels:
+        FOO: 3
+`, `
+services:
+  test:
+    deploy:
+      labels:
+        - FOO=3
+`)
+}
+
+func Test_mergeYamlBuildLabelsSequence(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    build:
+      labels:
+        - FOO=BAR
+`, `
+services:
+  test:
+    build:
+      labels:
+        - QIX=ZOT
+        - EMPTY=
+        - NIL
+`, `
+services:
+  test:
+    image: foo
+    build:
+      labels:
+        - FOO=BAR
+        - QIX=ZOT
+        - EMPTY=
+        - NIL
+`)
+}
+
+func Test_mergeYamlBuildLabelsMapping(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    build:
+      labels:
+        FOO: BAR
+`, `
+services:
+  test:
+    build:
+      labels:
+        EMPTY: ""
+        NIL: null
+        QIX: ZOT
+`, `
+services:
+  test:
+    image: foo
+    build:
+      labels:
+        - FOO=BAR
+        - EMPTY=
+        - NIL
+        - QIX=ZOT
+`)
+}
+
+func Test_mergeYamlBuildLabelsMixed(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    build:
+      labels:
+        FOO: BAR
+`, `
+services:
+  test:
+    build:
+      labels:
+        - QIX=ZOT
+`, `
+services:
+  test:
+    image: foo
+    build:
+      labels:
+        - FOO=BAR
+        - QIX=ZOT
+`)
+}
+
+func Test_mergeYamlBuildLabelsNumber(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    build:
+      labels:
+        FOO: 1
+`, `
+services:
+  test:
+    build:
+      labels:
+        FOO: 3
+`, `
+services:
+  test:
+    build:
+      labels:
+        - FOO=3
+`)
+}

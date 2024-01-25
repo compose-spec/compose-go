@@ -39,19 +39,23 @@ type merger func(any, any, tree.Path) (any, error)
 var mergeSpecials = map[tree.Path]merger{}
 
 func init() {
-	mergeSpecials["services.*.build.args"] = mergeToSequence
+	mergeSpecials["services.*.annotations"] = mergeToSequence
 	mergeSpecials["services.*.build"] = mergeBuild
-	mergeSpecials["services.*.depends_on"] = mergeDependsOn
-	mergeSpecials["services.*.logging"] = mergeLogging
-	mergeSpecials["services.*.networks"] = mergeNetworks
+	mergeSpecials["services.*.build.args"] = mergeToSequence
+	mergeSpecials["services.*.build.labels"] = mergeToSequence
 	mergeSpecials["services.*.command"] = override
+	mergeSpecials["services.*.depends_on"] = mergeDependsOn
+	mergeSpecials["services.*.deploy.labels"] = mergeToSequence
+	mergeSpecials["services.*.dns"] = mergeToSequence
+	mergeSpecials["services.*.dns_search"] = mergeToSequence
 	mergeSpecials["services.*.entrypoint"] = override
-	mergeSpecials["services.*.healthcheck.test"] = override
 	mergeSpecials["services.*.env_file"] = mergeToSequence
 	mergeSpecials["services.*.environment"] = mergeToSequence
-	mergeSpecials["services.*.annotations"] = mergeToSequence
-	mergeSpecials["services.*.labels"] = mergeToSequence
 	mergeSpecials["services.*.extra_hosts"] = mergeToSequence
+	mergeSpecials["services.*.healthcheck.test"] = override
+	mergeSpecials["services.*.labels"] = mergeToSequence
+	mergeSpecials["services.*.logging"] = mergeLogging
+	mergeSpecials["services.*.networks"] = mergeNetworks
 	mergeSpecials["services.*.sysctls"] = mergeToSequence
 	mergeSpecials["services.*.tmpfs"] = mergeToSequence
 	mergeSpecials["services.*.ulimits.*"] = mergeUlimit
