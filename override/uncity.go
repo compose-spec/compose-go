@@ -52,6 +52,7 @@ func init() {
 	unique["services.*.networks.*.aliases"] = keyValueIndexer
 	unique["services.*.networks.*.link_local_ips"] = keyValueIndexer
 	unique["services.*.ports"] = portIndexer
+	unique["services.*.profiles"] = keyValueIndexer
 	unique["services.*.secrets"] = mountIndexer("/run/secrets")
 	unique["services.*.sysctls"] = keyValueIndexer
 	unique["services.*.volumes"] = volumeIndexer
