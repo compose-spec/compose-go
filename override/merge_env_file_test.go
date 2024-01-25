@@ -70,6 +70,7 @@ services:
   test:
     env_file:
       - bar.env
+      - foo.env
 `
 
 	r := `
@@ -95,6 +96,25 @@ services:
     env_file:
       - bar.env
       - foo.env
+`)
+	})
+
+	r = `
+services:
+  test:
+    env_file: 
+      - path: foo.env
+        required: true
+`
+	t.Run("Unicity between string and mapping", func(t *testing.T) {
+		assertMergeYaml(t, l, r, `
+services:
+  test:
+    env_file:
+      - bar.env
+      - path: foo.env
+        required: true
+
 `)
 	})
 }

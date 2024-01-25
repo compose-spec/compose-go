@@ -39,6 +39,7 @@ func init() {
 	unique["services.*.dns"] = keyValueIndexer
 	unique["services.*.dns_search"] = keyValueIndexer
 	unique["services.*.environment"] = keyValueIndexer
+	unique["services.*.env_file"] = envFileIndexer
 	unique["services.*.expose"] = exposeIndexer
 	unique["services.*.extra_hosts"] = keyValueIndexer
 	unique["services.*.labels"] = keyValueIndexer
@@ -174,6 +175,16 @@ func portIndexer(y any, p tree.Path) (string, error) {
 		return fmt.Sprintf("%s:%s:%d/%s", host, published, target, protocol), nil
 	case string:
 		return value, nil
+	}
+	return "", nil
+}
+
+func envFileIndexer(y any, _ tree.Path) (string, error) {
+	switch value := y.(type) {
+	case string:
+		return value, nil
+	case map[string]any:
+		return value["path"].(string), nil
 	}
 	return "", nil
 }
