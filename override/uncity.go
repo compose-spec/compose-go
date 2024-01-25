@@ -37,6 +37,7 @@ func init() {
 	unique["services.*.configs"] = mountIndexer("")
 	unique["services.*.deploy.labels"] = keyValueIndexer
 	unique["services.*.dns"] = keyValueIndexer
+	unique["services.*.dns_opt"] = keyValueIndexer
 	unique["services.*.dns_search"] = keyValueIndexer
 	unique["services.*.environment"] = keyValueIndexer
 	unique["services.*.env_file"] = envFileIndexer
