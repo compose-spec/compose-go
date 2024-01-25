@@ -38,6 +38,8 @@ func init() {
 	unique["services.*.build.platform"] = keyValueIndexer
 	unique["services.*.build.tags"] = keyValueIndexer
 	unique["services.*.build.labels"] = keyValueIndexer
+	unique["services.*.cap_add"] = keyValueIndexer
+	unique["services.*.cap_drop"] = keyValueIndexer
 	unique["services.*.configs"] = mountIndexer("")
 	unique["services.*.deploy.labels"] = keyValueIndexer
 	unique["services.*.dns"] = keyValueIndexer
