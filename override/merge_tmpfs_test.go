@@ -33,6 +33,7 @@ services:
     tmpfs:
       - /bar
       - /baz
+      - /foo
 `, `
 services:
   test:
@@ -70,6 +71,7 @@ services:
   test:
     tmpfs:
       - /bar
+      - /foo
 `
 
 	r := `
