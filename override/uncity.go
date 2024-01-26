@@ -57,6 +57,7 @@ func init() {
 	unique["services.*.profiles"] = keyValueIndexer
 	unique["services.*.secrets"] = mountIndexer("/run/secrets")
 	unique["services.*.sysctls"] = keyValueIndexer
+	unique["services.*.tmpfs"] = keyValueIndexer
 	unique["services.*.volumes"] = volumeIndexer
 }
 
