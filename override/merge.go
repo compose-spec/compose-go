@@ -62,6 +62,9 @@ func mergeYaml(e any, o any, p tree.Path) (any, error) {
 			return merged, nil
 		}
 	}
+	if o == nil {
+		return e, nil
+	}
 	switch value := e.(type) {
 	case map[string]any:
 		other, ok := o.(map[string]any)

@@ -44,6 +44,10 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 		p.paths = append(p.paths, path)
 		return nil, nil
 	}
+	if node.Tag == "!override" {
+		p.paths = append(p.paths, path)
+		return node, nil
+	}
 	switch node.Kind {
 	case yaml.SequenceNode:
 		var nodes []*yaml.Node
