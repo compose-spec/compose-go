@@ -39,6 +39,7 @@ type merger func(any, any, tree.Path) (any, error)
 var mergeSpecials = map[tree.Path]merger{}
 
 func init() {
+	mergeSpecials["networks.*.ipam.config"] = mergeIPAMConfig
 	mergeSpecials["services.*.annotations"] = mergeToSequence
 	mergeSpecials["services.*.build"] = mergeBuild
 	mergeSpecials["services.*.build.args"] = mergeToSequence
@@ -195,6 +196,41 @@ func mergeUlimit(_ any, o any, p tree.Path) (any, error) {
 		return mergeMappings(base, over, p)
 	}
 	return o, nil
+}
+
+func mergeIPAMConfig(c any, o any, path tree.Path) (any, error) {
+	var ipamConfigs []any
+	for _, original := range c.([]any) {
+		right := convertIntoMapping(original, nil)
+		for _, override := range o.([]any) {
+			left := convertIntoMapping(override, nil)
+			if left["subnet"] != right["subnet"] {
+				// check if left is already in ipamConfigs, add it if not and continue with the next config
+				if !slices.ContainsFunc(ipamConfigs, func(a any) bool {
+					return a.(map[string]any)["subnet"] == left["subnet"]
+				}) {
+					ipamConfigs = append(ipamConfigs, left)
+					continue
+				}
+			}
+			merged, err := mergeMappings(right, left, path)
+			if err != nil {
+				return nil, err
+			}
+			// find index of potential previous config with the same subnet in ipamConfigs
+			indexIfExist := slices.IndexFunc(ipamConfigs, func(a any) bool {
+				return a.(map[string]any)["subnet"] == merged["subnet"]
+			})
+			// if a previous config is already in ipamConfigs, replace it
+			if indexIfExist >= 0 {
+				ipamConfigs[indexIfExist] = merged
+			} else {
+				// or add the new config to ipamConfigs
+				ipamConfigs = append(ipamConfigs, merged)
+			}
+		}
+	}
+	return ipamConfigs, nil
 }
 
 func convertIntoMapping(a any, defaultValue any) map[string]any {

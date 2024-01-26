@@ -31,6 +31,8 @@ type indexer func(any, tree.Path) (string, error)
 var unique = map[tree.Path]indexer{}
 
 func init() {
+	unique["networks.*.labels"] = keyValueIndexer
+	unique["networks.*.ipam.options"] = keyValueIndexer
 	unique["services.*.annotations"] = keyValueIndexer
 	unique["services.*.build.args"] = keyValueIndexer
 	unique["services.*.build.additional_contexts"] = keyValueIndexer

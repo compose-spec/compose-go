@@ -20,7 +20,7 @@ import (
 	"testing"
 )
 
-func Test_mergeYamlNetworkSequence(t *testing.T) {
+func Test_mergeYamlServiceNetworkSequence(t *testing.T) {
 	assertMergeYaml(t, `
 services:
   test:
@@ -43,7 +43,7 @@ services:
 `)
 }
 
-func Test_mergeYamlNetworksMapping(t *testing.T) {
+func Test_mergeYamlServiceNetworksMapping(t *testing.T) {
 	assertMergeYaml(t, `
 services:
   test:
@@ -92,7 +92,7 @@ services:
 `)
 }
 
-func Test_mergeYamlNetworkstMixed(t *testing.T) {
+func Test_mergeYamlServiceNetworksMixed(t *testing.T) {
 	assertMergeYaml(t, `
 services:
   test:
@@ -135,5 +135,94 @@ services:
         aliases:
           - alias1
           - alias3
+`)
+}
+
+func Test_mergeYamlNetworks(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+networks:
+  network1:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          ip_range: 172.28.5.0/24
+          gateway: 172.28.5.254
+          aux_addresses:
+            host1: 172.28.1.5
+            host2: 172.28.1.6
+            host3: 172.28.1.7
+      options:
+        foo: bar
+        baz: "0"
+    labels:
+      com.example.description: "Financial transaction network"
+      com.example.department: "Finance"
+      com.example.label-with-empty-value: ""
+`, `
+services:
+  test:
+    image: foo
+networks:
+  network1:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          ip_range: 172.28.5.1/24
+          gateway: 172.28.5.254
+          aux_addresses:
+            host1: 172.28.1.5
+            host2: 172.28.1.4
+            host4: 172.28.1.10
+        - subnet: 172.28.10.0/16
+          ip_range: 172.28.10.1/24
+          gateway: 172.28.10.254
+          aux_addresses:
+            host1: 172.28.10.5
+            host2: 172.28.10.4
+            host3: 172.28.10.10
+      options:
+        bar: foo
+        baz: "0"
+    labels:
+      com.example.description: "Financial transaction network"
+      com.example.department-new: "New"
+      com.example.label-with-empty-value: ""
+  network2:
+`, `
+services:
+  test:
+    image: foo
+networks:
+  network1:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+          ip_range: 172.28.5.1/24
+          gateway: 172.28.5.254
+          aux_addresses:
+            host1: 172.28.1.5
+            host2: 172.28.1.4
+            host3: 172.28.1.7
+            host4: 172.28.1.10
+        - subnet: 172.28.10.0/16
+          ip_range: 172.28.10.1/24
+          gateway: 172.28.10.254
+          aux_addresses:
+            host1: 172.28.10.5
+            host2: 172.28.10.4
+            host3: 172.28.10.10
+      options:
+        foo: bar
+        bar: foo
+        baz: "0"
+    labels:
+      com.example.description: "Financial transaction network"
+      com.example.department: "Finance"
+      com.example.label-with-empty-value: ""
+      com.example.department-new: "New"
+  network2:
 `)
 }
