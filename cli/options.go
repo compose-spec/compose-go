@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -140,8 +141,8 @@ func WithConfigFileEnv(o *ProjectOptions) error {
 	}
 	f, ok := o.Environment[consts.ComposeFilePath]
 	if ok {
-		paths, err := absolutePaths(strings.Split(f, sep))
-		o.ConfigPaths = paths
+		filePaths, err := absolutePaths(strings.Split(f, sep))
+		o.ConfigPaths = append(filePaths)
 		return err
 	}
 	return nil
@@ -384,31 +385,44 @@ func (o ProjectOptions) GetWorkingDir() (string, error) {
 
 // ProjectFromOptions load a compose project based on command line options
 func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
-	configPaths, err := getConfigPathsFromOptions(options)
+	optionPaths, err := getConfigPathsFromOptions(options)
 	if err != nil {
 		return nil, err
 	}
 
+	// if base file is url set working dir
+	if !optionPaths[0].isFile {
+		wd, err := os.Getwd()
+		if err == nil { // if NO error
+			options.WorkingDir = wd
+		}
+	}
+
 	var configs []types.ConfigFile
-	for _, f := range configPaths {
+	var composeFiles []string
+	for _, o := range optionPaths {
+		composeFiles = append(composeFiles, o.path)
 		var b []byte
-		if f == "-" {
-			b, err = io.ReadAll(os.Stdin)
-			if err != nil {
-				return nil, err
+		if o.isFile {
+			if o.path == "-" {
+				b, err = io.ReadAll(os.Stdin)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				b, err = os.ReadFile(o.path)
+				if err != nil {
+					return nil, err
+				}
 			}
 		} else {
-			f, err := filepath.Abs(f)
-			if err != nil {
-				return nil, err
-			}
-			b, err = os.ReadFile(f)
+			b, err = read(o.path)
 			if err != nil {
 				return nil, err
 			}
 		}
 		configs = append(configs, types.ConfigFile{
-			Filename: f,
+			Filename: o.path,
 			Content:  b,
 		})
 	}
@@ -440,7 +454,7 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		return nil, err
 	}
 
-	project.ComposeFiles = configPaths
+	project.ComposeFiles = composeFiles
 	return project, nil
 }
 
@@ -467,12 +481,36 @@ func withConvertWindowsPaths(options *ProjectOptions) func(*loader.Options) {
 	}
 }
 
+type configPath struct {
+	path   string
+	isFile bool
+}
+
 // getConfigPathsFromOptions retrieves the config files for project based on project options
-func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
-	if len(options.ConfigPaths) != 0 {
-		return absolutePaths(options.ConfigPaths)
+func getConfigPathsFromOptions(options *ProjectOptions) ([]configPath, error) {
+	if len(options.ConfigPaths) == 0 {
+		return nil, fmt.Errorf("no configuration file provided: %w", errdefs.ErrNotFound)
 	}
-	return nil, fmt.Errorf("no configuration file provided: %w", errdefs.ErrNotFound)
+	var paths []configPath
+	for _, f := range options.ConfigPaths {
+		if f == "-" {
+			paths = append(paths, configPath{f, true})
+			continue
+		}
+		abs, err := filepath.Abs(f)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := os.Stat(f); err != nil {
+			if valid(f) {
+				paths = append(paths, configPath{f, false})
+				continue
+			}
+			return nil, err
+		}
+		paths = append(paths, configPath{abs, true})
+	}
+	return paths, nil
 }
 
 func findFiles(names []string, pwd string) []string {
@@ -504,4 +542,21 @@ func absolutePaths(p []string) ([]string, error) {
 		paths = append(paths, f)
 	}
 	return paths, nil
+}
+
+// valid tests if url is ok
+func valid(url string) bool {
+	resp, err := http.Get(url)
+	return err == nil && resp.StatusCode == http.StatusOK
+}
+
+// read reads the file served at the given url and writes it into the passed buffer
+func read(url string) ([]byte, error) {
+	resp, err := http.Get(url)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	buffer, err := io.ReadAll(resp.Body)
+	return buffer, err
 }
