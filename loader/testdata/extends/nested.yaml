@@ -1,0 +1,5 @@
+services:
+  with-build:
+    extends:
+      file: sibling.yaml
+      service: test

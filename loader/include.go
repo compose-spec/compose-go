@@ -83,6 +83,9 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 		loadOptions.ResolvePaths = true
 		loadOptions.SkipNormalization = true
 		loadOptions.SkipConsistencyCheck = true
+		loadOptions.ResourceLoaders = append(loadOptions.RemoteResourceLoaders(), localResourceLoader{
+			WorkingDir: r.ProjectDirectory,
+		})
 
 		if len(r.EnvFile) == 0 {
 			f := filepath.Join(r.ProjectDirectory, ".env")

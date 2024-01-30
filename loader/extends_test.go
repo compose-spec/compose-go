@@ -173,6 +173,31 @@ services:
 	assert.NilError(t, err)
 }
 
+func TestIncludeWithExtends(t *testing.T) {
+	yaml := `
+name: test-include-with-extends
+include: 
+  - testdata/extends/nested.yaml
+`
+	abs, err := filepath.Abs(".")
+	assert.NilError(t, err)
+
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content:  []byte(yaml),
+				Filename: "(inline)",
+			},
+		},
+		WorkingDir: abs,
+	}, func(options *Options) {
+		options.ResolvePaths = false
+		options.SkipValidation = true
+	})
+	assert.NilError(t, err)
+	assert.Check(t, p.Services["with-build"].Build != nil)
+}
+
 func TestExtendsPortOverride(t *testing.T) {
 	yaml := `
 name: test-extends-port
