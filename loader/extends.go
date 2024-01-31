@@ -135,7 +135,6 @@ func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts 
 		extendsOpts.SkipNormalization = true
 		extendsOpts.SkipConsistencyCheck = true
 		extendsOpts.SkipInclude = true
-		extendsOpts.SkipExtends = true    // we manage extends recursively based on raw service definition
 		extendsOpts.SkipValidation = true // we validate the merge result
 		source, err := loadYamlModel(ctx, types.ConfigDetails{
 			WorkingDir: relworkingdir,

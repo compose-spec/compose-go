@@ -1998,6 +1998,61 @@ func TestLoadWithExtends(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
 }
 
+func TestLoadExtendsSameFile(t *testing.T) {
+	tmpdir := t.TempDir()
+
+	aDir := filepath.Join(tmpdir, "sub")
+	assert.NilError(t, os.Mkdir(aDir, 0o700))
+	aYAML := `
+services:
+  base:
+    build:
+      context: ..
+  service:
+    extends: base
+    build:
+      target: target
+`
+
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "sub", "compose.yaml"), []byte(aYAML), 0o600))
+
+	rootYAML := `
+services:
+  out-base:
+    extends:
+      file: sub/compose.yaml
+      service: base
+  out-service:
+    extends:
+      file: sub/compose.yaml
+      service: service
+`
+
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
+
+	actual, err := Load(types.ConfigDetails{
+		WorkingDir: tmpdir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(tmpdir, "compose.yaml"),
+		}},
+		Environment: nil,
+	}, func(options *Options) {
+		options.SkipNormalization = true
+		options.SkipConsistencyCheck = true
+		options.SetProjectName("project", true)
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(actual.Services, 2))
+
+	svcA, err := actual.GetService("out-base")
+	assert.NilError(t, err)
+	assert.Equal(t, svcA.Build.Context, tmpdir)
+
+	svcB, err := actual.GetService("out-service")
+	assert.NilError(t, err)
+	assert.Equal(t, svcB.Build.Context, tmpdir)
+}
+
 func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 	b, err := os.ReadFile("testdata/compose-test-extends-with-context-url.yaml")
 	assert.NilError(t, err)
