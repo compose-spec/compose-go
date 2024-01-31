@@ -60,11 +60,8 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 		return s, nil
 	}
 	filename := ctx.Value(consts.ComposeFileKey{}).(string)
-	tracker, err := tracker.Add(filename, name)
-	if err != nil {
-		return nil, err
-	}
 	var (
+		err  error
 		ref  string
 		file any
 	)
@@ -78,8 +75,8 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 
 	var base any
 	if file != nil {
-		path := file.(string)
-		services, err = getExtendsBaseFromFile(ctx, ref, path, opts, tracker)
+		filename = file.(string)
+		services, err = getExtendsBaseFromFile(ctx, ref, filename, opts, tracker)
 		if err != nil {
 			return nil, err
 		}
@@ -89,6 +86,12 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 			return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, filename)
 		}
 	}
+
+	tracker, err = tracker.Add(filename, name)
+	if err != nil {
+		return nil, err
+	}
+
 	// recursively apply `extends`
 	base, err = applyServiceExtends(ctx, ref, services, opts, tracker, post...)
 	if err != nil {
