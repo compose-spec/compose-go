@@ -60,6 +60,6 @@ Usage: compose-spec [OPTIONS] COMPOSE_FILE [COMPOSE_OVERRIDE_FILE]`)
 }
 
 func exitError(message string, err error) {
-	_ = fmt.Errorf("%s: %w", message, err)
+	fmt.Fprintf(os.Stderr, "%s: %v", message, err)
 	os.Exit(1)
 }
