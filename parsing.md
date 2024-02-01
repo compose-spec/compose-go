@@ -127,13 +127,19 @@ During loading, all those attributes are transformed into canonical
 representation, so that we get a single format that will match to go structs
 for binding.
 
-# Phase 12: extensions
+# Phase 12: set-defaults
+
+Some attributes are required by the model but optional in the compose file, as an implicit 
+default value is defined by the specification, like [`build.context`](https://github.com/compose-spec/compose-spec/blob/master/build.md#context)
+During this phase, such unset attributes get default value assigned.
+
+# Phase 13: extensions
 
 Extension (`x-*` attributes) can be used in any place in the yaml document.
 To make unmarshalling easier, parsing move them all into a custom `#extension`
 attribute. This hack is very specific to the go binding.
 
-# Phase 13: relative paths
+# Phase 14: relative paths
 
 Compose allows paths to be set relative to the project directory. Those get resolved
 into absolute paths during this phase. This involves a few corner cases, as
@@ -152,7 +158,7 @@ volumes:
       device: './data' # such a relative path must be resolved
 ```
 
-# Phase 14: go binding
+# Phase 15: go binding
 
 Eventually, the yaml tree can be unmarshalled into go structs. We rely on
 [mapstructure](https://github.com/mitchellh/mapstructure) library for this purpose.

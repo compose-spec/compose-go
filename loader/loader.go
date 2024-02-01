@@ -64,6 +64,8 @@ type Options struct {
 	SkipInclude bool
 	// SkipResolveEnvironment will ignore computing `environment` for services
 	SkipResolveEnvironment bool
+	// SkipDefaultValues will ignore missing required attributes
+	SkipDefaultValues bool
 	// Interpolation options
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
@@ -415,6 +417,13 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	dict, err = override.EnforceUnicity(dict)
 	if err != nil {
 		return nil, err
+	}
+
+	if !opts.SkipDefaultValues {
+		dict, err = transform.SetDefaultValues(dict)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if !opts.SkipValidation {
