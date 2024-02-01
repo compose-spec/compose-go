@@ -43,7 +43,6 @@ func Test_transformBuild(t *testing.T) {
 				"dockerfile": "foo.Dockerfile",
 			},
 			want: map[string]any{
-				"context":    ".",
 				"dockerfile": "foo.Dockerfile",
 			},
 		},

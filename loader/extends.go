@@ -140,6 +140,7 @@ func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts 
 		extendsOpts.SkipInclude = true
 		extendsOpts.SkipExtends = true    // we manage extends recursively based on raw service definition
 		extendsOpts.SkipValidation = true // we validate the merge result
+		extendsOpts.SkipDefaultValues = true
 		source, err := loadYamlModel(ctx, types.ConfigDetails{
 			WorkingDir: relworkingdir,
 			ConfigFiles: []types.ConfigFile{
