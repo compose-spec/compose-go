@@ -65,6 +65,7 @@ func services(workingDir, homeDir string) types.Services {
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "secret1",
+						Target: "/run/secrets/secret1",
 					},
 					{
 						Source: "secret2",
@@ -396,6 +397,7 @@ func services(workingDir, homeDir string) types.Services {
 			Secrets: []types.ServiceSecretConfig{
 				{
 					Source: "secret1",
+					Target: "/run/secrets/secret1",
 				},
 				{
 					Source: "secret2",
@@ -627,6 +629,7 @@ services:
       target: foo
       secrets:
         - source: secret1
+          target: /run/secrets/secret1
         - source: secret2
           target: my_secret
           uid: "103"
@@ -885,6 +888,7 @@ services:
     restart: always
     secrets:
       - source: secret1
+        target: /run/secrets/secret1
       - source: secret2
         target: my_secret
         uid: "103"
@@ -1180,7 +1184,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "target": "foo",
         "secrets": [
           {
-            "source": "secret1"
+            "source": "secret1",
+            "target": "/run/secrets/secret1"
           },
           {
             "source": "secret2",
@@ -1544,7 +1549,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "restart": "always",
       "secrets": [
         {
-          "source": "secret1"
+          "source": "secret1",
+          "target": "/run/secrets/secret1"
         },
         {
           "source": "secret2",

@@ -828,6 +828,7 @@ networks:
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "super",
+						Target: "/run/secrets/super",
 						Mode:   uint32Ptr(555),
 					},
 				},
@@ -1842,6 +1843,7 @@ secrets:
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "secret",
+						Target: "/run/secrets/secret",
 					},
 				},
 			},
@@ -1911,6 +1913,7 @@ secrets:
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "secret",
+						Target: "/run/secrets/secret",
 					},
 				},
 			},
