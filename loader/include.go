@@ -34,6 +34,14 @@ func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	if source == nil {
 		return nil, nil
 	}
+	configs := source.([]any)
+	for i, config := range configs {
+		if v, ok := config.(string); ok {
+			configs[i] = map[string]any{
+				"path": v,
+			}
+		}
+	}
 	var requires []types.IncludeConfig
 	err := Transform(source, &requires)
 	return requires, err
