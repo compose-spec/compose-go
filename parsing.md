@@ -69,7 +69,18 @@ Extended service yaml definition is cloned into a plain new yaml subtree then
 the local service definition is merged as an override. This includes support
 for `!reset` to remove an element from original service definition.
 
-# Phase 7: merge overrides
+# Phase 7: include resources from another compose model
+
+A compose file can use `include` to rely on compose resources defined by third-parties
+as a separate compose file
+
+Included compose definition is fully parsed (as described in this document) then included 
+to the compose yaml model being processed. Conflicting resources are detected and rejected
+
+The resulting compose model is equivalent to a copy/paste of the included compose model
+(fully resolved) into the local compose file.
+
+# Phase 8: merge overrides
 
 If loaded document is an override, the yaml tree is merged with the one from 
 main compose file. `!reset` can be used to remove elements.
@@ -81,7 +92,7 @@ few exceptions:
 - Attributes which can be expressed both as a mapping and a sequence are converted
   so that merge can apply on equivalent data structures.
 
-# Phase 8: enforce unicity
+# Phase 9: enforce unicity
 
 While modeled as a list, some attributes actually require some unicity to be 
 applied. Volume mount definition for a service typically must be unique
@@ -89,29 +100,12 @@ regarding the target mount path. As such attribute can be defined as a single
 string and set by a variable, we have to apply the "_append to list_" merge
 strategy then check for unicity.
 
-# Phase 9: transform into canonical representation
-
-Compose specification allows many attribute to have both a "short" and a "long"
-syntax. It also supports use of single string or list of strings for some
-repeatable attributes. Some attributes can be declared both as a list of
-key=value strings or as a yaml mapping.
-
-During loading, all those attributes are transformed into canonical 
-representation, so that we get a single format that will match to go structs
-for binding.
-
-# Phase 10: extensions
-
-Extension (`x-*` attributes) can be used in any place in the yaml document.
-To make unmarshalling easier, parsing move them all into a custom `#extension`
-attribute. This hack is very specific to the go binding.
-
-# Phase 11: validation
+# Phase 10: validation
 
 During the loading process, some logical rules are checked. But some involved
 relations between exclusive attributes, and must be checked as a dedicated phase.
 
-A typical example is the use of `external` in a resource definition. As such a 
+A typical example is the use of `external` in a resource definition. As such a
 resource is not managed by Compose, having some resource creation attributes set
 must result into an error being reported to the user
 
@@ -122,7 +116,24 @@ networks:
     driver: macvlan # This will trigger an error, as external network should not have any resource creation parameter set 
 ```
 
-# Phase 12: relative paths
+# Phase 11: transform into canonical representation
+
+Compose specification allows many attribute to have both a "short" and a "long"
+syntax. It also supports use of single string or list of strings for some
+repeatable attributes. Some attributes can be declared both as a list of
+key=value strings or as a yaml mapping.
+
+During loading, all those attributes are transformed into canonical 
+representation, so that we get a single format that will match to go structs
+for binding.
+
+# Phase 12: extensions
+
+Extension (`x-*` attributes) can be used in any place in the yaml document.
+To make unmarshalling easier, parsing move them all into a custom `#extension`
+attribute. This hack is very specific to the go binding.
+
+# Phase 13: relative paths
 
 Compose allows paths to be set relative to the project directory. Those get resolved
 into absolute paths during this phase. This involves a few corner cases, as
@@ -141,7 +152,7 @@ volumes:
       device: './data' # such a relative path must be resolved
 ```
 
-# Phase 13: go binding
+# Phase 14: go binding
 
 Eventually, the yaml tree can be unmarshalled into go structs. We rely on
 [mapstructure](https://github.com/mitchellh/mapstructure) library for this purpose.

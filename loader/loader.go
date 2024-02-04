@@ -355,6 +355,14 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				}
 			}
 
+			if !opts.SkipInclude {
+				included = append(included, config.ConfigFiles[0].Filename)
+				err = ApplyInclude(ctx, config, cfg, opts, included)
+				if err != nil {
+					return err
+				}
+			}
+
 			dict, err = override.Merge(dict, cfg)
 			if err != nil {
 				return err
@@ -407,14 +415,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	dict, err = override.EnforceUnicity(dict)
 	if err != nil {
 		return nil, err
-	}
-
-	if !opts.SkipInclude {
-		included = append(included, config.ConfigFiles[0].Filename)
-		err = ApplyInclude(ctx, config, dict, opts, included)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if !opts.SkipValidation {

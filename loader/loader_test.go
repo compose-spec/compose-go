@@ -2561,7 +2561,6 @@ services:
 }
 
 func TestLoadWithIncludeCycle(t *testing.T) {
-
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
 	_, err = Load(types.ConfigDetails{
@@ -2573,6 +2572,26 @@ func TestLoadWithIncludeCycle(t *testing.T) {
 		},
 	})
 	assert.Check(t, strings.HasPrefix(err.Error(), "include cycle detected"))
+}
+
+func TestLoadWithIncludeOverride(t *testing.T) {
+	p, err := Load(buildConfigDetailsMultipleFiles(nil, `
+name: 'test-include-override'
+
+include:
+  - ./testdata/subdir/compose-test-extends-imported.yaml
+`,
+		`
+# override
+services:
+  imported:
+    image: overridden
+`), func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["imported"].Image, "overridden")
 }
 
 func TestLoadDependsOnCycle(t *testing.T) {
