@@ -23,6 +23,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
+	"golang.org/x/exp/slices"
 	"gotest.tools/v3/assert"
 )
 
@@ -239,4 +240,134 @@ func TestWithServices(t *testing.T) {
 	}, IncludeDependencies)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, seen, []string{"service_1", "service_2", "service_4"})
+}
+
+func TestBuildServices(t *testing.T) {
+	p := makeProject()
+	assert.DeepEqual(t, []string{}, p.ServicesBuild())
+
+	service, err := p.GetService("service_1")
+	assert.NilError(t, err)
+	service.Build = &BuildConfig{}
+	p.Services["service_1"] = service
+	assert.DeepEqual(t, []string{}, p.ServicesBuild())
+
+	service.Build = &BuildConfig{
+		Context: ".",
+	}
+	p.Services["service_1"] = service
+	service, err = p.GetService("service_2")
+	assert.NilError(t, err)
+	service.Build = &BuildConfig{
+		Context: ".",
+	}
+	p.Services["service_2"] = service
+	services := p.ServicesBuild()
+	slices.Sort(services)
+	assert.DeepEqual(t, []string{"service_1", "service_2"}, services)
+}
+
+func TestServicesWithExtends(t *testing.T) {
+	p := makeProject()
+	assert.DeepEqual(t, []string{}, p.ServicesWithExtends())
+
+	service, err := p.GetService("service_1")
+	assert.NilError(t, err)
+	service.Extends = &ExtendsConfig{}
+	p.Services["service_1"] = service
+	assert.DeepEqual(t, []string{}, p.ServicesWithExtends())
+
+	service.Extends = &ExtendsConfig{
+		File:    ".",
+		Service: "service_2",
+	}
+	p.Services["service_1"] = service
+	assert.DeepEqual(t, []string{"service_1"}, p.ServicesWithExtends())
+}
+
+func TestServicesWithDependsOn(t *testing.T) {
+	p := makeProject()
+	services := p.ServicesWithDependsOn()
+	slices.Sort(services)
+	assert.Equal(t, 3, len(services))
+	assert.DeepEqual(t, []string{"service_2", "service_3", "service_4"}, services)
+}
+
+func TestServicesWithCapabilities(t *testing.T) {
+	p := makeProject()
+
+	service, err := p.GetService("service_1")
+	assert.NilError(t, err)
+	service.Deploy = &DeployConfig{}
+	p.Services["service_1"] = service
+	capabilities, gpu, tpu := p.ServicesWithCapabilities()
+	assert.DeepEqual(t, []string{}, capabilities)
+	assert.DeepEqual(t, []string{}, gpu)
+	assert.DeepEqual(t, []string{}, tpu)
+
+	service.Deploy = &DeployConfig{
+		Resources: Resources{
+			Reservations: &Resource{},
+		},
+	}
+	p.Services["service_1"] = service
+	capabilities, gpu, tpu = p.ServicesWithCapabilities()
+	assert.DeepEqual(t, []string{}, capabilities)
+	assert.DeepEqual(t, []string{}, gpu)
+	assert.DeepEqual(t, []string{}, tpu)
+
+	service.Deploy = &DeployConfig{
+		Resources: Resources{
+			Reservations: &Resource{
+				Devices: []DeviceRequest(nil),
+			},
+		},
+	}
+	p.Services["service_1"] = service
+	capabilities, gpu, tpu = p.ServicesWithCapabilities()
+	assert.DeepEqual(t, []string{}, capabilities)
+	assert.DeepEqual(t, []string{}, gpu)
+	assert.DeepEqual(t, []string{}, tpu)
+
+	service.Deploy = &DeployConfig{
+		Resources: Resources{
+			Reservations: &Resource{
+				Devices: []DeviceRequest{
+					{
+						Capabilities: []string{"gpu", "tpu"},
+					},
+				},
+			},
+		},
+	}
+	p.Services["service_1"] = service
+	capabilities, gpu, tpu = p.ServicesWithCapabilities()
+	assert.DeepEqual(t, []string{"service_1"}, capabilities)
+	assert.DeepEqual(t, []string{"service_1"}, gpu)
+	assert.DeepEqual(t, []string{"service_1"}, tpu)
+
+	service, err = p.GetService("service_2")
+	assert.NilError(t, err)
+	service.Deploy = &DeployConfig{
+		Resources: Resources{
+			Reservations: &Resource{
+				Devices: []DeviceRequest{
+					{
+						Capabilities: []string{"tpu"},
+					},
+					{
+						Capabilities: []string{"tpu"},
+					},
+				},
+			},
+		},
+	}
+	p.Services["service_2"] = service
+	capabilities, gpu, tpu = p.ServicesWithCapabilities()
+	slices.Sort(capabilities)
+	slices.Sort(gpu)
+	slices.Sort(tpu)
+	assert.DeepEqual(t, []string{"service_1", "service_2"}, capabilities)
+	assert.DeepEqual(t, []string{"service_1"}, gpu)
+	assert.DeepEqual(t, []string{"service_1", "service_2"}, tpu)
 }
