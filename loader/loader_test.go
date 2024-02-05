@@ -1454,8 +1454,8 @@ services:
 	assert.NilError(t, err)
 
 	expected := types.HostsList{
-		"alpha": "50.31.209.229",
-		"zulu":  "162.242.195.82",
+		"alpha": []string{"50.31.209.229"},
+		"zulu":  []string{"162.242.195.82"},
 	}
 
 	assert.Assert(t, is.Len(config.Services, 1))
@@ -1470,13 +1470,14 @@ services:
     image: busybox
     extra_hosts:
       - "alpha:50.31.209.229"
+      - "zulu:127.0.0.2"
       - "zulu:ff02::1"
 `)
 	assert.NilError(t, err)
 
 	expected := types.HostsList{
-		"alpha": "50.31.209.229",
-		"zulu":  "ff02::1",
+		"alpha": []string{"50.31.209.229"},
+		"zulu":  []string{"127.0.0.2", "ff02::1"},
 	}
 
 	assert.Assert(t, is.Len(config.Services, 1))

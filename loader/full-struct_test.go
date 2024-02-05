@@ -193,8 +193,8 @@ func services(workingDir, homeDir string) types.Services {
 				"project_db_1:postgresql",
 			},
 			ExtraHosts: types.HostsList{
-				"somehost":  "162.242.195.82",
-				"otherhost": "50.31.209.229",
+				"somehost":  []string{"162.242.195.82"},
+				"otherhost": []string{"50.31.209.229"},
 			},
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
