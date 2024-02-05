@@ -178,8 +178,8 @@ func convertIntoSequence(value any) []any {
 			}
 			i++
 		}
-		slices.SortFunc(seq, func(a, b any) bool {
-			return a.(string) < b.(string)
+		slices.SortFunc(seq, func(a, b any) int {
+			return compare(a.(string), b.(string))
 		})
 		return seq
 	case []any:
