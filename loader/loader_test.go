@@ -3148,3 +3148,30 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, p.Name, "test-with-empty-file")
 }
+
+func TestNamedPort(t *testing.T) {
+	yaml := `
+name: test-named-ports
+services:
+  test:
+    image: foo
+    ports:
+      - name: http
+        published: 8080
+        target: 80
+      - name: https
+        published: 8083
+        target: 443
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	ports := p.Services["test"].Ports
+	assert.Equal(t, ports[0].Name, "http")
+	assert.Equal(t, ports[1].Name, "https")
+}
