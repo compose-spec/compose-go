@@ -76,6 +76,8 @@ type Options struct {
 	Profiles []string
 	// ResourceLoaders manages support for remote resources
 	ResourceLoaders []ResourceLoader
+	// KnownExtensions manages x-* attribute we know and the corresponding go structs
+	KnownExtensions map[string]any
 }
 
 // ResourceLoader is a plugable remote resource resolver
@@ -148,6 +150,7 @@ func (o *Options) clone() *Options {
 		projectNameImperativelySet: o.projectNameImperativelySet,
 		Profiles:                   o.Profiles,
 		ResourceLoaders:            o.ResourceLoaders,
+		KnownExtensions:            o.KnownExtensions,
 	}
 }
 
@@ -456,7 +459,11 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	}
 	delete(dict, "name") // project name set by yaml must be identified by caller as opts.projectName
 
-	dict = groupXFieldsIntoExtensions(dict, tree.NewPath())
+	dict, err = processExtensions(dict, tree.NewPath(), opts.KnownExtensions)
+	if err != nil {
+		return nil, err
+	}
+
 	err = Transform(dict, project)
 	if err != nil {
 		return nil, err
@@ -596,8 +603,9 @@ var userDefinedKeys = []tree.Path{
 	"configs",
 }
 
-func groupXFieldsIntoExtensions(dict map[string]interface{}, p tree.Path) map[string]interface{} {
-	extras := map[string]interface{}{}
+func processExtensions(dict map[string]any, p tree.Path, extensions map[string]any) (map[string]interface{}, error) {
+	extras := map[string]any{}
+	var err error
 	for key, value := range dict {
 		skip := false
 		for _, uk := range userDefinedKeys {
@@ -613,19 +621,35 @@ func groupXFieldsIntoExtensions(dict map[string]interface{}, p tree.Path) map[st
 		}
 		switch v := value.(type) {
 		case map[string]interface{}:
-			dict[key] = groupXFieldsIntoExtensions(v, p.Next(key))
+			dict[key], err = processExtensions(v, p.Next(key), extensions)
+			if err != nil {
+				return nil, err
+			}
 		case []interface{}:
 			for i, e := range v {
 				if m, ok := e.(map[string]interface{}); ok {
-					v[i] = groupXFieldsIntoExtensions(m, p.Next(strconv.Itoa(i)))
+					v[i], err = processExtensions(m, p.Next(strconv.Itoa(i)), extensions)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
+		}
+	}
+	for name, val := range extras {
+		if typ, ok := extensions[name]; ok {
+			target := reflect.New(reflect.TypeOf(typ)).Elem().Interface()
+			err = Transform(val, &target)
+			if err != nil {
+				return nil, err
+			}
+			extras[name] = target
 		}
 	}
 	if len(extras) > 0 {
 		dict[consts.Extensions] = extras
 	}
-	return dict
+	return dict, nil
 }
 
 // Transform converts the source into the target struct with compose types transformer

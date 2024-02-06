@@ -352,6 +352,19 @@ func WithResourceLoader(r loader.ResourceLoader) ProjectOptionsFn {
 	}
 }
 
+// WithExtension register a know extension `x-*` with the go struct type to decode into
+func WithExtension(name string, typ any) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
+			if options.KnownExtensions == nil {
+				options.KnownExtensions = map[string]any{}
+			}
+			options.KnownExtensions[name] = typ
+		})
+		return nil
+	}
+}
+
 // WithoutEnvironmentResolution disable environment resolution
 func WithoutEnvironmentResolution(o *ProjectOptions) error {
 	o.loadOptions = append(o.loadOptions, func(options *loader.Options) {

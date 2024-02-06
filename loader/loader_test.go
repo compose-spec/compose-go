@@ -3076,3 +3076,34 @@ func withProjectName(projectName string, imperativelySet bool) func(*Options) {
 		opts.SetProjectName(projectName, imperativelySet)
 	}
 }
+
+func TestKnowExtensions(t *testing.T) {
+	yaml := `
+name: test-know-extensions
+services:
+  test:
+    image: foo
+    x-magic:
+      foo: bar
+`
+	type Magic struct {
+		Foo string
+	}
+
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	}, func(options *Options) {
+		options.KnownExtensions = map[string]any{
+			"x-magic": Magic{},
+		}
+	})
+	assert.NilError(t, err)
+	x := p.Services["test"].Extensions["x-magic"]
+	magic, ok := x.(Magic)
+	assert.Check(t, ok)
+	assert.Equal(t, magic.Foo, "bar")
+}
