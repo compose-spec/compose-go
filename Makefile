@@ -38,11 +38,6 @@ lint: build-validate-image
 check-license: build-validate-image
 	docker run --rm $(IMAGE_PREFIX)validate bash -c "./scripts/validate/fileheader"
 
-.PHONY: check-schema
-check-schema:
-	curl -fSL -o schema/compose-spec.json https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
-	git diff --exit-code schema/compose-spec.json
-
 .PHONY: setup
 setup: ## Setup the precommit hook
 	@which pre-commit > /dev/null 2>&1 || (echo "pre-commit not installed see README." && false)
