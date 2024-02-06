@@ -433,6 +433,7 @@ type ServiceNetworkConfig struct {
 
 // ServicePortConfig is the port configuration for a service
 type ServicePortConfig struct {
+	Name      string `yaml:"name,omitempty" json:"name,omitempty"`
 	Mode      string `yaml:"mode,omitempty" json:"mode,omitempty"`
 	HostIP    string `yaml:"host_ip,omitempty" json:"host_ip,omitempty"`
 	Target    uint32 `yaml:"target,omitempty" json:"target,omitempty"`
