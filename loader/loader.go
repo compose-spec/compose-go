@@ -403,6 +403,12 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		return nil, err
 	}
 
+	// Canonical transformation can reveal duplicates, typically as ports can be a range and conflict with an override
+	dict, err = override.EnforceUnicity(dict)
+	if err != nil {
+		return nil, err
+	}
+
 	if !opts.SkipInclude {
 		included = append(included, config.ConfigFiles[0].Filename)
 		err = ApplyInclude(ctx, config, dict, opts, included)

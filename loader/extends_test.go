@@ -170,3 +170,35 @@ services:
 	})
 	assert.NilError(t, err)
 }
+
+func TestExtendsPortOverride(t *testing.T) {
+	yaml := `
+name: test-extends-port
+services:
+  test:
+    extends:
+      file: testdata/extends/ports.yaml
+      service: test
+`
+	abs, err := filepath.Abs(".")
+	assert.NilError(t, err)
+
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "testdata/extends/ports.yaml",
+			},
+			{
+				Content:  []byte(yaml),
+				Filename: "(override)",
+			},
+		},
+		WorkingDir: abs,
+	}, func(options *Options) {
+		options.ResolvePaths = false
+		options.SkipValidation = true
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Services["test"].Ports), 1)
+
+}
