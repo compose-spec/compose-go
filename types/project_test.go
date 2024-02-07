@@ -242,15 +242,15 @@ func TestWithServices(t *testing.T) {
 	assert.DeepEqual(t, seen, []string{"service_1", "service_2", "service_4"})
 }
 
-func TestBuildServices(t *testing.T) {
+func TestServicesWithBuild(t *testing.T) {
 	p := makeProject()
-	assert.DeepEqual(t, []string{}, p.ServicesBuild())
+	assert.DeepEqual(t, []string{}, p.ServicesWithBuild())
 
 	service, err := p.GetService("service_1")
 	assert.NilError(t, err)
 	service.Build = &BuildConfig{}
 	p.Services["service_1"] = service
-	assert.DeepEqual(t, []string{}, p.ServicesBuild())
+	assert.DeepEqual(t, []string{}, p.ServicesWithBuild())
 
 	service.Build = &BuildConfig{
 		Context: ".",
@@ -262,7 +262,7 @@ func TestBuildServices(t *testing.T) {
 		Context: ".",
 	}
 	p.Services["service_2"] = service
-	services := p.ServicesBuild()
+	services := p.ServicesWithBuild()
 	slices.Sort(services)
 	assert.DeepEqual(t, []string{"service_1", "service_2"}, services)
 }

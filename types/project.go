@@ -120,7 +120,7 @@ func (p *Project) ConfigNames() []string {
 	return names
 }
 
-func (p *Project) ServicesBuild() []string {
+func (p *Project) ServicesWithBuild() []string {
 	servicesBuild := p.Services.Filter(func(s ServiceConfig) bool {
 		return s.Build != nil && s.Build.Context != ""
 	})
