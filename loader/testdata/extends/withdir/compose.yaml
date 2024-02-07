@@ -1,0 +1,5 @@
+services:
+  test:
+    extends:
+      file: dir/compose.yaml
+      service: test
