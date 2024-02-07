@@ -284,3 +284,77 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, svcB.Build.Context, tmpdir)
 }
+
+func TestRejectExtendsWithServiceRef(t *testing.T) {
+	tests := []struct {
+		name    string
+		yaml    string
+		wantErr string
+	}{
+		{
+			name: "volumes_from",
+			yaml: `
+name: test-extends_with_volumes_from
+services:
+  foo:
+    volumes_from:
+      - zot
+  bar:
+    extends:
+      service: foo
+`,
+			wantErr: "service \"foo\" can't be used with `extends` as it declare `volumes_from`",
+		},
+		{
+			name: "depends_on",
+			yaml: `
+name: test-extends_with_depends_on
+services:
+  foo:
+    depends_on:
+      - zot
+  bar:
+    extends:
+      service: foo
+`,
+			wantErr: "service \"foo\" can't be used with `extends` as it declare `depends_on`",
+		},
+		{
+			name: "shared ipc",
+			yaml: `
+name: test-extends_with_shared_ipc
+services:
+  foo:
+    ipc: "service:zot"
+  bar:
+    extends:
+      service: foo
+`,
+			wantErr: "service \"foo\" can't be used with `extends` as it shares `ipc` with another service",
+		},
+		{
+			name: "shared network_mode",
+			yaml: `
+name: test-extends_with_shared_network_mode
+services:
+  foo:
+    network_mode: "container:123abc"
+  bar:
+    extends:
+      service: foo
+`,
+			wantErr: "service \"foo\" can't be used with `extends` as it shares `network_mode` with another container",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+				ConfigFiles: []types.ConfigFile{{
+					Content: []byte(tt.yaml),
+				}},
+			})
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
