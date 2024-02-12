@@ -52,6 +52,7 @@ services:
 	abs, err := filepath.Abs(".")
 	assert.NilError(t, err)
 
+	extendsCount := 0
 	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
@@ -60,11 +61,21 @@ services:
 			},
 		},
 		WorkingDir: abs,
+	}, func(options *Options) {
+		options.ResolvePaths = false
+		options.Listeners = []Listener{
+			func(event string, metadata map[string]any) {
+				if event == "extends" {
+					extendsCount++
+				}
+			},
+		}
 	})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services["test1"].Hostname, "test1")
 	assert.Equal(t, p.Services["test2"].Hostname, "test2")
 	assert.Equal(t, p.Services["test3"].Hostname, "test3")
+	assert.Equal(t, extendsCount, 4)
 }
 
 func TestExtendsPort(t *testing.T) {
@@ -262,6 +273,7 @@ services:
 
 	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
 
+	extendsCount := 0
 	actual, err := Load(types.ConfigDetails{
 		WorkingDir: tmpdir,
 		ConfigFiles: []types.ConfigFile{{
@@ -272,6 +284,13 @@ services:
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 		options.SetProjectName("project", true)
+		options.Listeners = []Listener{
+			func(event string, metadata map[string]any) {
+				if event == "extends" {
+					extendsCount++
+				}
+			},
+		}
 	})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(actual.Services, 2))
@@ -283,6 +302,8 @@ services:
 	svcB, err := actual.GetService("out-service")
 	assert.NilError(t, err)
 	assert.Equal(t, svcB.Build.Context, tmpdir)
+
+	assert.Equal(t, extendsCount, 3)
 }
 
 func TestRejectExtendsWithServiceRef(t *testing.T) {
@@ -357,4 +378,85 @@ services:
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestLoadExtendsListener(t *testing.T) {
+	yaml := `
+  name: listener-extends
+  services:
+    foo:
+      image: busybox
+      extends: bar
+    bar:
+      image: alpine
+      command: echo
+      extends: wee
+    wee:
+      extends: last
+      command: echo
+    last:
+      image: python`
+	extendsCount := 0
+	_, err := Load(buildConfigDetails(yaml, nil), func(options *Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.Listeners = []Listener{
+			func(event string, metadata map[string]any) {
+				if event == "extends" {
+					extendsCount++
+				}
+			},
+		}
+	})
+
+	assert.NilError(t, err)
+	assert.Equal(t, extendsCount, 3)
+}
+
+func TestLoadExtendsListenerMultipleFiles(t *testing.T) {
+	tmpdir := t.TempDir()
+	subDir := filepath.Join(tmpdir, "sub")
+	assert.NilError(t, os.Mkdir(subDir, 0o700))
+	subYAML := `
+services:
+  b:
+    extends: c
+    build:
+      target: fake
+  c:
+    command: echo
+`
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "sub", "compose.yaml"), []byte(subYAML), 0o600))
+
+	rootYAML := `
+services:
+  a:
+    extends:
+      file: ./sub/compose.yaml
+      service: b
+`
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
+
+	extendsCount := 0
+	_, err := Load(types.ConfigDetails{
+		WorkingDir: tmpdir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(tmpdir, "compose.yaml"),
+		}},
+		Environment: nil,
+	}, func(options *Options) {
+		options.SkipNormalization = true
+		options.SkipConsistencyCheck = true
+		options.SetProjectName("project", true)
+		options.Listeners = []Listener{
+			func(event string, metadata map[string]any) {
+				if event == "extends" {
+					extendsCount++
+				}
+			},
+		}
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, extendsCount, 2)
 }

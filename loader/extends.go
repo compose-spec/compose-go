@@ -70,8 +70,10 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 	case map[string]any:
 		ref = v["service"].(string)
 		file = v["file"]
+		opts.ProcessEvent("extends", v)
 	case string:
 		ref = v
+		opts.ProcessEvent("extends", map[string]any{"service": ref})
 	}
 
 	var base any
@@ -121,6 +123,7 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 		return nil, err
 	}
 	delete(merged, "extends")
+	services[name] = merged
 	return merged, nil
 }
 
