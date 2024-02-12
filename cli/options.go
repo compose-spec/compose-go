@@ -80,6 +80,10 @@ type ProjectOptions struct {
 	EnvFiles []string
 
 	loadOptions []func(*loader.Options)
+
+	// Callbacks to retrieve metadata information during parse defined before
+	// creating the project
+	Listeners []loader.Listener
 }
 
 type ProjectOptionsFn func(*ProjectOptions) error
@@ -89,6 +93,7 @@ func NewProjectOptions(configs []string, opts ...ProjectOptionsFn) (*ProjectOpti
 	options := &ProjectOptions{
 		ConfigPaths: configs,
 		Environment: map[string]string{},
+		Listeners:   []loader.Listener{},
 	}
 	for _, o := range opts {
 		err := o(options)
@@ -365,6 +370,11 @@ func WithExtension(name string, typ any) ProjectOptionsFn {
 	}
 }
 
+// Append listener to event
+func (o *ProjectOptions) WithListeners(listeners ...loader.Listener) {
+	o.Listeners = append(o.Listeners, listeners...)
+}
+
 // WithoutEnvironmentResolution disable environment resolution
 func WithoutEnvironmentResolution(o *ProjectOptions) error {
 	o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
@@ -437,7 +447,8 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 
 	options.loadOptions = append(options.loadOptions,
 		withNamePrecedenceLoad(absWorkingDir, options),
-		withConvertWindowsPaths(options))
+		withConvertWindowsPaths(options),
+		withListener(options))
 
 	ctx := options.ctx
 	if ctx == nil {
@@ -477,6 +488,13 @@ func withConvertWindowsPaths(options *ProjectOptions) func(*loader.Options) {
 		if o.ResolvePaths {
 			o.ConvertWindowsPaths = utils.StringToBool(options.Environment["COMPOSE_CONVERT_WINDOWS_PATHS"])
 		}
+	}
+}
+
+// save listeners from ProjectOptions (compose) to loader.Options
+func withListener(options *ProjectOptions) func(*loader.Options) {
+	return func(opts *loader.Options) {
+		opts.Listeners = options.Listeners
 	}
 }
 

@@ -80,6 +80,17 @@ type Options struct {
 	ResourceLoaders []ResourceLoader
 	// KnownExtensions manages x-* attribute we know and the corresponding go structs
 	KnownExtensions map[string]any
+	// Metada for telemetry
+	Listeners []Listener
+}
+
+type Listener = func(event string, metadata map[string]any)
+
+// Invoke all listeners for an event
+func (o *Options) ProcessEvent(event string, metadata map[string]any) {
+	for _, l := range o.Listeners {
+		l(event, metadata)
+	}
 }
 
 // ResourceLoader is a plugable remote resource resolver
@@ -153,6 +164,7 @@ func (o *Options) clone() *Options {
 		Profiles:                   o.Profiles,
 		ResourceLoaders:            o.ResourceLoaders,
 		KnownExtensions:            o.KnownExtensions,
+		Listeners:                  o.Listeners,
 	}
 }
 
