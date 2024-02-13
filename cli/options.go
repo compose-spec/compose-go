@@ -240,6 +240,18 @@ func WithOsEnv(o *ProjectOptions) error {
 		}
 		o.Environment[k] = v
 	}
+	if _, ok := o.Environment["UID"]; !ok {
+		uid := os.Getuid()
+		if uid > 0 {
+			o.Environment["UID"] = strconv.Itoa(uid)
+		}
+	}
+	if _, ok := o.Environment["GID"]; !ok {
+		gid := os.Getegid()
+		if gid > 0 {
+			o.Environment["GID"] = strconv.Itoa(gid)
+		}
+	}
 	return nil
 }
 
