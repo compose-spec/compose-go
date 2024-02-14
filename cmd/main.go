@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -31,17 +32,29 @@ Validates a compose file conforms to the Compose Specification
 Usage: compose-spec [OPTIONS] COMPOSE_FILE [COMPOSE_OVERRIDE_FILE]`)
 	}
 
+	var skipInterpolation, skipResolvePaths, skipNormalization, skipConsistencyCheck bool
+
+	flag.BoolVar(&skipInterpolation, "no-interpolation", false, "Don't interpolate environment variables.")
+	flag.BoolVar(&skipResolvePaths, "no-path-resolution", false, "Don't resolve file paths.")
+	flag.BoolVar(&skipNormalization, "no-normalization", false, "Don't normalize compose model.")
+	flag.BoolVar(&skipConsistencyCheck, "no-consistency", false, "Don't check model consistency.")
+	flag.Parse()
+
 	wd, err := os.Getwd()
 	if err != nil {
 		exitError("can't determine current directory", err)
 	}
 
-	options, err := cli.NewProjectOptions(os.Args[1:],
+	options, err := cli.NewProjectOptions(flag.Args(),
 		cli.WithWorkingDirectory(wd),
 		cli.WithOsEnv,
 		cli.WithDotEnv,
 		cli.WithConfigFileEnv,
 		cli.WithDefaultConfigPath,
+		cli.WithInterpolation(!skipInterpolation),
+		cli.WithResolvedPaths(!skipResolvePaths),
+		cli.WithNormalization(!skipNormalization),
+		cli.WithConsistency(!skipConsistencyCheck),
 	)
 	if err != nil {
 		exitError("failed to configure project options", err)
