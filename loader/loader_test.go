@@ -70,7 +70,7 @@ func loadYAML(yaml string) (*types.Project, error) {
 }
 
 func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Project, error) {
-	return Load(buildConfigDetails(yaml, env), func(options *Options) {
+	return LoadWithContext(context.TODO(), buildConfigDetails(yaml, env), func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 		options.ResolvePaths = true

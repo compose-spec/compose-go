@@ -17,6 +17,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -60,7 +61,7 @@ Usage: compose-spec [OPTIONS] COMPOSE_FILE [COMPOSE_OVERRIDE_FILE]`)
 		exitError("failed to configure project options", err)
 	}
 
-	project, err := cli.ProjectFromOptions(options)
+	project, err := cli.ProjectFromOptions(context.Background(), options)
 	if err != nil {
 		exitError("failed to load project", err)
 	}
