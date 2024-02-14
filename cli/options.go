@@ -37,8 +37,6 @@ import (
 
 // ProjectOptions provides common configuration for loading a project.
 type ProjectOptions struct {
-	ctx context.Context
-
 	// Name is a valid Compose project name to be used or empty.
 	//
 	// If empty, the project loader will automatically infer a reasonable
@@ -339,14 +337,6 @@ func WithResolvedPaths(resolve bool) ProjectOptionsFn {
 	}
 }
 
-// WithContext sets the context used to load model and resources
-func WithContext(ctx context.Context) ProjectOptionsFn {
-	return func(o *ProjectOptions) error {
-		o.ctx = ctx
-		return nil
-	}
-}
-
 // WithResourceLoader register support for ResourceLoader to manage remote resources
 func WithResourceLoader(r loader.ResourceLoader) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
@@ -391,7 +381,7 @@ var DefaultOverrideFileNames = []string{"compose.override.yml", "compose.overrid
 
 func (o ProjectOptions) GetWorkingDir() (string, error) {
 	if o.WorkingDir != "" {
-		return o.WorkingDir, nil
+		return filepath.Abs(o.WorkingDir)
 	}
 	for _, path := range o.ConfigPaths {
 		if path != "-" {
@@ -405,9 +395,8 @@ func (o ProjectOptions) GetWorkingDir() (string, error) {
 	return os.Getwd()
 }
 
-// ProjectFromOptions load a compose project based on command line options
-func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
-	configPaths, err := getConfigPathsFromOptions(options)
+func (o ProjectOptions) GeConfigFiles() ([]types.ConfigFile, error) {
+	configPaths, err := o.getConfigPaths()
 	if err != nil {
 		return nil, err
 	}
@@ -435,25 +424,25 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 			Content:  b,
 		})
 	}
+	return configs, err
+}
+
+// ProjectFromOptions load a compose project based on command line options
+func ProjectFromOptions(ctx context.Context, options *ProjectOptions) (*types.Project, error) {
+	configs, err := options.GeConfigFiles()
+	if err != nil {
+		return nil, err
+	}
 
 	workingDir, err := options.GetWorkingDir()
 	if err != nil {
 		return nil, err
 	}
-	absWorkingDir, err := filepath.Abs(workingDir)
-	if err != nil {
-		return nil, err
-	}
 
 	options.loadOptions = append(options.loadOptions,
-		withNamePrecedenceLoad(absWorkingDir, options),
+		withNamePrecedenceLoad(workingDir, options),
 		withConvertWindowsPaths(options),
 		withListener(options))
-
-	ctx := options.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
 
 	project, err := loader.LoadWithContext(ctx, types.ConfigDetails{
 		ConfigFiles: configs,
@@ -464,7 +453,10 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 		return nil, err
 	}
 
-	project.ComposeFiles = configPaths
+	for _, config := range configs {
+		project.ComposeFiles = append(project.ComposeFiles, config.Filename)
+	}
+
 	return project, nil
 }
 
@@ -498,10 +490,10 @@ func withListener(options *ProjectOptions) func(*loader.Options) {
 	}
 }
 
-// getConfigPathsFromOptions retrieves the config files for project based on project options
-func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
-	if len(options.ConfigPaths) != 0 {
-		return absolutePaths(options.ConfigPaths)
+// getConfigPaths retrieves the config files for project based on project options
+func (o *ProjectOptions) getConfigPaths() ([]string, error) {
+	if len(o.ConfigPaths) != 0 {
+		return absolutePaths(o.ConfigPaths)
 	}
 	return nil, fmt.Errorf("no configuration file provided: %w", errdefs.ErrNotFound)
 }
