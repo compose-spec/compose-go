@@ -305,18 +305,17 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	}
 	opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{configDetails.WorkingDir})
 
-	projectName, err := projectName(configDetails, opts)
+	err := projectName(configDetails, opts)
 	if err != nil {
 		return nil, err
 	}
-	opts.projectName = projectName
 
 	// TODO(milas): this should probably ALWAYS set (overriding any existing)
-	if _, ok := configDetails.Environment[consts.ComposeProjectName]; !ok && projectName != "" {
+	if _, ok := configDetails.Environment[consts.ComposeProjectName]; !ok && opts.projectName != "" {
 		if configDetails.Environment == nil {
 			configDetails.Environment = map[string]string{}
 		}
-		configDetails.Environment[consts.ComposeProjectName] = projectName
+		configDetails.Environment[consts.ComposeProjectName] = opts.projectName
 	}
 
 	return load(ctx, configDetails, opts, nil)
@@ -329,7 +328,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	)
 	for _, file := range config.ConfigFiles {
 		fctx := context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
-		if len(file.Content) == 0 && file.Config == nil {
+		if file.Content == nil && file.Config == nil {
 			content, err := os.ReadFile(file.Filename)
 			if err != nil {
 				return nil, err
@@ -477,6 +476,10 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		return nil, errors.New("empty compose file")
 	}
 
+	if opts.projectName == "" {
+		return nil, errors.New("project name must not be empty")
+	}
+
 	project := &types.Project{
 		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
@@ -544,69 +547,68 @@ func InvalidProjectNameErr(v string) error {
 //
 // TODO(milas): restructure loading so that we don't need to re-parse the YAML
 // here, as it's both wasteful and makes this code error-prone.
-func projectName(details types.ConfigDetails, opts *Options) (string, error) {
-	projectName, projectNameImperativelySet := opts.GetProjectName()
+func projectName(details types.ConfigDetails, opts *Options) error {
+	if opts.projectNameImperativelySet {
+		if NormalizeProjectName(opts.projectName) != opts.projectName {
+			return InvalidProjectNameErr(opts.projectName)
+		}
+		return nil
+	}
+
+	type named struct {
+		Name string `yaml:"name"`
+	}
 
 	// if user did NOT provide a name explicitly, then see if one is defined
 	// in any of the config files
-	if !projectNameImperativelySet {
-		var pjNameFromConfigFile string
-		for _, configFile := range details.ConfigFiles {
-			content := configFile.Content
-			if content == nil {
-				// This can be hit when Filename is set but Content is not. One
-				// example is when using ToConfigFiles().
-				d, err := os.ReadFile(configFile.Filename)
-				if err != nil {
-					return "", fmt.Errorf("failed to read file %q: %w", configFile.Filename, err)
-				}
-				content = d
+	var pjNameFromConfigFile string
+	for _, configFile := range details.ConfigFiles {
+		content := configFile.Content
+		if content == nil {
+			// This can be hit when Filename is set but Content is not. One
+			// example is when using ToConfigFiles().
+			d, err := os.ReadFile(configFile.Filename)
+			if err != nil {
+				return fmt.Errorf("failed to read file %q: %w", configFile.Filename, err)
 			}
-			yml, err := ParseYAML(content)
+			content = d
+			configFile.Content = d
+		}
+		var n named
+		r := bytes.NewReader(content)
+		decoder := yaml.NewDecoder(r)
+		for {
+			err := decoder.Decode(&n)
+			if err != nil && errors.Is(err, io.EOF) {
+				break
+			}
 			if err != nil {
 				// HACK: the way that loading is currently structured, this is
 				// a duplicative parse just for the `name`. if it fails, we
 				// give up but don't return the error, knowing that it'll get
 				// caught downstream for us
-				return "", nil
+				break
 			}
-			if val, ok := yml["name"]; ok && val != "" {
-				sVal, ok := val.(string)
-				if !ok {
-					// HACK: see above - this is a temporary parsed version
-					// that hasn't been schema-validated, but we don't want
-					// to be the ones to actually report that, so give up,
-					// knowing that it'll get caught downstream for us
-					return "", nil
-				}
-				pjNameFromConfigFile = sVal
+			if n.Name != "" {
+				pjNameFromConfigFile = n.Name
 			}
 		}
-		if !opts.SkipInterpolation {
-			interpolated, err := interp.Interpolate(
-				map[string]interface{}{"name": pjNameFromConfigFile},
-				*opts.Interpolate,
-			)
-			if err != nil {
-				return "", err
-			}
-			pjNameFromConfigFile = interpolated["name"].(string)
+	}
+	if !opts.SkipInterpolation {
+		interpolated, err := interp.Interpolate(
+			map[string]interface{}{"name": pjNameFromConfigFile},
+			*opts.Interpolate,
+		)
+		if err != nil {
+			return err
 		}
-		pjNameFromConfigFile = NormalizeProjectName(pjNameFromConfigFile)
-		if pjNameFromConfigFile != "" {
-			projectName = pjNameFromConfigFile
-		}
+		pjNameFromConfigFile = interpolated["name"].(string)
 	}
-
-	if projectName == "" {
-		return "", errors.New("project name must not be empty")
+	pjNameFromConfigFile = NormalizeProjectName(pjNameFromConfigFile)
+	if pjNameFromConfigFile != "" {
+		opts.projectName = pjNameFromConfigFile
 	}
-
-	if NormalizeProjectName(projectName) != projectName {
-		return "", InvalidProjectNameErr(projectName)
-	}
-
-	return projectName, nil
+	return nil
 }
 
 func NormalizeProjectName(s string) string {

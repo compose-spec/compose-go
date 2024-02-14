@@ -3084,3 +3084,27 @@ services:
 	assert.Check(t, ok)
 	assert.Equal(t, magic.Foo, "bar")
 }
+
+func TestLoadWithEmptyFile(t *testing.T) {
+	yaml := `
+name: test-with-empty-file
+services:
+  test:
+    image: foo
+`
+
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "(inlined)",
+				Content:  []byte(yaml),
+			},
+			{
+				Filename: "(override)",
+				Content:  []byte(""),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Name, "test-with-empty-file")
+}
