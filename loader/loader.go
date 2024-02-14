@@ -468,8 +468,6 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	}
 	loaded = append(loaded, mainFile)
 
-	includeRefs := make(map[string][]types.IncludeConfig)
-
 	dict, err := loadYamlModel(ctx, configDetails, opts, &cycleTracker{}, nil)
 	if err != nil {
 		return nil, err
@@ -494,10 +492,6 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	err = Transform(dict, project)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(includeRefs) != 0 {
-		project.IncludeReferences = includeRefs
 	}
 
 	if !opts.SkipNormalization {
