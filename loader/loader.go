@@ -438,6 +438,11 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		}
 	}
 
+	if _, ok := dict["version"]; ok {
+		logrus.Warning("`version` is obsolete")
+		delete(dict, "version")
+	}
+
 	dict, err = transform.Canonical(dict)
 	if err != nil {
 		return nil, err
