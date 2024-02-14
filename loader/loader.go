@@ -481,6 +481,13 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		return nil, errors.New("project name must not be empty")
 	}
 
+	if !opts.SkipNormalization {
+		dict, err = Normalize(dict, configDetails.Environment)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	project := &types.Project{
 		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
@@ -496,13 +503,6 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	err = Transform(dict, project)
 	if err != nil {
 		return nil, err
-	}
-
-	if !opts.SkipNormalization {
-		err := Normalize(project)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	if opts.ConvertWindowsPaths {
