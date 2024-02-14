@@ -181,6 +181,17 @@ func TestValidateSecret(t *testing.T) {
 		err := checkConsistency(project)
 		assert.NilError(t, err)
 	})
+	t.Run("secret set by inlined content", func(t *testing.T) {
+		project := &types.Project{
+			Secrets: types.Secrets{
+				"foo": types.SecretConfig{
+					Content: "token=TOKEN",
+				},
+			},
+		}
+		err := checkConsistency(project)
+		assert.NilError(t, err)
+	})
 	t.Run("external secret", func(t *testing.T) {
 		project := &types.Project{
 			Secrets: types.Secrets{

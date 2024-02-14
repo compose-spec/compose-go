@@ -28,7 +28,7 @@ type checkerFunc func(value any, p tree.Path) error
 var checks = map[tree.Path]checkerFunc{
 	"volumes.*":                       checkVolume,
 	"configs.*":                       checkFileObject("file", "environment", "content"),
-	"secrets.*":                       checkFileObject("file", "environment"),
+	"secrets.*":                       checkFileObject("file", "environment", "content"),
 	"services.*.develop.watch.*.path": checkPath,
 }
 
