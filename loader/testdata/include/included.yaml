@@ -1,0 +1,5 @@
+services:
+  included:
+    build: .
+    volumes:
+      - ./:/mnt
