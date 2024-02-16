@@ -269,6 +269,18 @@ func TestNetworksByPriority(t *testing.T) {
 	assert.DeepEqual(t, s.NetworksByPriority(), []string{"qix", "zot", "bar", "foo"})
 }
 
+func TestNetworksByPriorityWithEqualPriorities(t *testing.T) {
+	s := ServiceConfig{
+		Networks: map[string]*ServiceNetworkConfig{
+			"foo": nil,
+			"bar": nil,
+			"zot": nil,
+			"qix": nil,
+		},
+	}
+	assert.DeepEqual(t, s.NetworksByPriority(), []string{"bar", "foo", "qix", "zot"})
+}
+
 func TestMarshalServiceEntrypoint(t *testing.T) {
 	t.Parallel()
 
