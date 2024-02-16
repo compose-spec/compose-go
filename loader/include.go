@@ -71,7 +71,7 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 					break
 				}
 			}
-			r.Path[i] = absPath(configDetails.WorkingDir, p)
+			r.Path[i] = p
 		}
 
 		mainFile := r.Path[0]
@@ -85,13 +85,18 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 		if r.ProjectDirectory == "" {
 			r.ProjectDirectory = filepath.Dir(mainFile)
 		}
+		relworkingdir, err := filepath.Rel(configDetails.WorkingDir, r.ProjectDirectory)
+		if err != nil {
+			// included file path is not inside project working directory => use absolute path
+			relworkingdir = r.ProjectDirectory
+		}
 
 		loadOptions := options.clone()
 		loadOptions.ResolvePaths = true
 		loadOptions.SkipNormalization = true
 		loadOptions.SkipConsistencyCheck = true
 		loadOptions.ResourceLoaders = append(loadOptions.RemoteResourceLoaders(), localResourceLoader{
-			WorkingDir: r.ProjectDirectory,
+			WorkingDir: relworkingdir,
 		})
 
 		if len(r.EnvFile) == 0 {
@@ -107,7 +112,7 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 		}
 
 		config := types.ConfigDetails{
-			WorkingDir:  r.ProjectDirectory,
+			WorkingDir:  relworkingdir,
 			ConfigFiles: types.ToConfigFiles(r.Path),
 			Environment: configDetails.Environment.Clone().Merge(envFromFile),
 		}

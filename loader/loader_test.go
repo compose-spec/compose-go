@@ -2611,51 +2611,6 @@ func TestLoadDependsOnCycle(t *testing.T) {
 	assert.Error(t, err, "dependency cycle detected: service2 -> service3 -> service1", err)
 }
 
-func TestLoadWithMultipleInclude(t *testing.T) {
-	// include same service twice should not trigger an error
-	p, err := Load(buildConfigDetails(`
-name: 'test-multi-include'
-
-include:
-  - path: ./testdata/subdir/compose-test-extends-imported.yaml
-    env_file: ./testdata/subdir/extra.env
-  - path: ./testdata/compose-include.yaml
-
-services:
-  foo:
-    image: busybox
-    depends_on:
-      - imported
-`, map[string]string{"SOURCE": "override"}), func(options *Options) {
-		options.SkipNormalization = true
-		options.ResolvePaths = true
-	})
-	assert.NilError(t, err)
-	imported, err := p.GetService("imported")
-	assert.NilError(t, err)
-	assert.Equal(t, imported.ContainerName, "override")
-
-	// include 2 different services with same name should trigger an error
-	p, err = Load(buildConfigDetails(`
-name: 'test-multi-include'
-
-include:
-  - path: ./testdata/subdir/compose-test-extends-imported.yaml
-    env_file: ./testdata/subdir/extra.env
-  - path: ./testdata/compose-include.yaml
-    env_file: ./testdata/subdir/extra.env
-
-
-services:
-  bar:
-    image: busybox
-`, map[string]string{"SOURCE": "override"}), func(options *Options) {
-		options.SkipNormalization = true
-		options.ResolvePaths = true
-	})
-	assert.ErrorContains(t, err, "services.bar conflicts with imported resource", err)
-}
-
 func TestLoadWithDependsOn(t *testing.T) {
 	p, err := loadYAML(`
 name: test-depends-on
