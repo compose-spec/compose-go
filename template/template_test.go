@@ -26,8 +26,9 @@ import (
 )
 
 var defaults = map[string]string{
-	"FOO": "first",
-	"BAR": "",
+	"FOO":  "first",
+	"BAR":  "",
+	"JSON": `{"json":2}`,
 }
 
 func defaultMapping(name string) (string, bool) {
@@ -628,5 +629,21 @@ func TestSubstitutionFunctionChoice(t *testing.T) {
 				fmt.Sprintf("Wrong on output for: %s got symbol -> %#v", tc.input, symbol),
 			)
 		})
+	}
+}
+
+func TestNoValueWithCurlyBracesDefault(t *testing.T) {
+	for _, template := range []string{`ok ${missing:-{"json":1}}`, `ok ${missing-{"json":1}}`} {
+		result, err := Substitute(template, defaultMapping)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(`ok {"json":1}`, result))
+	}
+}
+
+func TestValueWithCurlyBracesDefault(t *testing.T) {
+	for _, template := range []string{`ok ${JSON:-{"json":1}}`, `ok ${JSON-{"json":1}}`} {
+		result, err := Substitute(template, defaultMapping)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(`ok {"json":2}`, result))
 	}
 }
