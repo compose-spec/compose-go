@@ -453,6 +453,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			return nil, err
 		}
 	}
+	resolveServicesEnvironment(dict, config)
 
 	return dict, nil
 }

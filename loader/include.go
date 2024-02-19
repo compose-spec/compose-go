@@ -104,6 +104,22 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 			if s, err := os.Stat(f); err == nil && !s.IsDir() {
 				r.EnvFile = types.StringList{f}
 			}
+		} else {
+			envFile := []string{}
+			for _, f := range r.EnvFile {
+				if !filepath.IsAbs(f) {
+					f = filepath.Join(configDetails.WorkingDir, f)
+					s, err := os.Stat(f)
+					if err != nil {
+						return err
+					}
+					if s.IsDir() {
+						return fmt.Errorf("%s is not a file", f)
+					}
+				}
+				envFile = append(envFile, f)
+			}
+			r.EnvFile = envFile
 		}
 
 		envFromFile, err := dotenv.GetEnvFromFile(configDetails.Environment, r.EnvFile)
