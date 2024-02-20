@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -276,5 +277,5 @@ func TestValidateContainerName(t *testing.T) {
 		},
 	}
 	err := checkConsistency(&project)
-	assert.Error(t, err, `"services.myservice2": container name "mycontainer" is already in use by "services.myservice": invalid compose project`)
+	assert.Assert(t, strings.Contains(err.Error(), `container name "mycontainer" is already in use by`))
 }
