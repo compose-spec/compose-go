@@ -259,3 +259,22 @@ func TestValidateDependsOn(t *testing.T) {
 	err := checkConsistency(&project)
 	assert.Error(t, err, `service "myservice" depends on undefined service missingservice: invalid compose project`)
 }
+
+func TestValidateContainerName(t *testing.T) {
+	project := types.Project{
+		Services: types.Services{
+			"myservice": {
+				Name:          "myservice",
+				Image:         "scratch",
+				ContainerName: "mycontainer",
+			},
+			"myservice2": {
+				Name:          "myservice2",
+				Image:         "scratch",
+				ContainerName: "mycontainer",
+			},
+		},
+	}
+	err := checkConsistency(&project)
+	assert.Error(t, err, `"services.myservice2": container name "mycontainer" is already in use by "services.myservice": invalid compose project`)
+}
