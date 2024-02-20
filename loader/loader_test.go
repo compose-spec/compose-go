@@ -2816,6 +2816,7 @@ services:
         # rebuild image and recreate service
         - path: ./proxy/proxy.conf
           action: sync+restart
+          target: /etc/nginx/proxy.conf
 `, nil), func(options *Options) {
 		options.ResolvePaths = false
 		options.SkipValidation = true
@@ -2850,9 +2851,31 @@ services:
 			{
 				Path:   "./proxy/proxy.conf",
 				Action: types.WatchActionSyncRestart,
+				Target: "/etc/nginx/proxy.conf",
 			},
 		},
 	})
+}
+
+func TestBadDevelopConfig(t *testing.T) {
+	_, err := LoadWithContext(context.TODO(), buildConfigDetails(`
+name: load-develop
+services:
+  frontend:
+    image: example/webapp
+    build: ./webapp
+    develop:
+      watch:
+        # sync static content
+        - path: ./webapp/html
+          target: /var/www
+          ignore:
+            - node_modules/
+
+`, nil), func(options *Options) {
+		options.ResolvePaths = false
+	})
+	assert.ErrorContains(t, err, "validating filename0.yml: services.frontend.develop.watch.0 action is required")
 }
 
 func TestBadServiceConfig(t *testing.T) {
