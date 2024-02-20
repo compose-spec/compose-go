@@ -139,6 +139,15 @@ func checkConsistency(project *types.Project) error {
 			return fmt.Errorf("services.%s: can't set container_name and %s as container name must be unique: %w", attr,
 				s.Name, errdefs.ErrInvalid)
 		}
+
+		if s.Develop != nil && s.Develop.Watch != nil {
+			for _, watch := range s.Develop.Watch {
+				if watch.Action != types.WatchActionRebuild && watch.Target == "" {
+					return fmt.Errorf("services.%s.develop.watch: target is required for non-rebuild actions: %w", s.Name, errdefs.ErrInvalid)
+				}
+			}
+
+		}
 	}
 
 	for name, secret := range project.Secrets {

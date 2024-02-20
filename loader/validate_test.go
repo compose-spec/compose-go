@@ -279,3 +279,91 @@ func TestValidateContainerName(t *testing.T) {
 	err := checkConsistency(&project)
 	assert.Assert(t, strings.Contains(err.Error(), `container name "mycontainer" is already in use by`))
 }
+
+func TestValidateWatch(t *testing.T) {
+	t.Run("watch valid configuration", func(t *testing.T) {
+		project := types.Project{
+			Services: types.Services{
+				"myservice": {
+					Name:  "myservice",
+					Image: "scratch",
+					Develop: &types.DevelopConfig{
+						Watch: []types.Trigger{
+							{
+								Action: types.WatchActionSync,
+								Path:   "/app",
+								Target: "/container/app",
+							},
+						},
+					},
+				},
+			},
+		}
+		err := checkConsistency(&project)
+		assert.NilError(t, err)
+
+	})
+
+	t.Run("watch missing target for sync action", func(t *testing.T) {
+		project := types.Project{
+			Services: types.Services{
+				"myservice": {
+					Name:  "myservice",
+					Image: "scratch",
+					Develop: &types.DevelopConfig{
+						Watch: []types.Trigger{
+							{
+								Action: types.WatchActionSync,
+								Path:   "/app",
+							},
+						},
+					},
+				},
+			},
+		}
+		err := checkConsistency(&project)
+		assert.Error(t, err, "services.myservice.develop.watch: target is required for non-rebuild actions: invalid compose project")
+	})
+
+	t.Run("watch missing target for sync+restart action", func(t *testing.T) {
+		project := types.Project{
+			Services: types.Services{
+				"myservice": {
+					Name:  "myservice",
+					Image: "scratch",
+					Develop: &types.DevelopConfig{
+						Watch: []types.Trigger{
+							{
+								Action: types.WatchActionSyncRestart,
+								Path:   "/app",
+							},
+						},
+					},
+				},
+			},
+		}
+		err := checkConsistency(&project)
+		assert.Error(t, err, "services.myservice.develop.watch: target is required for non-rebuild actions: invalid compose project")
+	})
+
+	t.Run("watch config valid with missing target for rebuild action", func(t *testing.T) {
+		project := types.Project{
+			Services: types.Services{
+				"myservice": {
+					Name:  "myservice",
+					Image: "scratch",
+					Develop: &types.DevelopConfig{
+						Watch: []types.Trigger{
+							{
+								Action: types.WatchActionRebuild,
+								Path:   "/app",
+							},
+						},
+					},
+				},
+			},
+		}
+		err := checkConsistency(&project)
+		assert.NilError(t, err)
+	})
+}
