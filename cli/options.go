@@ -442,7 +442,7 @@ func ProjectFromOptions(ctx context.Context, options *ProjectOptions) (*types.Pr
 	options.loadOptions = append(options.loadOptions,
 		withNamePrecedenceLoad(workingDir, options),
 		withConvertWindowsPaths(options),
-		withListener(options))
+		withListeners(options))
 
 	project, err := loader.LoadWithContext(ctx, types.ConfigDetails{
 		ConfigFiles: configs,
@@ -484,9 +484,9 @@ func withConvertWindowsPaths(options *ProjectOptions) func(*loader.Options) {
 }
 
 // save listeners from ProjectOptions (compose) to loader.Options
-func withListener(options *ProjectOptions) func(*loader.Options) {
+func withListeners(options *ProjectOptions) func(*loader.Options) {
 	return func(opts *loader.Options) {
-		opts.Listeners = options.Listeners
+		opts.Listeners = append(opts.Listeners, options.Listeners...)
 	}
 }
 
