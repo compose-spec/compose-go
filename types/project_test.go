@@ -18,6 +18,7 @@ package types
 
 import (
 	_ "crypto/sha256"
+	"fmt"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/utils"
@@ -204,6 +205,22 @@ func Test_ResolveImages(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Equal(t, p.Services["service_1"].Image, test.resolved)
 	}
+}
+
+func Test_ResolveImages_concurrent(t *testing.T) {
+	resolver := func(named reference.Named) (digest.Digest, error) {
+		return "sha256:1234567890123456789012345678901234567890123456789012345678901234", nil
+	}
+	p := Project{
+		Services: Services{},
+	}
+	for i := 0; i < 1000; i++ {
+		p.Services[fmt.Sprintf("service_%d", i)] = ServiceConfig{
+			Image: fmt.Sprintf("image_%d", i),
+		}
+	}
+	_, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
 }
 
 func TestWithServices(t *testing.T) {
