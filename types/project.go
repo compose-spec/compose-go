@@ -536,15 +536,39 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 // WithImagesResolved updates services images to include digest computed by a resolver function
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
-	newProject := p.deepCopy()
-	eg := errgroup.Group{}
-	for i, s := range newProject.Services {
-		idx := i
-		service := s
+	servicesWithImage := p.Services.Filter(func(service ServiceConfig) bool {
+		return service.Image != ""
+	})
+	if len(servicesWithImage) == 0 {
+		return p, nil
+	}
 
-		if service.Image == "" {
-			continue
+	type result struct {
+		service string
+		digest  string
+	}
+	resultCh := make(chan result)
+	newProject := p.deepCopy()
+
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		expect := len(servicesWithImage)
+		for ; expect > 0; {
+			r, ok := <-resultCh
+			if !ok {
+				// interrupted
+				return nil
+			}
+			service := newProject.Services[r.service]
+			service.Image = r.digest
+			newProject.Services[r.service] = service
+			expect--
 		}
+		return nil
+	})
+	for n, s := range servicesWithImage {
+		name := n
+		service := s
 		eg.Go(func() error {
 			named, err := reference.ParseDockerRef(service.Image)
 			if err != nil {
@@ -563,8 +587,10 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 				}
 			}
 
-			service.Image = named.String()
-			newProject.Services[idx] = service
+			resultCh <- result{
+				service: name,
+				digest:  named.String(),
+			}
 			return nil
 		})
 	}
