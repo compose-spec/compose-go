@@ -18,6 +18,7 @@ package types
 
 import (
 	_ "crypto/sha256"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -208,10 +209,11 @@ func Test_ResolveImages(t *testing.T) {
 }
 
 func Test_ResolveImages_concurrent(t *testing.T) {
+	const garfield = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
 	resolver := func(named reference.Named) (digest.Digest, error) {
-		return "sha256:1234567890123456789012345678901234567890123456789012345678901234", nil
+		return garfield, nil
 	}
-	p := Project{
+	p := &Project{
 		Services: Services{},
 	}
 	for i := 0; i < 1000; i++ {
@@ -219,8 +221,28 @@ func Test_ResolveImages_concurrent(t *testing.T) {
 			Image: fmt.Sprintf("image_%d", i),
 		}
 	}
-	_, err := p.WithImagesResolved(resolver)
+	p, err := p.WithImagesResolved(resolver)
 	assert.NilError(t, err)
+	for i := 0; i < 1000; i++ {
+		assert.Equal(t, p.Services[fmt.Sprintf("service_%d", i)].Image,
+			fmt.Sprintf("docker.io/library/image_%d:latest@%s", i, garfield))
+	}
+}
+
+func Test_ResolveImages_concurrent_interrupted(t *testing.T) {
+	resolver := func(named reference.Named) (digest.Digest, error) {
+		return "", errors.New("something went wrong")
+	}
+	p := Project{
+		Services: Services{},
+	}
+	for i := 0; i < 10; i++ {
+		p.Services[fmt.Sprintf("service_%d", i)] = ServiceConfig{
+			Image: fmt.Sprintf("image_%d", i),
+		}
+	}
+	_, err := p.WithImagesResolved(resolver)
+	assert.Error(t, err, "something went wrong")
 }
 
 func TestWithServices(t *testing.T) {

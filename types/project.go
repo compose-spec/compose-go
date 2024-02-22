@@ -18,6 +18,7 @@ package types
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -536,65 +537,29 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 // WithImagesResolved updates services images to include digest computed by a resolver function
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
-	servicesWithImage := p.Services.Filter(func(service ServiceConfig) bool {
-		return service.Image != ""
-	})
-	if len(servicesWithImage) == 0 {
-		return p, nil
-	}
-
-	type result struct {
-		service string
-		digest  string
-	}
-	resultCh := make(chan result)
-	newProject := p.deepCopy()
-
-	eg := errgroup.Group{}
-	eg.Go(func() error {
-		expect := len(servicesWithImage)
-		for ; expect > 0; {
-			r, ok := <-resultCh
-			if !ok {
-				// interrupted
-				return nil
-			}
-			service := newProject.Services[r.service]
-			service.Image = r.digest
-			newProject.Services[r.service] = service
-			expect--
+	return p.WithServicesTransform(func(name string, service ServiceConfig) (ServiceConfig, error) {
+		if service.Image == "" {
+			return service, nil
 		}
-		return nil
-	})
-	for n, s := range servicesWithImage {
-		name := n
-		service := s
-		eg.Go(func() error {
-			named, err := reference.ParseDockerRef(service.Image)
+		named, err := reference.ParseDockerRef(service.Image)
+		if err != nil {
+			return service, err
+		}
+
+		if _, ok := named.(reference.Canonical); !ok {
+			// image is named but not digested reference
+			digest, err := resolver(named)
 			if err != nil {
-				return err
+				return service, err
 			}
-
-			if _, ok := named.(reference.Canonical); !ok {
-				// image is named but not digested reference
-				digest, err := resolver(named)
-				if err != nil {
-					return err
-				}
-				named, err = reference.WithDigest(named, digest)
-				if err != nil {
-					return err
-				}
+			named, err = reference.WithDigest(named, digest)
+			if err != nil {
+				return service, err
 			}
-
-			resultCh <- result{
-				service: name,
-				digest:  named.String(),
-			}
-			return nil
-		})
-	}
-	return newProject, eg.Wait()
+		}
+		service.Image = named.String()
+		return service, nil
+	})
 }
 
 // MarshalYAML marshal Project into a yaml tree
@@ -687,4 +652,48 @@ func (p *Project) deepCopy() *Project {
 		panic(err)
 	}
 	return instance.(*Project)
+}
+
+// WithServicesTransform applies a transformation to project services and return a new project with transformation results
+func (p *Project) WithServicesTransform(fn func(name string, s ServiceConfig) (ServiceConfig, error)) (*Project, error) {
+	type result struct {
+		name    string
+		service ServiceConfig
+	}
+	resultCh := make(chan result)
+	newProject := p.deepCopy()
+
+	eg, ctx := errgroup.WithContext(context.Background())
+	eg.Go(func() error {
+		expect := len(newProject.Services)
+		s := Services{}
+		for expect > 0 {
+			select {
+			case <-ctx.Done():
+				// interrupted as some goroutine returned an error
+				return nil
+			case r := <-resultCh:
+				s[r.name] = r.service
+				expect--
+			}
+		}
+		newProject.Services = s
+		return nil
+	})
+	for n, s := range newProject.Services {
+		name := n
+		service := s
+		eg.Go(func() error {
+			updated, err := fn(name, service)
+			if err != nil {
+				return err
+			}
+			resultCh <- result{
+				name:    name,
+				service: updated,
+			}
+			return nil
+		})
+	}
+	return newProject, eg.Wait()
 }
