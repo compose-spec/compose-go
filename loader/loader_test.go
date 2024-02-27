@@ -2325,7 +2325,7 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME}-web
 `
 		configDetails := buildConfigDetails(yaml, map[string]string{"COMPOSE_PROJECT_NAME": "env-var"})
-		actual, err := Load(configDetails)
+		actual, err := LoadWithContext(context.TODO(), configDetails)
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)

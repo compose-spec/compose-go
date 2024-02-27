@@ -16,7 +16,7 @@ IMAGE_PREFIX=composespec/conformance-tests-
 
 .PHONY: build
 build: ## Build command line
-	go build -o compose-spec cmd/main.go
+	go build -o bin/compose-spec cmd/main.go
 
 .PHONY: test
 test: ## Run tests
