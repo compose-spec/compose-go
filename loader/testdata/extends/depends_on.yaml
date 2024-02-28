@@ -1,0 +1,21 @@
+services:
+  with_depends_on:
+    image: foo
+    depends_on:
+      - zot
+
+  with_volumes_from:
+    image: foo
+    volumes_from:
+      - zot
+
+  with_ipc:
+    image: foo
+    ipc: "service:zot"
+
+  with_network_mode:
+    image: foo
+    network_mode: "service:zot"
+
+  zot:
+    image: hidden

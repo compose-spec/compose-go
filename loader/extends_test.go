@@ -306,7 +306,7 @@ services:
 	assert.Equal(t, extendsCount, 3)
 }
 
-func TestRejectExtendsWithServiceRef(t *testing.T) {
+func TestExtendsWithServiceRef(t *testing.T) {
 	tests := []struct {
 		name    string
 		yaml    string
@@ -317,54 +317,48 @@ func TestRejectExtendsWithServiceRef(t *testing.T) {
 			yaml: `
 name: test-extends_with_volumes_from
 services:
-  foo:
-    volumes_from:
-      - zot
-  bar:
+  bar: 
     extends:
-      service: foo
+      file: ./testdata/extends/depends_on.yaml
+      service: with_volumes_from
 `,
-			wantErr: "service \"foo\" can't be used with `extends` as it declare `volumes_from`",
+			wantErr: `service "bar" depends on undefined service "zot"`,
 		},
 		{
 			name: "depends_on",
 			yaml: `
 name: test-extends_with_depends_on
 services:
-  foo:
-    depends_on:
-      - zot
   bar:
     extends:
-      service: foo
+      file: ./testdata/extends/depends_on.yaml
+      service: with_depends_on
 `,
-			wantErr: "service \"foo\" can't be used with `extends` as it declare `depends_on`",
+			wantErr: `service "bar" depends on undefined service "zot"`,
 		},
 		{
 			name: "shared ipc",
 			yaml: `
 name: test-extends_with_shared_ipc
 services:
-  foo:
-    ipc: "service:zot"
   bar:
     extends:
-      service: foo
+      file: ./testdata/extends/depends_on.yaml
+      service: with_ipc
 `,
-			wantErr: "service \"foo\" can't be used with `extends` as it shares `ipc` with another service",
+			wantErr: `service "bar" depends on undefined service "zot"`,
 		},
 		{
 			name: "shared network_mode",
 			yaml: `
 name: test-extends_with_shared_network_mode
 services:
-  foo:
-    network_mode: "container:123abc"
   bar:
     extends:
-      service: foo
+      file: ./testdata/extends/depends_on.yaml
+      service: with_network_mode
 `,
-			wantErr: "service \"foo\" can't be used with `extends` as it shares `network_mode` with another container",
+			wantErr: `service "bar" depends on undefined service "zot"`,
 		},
 	}
 
@@ -376,6 +370,17 @@ services:
 				}},
 			})
 			assert.ErrorContains(t, err, tt.wantErr)
+
+			// Do the same but with a local `zot` service matching the imported reference
+			_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+				ConfigFiles: []types.ConfigFile{{
+					Content: []byte(tt.yaml + `
+  zot:
+    image: zot
+`),
+				}},
+			})
+			assert.NilError(t, err)
 		})
 	}
 }
