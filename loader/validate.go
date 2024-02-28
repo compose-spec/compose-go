@@ -73,7 +73,7 @@ func checkConsistency(project *types.Project) error {
 
 		for dependedService := range s.DependsOn {
 			if _, err := project.GetService(dependedService); err != nil {
-				return fmt.Errorf("service %q depends on undefined service %s: %w", s.Name, dependedService, errdefs.ErrInvalid)
+				return fmt.Errorf("service %q depends on undefined service %q: %w", s.Name, dependedService, errdefs.ErrInvalid)
 			}
 		}
 		// Check there isn't a cycle in depends_on declarations

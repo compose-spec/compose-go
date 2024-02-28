@@ -258,7 +258,7 @@ func TestValidateDependsOn(t *testing.T) {
 		},
 	}
 	err := checkConsistency(&project)
-	assert.Error(t, err, `service "myservice" depends on undefined service missingservice: invalid compose project`)
+	assert.Error(t, err, `service "myservice" depends on undefined service "missingservice": invalid compose project`)
 }
 
 func TestValidateContainerName(t *testing.T) {
