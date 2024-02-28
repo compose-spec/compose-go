@@ -501,6 +501,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	}
 
 	if !opts.SkipNormalization {
+		dict["name"] = opts.projectName
 		dict, err = Normalize(dict, configDetails.Environment)
 		if err != nil {
 			return nil, err
