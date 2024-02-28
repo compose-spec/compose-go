@@ -14,9 +14,13 @@
 
 IMAGE_PREFIX=composespec/conformance-tests-
 
+ifeq ($(OS),Windows_NT)
+	BINARY_EXT=.exe
+endif
+
 .PHONY: build
 build: ## Build command line
-	go build -o bin/compose-spec cmd/main.go
+	go build -o bin/compose-spec-$(GOOS)-$(GOARCH)$(BINARY_EXT) cmd/main.go
 
 .PHONY: test
 test: ## Run tests
