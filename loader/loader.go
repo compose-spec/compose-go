@@ -279,6 +279,48 @@ func parseYAML(decoder *yaml.Decoder) (map[string]interface{}, PostProcessor, er
 	return converted.(map[string]interface{}), &processor, nil
 }
 
+// LoadConfigFiles ingests config files with ResourceLoader and returns config details with paths to local copies
+func LoadConfigFiles(ctx context.Context, configFiles []string, options ...func(*Options)) (*types.ConfigDetails, error) {
+	if len(configFiles) < 1 {
+		return &types.ConfigDetails{}, errors.New("no files specified")
+	}
+
+	opts := &Options{}
+	config := &types.ConfigDetails{
+		ConfigFiles: make([]types.ConfigFile, len(configFiles)),
+	}
+
+	for _, op := range options {
+		op(opts)
+	}
+	opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{})
+
+	for i, p := range configFiles {
+		for _, loader := range opts.ResourceLoaders {
+			if !loader.Accept(p) {
+				continue
+			}
+			local, err := loader.Load(ctx, p)
+			if err != nil {
+				continue
+			}
+			if config.WorkingDir == "" {
+				config.WorkingDir = filepath.Dir(local)
+
+			}
+			abs, err := filepath.Abs(local)
+			if err != nil {
+				abs = local
+			}
+			config.ConfigFiles[i] = types.ConfigFile{
+				Filename: abs,
+			}
+			break
+		}
+	}
+	return config, nil
+}
+
 // Load reads a ConfigDetails and returns a fully loaded configuration.
 // Deprecated: use LoadWithContext.
 func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
