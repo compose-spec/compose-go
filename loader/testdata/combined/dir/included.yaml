@@ -1,0 +1,6 @@
+services:
+  service:
+    extends:
+      file: extended.yaml
+      service: service
+
