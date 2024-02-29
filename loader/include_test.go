@@ -26,9 +26,21 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+func TestLoadIncludeExtendsCombined(t *testing.T) {
+	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		WorkingDir: "testdata/combined",
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "testdata/combined/compose.yaml",
+			},
+		},
+	}, withProjectName("test-load-combined", true))
+	assert.NilError(t, err)
+}
+
 func TestLoadWithMultipleInclude(t *testing.T) {
 	// include same service twice should not trigger an error
-	p, err := Load(buildConfigDetails(`
+	details := buildConfigDetails(`
 name: 'test-multi-include'
 
 include:
@@ -41,7 +53,9 @@ services:
     image: busybox
     depends_on:
       - imported
-`, map[string]string{"SOURCE": "override"}), func(options *Options) {
+`, map[string]string{"SOURCE": "override"})
+
+	p, err := Load(details, func(options *Options) {
 		options.SkipNormalization = true
 		options.ResolvePaths = true
 	})
@@ -49,9 +63,11 @@ services:
 	imported, err := p.GetService("imported")
 	assert.NilError(t, err)
 	assert.Equal(t, imported.ContainerName, "override")
+}
 
+func TestLoadWithMultipleIncludeConflict(t *testing.T) {
 	// include 2 different services with same name should trigger an error
-	_, err = Load(buildConfigDetails(`
+	details := buildConfigDetails(`
 name: 'test-multi-include'
 
 include:
@@ -64,7 +80,8 @@ include:
 services:
   bar:
     image: busybox
-`, map[string]string{"SOURCE": "override"}), func(options *Options) {
+`, map[string]string{"SOURCE": "override"})
+	_, err := Load(details, func(options *Options) {
 		options.SkipNormalization = true
 		options.ResolvePaths = true
 	})
