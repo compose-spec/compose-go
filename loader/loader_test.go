@@ -1390,6 +1390,23 @@ networks:
 	assert.Check(t, is.DeepEqual(expected, config.Networks))
 }
 
+func TestLoadVolumeSubpath(t *testing.T) {
+	config, err := loadYAML(`
+name: load-volume-subpath
+services:
+  test:
+    image: alpine:latest
+    volumes:
+      - type: volume
+        source: asdf
+        target: /app
+        volume:
+          subpath: etc/settings
+`)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(config.Services["test"].Volumes[0].Volume.Subpath, "etc/settings"))
+}
+
 func TestLoadExpandedPortFormat(t *testing.T) {
 	config, err := loadYAML(`
 name: load-expanded-port-format
