@@ -511,6 +511,9 @@ func (s ServiceVolumeConfig) String() string {
 	if s.Volume != nil && s.Volume.NoCopy {
 		options = append(options, "nocopy")
 	}
+	if s.Volume != nil && s.Volume.Subpath != "" {
+		options = append(options, s.Volume.Subpath)
+	}
 	return fmt.Sprintf("%s:%s:%s", s.Source, s.Target, strings.Join(options, ","))
 }
 
@@ -567,7 +570,8 @@ const (
 
 // ServiceVolumeVolume are options for a service volume of type volume
 type ServiceVolumeVolume struct {
-	NoCopy bool `yaml:"nocopy,omitempty" json:"nocopy,omitempty"`
+	NoCopy  bool   `yaml:"nocopy,omitempty" json:"nocopy,omitempty"`
+	Subpath string `yaml:"subpath,omitempty" json:"subpath,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
