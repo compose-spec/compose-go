@@ -3175,3 +3175,32 @@ services:
 	assert.Equal(t, ports[0].Name, "http")
 	assert.Equal(t, ports[1].Name, "https")
 }
+
+func TestAppProtocol(t *testing.T) {
+	yaml := `
+name: test-named-ports
+services:
+  test:
+    image: foo
+    ports:
+      - published: 8080
+        target: 80
+        protocol: tcp
+        app_protocol: http
+      - published: 8083
+        target: 443
+        protocol: tcp
+        app_protocol: https
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	ports := p.Services["test"].Ports
+	assert.Equal(t, ports[0].AppProtocol, "http")
+	assert.Equal(t, ports[1].AppProtocol, "https")
+}
