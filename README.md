@@ -11,27 +11,29 @@ Go reference library for parsing and loading Compose files as specified by the
 package main
 
 import (
+	"context"
 	"fmt"
-	"github.com/compose-spec/compose-go/loader"
-	"github.com/compose-spec/compose-go/types"
 	"log"
+
+	"github.com/compose-spec/compose-go/v2/cli"
 )
 
 func main() {
 	composeFilePath := "docker-compose.yml"
 	projectName := "my_project"
+	ctx := context.Background()
 
-	options, err := loader.NewProjectOptions(
+	options, err := cli.NewProjectOptions(
 		[]string{composeFilePath},
-		types.WithOsEnv,
-		types.WithDotEnv,
-		types.WithName(projectName),
+		cli.WithOsEnv,
+		cli.WithDotEnv,
+		cli.WithName(projectName),
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	project, err := loader.ProjectFromOptions(options)
+	project, err := cli.ProjectFromOptions(ctx, options)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,7 +46,6 @@ func main() {
 
 	fmt.Println(string(projectYAML))
 }
-
 ```
 
 ## Build the library
