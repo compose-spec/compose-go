@@ -41,6 +41,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
 
@@ -82,6 +83,15 @@ type Options struct {
 	KnownExtensions map[string]any
 	// Metada for telemetry
 	Listeners []Listener
+}
+
+var versionWarning []string
+
+func (o *Options) warnObsoleteVersion(file string) {
+	if !slices.Contains(versionWarning, file) {
+		logrus.Warning(fmt.Sprintf("%s: `version` is obsolete", file))
+	}
+	versionWarning = append(versionWarning, file)
 }
 
 type Listener = func(event string, metadata map[string]any)
@@ -409,6 +419,10 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				if err := schema.Validate(dict); err != nil {
 					return fmt.Errorf("validating %s: %w", file.Filename, err)
 				}
+				if _, ok := dict["version"]; ok {
+					opts.warnObsoleteVersion(file.Filename)
+					delete(dict, "version")
+				}
 			}
 
 			return err
@@ -436,11 +450,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				return nil, err
 			}
 		}
-	}
-
-	if _, ok := dict["version"]; ok {
-		logrus.Warning("`version` is obsolete")
-		delete(dict, "version")
 	}
 
 	dict, err = transform.Canonical(dict)
