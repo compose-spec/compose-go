@@ -26,11 +26,12 @@ jobs:
         name: Build
         run: |
           GOOS=${{ matrix.os }} GOARCH=${{ matrix.arch }} make build
+          ls -al bin/
       -
         name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: compose-spec
+          name: compose-spec-${{ matrix.os }}-${{ matrix.arch }}
           path: ./bin/*
           if-no-files-found: error
 
@@ -43,18 +44,18 @@ jobs:
     steps:
       -
         name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
       -
         name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: compose-spec
-          path: bin/release
+          path: bin/
+          merge-multiple: true
       -
         name: GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: bin/release/*
+          artifacts: bin/*
           generateReleaseNotes: true
           draft: true
           token: ${{ secrets.GITHUB_TOKEN }}
