@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -75,12 +74,6 @@ func checkConsistency(project *types.Project) error {
 			if _, err := project.GetService(dependedService); err != nil {
 				return fmt.Errorf("service %q depends on undefined service %q: %w", s.Name, dependedService, errdefs.ErrInvalid)
 			}
-		}
-		// Check there isn't a cycle in depends_on declarations
-		if err := graph.InDependencyOrder(context.Background(), project, func(ctx context.Context, s string, config types.ServiceConfig) error {
-			return nil
-		}); err != nil {
-			return err
 		}
 
 		if strings.HasPrefix(s.NetworkMode, types.ServicePrefix) {
@@ -159,5 +152,5 @@ func checkConsistency(project *types.Project) error {
 		}
 	}
 
-	return nil
+	return graph.CheckCycle(project)
 }
