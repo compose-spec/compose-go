@@ -597,7 +597,7 @@ func (p *Project) MarshalJSON() ([]byte, error) {
 	for k, v := range p.Extensions {
 		m[k] = v
 	}
-	return json.Marshal(m)
+	return json.MarshalIndent(m, "", "  ")
 }
 
 // WithServicesEnvironmentResolved parses env_files set for services to resolve the actual environment map for services
