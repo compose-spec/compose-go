@@ -332,6 +332,9 @@ func (s ServiceConfig) HasProfile(profiles []string) bool {
 		return true
 	}
 	for _, p := range profiles {
+		if p == "*" {
+			return true
+		}
 		for _, sp := range s.Profiles {
 			if sp == p {
 				return true
@@ -345,11 +348,6 @@ func (s ServiceConfig) HasProfile(profiles []string) bool {
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithProfiles(profiles []string) (*Project, error) {
 	newProject := p.deepCopy()
-	for _, p := range profiles {
-		if p == "*" {
-			return newProject, nil
-		}
-	}
 	enabled := Services{}
 	disabled := Services{}
 	for name, service := range newProject.AllServices() {
