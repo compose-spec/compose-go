@@ -554,15 +554,15 @@ func modelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 		}
 	}
 
+	if project, err = project.WithProfiles(opts.Profiles); err != nil {
+		return nil, err
+	}
+
 	if !opts.SkipConsistencyCheck {
 		err := checkConsistency(project)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if project, err = project.WithProfiles(opts.Profiles); err != nil {
-		return nil, err
 	}
 
 	if !opts.SkipResolveEnvironment {
