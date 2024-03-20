@@ -121,11 +121,11 @@ func services(workingDir, homeDir string) types.Services {
 				},
 				Resources: types.Resources{
 					Limits: &types.Resource{
-						NanoCPUs:    "0.001",
+						NanoCPUs:    0.001,
 						MemoryBytes: 50 * 1024 * 1024,
 					},
 					Reservations: &types.Resource{
-						NanoCPUs:    "0.0001",
+						NanoCPUs:    0.0001,
 						MemoryBytes: 20 * 1024 * 1024,
 						GenericResources: []types.GenericResource{
 							{
@@ -690,10 +690,10 @@ services:
         order: start-first
       resources:
         limits:
-          cpus: "0.001"
+          cpus: 0.001
           memory: "52428800"
         reservations:
-          cpus: "0.0001"
+          cpus: 0.0001
           memory: "20971520"
           generic_resources:
             - discrete_resource_spec:
@@ -1267,11 +1267,11 @@ func fullExampleJSON(workingDir, homeDir string) string {
         },
         "resources": {
           "limits": {
-            "cpus": "0.001",
+            "cpus": 0.001,
             "memory": "52428800"
           },
           "reservations": {
-            "cpus": "0.0001",
+            "cpus": 0.0001,
             "memory": "20971520",
             "generic_resources": [
               {
