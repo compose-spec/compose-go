@@ -217,7 +217,10 @@ func WithLoadOptions(loadOptions ...func(*loader.Options)) ProjectOptionsFn {
 // profiles specified via the COMPOSE_PROFILES environment variable otherwise.
 func WithDefaultProfiles(profile ...string) ProjectOptionsFn {
 	if len(profile) == 0 {
-		profile = strings.Split(os.Getenv(consts.ComposeProfiles), ",")
+		for _, s := range strings.Split(os.Getenv(consts.ComposeProfiles), ",") {
+			profile = append(profile, strings.TrimSpace(s))
+		}
+
 	}
 	return WithProfiles(profile)
 }
