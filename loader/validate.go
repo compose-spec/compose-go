@@ -117,6 +117,31 @@ func checkConsistency(project *types.Project) error {
 			s.Deploy.Replicas = s.Scale
 		}
 
+		if s.CPUS != 0 && s.Deploy != nil {
+			if s.Deploy.Resources.Limits != nil && s.Deploy.Resources.Limits.NanoCPUs.Value() != s.CPUS {
+				return fmt.Errorf("services.%s: can't set distinct values on 'cpus' and 'deploy.resources.limits.cpus': %w",
+					s.Name, errdefs.ErrInvalid)
+			}
+		}
+		if s.MemLimit != 0 && s.Deploy != nil {
+			if s.Deploy.Resources.Limits != nil && s.Deploy.Resources.Limits.MemoryBytes != s.MemLimit {
+				return fmt.Errorf("services.%s: can't set distinct values on 'mem_limit' and 'deploy.resources.limits.memory': %w",
+					s.Name, errdefs.ErrInvalid)
+			}
+		}
+		if s.MemReservation != 0 && s.Deploy != nil {
+			if s.Deploy.Resources.Reservations != nil && s.Deploy.Resources.Reservations.MemoryBytes != s.MemReservation {
+				return fmt.Errorf("services.%s: can't set distinct values on 'mem_reservation' and 'deploy.resources.reservations.memory': %w",
+					s.Name, errdefs.ErrInvalid)
+			}
+		}
+		if s.PidsLimit != 0 && s.Deploy != nil {
+			if s.Deploy.Resources.Limits != nil && s.Deploy.Resources.Limits.Pids != s.PidsLimit {
+				return fmt.Errorf("services.%s: can't set distinct values on 'pids_limit' and 'deploy.resources.limits.pids': %w",
+					s.Name, errdefs.ErrInvalid)
+			}
+		}
+
 		if s.ContainerName != "" {
 			if existing, ok := containerNames[s.ContainerName]; ok {
 				return fmt.Errorf(`"services.%s": container name "%s" is already in use by "services.%s": %w`, s.Name, s.ContainerName, existing, errdefs.ErrInvalid)
