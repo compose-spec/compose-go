@@ -26,6 +26,7 @@ import (
 	"sort"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
+	"github.com/compose-spec/compose-go/v2/errdefs"
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
 	"github.com/mitchellh/copystructure"
@@ -216,9 +217,9 @@ func (p *Project) GetService(name string) (ServiceConfig, error) {
 	if !ok {
 		_, ok := p.DisabledServices[name]
 		if ok {
-			return ServiceConfig{}, fmt.Errorf("service %s is disabled", name)
+			return ServiceConfig{}, fmt.Errorf("no such service: %s: %w", name, errdefs.ErrDisabled)
 		}
-		return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
+		return ServiceConfig{}, fmt.Errorf("no such service: %s: %w", name, errdefs.ErrNotFound)
 	}
 	return service, nil
 }
