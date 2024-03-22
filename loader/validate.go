@@ -70,8 +70,11 @@ func checkConsistency(project *types.Project) error {
 			}
 		}
 
-		for dependedService := range s.DependsOn {
+		for dependedService, cfg := range s.DependsOn {
 			if _, err := project.GetService(dependedService); err != nil {
+				if errors.Is(err, errdefs.ErrDisabled) && !cfg.Required {
+					continue
+				}
 				return fmt.Errorf("service %q depends on undefined service %q: %w", s.Name, dependedService, errdefs.ErrInvalid)
 			}
 		}

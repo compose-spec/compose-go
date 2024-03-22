@@ -366,4 +366,45 @@ func TestValidateWatch(t *testing.T) {
 		err := checkConsistency(&project)
 		assert.NilError(t, err)
 	})
+
+	t.Run("depends on disabled service", func(t *testing.T) {
+		project := types.Project{
+			Services: types.Services{
+				"myservice": {
+					Name:  "myservice",
+					Image: "scratch",
+					DependsOn: map[string]types.ServiceDependency{
+						"other": {
+							Required: false,
+						},
+					},
+				},
+			},
+			DisabledServices: types.Services{
+				"other": {
+					Image: "scratch",
+				},
+			},
+		}
+		err := checkConsistency(&project)
+		assert.NilError(t, err)
+	})
+
+	t.Run("depends on unknown service", func(t *testing.T) {
+		project := types.Project{
+			Services: types.Services{
+				"myservice": {
+					Name:  "myservice",
+					Image: "scratch",
+					DependsOn: map[string]types.ServiceDependency{
+						"other": {
+							Required: false,
+						},
+					},
+				},
+			},
+		}
+		err := checkConsistency(&project)
+		assert.ErrorContains(t, err, "depends on undefined service")
+	})
 }
