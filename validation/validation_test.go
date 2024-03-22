@@ -17,6 +17,7 @@
 package validation
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -25,14 +26,14 @@ import (
 )
 
 func TestValidateSecret(t *testing.T) {
-	checker := checks["configs.*"]
+	treePaths := []tree.Path{"configs.*", "secrets.*"}
 	tests := []struct {
 		name  string
 		input string
 		err   string
 	}{
 		{
-			name: "file config",
+			name: "file",
 			input: `
 name: test
 file: ./httpd.conf
@@ -40,7 +41,7 @@ file: ./httpd.conf
 			err: "",
 		},
 		{
-			name: "environment config",
+			name: "environment",
 			input: `
 name: test
 environment: CONFIG
@@ -48,7 +49,7 @@ environment: CONFIG
 			err: "",
 		},
 		{
-			name: "inlined config",
+			name: "inlined",
 			input: `
 name: test
 content: foo=bar
@@ -56,23 +57,23 @@ content: foo=bar
 			err: "",
 		},
 		{
-			name: "conflict config",
+			name: "conflict",
 			input: `
 name: test
 environment: CONFIG
 content: foo=bar
 `,
-			err: "configs.test: file|environment|content attributes are mutually exclusive",
+			err: "%s: file|environment|content attributes are mutually exclusive",
 		},
 		{
-			name: "missing config",
+			name: "missing",
 			input: `
 name: test
 `,
-			err: "configs.test: one of file|environment|content must be set",
+			err: "%s: one of file|environment|content must be set",
 		},
 		{
-			name: "external config",
+			name: "external",
 			input: `
 name: test
 external: true
@@ -80,17 +81,24 @@ external: true
 			err: "",
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var input map[string]any
-			err := yaml.Unmarshal([]byte(tt.input), &input)
-			assert.NilError(t, err)
-			err = checker(input, tree.NewPath("configs.test"))
-			if tt.err == "" {
+	for _, tp := range treePaths {
+		checker := checks[tp]
+
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("%s %s", tt.name, tp.Parent()), func(t *testing.T) {
+				var input map[string]any
+				testTreePath := fmt.Sprintf("%s.test", tp.Parent())
+
+				err := yaml.Unmarshal([]byte(tt.input), &input)
 				assert.NilError(t, err)
-			} else {
-				assert.Equal(t, tt.err, err.Error())
-			}
-		})
+				err = checker(input, tree.NewPath(testTreePath))
+				if tt.err == "" {
+					assert.NilError(t, err)
+				} else {
+					assert.Equal(t, fmt.Sprintf(tt.err, testTreePath), err.Error())
+				}
+			})
+		}
 	}
+
 }

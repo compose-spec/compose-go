@@ -175,7 +175,7 @@ func checkConsistency(project *types.Project) error {
 		if secret.External {
 			continue
 		}
-		if secret.File == "" && secret.Environment == "" {
+		if secret.File == "" && secret.Environment == "" && secret.Content == "" {
 			return fmt.Errorf("secret %q must declare either `file` or `environment`: %w", name, errdefs.ErrInvalid)
 		}
 	}
