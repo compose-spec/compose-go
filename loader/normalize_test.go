@@ -88,9 +88,6 @@ volumes:
 
 	expected := `
 name: myProject
-networks: 
-  default:
-    name: myProject_default
 volumes:  
   myExternalVol: 
     name: myExternalVol
@@ -264,6 +261,70 @@ networks:
     name: myProject_default
 `
 
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
+	assert.NilError(t, err)
+	model, err = Normalize(model, nil)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
+}
+
+func TestNormalizeDefaultNetwork(t *testing.T) {
+	project := `
+name: myProject
+services:  
+  test:
+    image: test
+`
+
+	expected := `
+name: myProject
+networks:
+  default:
+    name: myProject_default
+services:  
+  test: 
+    image: test
+    networks:
+      default: null
+`
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
+	assert.NilError(t, err)
+	model, err = Normalize(model, nil)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
+}
+
+func TestNormalizeCustomNetwork(t *testing.T) {
+	project := `
+name: myProject
+services:  
+  test: 
+    networks:
+      my_network: null
+networks:
+  my_network: null
+`
+
+	expected := `
+name: myProject
+networks:
+  my_network:
+    name: myProject_my_network
+services:  
+  test: 
+    networks:
+      my_network: null
+`
 	var model map[string]any
 	err := yaml.Unmarshal([]byte(project), &model)
 	assert.NilError(t, err)
