@@ -34,7 +34,10 @@ func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	if source == nil {
 		return nil, nil
 	}
-	configs := source.([]any)
+	configs, ok := source.([]any)
+	if !ok {
+		return nil, fmt.Errorf("`include` must be a list, got %s", source)
+	}
 	for i, config := range configs {
 		if v, ok := config.(string); ok {
 			configs[i] = map[string]any{
