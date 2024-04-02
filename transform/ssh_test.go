@@ -27,7 +27,7 @@ func TestSSHConfig(t *testing.T) {
 	ssh, err := transformSSH([]any{
 		"default",
 		"foo=bar",
-	}, tree.NewPath("test"))
+	}, tree.NewPath("test"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, ssh, map[string]any{
 		"default": nil,
