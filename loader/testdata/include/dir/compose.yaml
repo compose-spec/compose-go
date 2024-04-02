@@ -1,0 +1,12 @@
+services:
+  service:
+    build:
+      dockerfile_inline: |
+        FROM busybox
+        COPY compose-test-extends-imported.yaml compose.yaml
+    volumes:
+      - type: bind
+        source: compose-test-extends-imported.yaml
+        target: /mnt/bind/compose.yaml
+    env_file:
+      - extra.env
