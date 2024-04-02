@@ -29,7 +29,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
-// loadIncludeConfig parse the require config from raw yaml
+// loadIncludeConfig parse the required config from raw yaml
 func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	if source == nil {
 		return nil, nil
@@ -76,11 +76,19 @@ func ApplyInclude(ctx context.Context, configDetails types.ConfigDetails, model 
 				p = path
 
 				if i == 0 { // This is the "main" file, used to define project-directory. Others are overrides
-					relworkingdir = loader.Dir(path)
-					if r.ProjectDirectory == "" {
-						r.ProjectDirectory = filepath.Dir(path)
-					}
 
+					switch {
+					case r.ProjectDirectory == "":
+						relworkingdir = loader.Dir(path)
+						r.ProjectDirectory = filepath.Dir(path)
+					case !filepath.IsAbs(r.ProjectDirectory):
+						relworkingdir = loader.Dir(r.ProjectDirectory)
+						r.ProjectDirectory = filepath.Join(configDetails.WorkingDir, r.ProjectDirectory)
+
+					default:
+						relworkingdir = r.ProjectDirectory
+
+					}
 					for _, f := range included {
 						if f == path {
 							included = append(included, path)

@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -160,6 +161,67 @@ services:
 	assert.Check(t, c.Environment["VAR_NAME"] != nil, "VAR_NAME is not defined in environment")
 	assert.Equal(t, *c.Environment["VAR_NAME"], "value")
 
+}
+
+func TestIncludeWithProjectDirectory(t *testing.T) {
+	var envs map[string]string
+	if runtime.GOOS == "windows" {
+		envs = map[string]string{"COMPOSE_CONVERT_WINDOWS_PATHS": "1"}
+	}
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		WorkingDir:  "testdata/include",
+		Environment: envs,
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "testdata/include/project-directory.yaml",
+			},
+		},
+	}, withProjectName("test-load-project-directory", true))
+	assert.NilError(t, err)
+	assert.Equal(t, filepath.ToSlash(p.Services["service"].Build.Context), "testdata/subdir")
+	assert.Equal(t, filepath.ToSlash(p.Services["service"].Volumes[0].Source), "testdata/subdir/compose-test-extends-imported.yaml")
+	assert.Equal(t, filepath.ToSlash(p.Services["service"].EnvFiles[0].Path), "testdata/subdir/extra.env")
+
+}
+
+func TestNestedIncludeAndExtends(t *testing.T) {
+	fileName := "compose.yml"
+	yaml := `
+include:
+  - project_directory: .
+    path: dir/included.yaml
+`
+	tmpdir := t.TempDir()
+	path := createFile(t, tmpdir, yaml, fileName)
+
+	yaml = `
+services:
+  included:
+    extends:
+      file: dir/extended.yaml
+      service: extended
+`
+	createFileSubDir(t, tmpdir, "dir", yaml, "included.yaml")
+
+	yaml = `
+services:
+  extended:
+    image: alpine
+`
+	createFile(t, filepath.Join(tmpdir, "dir"), yaml, "extended.yaml")
+	p, err := Load(types.ConfigDetails{
+		WorkingDir: tmpdir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: path,
+		}},
+		Environment: nil,
+	}, func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.SetProjectName("project", true)
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["included"].Image, "alpine")
 }
 
 func createFile(t *testing.T, rootDir, content, fileName string) string {
