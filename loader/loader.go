@@ -463,7 +463,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		}
 	}
 
-	dict, err = transform.Canonical(dict)
+	dict, err = transform.Canonical(dict, opts.SkipInterpolation)
 	if err != nil {
 		return nil, err
 	}
