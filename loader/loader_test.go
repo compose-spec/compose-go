@@ -3204,3 +3204,26 @@ services:
 	assert.Equal(t, ports[0].AppProtocol, "http")
 	assert.Equal(t, ports[1].AppProtocol, "https")
 }
+
+func TestBuildEntitlements(t *testing.T) {
+	yaml := `
+name: test-build-entitlements
+services:
+  test:
+    build:
+      context: .
+      entitlements:
+        - network.host
+        - security.insecure
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	build := p.Services["test"].Build
+	assert.DeepEqual(t, build.Entitlements, []string{"network.host", "security.insecure"})
+}
