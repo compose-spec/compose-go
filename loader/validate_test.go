@@ -262,7 +262,7 @@ func TestValidateDependsOn(t *testing.T) {
 }
 
 func TestValidateContainerName(t *testing.T) {
-	project := types.Project{
+	project := &types.Project{
 		Services: types.Services{
 			"myservice": {
 				Name:          "myservice",
@@ -276,7 +276,7 @@ func TestValidateContainerName(t *testing.T) {
 			},
 		},
 	}
-	err := checkConsistency(&project)
+	err := project.CheckContainerNameUnicity()
 	assert.Assert(t, strings.Contains(err.Error(), `container name "mycontainer" is already in use by`))
 }
 
