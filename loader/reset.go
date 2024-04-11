@@ -19,6 +19,7 @@ package loader
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
 	"gopkg.in/yaml.v3"
@@ -40,6 +41,21 @@ func (p *ResetProcessor) UnmarshalYAML(value *yaml.Node) error {
 
 // resolveReset detects `!reset` tag being set on yaml nodes and record position in the yaml tree
 func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.Node, error) {
+	// If the path contains "<<", removing the "<<" element and merging the path
+	if strings.Contains(path.String(), "<<") {
+		pathArr := strings.Split(path.String(), ".")
+		path = tree.NewPath(pathArr[0])
+		for _, el := range pathArr[1:] {
+			if el != "<<" {
+				path = tree.Path(strings.Join([]string{path.String(), el}, "."))
+			}
+		}
+	}
+	// If the node is an alias, We need to process the alias field in order to consider the !override and !reset tags
+	if node.Kind == yaml.AliasNode {
+		return p.resolveReset(node.Alias, path)
+	}
+
 	if node.Tag == "!reset" {
 		p.paths = append(p.paths, path)
 		return nil, nil
