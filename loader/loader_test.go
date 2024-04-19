@@ -2625,7 +2625,21 @@ func TestLoadDependsOnCycle(t *testing.T) {
 			},
 		},
 	})
-	assert.Error(t, err, "dependency cycle detected: service2 -> service3 -> service1", err)
+	assert.Error(t, err, "dependency cycle detected: service1 -> service2 -> service3 -> service1", err)
+}
+
+func TestLoadDependsOnSelf(t *testing.T) {
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+		WorkingDir: filepath.Join(workingDir, "testdata"),
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: filepath.Join(workingDir, "testdata", "compose-depends-on-self.yaml"),
+			},
+		},
+	})
+	assert.Error(t, err, "dependency cycle detected: service1 -> service1", err)
 }
 
 func TestLoadWithDependsOn(t *testing.T) {
