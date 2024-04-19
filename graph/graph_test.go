@@ -325,7 +325,7 @@ func Test_detectCycle(t *testing.T) {
 	graph := exampleGraph()
 	graph.addEdge("B", "D")
 	err := graph.checkCycle()
-	assert.Error(t, err, "dependency cycle detected: D -> C -> B")
+	assert.Error(t, err, "dependency cycle detected: B -> D -> C -> B")
 }
 
 func TestWith_RootNodesAndUp(t *testing.T) {
