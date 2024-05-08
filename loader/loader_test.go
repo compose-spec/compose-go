@@ -1727,6 +1727,49 @@ networks:
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
 }
 
+func TestLoadServiceNetworkDriverOpts(t *testing.T) {
+	config, err := loadYAML(`
+name: load-service-network-driver-opts
+services:
+  foo:
+    image: alpine
+    networks:
+      network1:
+        driver_opts:
+          com.docker.network.endpoint.sysctls: "ipv6.conf.accept_ra=0"
+networks:
+  network1:
+`)
+	assert.NilError(t, err)
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	expected := &types.Project{
+		Name:       "load-service-network-driver-opts",
+		WorkingDir: workingDir,
+		Services: types.Services{
+			"foo": {
+				Name:  "foo",
+				Image: "alpine",
+				Networks: map[string]*types.ServiceNetworkConfig{
+					"network1": {
+						DriverOpts: types.Options{
+							"com.docker.network.endpoint.sysctls": "ipv6.conf.accept_ra=0",
+						},
+					},
+				},
+			},
+		},
+		Networks: map[string]types.NetworkConfig{
+			"network1": {},
+		},
+		Environment: types.Mapping{
+			"COMPOSE_PROJECT_NAME": "load-service-network-driver-opts",
+		},
+	}
+	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+}
+
 func TestLoadInit(t *testing.T) {
 	booleanTrue := true
 	booleanFalse := false
