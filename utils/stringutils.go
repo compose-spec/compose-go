@@ -46,3 +46,19 @@ func GetAsStringList(em map[string]string) []string {
 	}
 	return m
 }
+
+// Trims all characters from the delimter to the right
+func TrimRightFrom(s, delimeter string) string {
+	if idx := strings.Index(s, delimeter); idx != -1 {
+		return s[:idx]
+	}
+	return s
+}
+
+// Trims all characters from the delimter to the left
+func TrimLeftFrom(s, delimeter string) string {
+	if idx := strings.Index(s, delimeter); idx != -1 {
+		return s[(len(delimeter) + idx):]
+	}
+	return s
+}

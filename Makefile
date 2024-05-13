@@ -46,3 +46,6 @@ check-license: build-validate-image
 setup: ## Setup the precommit hook
 	@which pre-commit > /dev/null 2>&1 || (echo "pre-commit not installed see README." && false)
 	@pre-commit install
+
+.PHONY: validate
+validate: lint test check-license
