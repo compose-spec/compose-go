@@ -309,6 +309,7 @@ func Load(configDetails types.ConfigDetails, options ...func(*Options)) (*types.
 // LoadWithContext reads a ConfigDetails and returns a fully loaded configuration as a compose-go Project
 func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	opts := toOptions(&configDetails, options)
+
 	dict, err := loadModelWithContext(ctx, &configDetails, opts)
 	if err != nil {
 		return nil, err
@@ -366,6 +367,11 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		dict = map[string]interface{}{}
 		err  error
 	)
+	sch, err := schema.CreateComposeSchema()
+	if err != nil {
+		return nil, fmt.Errorf("could not initialise schema: %w", err)
+	}
+
 	for _, file := range config.ConfigFiles {
 		fctx := context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
 		if file.Content == nil && file.Config == nil {
@@ -427,7 +433,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			}
 
 			if !opts.SkipValidation {
-				if err := schema.Validate(dict); err != nil {
+				if err := sch.Validate(dict); err != nil {
 					return fmt.Errorf("validating %s: %w", file.Filename, err)
 				}
 				if _, ok := dict["version"]; ok {

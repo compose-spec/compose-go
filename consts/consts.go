@@ -27,3 +27,4 @@ const (
 const Extensions = "#extensions" // Using # prefix, we prevent risk to conflict with an actual yaml key
 
 type ComposeFileKey struct{}
+type ComposeSchema struct{}
