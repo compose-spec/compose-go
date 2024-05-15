@@ -2376,20 +2376,21 @@ services:
 		assert.Equal(t, "overrided-proxy", svc.ContainerName)
 	})
 
-	t.Run("project name env variable interpolation", func(t *testing.T) {
+	t.Run("project name override", func(t *testing.T) {
 		yaml := `
-name: interpolated
+name: another_name
 services:
   web:
     image: web
     container_name: ${COMPOSE_PROJECT_NAME}-web
 `
-		configDetails := buildConfigDetails(yaml, map[string]string{"COMPOSE_PROJECT_NAME": "env-var"})
-		actual, err := LoadWithContext(context.TODO(), configDetails)
+		configDetails := buildConfigDetails(yaml, map[string]string{})
+
+		actual, err := Load(configDetails, withProjectName("interpolated", true))
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)
-		assert.Equal(t, "env-var-web", svc.ContainerName)
+		assert.Equal(t, "interpolated-web", svc.ContainerName)
 	})
 }
 
