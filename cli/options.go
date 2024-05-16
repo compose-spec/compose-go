@@ -287,7 +287,7 @@ func WithEnvFiles(file ...string) ProjectOptionsFn {
 			return err
 		}
 		if !s.IsDir() {
-			o.EnvFiles = []string{defaultDotEnv}
+			o.EnvFiles = append(o.EnvFiles, defaultDotEnv)
 		}
 		return nil
 	}
