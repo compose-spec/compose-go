@@ -67,6 +67,8 @@ type Options struct {
 	SkipResolveEnvironment bool
 	// SkipDefaultValues will ignore missing required attributes
 	SkipDefaultValues bool
+	// KeepEmptyEnvironment will keep empty environment variable keys in the environment section
+	KeepEmptyEnvironment bool
 	// Interpolation options
 	Interpolate *interp.Options
 	// Discard 'env_file' entries after resolving to 'environment' section
@@ -519,7 +521,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 
 	if !opts.SkipNormalization {
 		dict["name"] = opts.projectName
-		dict, err = Normalize(dict, configDetails.Environment)
+		dict, err = Normalize(dict, configDetails.Environment, opts)
 		if err != nil {
 			return nil, err
 		}
