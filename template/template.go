@@ -29,7 +29,7 @@ import (
 var delimiter = "\\$"
 var substitutionNamed = "[_a-z][_a-z0-9]*"
 var substitutionBraced = "[_a-z][_a-z0-9]*(?::?[-+?](.*))?"
-var substitutionMapping = "[_a-z][_a-z0-9]*\\[(.*)\\]"
+var substitutionMapping = "[_a-z][_a-z0-9]*\\[(.*)\\](?::?[-+?}](.*))?"
 
 var groupEscaped = "escaped"
 var groupNamed = "named"
@@ -313,7 +313,7 @@ func getSubstitutionFunctionForTemplate(template string, cfg *Config) (string, S
 
 func getSubstitutionFunctionForNamedMapping(cfg *Config) SubstituteFunc {
 	return func(substitution string, mapping Mapping) (string, bool, error) {
-		namedMapping, key, _, err := getNamedMapping(substitution, cfg)
+		namedMapping, key, rest, err := getNamedMapping(substitution, cfg)
 		if err != nil || namedMapping == nil {
 			return "", false, err
 		}
@@ -321,6 +321,19 @@ func getSubstitutionFunctionForNamedMapping(cfg *Config) SubstituteFunc {
 		resolvedKey, err := getResolvedNamedMappingKey(key, mapping, cfg)
 		if err != nil {
 			return "", false, err
+		}
+
+		// If subsitution function found, delegate substitution string (with key resolved) to it
+		if rest != "" {
+			subsType, subsFunc := getSubstitutionFunctionForTemplate(rest, cfg)
+			if subsType == "" {
+				return "", false, &InvalidTemplateError{Template: substitution}
+			}
+			substitution := strings.Replace(substitution, key, resolvedKey, 1)
+			value, applied, err := subsFunc(substitution, mapping)
+			if applied || err != nil {
+				return value, applied, err
+			}
 		}
 
 		value, _ := namedMapping(resolvedKey)
@@ -432,7 +445,7 @@ func requiredErrorWhenUnset(substitution string, mapping Mapping, cfg *Config) (
 	return withRequired(substitution, mapping, cfg, "?", func(_ string) bool { return true })
 }
 
-func withDefaultWhenPresence(substitution string, mapping Mapping, cfg *Config, notEmpty bool) (string, bool, error) {
+func withDefaultWhenPresence(substitution string, mapping Mapping, cfg *Config, notEmpty bool) (value string, ok bool, err error) {
 	sep := "+"
 	if notEmpty {
 		sep = ":+"
@@ -441,18 +454,29 @@ func withDefaultWhenPresence(substitution string, mapping Mapping, cfg *Config, 
 		return "", false, nil
 	}
 	name, defaultValue := partition(substitution, sep)
-	defaultValue, err := substituteWithConfig(defaultValue, mapping, cfg)
+	defaultValue, err = substituteWithConfig(defaultValue, mapping, cfg)
 	if err != nil {
 		return "", false, err
 	}
-	value, ok := mapping(name)
+	namedMapping, key, rest, err := getNamedMapping(name, cfg)
+	if err != nil {
+		return "", false, err
+	}
+	if rest != "" {
+		return "", false, &InvalidTemplateError{Template: substitution}
+	}
+	if namedMapping != nil {
+		value, ok = namedMapping(key)
+	} else {
+		value, ok = mapping(name)
+	}
 	if ok && (!notEmpty || (notEmpty && value != "")) {
 		return defaultValue, true, nil
 	}
 	return value, true, nil
 }
 
-func withDefaultWhenAbsence(substitution string, mapping Mapping, cfg *Config, emptyOrUnset bool) (string, bool, error) {
+func withDefaultWhenAbsence(substitution string, mapping Mapping, cfg *Config, emptyOrUnset bool) (value string, ok bool, err error) {
 	sep := "-"
 	if emptyOrUnset {
 		sep = ":-"
@@ -461,27 +485,49 @@ func withDefaultWhenAbsence(substitution string, mapping Mapping, cfg *Config, e
 		return "", false, nil
 	}
 	name, defaultValue := partition(substitution, sep)
-	defaultValue, err := substituteWithConfig(defaultValue, mapping, cfg)
+	defaultValue, err = substituteWithConfig(defaultValue, mapping, cfg)
 	if err != nil {
 		return "", false, err
 	}
-	value, ok := mapping(name)
+	namedMapping, key, rest, err := getNamedMapping(name, cfg)
+	if err != nil {
+		return "", false, err
+	}
+	if rest != "" {
+		return "", false, &InvalidTemplateError{Template: substitution}
+	}
+	if namedMapping != nil {
+		value, ok = namedMapping(key)
+	} else {
+		value, ok = mapping(name)
+	}
 	if !ok || (emptyOrUnset && value == "") {
 		return defaultValue, true, nil
 	}
 	return value, true, nil
 }
 
-func withRequired(substitution string, mapping Mapping, cfg *Config, sep string, valid func(string) bool) (string, bool, error) {
+func withRequired(substitution string, mapping Mapping, cfg *Config, sep string, valid func(string) bool) (value string, ok bool, err error) {
 	if !strings.Contains(substitution, sep) {
 		return "", false, nil
 	}
 	name, errorMessage := partition(substitution, sep)
-	errorMessage, err := substituteWithConfig(errorMessage, mapping, cfg)
+	errorMessage, err = substituteWithConfig(errorMessage, mapping, cfg)
 	if err != nil {
 		return "", false, err
 	}
-	value, ok := mapping(name)
+	namedMapping, key, rest, err := getNamedMapping(name, cfg)
+	if err != nil {
+		return "", false, err
+	}
+	if rest != "" {
+		return "", false, &InvalidTemplateError{Template: substitution}
+	}
+	if namedMapping != nil {
+		value, ok = namedMapping(key)
+	} else {
+		value, ok = mapping(name)
+	}
 	if !ok || !valid(value) {
 		return "", true, &MissingRequiredError{
 			Reason:   errorMessage,
