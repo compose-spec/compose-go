@@ -506,7 +506,7 @@ func TestSubstitutionFunctionChoice(t *testing.T) {
 
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			symbol, _ := getSubstitutionFunctionForTemplate(tc.input)
+			symbol, _ := getSubstitutionFunctionForTemplate(tc.input, nil)
 			assert.Equal(t, symbol, tc.symbol,
 				fmt.Sprintf("Wrong on output for: %s got symbol -> %#v", tc.input, symbol),
 			)

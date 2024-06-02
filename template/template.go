@@ -118,8 +118,6 @@ func WithoutLogging(cfg *Config) {
 // SubstituteWithOptions substitute variables in the string with their values.
 // It accepts additional options such as a custom function or pattern.
 func SubstituteWithOptions(template string, mapping Mapping, options ...Option) (string, error) {
-	var returnErr error
-
 	cfg := &Config{
 		pattern:         DefaultPattern,
 		replacementFunc: DefaultReplacementFunc,
@@ -129,6 +127,19 @@ func SubstituteWithOptions(template string, mapping Mapping, options ...Option) 
 		o(cfg)
 	}
 
+	return substituteWithConfig(template, mapping, cfg)
+}
+
+func substituteWithConfig(template string, mapping Mapping, cfg *Config) (string, error) {
+	if cfg == nil {
+		cfg = &Config{
+			pattern:         DefaultPattern,
+			replacementFunc: DefaultReplacementFunc,
+			logging:         true,
+		}
+	}
+
+	var returnErr error
 	result := cfg.pattern.ReplaceAllStringFunc(template, func(substring string) string {
 		replacement, err := cfg.replacementFunc(substring, mapping, cfg)
 		if err != nil {
@@ -160,7 +171,7 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 	pattern := cfg.pattern
 	subsFunc := cfg.substituteFunc
 	if subsFunc == nil {
-		_, subsFunc = getSubstitutionFunctionForTemplate(substring)
+		_, subsFunc = getSubstitutionFunctionForTemplate(substring, cfg)
 	}
 
 	closingBraceIndex := getFirstBraceClosingIndex(substring)
@@ -193,7 +204,7 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 			return "", false, err
 		}
 		if applied {
-			interpolatedNested, err := SubstituteWith(rest, mapping, pattern)
+			interpolatedNested, err := substituteWithConfig(rest, mapping, cfg)
 			if err != nil {
 				return "", false, err
 			}
@@ -222,10 +233,10 @@ func SubstituteWith(template string, mapping Mapping, pattern *regexp.Regexp, su
 	return SubstituteWithOptions(template, mapping, options...)
 }
 
-func getSubstitutionFunctionForTemplate(template string) (string, SubstituteFunc) {
+func getSubstitutionFunctionForTemplate(template string, cfg *Config) (string, SubstituteFunc) {
 	interpolationMapping := []struct {
-		string
-		SubstituteFunc
+		SubstituteType string
+		SubstituteFunc func(string, Mapping, *Config) (string, bool, error)
 	}{
 		{":?", requiredErrorWhenEmptyOrUnset},
 		{"?", requiredErrorWhenUnset},
@@ -235,8 +246,8 @@ func getSubstitutionFunctionForTemplate(template string) (string, SubstituteFunc
 		{"+", defaultWhenSet},
 	}
 	sort.Slice(interpolationMapping, func(i, j int) bool {
-		idxI := strings.Index(template, interpolationMapping[i].string)
-		idxJ := strings.Index(template, interpolationMapping[j].string)
+		idxI := strings.Index(template, interpolationMapping[i].SubstituteType)
+		idxJ := strings.Index(template, interpolationMapping[j].SubstituteType)
 		if idxI < 0 {
 			return false
 		}
@@ -246,7 +257,9 @@ func getSubstitutionFunctionForTemplate(template string) (string, SubstituteFunc
 		return idxI < idxJ
 	})
 
-	return interpolationMapping[0].string, interpolationMapping[0].SubstituteFunc
+	return interpolationMapping[0].SubstituteType, func(s string, m Mapping) (string, bool, error) {
+		return interpolationMapping[0].SubstituteFunc(s, m, cfg)
+	}
 }
 
 func getFirstBraceClosingIndex(s string) int {
@@ -272,32 +285,32 @@ func Substitute(template string, mapping Mapping) (string, error) {
 }
 
 // Soft default (fall back if unset or empty)
-func defaultWhenEmptyOrUnset(substitution string, mapping Mapping) (string, bool, error) {
-	return withDefaultWhenAbsence(substitution, mapping, true)
+func defaultWhenEmptyOrUnset(substitution string, mapping Mapping, cfg *Config) (string, bool, error) {
+	return withDefaultWhenAbsence(substitution, mapping, cfg, true)
 }
 
 // Hard default (fall back if-and-only-if empty)
-func defaultWhenUnset(substitution string, mapping Mapping) (string, bool, error) {
-	return withDefaultWhenAbsence(substitution, mapping, false)
+func defaultWhenUnset(substitution string, mapping Mapping, cfg *Config) (string, bool, error) {
+	return withDefaultWhenAbsence(substitution, mapping, cfg, false)
 }
 
-func defaultWhenNotEmpty(substitution string, mapping Mapping) (string, bool, error) {
-	return withDefaultWhenPresence(substitution, mapping, true)
+func defaultWhenNotEmpty(substitution string, mapping Mapping, cfg *Config) (string, bool, error) {
+	return withDefaultWhenPresence(substitution, mapping, cfg, true)
 }
 
-func defaultWhenSet(substitution string, mapping Mapping) (string, bool, error) {
-	return withDefaultWhenPresence(substitution, mapping, false)
+func defaultWhenSet(substitution string, mapping Mapping, cfg *Config) (string, bool, error) {
+	return withDefaultWhenPresence(substitution, mapping, cfg, false)
 }
 
-func requiredErrorWhenEmptyOrUnset(substitution string, mapping Mapping) (string, bool, error) {
-	return withRequired(substitution, mapping, ":?", func(v string) bool { return v != "" })
+func requiredErrorWhenEmptyOrUnset(substitution string, mapping Mapping, cfg *Config) (string, bool, error) {
+	return withRequired(substitution, mapping, cfg, ":?", func(v string) bool { return v != "" })
 }
 
-func requiredErrorWhenUnset(substitution string, mapping Mapping) (string, bool, error) {
-	return withRequired(substitution, mapping, "?", func(_ string) bool { return true })
+func requiredErrorWhenUnset(substitution string, mapping Mapping, cfg *Config) (string, bool, error) {
+	return withRequired(substitution, mapping, cfg, "?", func(_ string) bool { return true })
 }
 
-func withDefaultWhenPresence(substitution string, mapping Mapping, notEmpty bool) (string, bool, error) {
+func withDefaultWhenPresence(substitution string, mapping Mapping, cfg *Config, notEmpty bool) (string, bool, error) {
 	sep := "+"
 	if notEmpty {
 		sep = ":+"
@@ -306,7 +319,7 @@ func withDefaultWhenPresence(substitution string, mapping Mapping, notEmpty bool
 		return "", false, nil
 	}
 	name, defaultValue := partition(substitution, sep)
-	defaultValue, err := Substitute(defaultValue, mapping)
+	defaultValue, err := substituteWithConfig(defaultValue, mapping, cfg)
 	if err != nil {
 		return "", false, err
 	}
@@ -317,7 +330,7 @@ func withDefaultWhenPresence(substitution string, mapping Mapping, notEmpty bool
 	return value, true, nil
 }
 
-func withDefaultWhenAbsence(substitution string, mapping Mapping, emptyOrUnset bool) (string, bool, error) {
+func withDefaultWhenAbsence(substitution string, mapping Mapping, cfg *Config, emptyOrUnset bool) (string, bool, error) {
 	sep := "-"
 	if emptyOrUnset {
 		sep = ":-"
@@ -326,7 +339,7 @@ func withDefaultWhenAbsence(substitution string, mapping Mapping, emptyOrUnset b
 		return "", false, nil
 	}
 	name, defaultValue := partition(substitution, sep)
-	defaultValue, err := Substitute(defaultValue, mapping)
+	defaultValue, err := substituteWithConfig(defaultValue, mapping, cfg)
 	if err != nil {
 		return "", false, err
 	}
@@ -337,12 +350,12 @@ func withDefaultWhenAbsence(substitution string, mapping Mapping, emptyOrUnset b
 	return value, true, nil
 }
 
-func withRequired(substitution string, mapping Mapping, sep string, valid func(string) bool) (string, bool, error) {
+func withRequired(substitution string, mapping Mapping, cfg *Config, sep string, valid func(string) bool) (string, bool, error) {
 	if !strings.Contains(substitution, sep) {
 		return "", false, nil
 	}
 	name, errorMessage := partition(substitution, sep)
-	errorMessage, err := Substitute(errorMessage, mapping)
+	errorMessage, err := substituteWithConfig(errorMessage, mapping, cfg)
 	if err != nil {
 		return "", false, err
 	}
