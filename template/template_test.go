@@ -553,6 +553,7 @@ func TestInvalidWithNamedMappings(t *testing.T) {
 		"${foo bar]}",
 		"${$FOO[bar]}",       // Cannot use interpolation for named mapping's name
 		"${FOO_${foo[bar]}}", // Cannot use named mapping for environment variable
+		"${foo[bar]a:-def}",  // Cannot present characters (`a`) between closing bracket `]` and substitution function `:-`
 	}
 
 	for _, template := range invalidTemplates {
@@ -642,6 +643,63 @@ func TestValueNoDefaultWithNamedMappings(t *testing.T) {
 	}
 }
 
+func TestChainedSubstitutionFunctionWithNamedMappings(t *testing.T) {
+	testCases := []struct {
+		name     string
+		template string
+		expected string
+	}{
+		{
+			template: "ok ${env[BAR]:-def}", // EmptyValueWithSoftDefault
+			expected: "ok def",
+		},
+		{
+			template: "ok ${env[FOO]:-def}", // ValueWithSoftDefault
+			expected: "ok first",
+		},
+		{
+			template: "ok ${env[BAR]-def}", // EmptyValueWithHardDefault
+			expected: "ok ",
+		},
+		{
+			template: "ok ${env[UNSET_VAR]:+presence_value}", // PresentValueWithUnset
+			expected: "ok ",
+		},
+		{
+			template: "ok ${env[UNSET_VAR]+presence_value}", // PresentValueWithUnset2
+			expected: "ok ",
+		},
+		{
+			template: "ok ${env[FOO]:+presence_value}", // PresentValueWithNonEmpty
+			expected: "ok presence_value",
+		},
+		{
+			template: "ok ${env[FOO]+presence_value}", // PresentValueAndNonEmptyWithNonEmpty
+			expected: "ok presence_value",
+		},
+		{
+			template: "ok ${env[BAR]+presence_value}", // PresentValueWithSet
+			expected: "ok presence_value",
+		},
+		{
+			template: "ok ${env[BAR]:+presence_value}", // PresentValueAndNotEmptyWithSet
+			expected: "ok ",
+		},
+		{
+			template: "ok ${env[BAR]:-/non:-alphanumeric}", // NonAlphanumericDefault
+			expected: "ok /non:-alphanumeric",
+		},
+	}
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(fmt.Sprintf("Named mapping should be able to be used with subsitution functions: %d", i), func(t *testing.T) {
+			result, err := SubstituteWithOptions(tc.template, defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(tc.expected, result))
+		})
+	}
+}
+
 func TestInterpolationExternalInterferenceWithNamedMappings(t *testing.T) {
 	testCases := []struct {
 		name     string
@@ -664,6 +722,18 @@ func TestInterpolationExternalInterferenceWithNamedMappings(t *testing.T) {
 			template: "aaa-${env[${env[${UNSET:-$FOO}]}]}?-:${env[${BAR:-FOO}]}}-${BAR:-test${UNSET:-$FOO}}:-bbb",
 			expected: "aaa-?-:first}-testfirst:-bbb",
 		},
+		{
+			template: "aaa-${env[${env[${UNSET:-$FOO}]}]}?-:${env[${BAR:-FOO}]}}-${BAR:-test${UNSET:-${env[FOO]}}}:-bbb", // The beginning `${env[...` and `...]}}}` will and shall be matched
+			expected: "aaa-?-:first}-testfirst:-bbb",
+		},
+		{
+			template: "aaa-${env[${env[${UNSET:-$FOO}]}]}?-:${env[${BAR:-FOO}]}}-${BAR:-test${UNSET:-${env[BAR]:-$FOO}}}:-bbb",
+			expected: "aaa-?-:first}-testfirst:-bbb",
+		},
+		{
+			template: "aaa-${env[${env[${UNSET:-$FOO}]}]}?-:${env[${BAR:-FOO}]}}-${BAR:-test${UNSET:-${env[BAR]:-${env[FOO]}}}}:-bbb",
+			expected: "aaa-?-:first}-testfirst:-bbb",
+		},
 	}
 	for i, tc := range testCases {
 		tc := tc
@@ -672,6 +742,138 @@ func TestInterpolationExternalInterferenceWithNamedMappings(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Check(t, is.Equal(tc.expected, result))
 		})
+	}
+}
+
+func TestDefaultsWithNestedExpansionWithNamedMappings(t *testing.T) {
+	testCases := []struct {
+		template string
+		expected string
+	}{
+		{
+			template: "ok ${env[${UNSET_VAR-FOO}]}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${UNSET_VAR-${env[FOO]}}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${env[UNSET_VAR]-${env[FOO]}}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${env[UNSET_VAR]-${FOO} ${FOO}}",
+			expected: "ok first first",
+		},
+		{
+			template: "ok ${env[UNSET_VAR]-${env[FOO]} ${env[FOO]}}",
+			expected: "ok first first",
+		},
+		{
+			template: "ok ${env[BAR]+$FOO}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${env[BAR]+${env[FOO]}}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${env[BAR]+${env[FOO]} ${env[FOO]:+second}}",
+			expected: "ok first second",
+		},
+		{
+			template: "ok ${env[${env[FOO]+BAR}]+${env[FOO]+${env[BAR]:-firstPresence}} ${env[FOO]:+second}}",
+			expected: "ok firstPresence second",
+		},
+	}
+
+	for _, tc := range testCases {
+		result, err := SubstituteWithOptions(tc.template, defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(tc.expected, result))
+	}
+}
+
+func TestMandatoryVariableErrorsWithNamedMappings(t *testing.T) {
+	testCases := []struct {
+		template      string
+		expectedError string
+	}{
+		{
+			template:      "not ok ${env[UNSET_VAR]:?Mandatory Variable Unset}",
+			expectedError: "required variable env[UNSET_VAR] is missing a value: Mandatory Variable Unset",
+		},
+		{
+			template:      "not ok ${env[BAR]:?Mandatory Variable Empty}",
+			expectedError: "required variable env[BAR] is missing a value: Mandatory Variable Empty",
+		},
+		{
+			template:      "not ok ${env[UNSET_VAR]:?}",
+			expectedError: "required variable env[UNSET_VAR] is missing a value",
+		},
+		{
+			template:      "not ok ${env[UNSET_VAR]?Mandatory Variable Unset}",
+			expectedError: "required variable env[UNSET_VAR] is missing a value: Mandatory Variable Unset",
+		},
+		{
+			template:      "not ok ${env[UNSET_VAR]?}",
+			expectedError: "required variable env[UNSET_VAR] is missing a value",
+		},
+	}
+
+	for _, tc := range testCases {
+		_, err := SubstituteWithOptions(tc.template, defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+		assert.ErrorContains(t, err, tc.expectedError)
+		assert.ErrorType(t, err, reflect.TypeOf(&MissingRequiredError{}))
+	}
+}
+
+func TestMandatoryVariableErrorsWithNestedExpansionWithNamedMappings(t *testing.T) {
+	testCases := []struct {
+		template      string
+		expectedError string
+	}{
+		{
+			template:      "not ok ${env[UNSET_VAR]:?Mandatory Variable ${env[FOO]}}",
+			expectedError: "required variable env[UNSET_VAR] is missing a value: Mandatory Variable first",
+		},
+		{
+			template:      "not ok ${env[UNSET_VAR]?Mandatory Variable ${env[FOO]}}",
+			expectedError: "required variable env[UNSET_VAR] is missing a value: Mandatory Variable first",
+		},
+	}
+
+	for _, tc := range testCases {
+		_, err := SubstituteWithOptions(tc.template, defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+		assert.ErrorContains(t, err, tc.expectedError)
+		assert.ErrorType(t, err, reflect.TypeOf(&MissingRequiredError{}))
+	}
+}
+
+func TestDefaultsForMandatoryVariablesWithNamedMappings(t *testing.T) {
+	testCases := []struct {
+		template string
+		expected string
+	}{
+		{
+			template: "ok ${env[FOO]:?err}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${env[FOO]?err}",
+			expected: "ok first",
+		},
+		{
+			template: "ok ${env[BAR]?err}",
+			expected: "ok ",
+		},
+	}
+
+	for _, tc := range testCases {
+		result, err := SubstituteWithOptions(tc.template, defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(tc.expected, result))
 	}
 }
 
