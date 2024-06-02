@@ -19,6 +19,7 @@ package template
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -528,4 +529,180 @@ func TestValueWithCurlyBracesDefault(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(`ok {"json":2}`, result))
 	}
+}
+
+func envMapping(name string) (string, bool) {
+	return defaultMapping(name)
+}
+
+func TestEscapedWithNamedMappings(t *testing.T) {
+	result, err := SubstituteWithOptions("$${foo[bar]}", defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("${foo[bar]}", result))
+}
+
+func TestInvalidWithNamedMappings(t *testing.T) {
+	invalidTemplates := []string{
+		"${[]",
+		"${[]}",
+		"${ [ ] }",
+		"${ foo[bar]}",
+		"${foo[bar] }",
+		"${foo [bar] }",
+		"${foo [bar }",
+		"${foo bar]}",
+		"${$FOO[bar]}",       // Cannot use interpolation for named mapping's name
+		"${FOO_${foo[bar]}}", // Cannot use named mapping for environment variable
+	}
+
+	for _, template := range invalidTemplates {
+		_, err := SubstituteWithOptions(template, defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+		assert.ErrorContains(t, err, "Invalid template")
+	}
+
+	invalidMappings := NamedMappings{
+		"FOO": func(name string) (string, bool) { return "invalid]", true },
+	}
+	testCases := []struct {
+		template      string
+		expectedError string
+	}{
+		{
+			template:      "${FOO[~invalid]}",
+			expectedError: `invalid key in named mapping: "~invalid"`,
+		},
+		{
+			template:      "${FOO[${FOO[invalid]}]}",
+			expectedError: `invalid key in named mapping: "${FOO[invalid]}" (resolved to "invalid]")`,
+		},
+		{
+			template:      "${FOO[$$]}",
+			expectedError: `invalid key in named mapping: "$$" (resolved to "$")`,
+		},
+		{
+			template:      "${FOO[$$FOO]}",
+			expectedError: `invalid key in named mapping: "$$FOO" (resolved to "$FOO")`,
+		},
+		{
+			template:      "${FOO[$${FOO}]}",
+			expectedError: `invalid key in named mapping: "$${FOO}" (resolved to "${FOO}")`,
+		},
+		{
+			template:      "${FOO[${FOO}~invalid]}",
+			expectedError: `invalid key in named mapping: "${FOO}~invalid" (resolved to "first~invalid")`,
+		},
+		{
+			template:      "${FOO[${BAR[UNSET]}valid]}",
+			expectedError: `named mapping not found: "BAR"`,
+		},
+	}
+	for _, tc := range testCases {
+		_, err := SubstituteWithOptions(tc.template, defaultMapping, WithNamedMappings(invalidMappings))
+		assert.ErrorContains(t, err, tc.expectedError)
+	}
+}
+
+func TestNonBracedWithNamedMappings(t *testing.T) {
+	substituted, err := SubstituteWithOptions("$foo[bar]-bar", defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+	assert.NilError(t, err)
+	assert.Equal(t, substituted, "[bar]-bar", "Named mappings bust be wrapped in brace to work. Expected [bar]-bar, got %s", substituted)
+}
+
+func TestNoValueNoDefaultWithNamedMappingsDisabled(t *testing.T) {
+	// NOTE: Named mappings disabled, and `missing[foo]/FOO[BAR]` is not valid environment variable names
+	// So they will be treated as literal strings and not be substituted
+	for _, template := range []string{"This ${missing[foo]} var", "This ${FOO[BAR]} var"} {
+		result, err := Substitute(template, defaultMapping)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(template, result))
+	}
+}
+
+func TestNoValueNoDefaultWithNamedMappings(t *testing.T) {
+	// NOTE: ${FOO[BAR]} will lookup named mapping `FOO`, instead of environment variable `FOO`
+	// and ${missing[foo]} will lookup named mapping `missing`, which does not exist and error will be thrown
+	for _, template := range []string{"This ${missing[foo]} var", "This ${FOO[BAR]} var"} {
+		result, err := SubstituteWithOptions(template, defaultMapping, WithNamedMappings(NamedMappings{"FOO": envMapping}))
+		if err != nil {
+			assert.ErrorContains(t, err, fmt.Sprintf("named mapping not found: %q", "missing"))
+			assert.ErrorType(t, err, reflect.TypeOf(&MissingNamedMappingError{}))
+		} else {
+			assert.Check(t, is.Equal("This  var", result))
+		}
+	}
+}
+
+func TestValueNoDefaultWithNamedMappings(t *testing.T) {
+	// NOTE: In first case, $FOO still looks up environment variable `FOO`,
+	// while in second case, ${FOO[FOO]} will lookup named mapping `FOO`, which reuses defaultMapping to continue looking up environment variable `FOO`
+	for _, template := range []string{"This $FOO var", "This ${FOO[FOO]} var"} {
+		result, err := SubstituteWithOptions(template, defaultMapping, WithNamedMappings(NamedMappings{"FOO": envMapping}))
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal("This first var", result))
+	}
+}
+
+func TestInterpolationExternalInterferenceWithNamedMappings(t *testing.T) {
+	testCases := []struct {
+		name     string
+		template string
+		expected string
+	}{
+		{
+			template: "[ok] ${env[UNSET]}",
+			expected: "[ok] ",
+		},
+		{
+			template: "[ok] ${env[FOO]}",
+			expected: "[ok] first",
+		},
+		{
+			template: "[ok] ${env[FOO]} ${env[${BAR:-FOO}]}",
+			expected: "[ok] first first", // Properly handled with `getFirstBraceClosingIndex`
+		},
+		{
+			template: "aaa-${env[${env[${UNSET:-$FOO}]}]}?-:${env[${BAR:-FOO}]}}-${BAR:-test${UNSET:-$FOO}}:-bbb",
+			expected: "aaa-?-:first}-testfirst:-bbb",
+		},
+	}
+	for i, tc := range testCases {
+		tc := tc
+		t.Run(fmt.Sprintf("Interpolation Should not be impacted by outer text: %d", i), func(t *testing.T) {
+			result, err := SubstituteWithOptions(tc.template, defaultMapping, WithNamedMappings(NamedMappings{"env": envMapping}))
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(tc.expected, result))
+		})
+	}
+}
+
+func TestSubstituteWithCustomFuncWithNamedMappings(t *testing.T) {
+	errIsMissing := func(substitution string, mapping Mapping) (string, bool, error) {
+		var value string
+		var found bool
+		if strings.HasPrefix(substitution, "env[") {
+			substitution = strings.TrimSuffix(strings.TrimPrefix(substitution, "env["), "]")
+			value, found = envMapping(substitution)
+		}
+		if !found {
+			value, found = mapping(substitution)
+		}
+		if !found {
+			return "", true, &InvalidTemplateError{
+				Template: fmt.Sprintf("required variable %s is missing a value", substitution),
+			}
+		}
+		return value, true, nil
+	}
+
+	result, err := SubstituteWithOptions("ok ${env[FOO]}", defaultMapping,
+		WithPattern(DefaultPattern), WithSubstitutionFunction(errIsMissing), WithNamedMappings(NamedMappings{"env": envMapping}))
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok first", result))
+
+	result, err = SubstituteWith("ok ${BAR}", defaultMapping, DefaultPattern, errIsMissing)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok ", result))
+
+	_, err = SubstituteWith("ok ${NOTHERE}", defaultMapping, DefaultPattern, errIsMissing)
+	assert.Check(t, is.ErrorContains(err, "required variable"))
 }
