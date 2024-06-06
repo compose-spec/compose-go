@@ -30,6 +30,11 @@ test: ## Run tests
 fmt: ## Format go files
 	go fmt ./...
 
+.PHONY: deepcopy
+deepcopy:
+	goderive -h >/dev/null 2>&1 || go install github.com/ndeloof/goderive@fcca624b32e4a982a95a6034d7627b3c6b9a674e
+	goderive ./types/...
+
 .PHONY: build-validate-image
 build-validate-image:
 	docker build . -f ci/Dockerfile -t $(IMAGE_PREFIX)validate
