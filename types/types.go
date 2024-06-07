@@ -698,7 +698,7 @@ type NetworkConfig struct {
 	Internal   bool       `yaml:"internal,omitempty" json:"internal,omitempty"`
 	Attachable bool       `yaml:"attachable,omitempty" json:"attachable,omitempty"`
 	Labels     Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
-	EnableIPv6 bool       `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
+	EnableIPv6 *bool      `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
