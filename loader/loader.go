@@ -85,13 +85,13 @@ type Options struct {
 	Listeners []Listener
 }
 
-var versionWarning []string
+var versionObsolete []string
 
-func (o *Options) warnObsoleteVersion(file string) {
-	if !slices.Contains(versionWarning, file) {
-		logrus.Warning(fmt.Sprintf("%s: `version` is obsolete", file))
+func (o *Options) informObsoleteVersion(file string) {
+	if !slices.Contains(versionObsolete, file) {
+		logrus.Info(fmt.Sprintf("%s: `version` is obsolete", file))
 	}
-	versionWarning = append(versionWarning, file)
+	versionObsolete = append(versionObsolete, file)
 }
 
 type Listener = func(event string, metadata map[string]any)
@@ -423,7 +423,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 					return fmt.Errorf("validating %s: %w", file.Filename, err)
 				}
 				if _, ok := dict["version"]; ok {
-					opts.warnObsoleteVersion(file.Filename)
+					opts.informObsoleteVersion(file.Filename)
 					delete(dict, "version")
 				}
 			}
