@@ -89,7 +89,7 @@ var versionWarning []string
 
 func (o *Options) warnObsoleteVersion(file string) {
 	if !slices.Contains(versionWarning, file) {
-		logrus.Warning(fmt.Sprintf("%s: `version` is obsolete", file))
+		logrus.Warning(fmt.Sprintf("%s: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion", file))
 	}
 	versionWarning = append(versionWarning, file)
 }
