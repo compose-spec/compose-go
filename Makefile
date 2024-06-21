@@ -32,7 +32,7 @@ fmt: ## Format go files
 
 .PHONY: deepcopy
 deepcopy:
-	goderive -h >/dev/null 2>&1 || go install github.com/ndeloof/goderive@fcca624b32e4a982a95a6034d7627b3c6b9a674e
+	goderive -h >/dev/null 2>&1 || go install github.com/awalterschulze/goderive@0a721d5b1d722ae6ba0dddefa1200607ca3ece97
 	goderive ./types/...
 
 .PHONY: build-validate-image
