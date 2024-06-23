@@ -69,7 +69,7 @@ func TestInterpolate(t *testing.T) {
 
 func TestInterpolateWithKeysToInterpolate(t *testing.T) {
 	services := map[string]interface{}{
-		"servicea": map[string]interface{}{
+		"services": map[string]interface{}{
 			"image":   "example:${USER}",
 			"volumes": []interface{}{"$FOO:/target"},
 			"logging": map[string]interface{}{
@@ -81,11 +81,11 @@ func TestInterpolateWithKeysToInterpolate(t *testing.T) {
 		},
 	}
 	expected := map[string]interface{}{
-		"servicea": map[string]interface{}{
+		"services": map[string]interface{}{
 			"image":   "example:${USER}",
-			"volumes": []interface{}{"bar:/target"},
+			"volumes": []interface{}{"$FOO:/target"},
 			"logging": map[string]interface{}{
-				"driver": "${FOO}",
+				"driver": "bar",
 				"options": map[string]interface{}{
 					"user": "jenny",
 				},
@@ -94,8 +94,11 @@ func TestInterpolateWithKeysToInterpolate(t *testing.T) {
 	}
 	result, err := Interpolate(
 		services, Options{
-			LookupValue:       defaultMapping,
-			KeysToInterpolate: []string{"volumes", "user"},
+			LookupValue: defaultMapping,
+			PathsToInterpolate: []tree.Path{
+				tree.NewPath("services.**.driver"),
+				tree.NewPath("services.logging.**.user"),
+			},
 		},
 	)
 	assert.NilError(t, err)

@@ -20,14 +20,20 @@ import (
 	"strings"
 )
 
-const pathSeparator = "."
+const (
+	pathSeparator = "."
 
-// PathMatchAll is a token used as part of a Path to match any key at that level
-// in the nested structure
-const PathMatchAll = "*"
+	// PathMatchAnything is a token used as part of a Path to match any key at that
+	// and all levels in the nested structure
+	PathMatchAnything = "**"
 
-// PathMatchList is a token used as part of a Path to match items in a list
-const PathMatchList = "[]"
+	// PathMatchAll is a token used as part of a Path to match any key at that level
+	// in the nested structure
+	PathMatchAll = "*"
+
+	// PathMatchList is a token used as part of a Path to match items in a list
+	PathMatchList = "[]"
+)
 
 // Path is a dotted path of keys to a value in a nested mapping structure. A *
 // section in a path will match any key in the mapping structure.
@@ -51,32 +57,50 @@ func (p Path) Parts() []string {
 	return strings.Split(string(p), pathSeparator)
 }
 
-func (p Path) ContainsPart(part string) bool {
-	parts := p.Parts()
-	for _, p := range parts {
-		if p == part {
-			return true
-		}
-	}
-	return false
-}
-
 func (p Path) Matches(pattern Path) bool {
 	patternParts := pattern.Parts()
 	parts := p.Parts()
 
-	if len(patternParts) != len(parts) {
-		return false
-	}
-	for index, part := range parts {
-		switch patternParts[index] {
-		case PathMatchAll, part:
+	shouldMatchAnything := false
+	patternIdx := 0
+	for _, part := range parts {
+		if patternIdx >= len(patternParts) {
+			return shouldMatchAnything
+		}
+		switch patternParts[patternIdx] {
+		case part:
+			shouldMatchAnything = false
+			patternIdx++
+			continue
+		case PathMatchAll:
+			patternIdx++
+			continue
+		case PathMatchAnything:
+			shouldMatchAnything = true
+			patternIdx++
 			continue
 		default:
+			if shouldMatchAnything {
+				continue
+			}
 			return false
 		}
 	}
-	return true
+	return patternIdx == len(patternParts)
+}
+
+func (p Path) MatchesAny(patterns []Path) bool {
+	if patterns == nil {
+		return true
+	}
+
+	for _, pathToInterpolate := range patterns {
+		if p.Matches(pathToInterpolate) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (p Path) Last() string {

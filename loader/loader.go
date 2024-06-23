@@ -362,7 +362,10 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 
 	if opts.Interpolate != nil && !opts.SkipInterpolation {
 		interpolateOptsBeforeMerge = opts.Interpolate.Clone()
-		interpolateOptsBeforeMerge.KeysToInterpolate = []string{"include", "extends"}
+		interpolateOptsBeforeMerge.PathsToInterpolate = []tree.Path{
+			tree.NewPath("services", tree.PathMatchAll, "extends", tree.PathMatchAnything),
+			tree.NewPath("include", tree.PathMatchAnything),
+		}
 	}
 	for _, file := range config.ConfigFiles {
 		fctx := context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
