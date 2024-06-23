@@ -378,13 +378,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				return errors.New("Top-level object must be a mapping")
 			}
 
-			if opts.Interpolate != nil && !opts.SkipInterpolation {
-				cfg, err = interp.Interpolate(cfg, *opts.Interpolate)
-				if err != nil {
-					return err
-				}
-			}
-
 			fixEmptyNotNull(cfg)
 
 			if !opts.SkipExtends {
@@ -419,9 +412,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			}
 
 			if !opts.SkipValidation {
-				if err := schema.Validate(dict); err != nil {
-					return fmt.Errorf("validating %s: %w", file.Filename, err)
-				}
 				if _, ok := dict["version"]; ok {
 					opts.warnObsoleteVersion(file.Filename)
 					delete(dict, "version")
@@ -452,6 +442,19 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			if err := processRawYaml(file.Config); err != nil {
 				return nil, err
 			}
+		}
+	}
+
+	if opts.Interpolate != nil && !opts.SkipInterpolation {
+		dict, err = interp.Interpolate(dict, *opts.Interpolate)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if !opts.SkipValidation {
+		if err := schema.Validate(dict); err != nil {
+			return nil, fmt.Errorf("validating: %w", err)
 		}
 	}
 

@@ -2476,7 +2476,7 @@ func TestDeviceWriteBps(t *testing.T) {
 
 func TestInvalidProjectNameType(t *testing.T) {
 	p, err := loadYAML(`name: 123`)
-	assert.Error(t, err, "validating filename0.yml: name must be a string")
+	assert.Error(t, err, "validating: name must be a string")
 	assert.Assert(t, is.Nil(p))
 }
 
@@ -2951,7 +2951,7 @@ services:
 `, nil), func(options *Options) {
 		options.ResolvePaths = false
 	})
-	assert.ErrorContains(t, err, "validating filename0.yml: services.frontend.develop.watch.0 action is required")
+	assert.ErrorContains(t, err, "validating: services.frontend.develop.watch.0 action is required")
 }
 
 func TestBadServiceConfig(t *testing.T) {
