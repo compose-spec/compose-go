@@ -51,6 +51,16 @@ func (p Path) Parts() []string {
 	return strings.Split(string(p), pathSeparator)
 }
 
+func (p Path) ContainsPart(part string) bool {
+	parts := p.Parts()
+	for _, p := range parts {
+		if p == part {
+			return true
+		}
+	}
+	return false
+}
+
 func (p Path) Matches(pattern Path) bool {
 	patternParts := pattern.Parts()
 	parts := p.Parts()

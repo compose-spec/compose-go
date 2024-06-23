@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 
 	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -121,7 +120,17 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 }
 
 func shouldInterpolate(path tree.Path, keysToInterpolate []string) bool {
-	return keysToInterpolate == nil || slices.Contains(keysToInterpolate, path.Last())
+	if keysToInterpolate == nil {
+		return true
+	}
+
+	for _, key := range keysToInterpolate {
+		if path.ContainsPart(key) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func newPathError(path tree.Path, err error) error {
