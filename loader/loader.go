@@ -424,6 +424,16 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 				return err
 			}
 
+			if !opts.SkipValidation {
+				if err := schema.Validate(dict); err != nil {
+					return fmt.Errorf("validating %s: %w", file.Filename, err)
+				}
+				if _, ok := dict["version"]; ok {
+					opts.warnObsoleteVersion(file.Filename)
+					delete(dict, "version")
+				}
+			}
+
 			return err
 		}
 
