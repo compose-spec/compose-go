@@ -67,3 +67,70 @@ func TestPathMatches(t *testing.T) {
 		assert.Check(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)))
 	}
 }
+
+func TestPathContainsPart(t *testing.T) {
+	var testcases = []struct {
+		doc      string
+		path     Path
+		part     string
+		expected bool
+	}{
+		{
+			doc:      "empty pattern",
+			path:     NewPath(),
+			part:     "one",
+			expected: false,
+		},
+		{
+			doc:      "path does not contain part",
+			path:     NewPath("one", "two", "three"),
+			part:     "four",
+			expected: false,
+		},
+		{
+			doc:      "part is empty",
+			path:     NewPath("one", "two", "three"),
+			part:     "",
+			expected: false,
+		},
+		{
+			doc:      "part partially matches",
+			path:     NewPath("one", "two", "three"),
+			part:     "on",
+			expected: false,
+		},
+		{
+			doc:      "part partially matches 2",
+			path:     NewPath("one", "two", "three"),
+			part:     "onet",
+			expected: false,
+		},
+		{
+			doc:      "equals",
+			path:     NewPath("one"),
+			part:     "one",
+			expected: true,
+		},
+		{
+			doc:      "path starts with part",
+			path:     NewPath("one", "two"),
+			part:     "one",
+			expected: true,
+		},
+		{
+			doc:      "path ends with part",
+			path:     NewPath("something", "one"),
+			part:     "one",
+			expected: true,
+		},
+		{
+			doc:      "part in the middle of the path",
+			path:     NewPath("one", "two", "three"),
+			part:     "two",
+			expected: true,
+		},
+	}
+	for _, testcase := range testcases {
+		assert.Check(t, is.Equal(testcase.expected, testcase.path.ContainsPart(testcase.part)))
+	}
+}

@@ -67,6 +67,41 @@ func TestInterpolate(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expected, result))
 }
 
+func TestInterpolateWithKeysToInterpolate(t *testing.T) {
+	services := map[string]interface{}{
+		"servicea": map[string]interface{}{
+			"image":   "example:${USER}",
+			"volumes": []interface{}{"$FOO:/target"},
+			"logging": map[string]interface{}{
+				"driver": "${FOO}",
+				"options": map[string]interface{}{
+					"user": "$USER",
+				},
+			},
+		},
+	}
+	expected := map[string]interface{}{
+		"servicea": map[string]interface{}{
+			"image":   "example:${USER}",
+			"volumes": []interface{}{"bar:/target"},
+			"logging": map[string]interface{}{
+				"driver": "${FOO}",
+				"options": map[string]interface{}{
+					"user": "jenny",
+				},
+			},
+		},
+	}
+	result, err := Interpolate(
+		services, Options{
+			LookupValue:       defaultMapping,
+			KeysToInterpolate: []string{"volumes", "user"},
+		},
+	)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(expected, result))
+}
+
 func TestInvalidInterpolation(t *testing.T) {
 	services := map[string]interface{}{
 		"servicea": map[string]interface{}{
