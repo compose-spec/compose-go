@@ -358,6 +358,12 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		dict = map[string]interface{}{}
 		err  error
 	)
+	var interpolateOptsBeforeMerge interp.Options
+
+	if opts.Interpolate != nil && !opts.SkipInterpolation {
+		interpolateOptsBeforeMerge = opts.Interpolate.Clone()
+		interpolateOptsBeforeMerge.KeysToInterpolate = []string{"include", "extends"}
+	}
 	for _, file := range config.ConfigFiles {
 		fctx := context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
 		if file.Content == nil && file.Config == nil {
@@ -376,6 +382,13 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			cfg, ok := converted.(map[string]interface{})
 			if !ok {
 				return errors.New("Top-level object must be a mapping")
+			}
+
+			if opts.Interpolate != nil && !opts.SkipInterpolation {
+				cfg, err = interp.Interpolate(cfg, interpolateOptsBeforeMerge)
+				if err != nil {
+					return err
+				}
 			}
 
 			fixEmptyNotNull(cfg)
@@ -409,13 +422,6 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			dict, err = override.EnforceUnicity(dict)
 			if err != nil {
 				return err
-			}
-
-			if !opts.SkipValidation {
-				if _, ok := dict["version"]; ok {
-					opts.warnObsoleteVersion(file.Filename)
-					delete(dict, "version")
-				}
 			}
 
 			return err

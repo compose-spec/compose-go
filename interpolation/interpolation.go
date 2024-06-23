@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 
 	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -33,6 +34,8 @@ type Options struct {
 	TypeCastMapping map[tree.Path]Cast
 	// Substitution function to use
 	Substitute func(string, template.Mapping) (string, error)
+	// Keys to interpolate, if nil all keys are interpolated
+	KeysToInterpolate []string
 }
 
 // LookupValue is a function which maps from variable names to values.
@@ -72,6 +75,10 @@ func Interpolate(config map[string]interface{}, opts Options) (map[string]interf
 func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (interface{}, error) {
 	switch value := value.(type) {
 	case string:
+		if !shouldInterpolate(path, opts.KeysToInterpolate) {
+			return value, nil
+		}
+
 		newValue, err := opts.Substitute(value, template.Mapping(opts.LookupValue))
 		if err != nil {
 			return value, newPathError(path, err)
@@ -113,6 +120,10 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 	}
 }
 
+func shouldInterpolate(path tree.Path, keysToInterpolate []string) bool {
+	return keysToInterpolate == nil || slices.Contains(keysToInterpolate, path.Last())
+}
+
 func newPathError(path tree.Path, err error) error {
 	var ite *template.InvalidTemplateError
 	switch {
@@ -134,4 +145,8 @@ func (o Options) getCasterForPath(path tree.Path) (Cast, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (o Options) Clone() Options {
+	return o
 }
