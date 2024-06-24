@@ -82,16 +82,17 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 	)
 
 	if file != nil {
-		filename = file.(string)
-		services, processor, err = getExtendsBaseFromFile(ctx, ref, filename, opts, tracker)
+		refFilename := file.(string)
+		services, processor, err = getExtendsBaseFromFile(ctx, name, ref, filename, refFilename, opts, tracker)
 		post = append(post, processor)
 		if err != nil {
 			return nil, err
 		}
+		filename = refFilename
 	} else {
 		_, ok := services[ref]
 		if !ok {
-			return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, filename)
+			return nil, fmt.Errorf("cannot extend service %q in %s: service %q not found", name, filename, ref)
 		}
 	}
 
@@ -127,17 +128,17 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 	return merged, nil
 }
 
-func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts *Options, ct *cycleTracker) (map[string]any, PostProcessor, error) {
+func getExtendsBaseFromFile(ctx context.Context, 	name, ref string, path, refPath string, opts *Options, ct *cycleTracker) (map[string]any, PostProcessor, error) {
 	for _, loader := range opts.ResourceLoaders {
-		if !loader.Accept(path) {
+		if !loader.Accept(refPath) {
 			continue
 		}
-		local, err := loader.Load(ctx, path)
+		local, err := loader.Load(ctx, refPath)
 		if err != nil {
 			return nil, nil, err
 		}
 		localdir := filepath.Dir(local)
-		relworkingdir := loader.Dir(path)
+		relworkingdir := loader.Dir(refPath)
 
 		extendsOpts := opts.clone()
 		// replace localResourceLoader with a new flavour, using extended file base path
@@ -157,9 +158,15 @@ func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts 
 			return nil, nil, err
 		}
 		services := source["services"].(map[string]any)
-		_, ok := services[name]
+		_, ok := services[ref]
 		if !ok {
-			return nil, nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, path)
+			return nil, nil, fmt.Errorf(
+				"cannot extend service %q in %s: service %q not found in %s",
+				name,
+				path,
+				ref,
+				refPath,
+			)
 		}
 
 		var remotes []paths.RemoteResource
@@ -173,7 +180,7 @@ func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts 
 
 		return services, processor, nil
 	}
-	return nil, nil, fmt.Errorf("cannot read %s", path)
+	return nil, nil, fmt.Errorf("cannot read %s", refPath)
 }
 
 func deepClone(value any) any {
