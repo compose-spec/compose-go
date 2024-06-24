@@ -1689,6 +1689,7 @@ networks:
 
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
+	enableIPv6 := true
 	expected := &types.Project{
 		Name:       "load-network-link-local-ips",
 		WorkingDir: workingDir,
@@ -1711,7 +1712,7 @@ networks:
 			"network1": {
 				Name:       "network1",
 				Driver:     "bridge",
-				EnableIPv6: true,
+				EnableIPv6: &enableIPv6,
 				Ipam: types.IPAMConfig{
 					Config: []*types.IPAMPool{
 						{Subnet: "10.1.0.0/16"},
