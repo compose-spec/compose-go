@@ -62,8 +62,116 @@ func TestPathMatches(t *testing.T) {
 			pattern:  NewPath("one", "two", "three"),
 			expected: true,
 		},
+		{
+			doc:      "any at the beginning",
+			path:     NewPath("one", "two", "three"),
+			pattern:  NewPath("**", "three"),
+			expected: true,
+		},
+		{
+			doc:      "any at the beginning followed by a wrong part",
+			path:     NewPath("one", "two", "three"),
+			pattern:  NewPath("**", "four"),
+			expected: false,
+		},
+		{
+			doc:      "any in the middle",
+			path:     NewPath("one", "two", "three", "four"),
+			pattern:  NewPath("one", "**", "four"),
+			expected: true,
+		},
+		{
+			doc:      "any in the middle followed by a wrong part",
+			path:     NewPath("one", "two", "three", "four"),
+			pattern:  NewPath("one", "**", "five"),
+			expected: false,
+		},
+		{
+			doc:      "any at the end",
+			path:     NewPath("one", "two", "three", "four", "five", "six"),
+			pattern:  NewPath("one", "two", "three", "**"),
+			expected: true,
+		},
 	}
 	for _, testcase := range testcases {
-		assert.Check(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)))
+		assert.Assert(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)), testcase.doc)
+	}
+}
+
+func TestPathMatchesAny(t *testing.T) {
+	var testcases = []struct {
+		doc      string
+		path     Path
+		patterns []Path
+		expected bool
+	}{
+		{
+			doc:      "empty patterns slice should return true",
+			path:     NewPath("one", "two", "three"),
+			patterns: nil,
+			expected: true,
+		},
+		{
+			doc:      "match with one pattern containing *",
+			path:     NewPath("one", "two", "three"),
+			patterns: []Path{NewPath("one", "*", "three")},
+			expected: true,
+		},
+		{
+			doc:      "match with multiple patterns including",
+			path:     NewPath("one", "two", "three"),
+			patterns: []Path{NewPath("one", "*", "three"), NewPath("one", "two", "four"), NewPath("**", "two", "four")},
+			expected: true,
+		},
+		{
+			doc:      "match with ** at the beginning",
+			path:     NewPath("one", "two", "three"),
+			patterns: []Path{NewPath("**", "three")},
+			expected: true,
+		},
+		{
+			doc:      "match with ** in the middle",
+			path:     NewPath("one", "two", "three", "four"),
+			patterns: []Path{NewPath("one", "**", "four")},
+			expected: true,
+		},
+		{
+			doc:      "match with ** at the end",
+			path:     NewPath("one", "two", "three", "four", "five", "six"),
+			patterns: []Path{NewPath("one", "two", "three", "**")},
+			expected: true,
+		},
+		{
+			doc:  "no match with any pattern",
+			path: NewPath("one", "two", "three"),
+			patterns: []Path{
+				NewPath("one", "four", "three"),
+				NewPath("not one", "**", "three"),
+				NewPath("not one", "**", "three"),
+			},
+			expected: false,
+		},
+		{
+			doc:      "empty path should not match any non-empty pattern",
+			path:     NewPath(""),
+			patterns: []Path{NewPath("one")},
+			expected: false,
+		},
+		{
+			doc:      "empty path should match empty pattern",
+			path:     NewPath(""),
+			patterns: []Path{NewPath("")},
+			expected: true,
+		},
+		{
+			doc:      "empty pattern should match empty path",
+			path:     NewPath(""),
+			patterns: []Path{NewPath("")},
+			expected: true,
+		},
+	}
+
+	for _, tc := range testcases {
+		assert.Equal(t, tc.expected, tc.path.MatchesAny(tc.patterns), tc.doc)
 	}
 }

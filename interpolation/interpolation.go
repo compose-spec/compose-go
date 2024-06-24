@@ -33,6 +33,8 @@ type Options struct {
 	TypeCastMapping map[tree.Path]Cast
 	// Substitution function to use
 	Substitute func(string, template.Mapping) (string, error)
+	// Paths to interpolate, if nil all paths are interpolated
+	PathsToInterpolate []tree.Path
 }
 
 // LookupValue is a function which maps from variable names to values.
@@ -72,6 +74,10 @@ func Interpolate(config map[string]interface{}, opts Options) (map[string]interf
 func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (interface{}, error) {
 	switch value := value.(type) {
 	case string:
+		if !path.MatchesAny(opts.PathsToInterpolate) {
+			return value, nil
+		}
+
 		newValue, err := opts.Substitute(value, template.Mapping(opts.LookupValue))
 		if err != nil {
 			return value, newPathError(path, err)
@@ -134,4 +140,8 @@ func (o Options) getCasterForPath(path tree.Path) (Cast, bool) {
 		}
 	}
 	return nil, false
+}
+
+func (o Options) Clone() Options {
+	return o
 }
