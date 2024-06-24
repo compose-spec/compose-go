@@ -381,6 +381,13 @@ func WithoutEnvironmentResolution(o *ProjectOptions) error {
 	return nil
 }
 
+func WithKeepEmptyEnvironment(o *ProjectOptions) error {
+	o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
+		options.KeepEmptyEnvironment = true
+	})
+	return nil
+}
+
 // DefaultFileNames defines the Compose file names for auto-discovery (in order of preference)
 var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"}
 
