@@ -61,28 +61,33 @@ func (p Path) Matches(pattern Path) bool {
 	patternParts := pattern.Parts()
 	parts := p.Parts()
 
-	shouldMatchAnything := false
 	patternIdx := 0
-	for _, part := range parts {
+	for i := 0; i < len(parts); i++ {
 		if patternIdx >= len(patternParts) {
-			return shouldMatchAnything
+			return false
 		}
 		switch patternParts[patternIdx] {
-		case part:
-			shouldMatchAnything = false
+		case parts[i]:
 			patternIdx++
 			continue
 		case PathMatchAll:
 			patternIdx++
 			continue
 		case PathMatchAnything:
-			shouldMatchAnything = true
-			patternIdx++
+			// If this is the last pattern part, it should match any remaining parts in 'parts'
+			if patternIdx == len(patternParts)-1 {
+				return true
+			}
+			// Otherwise, we need to find the next matching part in 'parts'
+			for j := i; j < len(parts); j++ {
+				if parts[j] == patternParts[patternIdx+1] {
+					i = j // Jump 'i' to the matching part in 'parts'
+					patternIdx += 2
+					break
+				}
+			}
 			continue
 		default:
-			if shouldMatchAnything {
-				continue
-			}
 			return false
 		}
 	}
