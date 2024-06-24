@@ -201,6 +201,39 @@ func TestProjectName(t *testing.T) {
 	})
 }
 
+/**
+func WithUserEnv(o *ProjectOptions) error {
+	if _, ok := o.Environment[consts.ComposeUserId]; !ok {
+		o.Environment[consts.ComposeUserId] = strconv.Itoa(os.Getuid())
+	}
+	if _, ok := o.Environment[consts.ComposeGroupId]; !ok {
+		o.Environment[consts.ComposeGroupId] = strconv.Itoa(os.Getgid())
+	}
+	return nil
+}
+*/
+
+func TestWithUserEnv(t *testing.T) {
+	opts, err := NewProjectOptions([]string{"testdata/simple/compose-with-user-variables.yaml"})
+	assert.NilError(t, err)
+
+	getUid = func() int { return 111 }
+	getGid = func() int { return 222 }
+
+	_ = WithUserEnv(opts)
+	assert.Equal(t, opts.Environment[consts.ComposeUserId], "111")
+	assert.Equal(t, opts.Environment[consts.ComposeGroupId], "222")
+
+	opts.Environment = map[string]string{
+		consts.ComposeUserId:  "333",
+		consts.ComposeGroupId: "444",
+	}
+	_ = WithUserEnv(opts)
+
+	assert.Equal(t, opts.Environment[consts.ComposeUserId], "333")
+	assert.Equal(t, opts.Environment[consts.ComposeGroupId], "444")
+}
+
 func TestProjectFromSetOfFiles(t *testing.T) {
 	opts, err := NewProjectOptions([]string{
 		"testdata/simple/compose.yaml",

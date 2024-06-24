@@ -86,6 +86,11 @@ type ProjectOptions struct {
 
 type ProjectOptionsFn func(*ProjectOptions) error
 
+var (
+	getUid = os.Getuid
+	getGid = os.Getgid
+)
+
 // NewProjectOptions creates ProjectOptions
 func NewProjectOptions(configs []string, opts ...ProjectOptionsFn) (*ProjectOptions, error) {
 	options := &ProjectOptions{
@@ -242,6 +247,16 @@ func WithOsEnv(o *ProjectOptions) error {
 			continue
 		}
 		o.Environment[k] = v
+	}
+	return nil
+}
+
+func WithUserEnv(o *ProjectOptions) error {
+	if _, ok := o.Environment[consts.ComposeUserId]; !ok {
+		o.Environment[consts.ComposeUserId] = strconv.Itoa(getUid())
+	}
+	if _, ok := o.Environment[consts.ComposeGroupId]; !ok {
+		o.Environment[consts.ComposeGroupId] = strconv.Itoa(getGid())
 	}
 	return nil
 }

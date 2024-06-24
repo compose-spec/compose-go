@@ -22,6 +22,8 @@ const (
 	ComposeFilePath              = "COMPOSE_FILE"
 	ComposeDisableDefaultEnvFile = "COMPOSE_DISABLE_ENV_FILE"
 	ComposeProfiles              = "COMPOSE_PROFILES"
+	ComposeUserId                = "COMPOSE_USER_ID"
+	ComposeGroupId               = "COMPOSE_GROUP_ID"
 )
 
 const Extensions = "#extensions" // Using # prefix, we prevent risk to conflict with an actual yaml key
