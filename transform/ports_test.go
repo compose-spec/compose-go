@@ -87,3 +87,40 @@ func Test_transformPorts(t *testing.T) {
 		})
 	}
 }
+
+func Test_portDefaults(t *testing.T) {
+	tests := []struct {
+		name             string
+		yaml             any
+		ignoreParseError bool
+		want             any
+		wantErr          string
+	}{
+		{
+			name: "default port",
+			yaml: map[string]any{
+				"target":    80,
+				"published": 8080,
+			},
+			want: map[string]any{
+				"mode":      "ingress",
+				"protocol":  "tcp",
+				"published": 8080,
+				"target":    80,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := portDefaults(tt.yaml, tree.NewPath("services.foo.ports"), tt.ignoreParseError)
+			if tt.wantErr != "" {
+				assert.Error(t, err, tt.wantErr)
+				return
+			}
+			assert.NilError(t, err)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("transformPorts() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
