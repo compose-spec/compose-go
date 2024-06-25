@@ -197,6 +197,7 @@ var samplePortsConfig = []types.ServicePortConfig{
 		Protocol: "tcp",
 	},
 	{
+		Mode:      "ingress",
 		Target:    53,
 		Published: "10053",
 		Protocol:  "udp",
@@ -205,6 +206,7 @@ var samplePortsConfig = []types.ServicePortConfig{
 		Mode:      "host",
 		Target:    22,
 		Published: "10022",
+		Protocol:  "tcp",
 	},
 }
 
@@ -856,7 +858,7 @@ networks:
 				Ports: []types.ServicePortConfig{
 					{Target: 555, Mode: "ingress", Protocol: "tcp"},
 					{Target: 34567, Mode: "ingress", Protocol: "tcp"},
-					{Target: 555, Published: "555", Extensions: map[string]interface{}{"x-foo-bar": true}},
+					{Target: 555, Mode: "ingress", Protocol: "tcp", Published: "555", Extensions: map[string]interface{}{"x-foo-bar": true}},
 				},
 				Ulimits: map[string]*types.UlimitsConfig{
 					"nproc":  {Single: 555},
