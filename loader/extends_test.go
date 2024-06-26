@@ -465,3 +465,22 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, extendsCount, 2)
 }
+
+func TestExtendsReset(t *testing.T) {
+	yaml := `
+name: test-extends-reset
+services:
+  test:
+    extends:
+      file: testdata/extends/reset.yaml
+      service: base
+`
+	p, err := Load(types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{
+			Content:  []byte(yaml),
+			Filename: "-",
+		}},
+	})
+	assert.NilError(t, err)
+	assert.Check(t, p.Services["test"].Command == nil)
+}
