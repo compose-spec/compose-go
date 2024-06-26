@@ -1,0 +1,7 @@
+services:
+  init:
+    image: alpine:latest
+    command: "sleep infinity"
+  base:
+    extends: { service: init }
+    command: !reset
