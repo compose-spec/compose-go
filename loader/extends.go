@@ -23,6 +23,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/override"
+	"github.com/compose-spec/compose-go/v2/paths"
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
@@ -75,10 +76,15 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 		opts.ProcessEvent("extends", map[string]any{"service": ref})
 	}
 
-	var base any
+	var (
+		base      any
+		processor PostProcessor
+	)
+
 	if file != nil {
 		filename = file.(string)
-		services, err = getExtendsBaseFromFile(ctx, ref, filename, opts, tracker)
+		services, processor, err = getExtendsBaseFromFile(ctx, ref, filename, opts, tracker)
+		post = append(post, processor)
 		if err != nil {
 			return nil, err
 		}
@@ -121,14 +127,14 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 	return merged, nil
 }
 
-func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts *Options, ct *cycleTracker) (map[string]any, error) {
+func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts *Options, ct *cycleTracker) (map[string]any, PostProcessor, error) {
 	for _, loader := range opts.ResourceLoaders {
 		if !loader.Accept(path) {
 			continue
 		}
 		local, err := loader.Load(ctx, path)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		localdir := filepath.Dir(local)
 		relworkingdir := loader.Dir(path)
@@ -138,30 +144,36 @@ func getExtendsBaseFromFile(ctx context.Context, name string, path string, opts 
 		extendsOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{
 			WorkingDir: localdir,
 		})
-		extendsOpts.ResolvePaths = true
+		extendsOpts.ResolvePaths = false // we do relative path resolution after file has been loaded
 		extendsOpts.SkipNormalization = true
 		extendsOpts.SkipConsistencyCheck = true
 		extendsOpts.SkipInclude = true
 		extendsOpts.SkipExtends = true    // we manage extends recursively based on raw service definition
 		extendsOpts.SkipValidation = true // we validate the merge result
 		extendsOpts.SkipDefaultValues = true
-		source, err := loadYamlModel(ctx, types.ConfigDetails{
-			WorkingDir: relworkingdir,
-			ConfigFiles: []types.ConfigFile{
-				{Filename: local},
-			},
-		}, extendsOpts, ct, nil)
+		source, processor, err := loadYamlFile(ctx, types.ConfigFile{Filename: local},
+			extendsOpts, relworkingdir, nil, ct, map[string]any{}, nil)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		services := source["services"].(map[string]any)
 		_, ok := services[name]
 		if !ok {
-			return nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, path)
+			return nil, nil, fmt.Errorf("cannot extend service %q in %s: service not found", name, path)
 		}
-		return services, nil
+
+		var remotes []paths.RemoteResource
+		for _, loader := range opts.RemoteResourceLoaders() {
+			remotes = append(remotes, loader.Accept)
+		}
+		err = paths.ResolveRelativePaths(source, relworkingdir, remotes)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		return services, processor, nil
 	}
-	return nil, fmt.Errorf("cannot read %s", path)
+	return nil, nil, fmt.Errorf("cannot read %s", path)
 }
 
 func deepClone(value any) any {
