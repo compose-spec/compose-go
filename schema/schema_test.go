@@ -17,8 +17,10 @@
 package schema
 
 import (
+	"os"
 	"testing"
 
+	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 )
 
@@ -231,5 +233,14 @@ func TestValidateRollbackConfigWithUpdateConfigFull(t *testing.T) {
 	}
 
 	assert.NilError(t, Validate(config))
+	assert.NilError(t, Validate(config))
+}
+
+func TestValidateVariables(t *testing.T) {
+	bytes, err := os.ReadFile("using-variables.yaml")
+	assert.NilError(t, err)
+	var config dict
+	err = yaml.Unmarshal(bytes, &config)
+	assert.NilError(t, err)
 	assert.NilError(t, Validate(config))
 }
