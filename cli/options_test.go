@@ -253,7 +253,7 @@ func TestProjectWithDotEnv(t *testing.T) {
 		"compose-with-variables.yaml",
 	}, WithName("my_project"), WithEnvFiles(), WithDotEnv)
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := opts.LoadProject(context.TODO())
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
