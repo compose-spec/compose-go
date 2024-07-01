@@ -1,0 +1,3 @@
+include:
+  - project_directory: ../subdir
+    path: ./dir/compose.yaml

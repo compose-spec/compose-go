@@ -161,7 +161,7 @@ volumes:
 # Phase 15: go binding
 
 Eventually, the yaml tree can be unmarshalled into go structs. We rely on
-[mapstructure](https://github.com/mitchellh/mapstructure) library for this purpose.
+[mapstructure](https://github.com/go-viper/mapstructure/) library for this purpose.
 Decoder is configured so that custom decode function can be defined by target type, 
 allowing type conversions. For example, byte units (`640k`) and durations set in yaml
 as plain string are actually modeled in go types as `int64`.

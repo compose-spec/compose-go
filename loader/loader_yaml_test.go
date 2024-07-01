@@ -55,3 +55,52 @@ services:
 		},
 	})
 }
+
+func TestParseYAMLFilesMergeOverride(t *testing.T) {
+	model, err := loadYamlModel(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{Filename: "override.yaml",
+				Content: []byte(`
+services:
+  base:
+    configs:
+      - source: credentials
+        target: /credentials/file1
+  x: &x
+    extends:
+      base
+    configs: !override
+      - source: credentials
+        target: /literally-anywhere-else
+
+  y:
+    <<: *x
+
+configs:
+  credentials:
+    content: |
+      dummy value
+`)},
+		}}, &Options{}, &cycleTracker{}, nil)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, model, map[string]interface{}{
+		"configs": map[string]interface{}{"credentials": map[string]interface{}{"content": string("dummy value\n")}},
+		"services": map[string]interface{}{
+			"base": map[string]interface{}{
+				"configs": []interface{}{
+					map[string]interface{}{"source": string("credentials"), "target": string("/credentials/file1")},
+				},
+			},
+			"x": map[string]interface{}{
+				"configs": []interface{}{
+					map[string]interface{}{"source": string("credentials"), "target": string("/literally-anywhere-else")},
+				},
+			},
+			"y": map[string]interface{}{
+				"configs": []interface{}{
+					map[string]interface{}{"source": string("credentials"), "target": string("/literally-anywhere-else")},
+				},
+			},
+		},
+	})
+}

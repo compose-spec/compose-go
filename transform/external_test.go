@@ -26,7 +26,7 @@ import (
 func TestNotExternal(t *testing.T) {
 	ssh, err := transformMaybeExternal(map[string]any{
 		"driver": "foo",
-	}, tree.NewPath("resources.test"))
+	}, tree.NewPath("resources.test"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, ssh, map[string]any{
 		"driver": "foo",
@@ -37,7 +37,7 @@ func TestExternalNamed(t *testing.T) {
 	ssh, err := transformMaybeExternal(map[string]any{
 		"external": true,
 		"name":     "foo",
-	}, tree.NewPath("resources.test"))
+	}, tree.NewPath("resources.test"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, ssh, map[string]any{
 		"external": true,
@@ -48,7 +48,7 @@ func TestExternalNamed(t *testing.T) {
 func TestExternalUnnamed(t *testing.T) {
 	ssh, err := transformMaybeExternal(map[string]any{
 		"external": true,
-	}, tree.NewPath("resources.test"))
+	}, tree.NewPath("resources.test"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, ssh, map[string]any{
 		"external": true,
@@ -60,7 +60,7 @@ func TestExternalLegacy(t *testing.T) {
 		"external": map[string]any{
 			"name": "foo",
 		},
-	}, tree.NewPath("resources.test"))
+	}, tree.NewPath("resources.test"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, ssh, map[string]any{
 		"external": true,
@@ -74,7 +74,7 @@ func TestExternalLegacyNamed(t *testing.T) {
 			"name": "foo",
 		},
 		"name": "foo",
-	}, tree.NewPath("resources.test"))
+	}, tree.NewPath("resources.test"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, ssh, map[string]any{
 		"external": true,

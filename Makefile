@@ -14,9 +14,13 @@
 
 IMAGE_PREFIX=composespec/conformance-tests-
 
+ifeq ($(OS),Windows_NT)
+	BINARY_EXT=.exe
+endif
+
 .PHONY: build
 build: ## Build command line
-	go build -o compose-spec cmd/main.go
+	go build -o bin/compose-spec-$(GOOS)-$(GOARCH)$(BINARY_EXT) cmd/main.go
 
 .PHONY: test
 test: ## Run tests
@@ -25,6 +29,11 @@ test: ## Run tests
 .PHONY: fmt
 fmt: ## Format go files
 	go fmt ./...
+
+.PHONY: deepcopy
+deepcopy:
+	goderive -h >/dev/null 2>&1 || go install github.com/awalterschulze/goderive@0a721d5b1d722ae6ba0dddefa1200607ca3ece97
+	goderive ./types/...
 
 .PHONY: build-validate-image
 build-validate-image:

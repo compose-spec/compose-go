@@ -21,10 +21,10 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/mitchellh/mapstructure"
+	"github.com/go-viper/mapstructure/v2"
 )
 
-func transformPorts(data any, p tree.Path) (any, error) {
+func transformPorts(data any, p tree.Path, ignoreParseError bool) (any, error) {
 	switch entries := data.(type) {
 	case []any:
 		// We process the list instead of individual items here.
@@ -48,7 +48,10 @@ func transformPorts(data any, p tree.Path) (any, error) {
 			case string:
 				parsed, err := types.ParsePortConfig(value)
 				if err != nil {
-					return data, err
+					if ignoreParseError {
+						return data, nil
+					}
+					return nil, err
 				}
 				if err != nil {
 					return nil, err

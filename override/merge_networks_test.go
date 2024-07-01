@@ -187,9 +187,9 @@ networks:
         bar: foo
         baz: "0"
     labels:
-      com.example.description: "Financial transaction network"
-      com.example.department-new: "New"
-      com.example.label-with-empty-value: ""
+      - "com.example.department-new=New"
+      - "com.example.description=Financial transaction network"
+      - "com.example.label-with-empty-value="
   network2:
 `, `
 services:
@@ -219,10 +219,10 @@ networks:
         bar: foo
         baz: "0"
     labels:
-      com.example.description: "Financial transaction network"
-      com.example.department: "Finance"
-      com.example.label-with-empty-value: ""
-      com.example.department-new: "New"
+      - "com.example.department=Finance"
+      - "com.example.description=Financial transaction network"
+      - "com.example.label-with-empty-value="
+      - "com.example.department-new=New"
   network2:
 `)
 }

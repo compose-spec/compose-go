@@ -18,6 +18,7 @@ package types
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,9 +26,9 @@ import (
 	"sort"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
+	"github.com/compose-spec/compose-go/v2/errdefs"
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
-	"github.com/mitchellh/copystructure"
 	godigest "github.com/opencontainers/go-digest"
 	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
@@ -47,13 +48,8 @@ type Project struct {
 	Configs    Configs    `yaml:"configs,omitempty" json:"configs,omitempty"`
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"` // https://github.com/golang/go/issues/6213
 
-	// IncludeReferences is keyed by Compose YAML filename and contains config for
-	// other Compose YAML files it directly triggered a load of via `include`.
-	//
-	// Note: this is
-	IncludeReferences map[string][]IncludeConfig `yaml:"-" json:"-"`
-	ComposeFiles      []string                   `yaml:"-" json:"-"`
-	Environment       Mapping                    `yaml:"-" json:"-"`
+	ComposeFiles []string `yaml:"-" json:"-"`
+	Environment  Mapping  `yaml:"-" json:"-"`
 
 	// DisabledServices track services which have been disable as profile is not active
 	DisabledServices Services `yaml:"-" json:"-"`
@@ -220,9 +216,9 @@ func (p *Project) GetService(name string) (ServiceConfig, error) {
 	if !ok {
 		_, ok := p.DisabledServices[name]
 		if ok {
-			return ServiceConfig{}, fmt.Errorf("service %s is disabled", name)
+			return ServiceConfig{}, fmt.Errorf("no such service: %s: %w", name, errdefs.ErrDisabled)
 		}
-		return ServiceConfig{}, fmt.Errorf("no such service: %s", name)
+		return ServiceConfig{}, fmt.Errorf("no such service: %s: %w", name, errdefs.ErrNotFound)
 	}
 	return service, nil
 }
@@ -336,6 +332,9 @@ func (s ServiceConfig) HasProfile(profiles []string) bool {
 		return true
 	}
 	for _, p := range profiles {
+		if p == "*" {
+			return true
+		}
 		for _, sp := range s.Profiles {
 			if sp == p {
 				return true
@@ -349,11 +348,6 @@ func (s ServiceConfig) HasProfile(profiles []string) bool {
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithProfiles(profiles []string) (*Project, error) {
 	newProject := p.deepCopy()
-	for _, p := range profiles {
-		if p == "*" {
-			return newProject, nil
-		}
-	}
 	enabled := Services{}
 	disabled := Services{}
 	for name, service := range newProject.AllServices() {
@@ -541,39 +535,29 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 // WithImagesResolved updates services images to include digest computed by a resolver function
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
-	newProject := p.deepCopy()
-	eg := errgroup.Group{}
-	for i, s := range newProject.Services {
-		idx := i
-		service := s
-
+	return p.WithServicesTransform(func(name string, service ServiceConfig) (ServiceConfig, error) {
 		if service.Image == "" {
-			continue
+			return service, nil
 		}
-		eg.Go(func() error {
-			named, err := reference.ParseDockerRef(service.Image)
+		named, err := reference.ParseDockerRef(service.Image)
+		if err != nil {
+			return service, err
+		}
+
+		if _, ok := named.(reference.Canonical); !ok {
+			// image is named but not digested reference
+			digest, err := resolver(named)
 			if err != nil {
-				return err
+				return service, err
 			}
-
-			if _, ok := named.(reference.Canonical); !ok {
-				// image is named but not digested reference
-				digest, err := resolver(named)
-				if err != nil {
-					return err
-				}
-				named, err = reference.WithDigest(named, digest)
-				if err != nil {
-					return err
-				}
+			named, err = reference.WithDigest(named, digest)
+			if err != nil {
+				return service, err
 			}
-
-			service.Image = named.String()
-			newProject.Services[idx] = service
-			return nil
-		})
-	}
-	return newProject, eg.Wait()
+		}
+		service.Image = named.String()
+		return service, nil
+	})
 }
 
 // MarshalYAML marshal Project into a yaml tree
@@ -611,7 +595,7 @@ func (p *Project) MarshalJSON() ([]byte, error) {
 	for k, v := range p.Extensions {
 		m[k] = v
 	}
-	return json.Marshal(m)
+	return json.MarshalIndent(m, "", "  ")
 }
 
 // WithServicesEnvironmentResolved parses env_files set for services to resolve the actual environment map for services
@@ -661,9 +645,69 @@ func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project
 }
 
 func (p *Project) deepCopy() *Project {
-	instance, err := copystructure.Copy(p)
-	if err != nil {
-		panic(err)
+	if p == nil {
+		return nil
 	}
-	return instance.(*Project)
+	n := &Project{}
+	deriveDeepCopyProject(n, p)
+	return n
+
+}
+
+// WithServicesTransform applies a transformation to project services and return a new project with transformation results
+func (p *Project) WithServicesTransform(fn func(name string, s ServiceConfig) (ServiceConfig, error)) (*Project, error) {
+	type result struct {
+		name    string
+		service ServiceConfig
+	}
+	expect := len(p.Services)
+	resultCh := make(chan result, expect)
+	newProject := p.deepCopy()
+
+	eg, ctx := errgroup.WithContext(context.Background())
+	eg.Go(func() error {
+		s := Services{}
+		for expect > 0 {
+			select {
+			case <-ctx.Done():
+				// interrupted as some goroutine returned an error
+				return nil
+			case r := <-resultCh:
+				s[r.name] = r.service
+				expect--
+			}
+		}
+		newProject.Services = s
+		return nil
+	})
+	for n, s := range newProject.Services {
+		name := n
+		service := s
+		eg.Go(func() error {
+			updated, err := fn(name, service)
+			if err != nil {
+				return err
+			}
+			resultCh <- result{
+				name:    name,
+				service: updated,
+			}
+			return nil
+		})
+	}
+	return newProject, eg.Wait()
+}
+
+// CheckContainerNameUnicity validate project doesn't have services declaring the same container_name
+func (p *Project) CheckContainerNameUnicity() error {
+	names := utils.Set[string]{}
+	for name, s := range p.Services {
+		if s.ContainerName != "" {
+			if existing, ok := names[s.ContainerName]; ok {
+				return fmt.Errorf(`services.%s: container name %q is already in use by service %s"`, name, s.ContainerName, existing)
+			}
+			names.Add(s.ContainerName)
+		}
+	}
+	return nil
 }

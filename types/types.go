@@ -20,10 +20,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/mitchellh/copystructure"
 )
 
 // ServiceConfig is the configuration of one service
@@ -162,6 +162,9 @@ func (s *ServiceConfig) NetworksByPriority() []string {
 		})
 	}
 	sort.Slice(keys, func(i, j int) bool {
+		if keys[i].priority == keys[j].priority {
+			return keys[i].name < keys[j].name
+		}
 		return keys[i].priority > keys[j].priority
 	})
 	var sorted []string
@@ -190,11 +193,12 @@ func (s *ServiceConfig) SetScale(scale int) {
 }
 
 func (s *ServiceConfig) deepCopy() *ServiceConfig {
-	instance, err := copystructure.Copy(s)
-	if err != nil {
-		panic(err)
+	if s == nil {
+		return nil
 	}
-	return instance.(*ServiceConfig)
+	n := &ServiceConfig{}
+	deriveDeepCopyService(n, s)
+	return n
 }
 
 const (
@@ -262,6 +266,7 @@ type BuildConfig struct {
 	Context            string                    `yaml:"context,omitempty" json:"context,omitempty"`
 	Dockerfile         string                    `yaml:"dockerfile,omitempty" json:"dockerfile,omitempty"`
 	DockerfileInline   string                    `yaml:"dockerfile_inline,omitempty" json:"dockerfile_inline,omitempty"`
+	Entitlements       []string                  `yaml:"entitlements,omitempty" json:"entitlements,omitempty"`
 	Args               MappingWithEquals         `yaml:"args,omitempty" json:"args,omitempty"`
 	SSH                SSHConfig                 `yaml:"ssh,omitempty" json:"ssh,omitempty"`
 	Labels             Labels                    `yaml:"labels,omitempty" json:"labels,omitempty"`
@@ -362,13 +367,37 @@ type Resources struct {
 // Resource is a resource to be limited or reserved
 type Resource struct {
 	// TODO: types to convert from units and ratios
-	NanoCPUs         string            `yaml:"cpus,omitempty" json:"cpus,omitempty"`
+	NanoCPUs         NanoCPUs          `yaml:"cpus,omitempty" json:"cpus,omitempty"`
 	MemoryBytes      UnitBytes         `yaml:"memory,omitempty" json:"memory,omitempty"`
 	Pids             int64             `yaml:"pids,omitempty" json:"pids,omitempty"`
 	Devices          []DeviceRequest   `yaml:"devices,omitempty" json:"devices,omitempty"`
 	GenericResources []GenericResource `yaml:"generic_resources,omitempty" json:"generic_resources,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+type NanoCPUs float32
+
+func (n *NanoCPUs) DecodeMapstructure(a any) error {
+	switch v := a.(type) {
+	case string:
+		f, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return err
+		}
+		*n = NanoCPUs(f)
+	case float32:
+		*n = NanoCPUs(v)
+	case float64:
+		*n = NanoCPUs(v)
+	default:
+		return fmt.Errorf("unexpected value type %T for cpus", v)
+	}
+	return nil
+}
+
+func (n *NanoCPUs) Value() float32 {
+	return float32(*n)
 }
 
 // GenericResource represents a "user defined" resource which can
@@ -424,17 +453,20 @@ type ServiceNetworkConfig struct {
 	Ipv6Address  string   `yaml:"ipv6_address,omitempty" json:"ipv6_address,omitempty"`
 	LinkLocalIPs []string `yaml:"link_local_ips,omitempty" json:"link_local_ips,omitempty"`
 	MacAddress   string   `yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
+	DriverOpts   Options  `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ServicePortConfig is the port configuration for a service
 type ServicePortConfig struct {
-	Mode      string `yaml:"mode,omitempty" json:"mode,omitempty"`
-	HostIP    string `yaml:"host_ip,omitempty" json:"host_ip,omitempty"`
-	Target    uint32 `yaml:"target,omitempty" json:"target,omitempty"`
-	Published string `yaml:"published,omitempty" json:"published,omitempty"`
-	Protocol  string `yaml:"protocol,omitempty" json:"protocol,omitempty"`
+	Name        string `yaml:"name,omitempty" json:"name,omitempty"`
+	Mode        string `yaml:"mode,omitempty" json:"mode,omitempty"`
+	HostIP      string `yaml:"host_ip,omitempty" json:"host_ip,omitempty"`
+	Target      uint32 `yaml:"target,omitempty" json:"target,omitempty"`
+	Published   string `yaml:"published,omitempty" json:"published,omitempty"`
+	Protocol    string `yaml:"protocol,omitempty" json:"protocol,omitempty"`
+	AppProtocol string `yaml:"app_protocol,omitempty" json:"app_protocol,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
@@ -508,6 +540,9 @@ func (s ServiceVolumeConfig) String() string {
 	if s.Volume != nil && s.Volume.NoCopy {
 		options = append(options, "nocopy")
 	}
+	if s.Volume != nil && s.Volume.Subpath != "" {
+		options = append(options, s.Volume.Subpath)
+	}
 	return fmt.Sprintf("%s:%s:%s", s.Source, s.Target, strings.Join(options, ","))
 }
 
@@ -564,7 +599,8 @@ const (
 
 // ServiceVolumeVolume are options for a service volume of type volume
 type ServiceVolumeVolume struct {
-	NoCopy bool `yaml:"nocopy,omitempty" json:"nocopy,omitempty"`
+	NoCopy  bool   `yaml:"nocopy,omitempty" json:"nocopy,omitempty"`
+	Subpath string `yaml:"subpath,omitempty" json:"subpath,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
@@ -662,7 +698,7 @@ type NetworkConfig struct {
 	Internal   bool       `yaml:"internal,omitempty" json:"internal,omitempty"`
 	Attachable bool       `yaml:"attachable,omitempty" json:"attachable,omitempty"`
 	Labels     Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
-	EnableIPv6 bool       `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
+	EnableIPv6 *bool      `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
@@ -675,11 +711,11 @@ type IPAMConfig struct {
 
 // IPAMPool for a network
 type IPAMPool struct {
-	Subnet             string                 `yaml:"subnet,omitempty" json:"subnet,omitempty"`
-	Gateway            string                 `yaml:"gateway,omitempty" json:"gateway,omitempty"`
-	IPRange            string                 `yaml:"ip_range,omitempty" json:"ip_range,omitempty"`
-	AuxiliaryAddresses Mapping                `yaml:"aux_addresses,omitempty" json:"aux_addresses,omitempty"`
-	Extensions         map[string]interface{} `yaml:",inline" json:"-"`
+	Subnet             string     `yaml:"subnet,omitempty" json:"subnet,omitempty"`
+	Gateway            string     `yaml:"gateway,omitempty" json:"gateway,omitempty"`
+	IPRange            string     `yaml:"ip_range,omitempty" json:"ip_range,omitempty"`
+	AuxiliaryAddresses Mapping    `yaml:"aux_addresses,omitempty" json:"aux_addresses,omitempty"`
+	Extensions         Extensions `yaml:",inline" json:"-"`
 }
 
 // VolumeConfig for a volume

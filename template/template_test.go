@@ -26,8 +26,9 @@ import (
 )
 
 var defaults = map[string]string{
-	"FOO": "first",
-	"BAR": "",
+	"FOO":  "first",
+	"BAR":  "",
+	"JSON": `{"json":2}`,
 }
 
 func defaultMapping(name string) (string, bool) {
@@ -365,15 +366,15 @@ func TestSubstituteWithCustomFunc(t *testing.T) {
 		return value, true, nil
 	}
 
-	result, err := SubstituteWith("ok ${FOO}", defaultMapping, defaultPattern, errIsMissing)
+	result, err := SubstituteWith("ok ${FOO}", defaultMapping, DefaultPattern, errIsMissing)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("ok first", result))
 
-	result, err = SubstituteWith("ok ${BAR}", defaultMapping, defaultPattern, errIsMissing)
+	result, err = SubstituteWith("ok ${BAR}", defaultMapping, DefaultPattern, errIsMissing)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("ok ", result))
 
-	_, err = SubstituteWith("ok ${NOTHERE}", defaultMapping, defaultPattern, errIsMissing)
+	_, err = SubstituteWith("ok ${NOTHERE}", defaultMapping, DefaultPattern, errIsMissing)
 	assert.Check(t, is.ErrorContains(err, "required variable"))
 }
 
@@ -404,6 +405,10 @@ func TestSubstituteWithReplacementFunc(t *testing.T) {
 
 	_, err = SubstituteWithOptions("ok ${NOTHERE}", defaultMapping, options...)
 	assert.Check(t, is.ErrorContains(err, "bad choice"))
+
+	result, err = SubstituteWith("ok ${SUBDOMAIN:-redis}.${FOO:?}", defaultMapping, DefaultPattern)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("ok redis.first", result))
 }
 
 func TestSubstituteWithReplacementAppliedFunc(t *testing.T) {
@@ -477,128 +482,6 @@ func TestPrecedence(t *testing.T) {
 	}
 }
 
-func TestExtractVariables(t *testing.T) {
-	testCases := []struct {
-		name     string
-		dict     map[string]interface{}
-		expected map[string]Variable
-	}{
-		{
-			name:     "empty",
-			dict:     map[string]interface{}{},
-			expected: map[string]Variable{},
-		},
-		{
-			name: "no-variables",
-			dict: map[string]interface{}{
-				"foo": "bar",
-			},
-			expected: map[string]Variable{},
-		},
-		{
-			name: "variable-without-curly-braces",
-			dict: map[string]interface{}{
-				"foo": "$bar",
-			},
-			expected: map[string]Variable{
-				"bar": {Name: "bar"},
-			},
-		},
-		{
-			name: "variable",
-			dict: map[string]interface{}{
-				"foo": "${bar}",
-			},
-			expected: map[string]Variable{
-				"bar": {Name: "bar", DefaultValue: ""},
-			},
-		},
-		{
-			name: "required-variable",
-			dict: map[string]interface{}{
-				"foo": "${bar?:foo}",
-			},
-			expected: map[string]Variable{
-				"bar": {Name: "bar", DefaultValue: "", Required: true},
-			},
-		},
-		{
-			name: "required-variable2",
-			dict: map[string]interface{}{
-				"foo": "${bar?foo}",
-			},
-			expected: map[string]Variable{
-				"bar": {Name: "bar", DefaultValue: "", Required: true},
-			},
-		},
-		{
-			name: "default-variable",
-			dict: map[string]interface{}{
-				"foo": "${bar:-foo}",
-			},
-			expected: map[string]Variable{
-				"bar": {Name: "bar", DefaultValue: "foo"},
-			},
-		},
-		{
-			name: "default-variable2",
-			dict: map[string]interface{}{
-				"foo": "${bar-foo}",
-			},
-			expected: map[string]Variable{
-				"bar": {Name: "bar", DefaultValue: "foo"},
-			},
-		},
-		{
-			name: "multiple-values",
-			dict: map[string]interface{}{
-				"foo": "${bar:-foo}",
-				"bar": map[string]interface{}{
-					"foo": "${fruit:-banana}",
-					"bar": "vegetable",
-				},
-				"baz": []interface{}{
-					"foo",
-					"$docker:${project:-cli}",
-					"$toto",
-				},
-			},
-			expected: map[string]Variable{
-				"bar":     {Name: "bar", DefaultValue: "foo"},
-				"fruit":   {Name: "fruit", DefaultValue: "banana"},
-				"toto":    {Name: "toto", DefaultValue: ""},
-				"docker":  {Name: "docker", DefaultValue: ""},
-				"project": {Name: "project", DefaultValue: "cli"},
-			},
-		},
-		{
-			name: "presence-value-nonEmpty",
-			dict: map[string]interface{}{
-				"foo": "${bar:+foo}",
-			},
-			expected: map[string]Variable{
-				"bar": {Name: "bar", PresenceValue: "foo"},
-			},
-		},
-		{
-			name: "presence-value",
-			dict: map[string]interface{}{
-				"foo": "${bar+foo}",
-			},
-			expected: map[string]Variable{
-				"bar": {Name: "bar", PresenceValue: "foo"},
-			},
-		},
-	}
-	for _, tc := range testCases {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			actual := ExtractVariables(tc.dict, defaultPattern)
-			assert.Check(t, is.DeepEqual(actual, tc.expected))
-		})
-	}
-}
-
 func TestSubstitutionFunctionChoice(t *testing.T) {
 	testcases := []struct {
 		name   string
@@ -628,5 +511,21 @@ func TestSubstitutionFunctionChoice(t *testing.T) {
 				fmt.Sprintf("Wrong on output for: %s got symbol -> %#v", tc.input, symbol),
 			)
 		})
+	}
+}
+
+func TestNoValueWithCurlyBracesDefault(t *testing.T) {
+	for _, template := range []string{`ok ${missing:-{"json":1}}`, `ok ${missing-{"json":1}}`} {
+		result, err := Substitute(template, defaultMapping)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(`ok {"json":1}`, result))
+	}
+}
+
+func TestValueWithCurlyBracesDefault(t *testing.T) {
+	for _, template := range []string{`ok ${JSON:-{"json":1}}`, `ok ${JSON-{"json":1}}`} {
+		result, err := Substitute(template, defaultMapping)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(`ok {"json":2}`, result))
 	}
 }

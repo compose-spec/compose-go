@@ -104,6 +104,7 @@
                 "context": {"type": "string"},
                 "dockerfile": {"type": "string"},
                 "dockerfile_inline": {"type": "string"},
+                "entitlements": {"type": "array", "items": {"type": "string"}},
                 "args": {"$ref": "#/definitions/list_or_dict"},
                 "ssh": {"$ref": "#/definitions/list_or_dict"},
                 "labels": {"$ref": "#/definitions/list_or_dict"},
@@ -295,6 +296,12 @@
                         "ipv6_address": {"type": "string"},
                         "link_local_ips": {"$ref": "#/definitions/list_of_strings"},
                         "mac_address": {"type": "string"},
+                        "driver_opts": {
+                          "type": "object",
+                          "patternProperties": {
+                            "^.+$": {"type": ["string", "number"]}
+                          }
+                        },
                         "priority": {"type": "number"}
                       },
                       "additionalProperties": false,
@@ -322,11 +329,13 @@
               {
                 "type": "object",
                 "properties": {
+                  "name": {"type": "string"},
                   "mode": {"type": "string"},
                   "host_ip": {"type": "string"},
                   "target": {"type": "integer"},
                   "published": {"type": ["string", "integer"]},
-                  "protocol": {"type": "string"}
+                  "protocol": {"type": "string"},
+                  "app_protocol": {"type": "string"}
                 },
                 "additionalProperties": false,
                 "patternProperties": {"^x-": {}}
@@ -389,7 +398,8 @@
                   "volume": {
                     "type": "object",
                     "properties": {
-                      "nocopy": {"type": "boolean"}
+                      "nocopy": {"type": "boolean"},
+                      "subpath": {"type": "string"}
                     },
                     "additionalProperties": false,
                     "patternProperties": {"^x-": {}}
@@ -455,6 +465,7 @@
           "type": "array",
           "items": {
             "type": "object",
+            "required": ["path", "action"],
             "properties": {
               "ignore": {"type": "array", "items": {"type": "string"}},
               "path": {"type": "string"},
@@ -462,7 +473,6 @@
               "target": {"type": "string"}
             }
           },
-          "required": ["path", "action"],
           "additionalProperties": false,
           "patternProperties": {"^x-": {}}
         }

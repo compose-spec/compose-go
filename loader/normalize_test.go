@@ -17,45 +17,30 @@
 package loader
 
 import (
-	"os"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
+	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 )
 
 func TestNormalizeNetworkNames(t *testing.T) {
-	wd, _ := os.Getwd()
-	project := types.Project{
-		Name:       "myProject",
-		WorkingDir: wd,
-		Environment: map[string]string{
-			"FOO": "BAR",
-		},
-		Networks: types.Networks{
-			"myExternalnet": {
-				Name:     "myExternalnet", // this is automaticaly setup by loader for externa networks before reaching normalization
-				External: true,
-			},
-			"mynet": {},
-			"myNamedNet": {
-				Name: "CustomName",
-			},
-		},
-		Services: types.Services{
-			"foo": {
-				Name: "foo",
-				Build: &types.BuildConfig{
-					Context: "./testdata",
-					Args: map[string]*string{
-						"FOO": nil,
-						"ZOT": nil,
-					},
-				},
-			},
-		},
-	}
-
+	project := `
+name: myProject
+services:
+  foo:
+    build:
+      context: ./testdata
+      args:
+        FOO: null
+        ZOT: null
+networks:
+  myExternalnet:
+    external: true
+  myNamedNet:
+    name: CustomName
+  mynet: {}
+`
 	expected := `name: myProject
 services:
   foo:
@@ -64,7 +49,6 @@ services:
       dockerfile: Dockerfile
       args:
         FOO: BAR
-        ZOT: null
     networks:
       default: null
 networks:
@@ -78,85 +62,81 @@ networks:
   mynet:
     name: myProject_mynet
 `
-	err := Normalize(&project)
+
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
 	assert.NilError(t, err)
-	marshal, err := project.MarshalYAML()
+	model, err = Normalize(model, types.Mapping{"FOO": "BAR"})
 	assert.NilError(t, err)
-	assert.Equal(t, expected, string(marshal))
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
 }
 
 func TestNormalizeVolumes(t *testing.T) {
-	project := types.Project{
-		Name:     "myProject",
-		Networks: types.Networks{},
-		Volumes: types.Volumes{
-			"myExternalVol": {
-				Name:     "myExternalVol", // this is automaticaly setup by loader for externa networks before reaching normalization
-				External: true,
-			},
-			"myvol": {},
-			"myNamedVol": {
-				Name: "CustomName",
-			},
-		},
-	}
+	project := `
+name: myProject
+volumes:  
+  myExternalVol: 
+    external: true
+  myvol: {}
+  myNamedVol: 
+    name: CustomName
+`
 
-	expected := types.Project{
-		Name:     "myProject",
-		Networks: types.Networks{"default": {Name: "myProject_default"}},
-		Volumes: types.Volumes{
-			"myExternalVol": {
-				Name:     "myExternalVol",
-				External: true,
-			},
-			"myvol": {Name: "myProject_myvol"},
-			"myNamedVol": {
-				Name: "CustomName",
-			},
-		},
-	}
-	err := Normalize(&project)
+	expected := `
+name: myProject
+volumes:  
+  myExternalVol: 
+    name: myExternalVol
+    external: true
+  myvol: 
+    name: myProject_myvol
+  myNamedVol: 
+    name: CustomName
+`
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, project)
+	model, err = Normalize(model, nil)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
 }
 
 func TestNormalizeDependsOn(t *testing.T) {
-	project := types.Project{
-		Name:     "myProject",
-		Networks: types.Networks{},
-		Volumes:  types.Volumes{},
-		Services: types.Services{
-			"foo": {
-				Name: "foo",
-				DependsOn: map[string]types.ServiceDependency{
-					"bar": { // explicit depends_on never should be overridden
-						Condition: types.ServiceConditionHealthy,
-						Restart:   false,
-						Required:  true,
-					},
-				},
-				NetworkMode: "service:zot",
-			},
-			"bar": {
-				Name: "bar",
-				VolumesFrom: []string{
-					"zot",
-					"container:xxx",
-				},
-			},
-			"zot": {
-				Name: "zot",
-			},
-		},
-	}
+	project := `
+name: myProject
+services:
+  foo:
+    depends_on: 
+      bar:
+        condition: service_healthy
+        required: true
+        restart: true
+    network_mode: service:zot
 
-	expected := `name: myProject
+  bar: 
+    volumes_from:
+      - zot
+      - container:xxx
+
+  zot: {}
+`
+	expected := `
+name: myProject
 services:
   bar:
     depends_on:
       zot:
         condition: service_started
         required: true
+        restart: false
     networks:
       default: null
     volumes_from:
@@ -167,10 +147,11 @@ services:
       bar:
         condition: service_healthy
         required: true
+        restart: true
       zot:
         condition: service_started
-        restart: true
         required: true
+        restart: true
     network_mode: service:zot
   zot:
     networks:
@@ -179,56 +160,179 @@ networks:
   default:
     name: myProject_default
 `
-	err := Normalize(&project)
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
 	assert.NilError(t, err)
-	marshal, err := project.MarshalYAML()
+	model, err = Normalize(model, nil)
 	assert.NilError(t, err)
-	assert.Equal(t, expected, string(marshal))
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
 }
 
 func TestNormalizeImplicitDependencies(t *testing.T) {
-	project := types.Project{
-		Name: "myProject",
-		Services: types.Services{
-			"test": types.ServiceConfig{
-				Name:        "test",
-				Ipc:         "service:foo",
-				Cgroup:      "service:bar",
-				Uts:         "service:baz",
-				Pid:         "service:qux",
-				VolumesFrom: []string{"quux"},
-				Links:       []string{"corge"},
-				DependsOn: map[string]types.ServiceDependency{
-					// explicit dependency MUST not be overridden
-					"foo": {Condition: types.ServiceConditionHealthy, Restart: false, Required: true},
-				},
-			},
-		},
-	}
+	project := `
+name: myProject
+services:
+  test:
+    ipc: service:foo
+    cgroup: service:bar
+    uts: service:baz
+    pid: service:qux
+    volumes_from: [quux]
+    links: [corge]
+    depends_on: # explicit dependency MUST not be overridden
+      foo: 
+        condition: service_healthy
+`
 
-	expected := types.DependsOnConfig{
-		"foo":   {Condition: types.ServiceConditionHealthy, Restart: false, Required: true},
-		"bar":   {Condition: types.ServiceConditionStarted, Restart: true, Required: true},
-		"baz":   {Condition: types.ServiceConditionStarted, Restart: true, Required: true},
-		"qux":   {Condition: types.ServiceConditionStarted, Restart: true, Required: true},
-		"quux":  {Condition: types.ServiceConditionStarted, Required: true},
-		"corge": {Condition: types.ServiceConditionStarted, Restart: true, Required: true},
-	}
-	err := Normalize(&project)
+	expected := `
+name: myProject
+services:
+  test:
+    ipc: service:foo
+    cgroup: service:bar
+    uts: service:baz
+    pid: service:qux
+    volumes_from: [quux]
+    links: [corge]
+    depends_on: # explicit dependency MUST not be overridden
+      foo: 
+        condition: service_healthy
+      bar: 
+        condition: service_started
+        restart: true
+        required: true
+      baz: 
+        condition: service_started
+        restart: true
+        required: true
+      qux: 
+        condition: service_started
+        restart: true
+        required: true
+      quux: 
+        condition: service_started
+        required: true
+        restart: false
+      corge: 
+        condition: service_started
+        restart: true
+        required: true
+    networks:
+      default: null
+networks:
+  default:
+    name: myProject_default
+`
+
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, expected, project.Services["test"].DependsOn)
+	model, err = Normalize(model, nil)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
 }
 
 func TestImplicitContextPath(t *testing.T) {
-	project := &types.Project{
-		Name: "myProject",
-		Services: types.Services{
-			"test": types.ServiceConfig{
-				Name:  "test",
-				Build: &types.BuildConfig{},
-			},
-		},
-	}
-	assert.NilError(t, Normalize(project))
-	assert.Equal(t, ".", project.Services["test"].Build.Context)
+	project := `
+name: myProject
+services: 
+  test:
+    build: {}
+`
+	expected := `
+name: myProject
+services: 
+  test:
+    build:
+      context: .
+      dockerfile: "Dockerfile"
+    networks:
+      default: null
+networks:
+  default:
+    name: myProject_default
+`
+
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
+	assert.NilError(t, err)
+	model, err = Normalize(model, nil)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
+}
+
+func TestNormalizeDefaultNetwork(t *testing.T) {
+	project := `
+name: myProject
+services:  
+  test:
+    image: test
+`
+
+	expected := `
+name: myProject
+networks:
+  default:
+    name: myProject_default
+services:  
+  test: 
+    image: test
+    networks:
+      default: null
+`
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
+	assert.NilError(t, err)
+	model, err = Normalize(model, nil)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
+}
+
+func TestNormalizeCustomNetwork(t *testing.T) {
+	project := `
+name: myProject
+services:  
+  test: 
+    networks:
+      my_network: null
+networks:
+  my_network: null
+`
+
+	expected := `
+name: myProject
+networks:
+  my_network:
+    name: myProject_my_network
+services:  
+  test: 
+    networks:
+      my_network: null
+`
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
+	assert.NilError(t, err)
+	model, err = Normalize(model, nil)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
 }

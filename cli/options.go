@@ -37,8 +37,6 @@ import (
 
 // ProjectOptions provides common configuration for loading a project.
 type ProjectOptions struct {
-	ctx context.Context
-
 	// Name is a valid Compose project name to be used or empty.
 	//
 	// If empty, the project loader will automatically infer a reasonable
@@ -80,6 +78,10 @@ type ProjectOptions struct {
 	EnvFiles []string
 
 	loadOptions []func(*loader.Options)
+
+	// Callbacks to retrieve metadata information during parse defined before
+	// creating the project
+	Listeners []loader.Listener
 }
 
 type ProjectOptionsFn func(*ProjectOptions) error
@@ -89,6 +91,7 @@ func NewProjectOptions(configs []string, opts ...ProjectOptionsFn) (*ProjectOpti
 	options := &ProjectOptions{
 		ConfigPaths: configs,
 		Environment: map[string]string{},
+		Listeners:   []loader.Listener{},
 	}
 	for _, o := range opts {
 		err := o(options)
@@ -212,11 +215,16 @@ func WithLoadOptions(loadOptions ...func(*loader.Options)) ProjectOptionsFn {
 
 // WithDefaultProfiles uses the provided profiles (if any), and falls back to
 // profiles specified via the COMPOSE_PROFILES environment variable otherwise.
-func WithDefaultProfiles(profile ...string) ProjectOptionsFn {
-	if len(profile) == 0 {
-		profile = strings.Split(os.Getenv(consts.ComposeProfiles), ",")
+func WithDefaultProfiles(profiles ...string) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		if len(profiles) == 0 {
+			for _, s := range strings.Split(o.Environment[consts.ComposeProfiles], ",") {
+				profiles = append(profiles, strings.TrimSpace(s))
+			}
+		}
+		o.loadOptions = append(o.loadOptions, loader.WithProfiles(profiles))
+		return nil
 	}
-	return WithProfiles(profile)
 }
 
 // WithProfiles sets profiles to be activated
@@ -277,6 +285,9 @@ func WithEnvFiles(file ...string) ProjectOptionsFn {
 		if os.IsNotExist(err) {
 			return nil
 		}
+		if err != nil {
+			return err
+		}
 		if !s.IsDir() {
 			o.EnvFiles = []string{defaultDotEnv}
 		}
@@ -334,14 +345,6 @@ func WithResolvedPaths(resolve bool) ProjectOptionsFn {
 	}
 }
 
-// WithContext sets the context used to load model and resources
-func WithContext(ctx context.Context) ProjectOptionsFn {
-	return func(o *ProjectOptions) error {
-		o.ctx = ctx
-		return nil
-	}
-}
-
 // WithResourceLoader register support for ResourceLoader to manage remote resources
 func WithResourceLoader(r loader.ResourceLoader) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
@@ -365,6 +368,11 @@ func WithExtension(name string, typ any) ProjectOptionsFn {
 	}
 }
 
+// Append listener to event
+func (o *ProjectOptions) WithListeners(listeners ...loader.Listener) {
+	o.Listeners = append(o.Listeners, listeners...)
+}
+
 // WithoutEnvironmentResolution disable environment resolution
 func WithoutEnvironmentResolution(o *ProjectOptions) error {
 	o.loadOptions = append(o.loadOptions, func(options *loader.Options) {
@@ -379,9 +387,9 @@ var DefaultFileNames = []string{"compose.yaml", "compose.yml", "docker-compose.y
 // DefaultOverrideFileNames defines the Compose override file names for auto-discovery (in order of preference)
 var DefaultOverrideFileNames = []string{"compose.override.yml", "compose.override.yaml", "docker-compose.override.yml", "docker-compose.override.yaml"}
 
-func (o ProjectOptions) GetWorkingDir() (string, error) {
+func (o *ProjectOptions) GetWorkingDir() (string, error) {
 	if o.WorkingDir != "" {
-		return o.WorkingDir, nil
+		return filepath.Abs(o.WorkingDir)
 	}
 	for _, path := range o.ConfigPaths {
 		if path != "-" {
@@ -395,9 +403,8 @@ func (o ProjectOptions) GetWorkingDir() (string, error) {
 	return os.Getwd()
 }
 
-// ProjectFromOptions load a compose project based on command line options
-func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
-	configPaths, err := getConfigPathsFromOptions(options)
+func (o *ProjectOptions) GeConfigFiles() ([]types.ConfigFile, error) {
+	configPaths, err := o.getConfigPaths()
 	if err != nil {
 		return nil, err
 	}
@@ -425,36 +432,67 @@ func ProjectFromOptions(options *ProjectOptions) (*types.Project, error) {
 			Content:  b,
 		})
 	}
+	return configs, err
+}
 
-	workingDir, err := options.GetWorkingDir()
+// LoadProject loads compose file according to options and bind to types.Project go structs
+func (o *ProjectOptions) LoadProject(ctx context.Context) (*types.Project, error) {
+	configDetails, err := o.prepare()
 	if err != nil {
 		return nil, err
 	}
-	absWorkingDir, err := filepath.Abs(workingDir)
+
+	project, err := loader.LoadWithContext(ctx, configDetails, o.loadOptions...)
 	if err != nil {
 		return nil, err
 	}
 
-	options.loadOptions = append(options.loadOptions,
-		withNamePrecedenceLoad(absWorkingDir, options),
-		withConvertWindowsPaths(options))
-
-	ctx := options.ctx
-	if ctx == nil {
-		ctx = context.Background()
+	for _, config := range configDetails.ConfigFiles {
+		project.ComposeFiles = append(project.ComposeFiles, config.Filename)
 	}
 
-	project, err := loader.LoadWithContext(ctx, types.ConfigDetails{
+	return project, nil
+}
+
+// LoadModel loads compose file according to options and returns a raw (yaml tree) model
+func (o *ProjectOptions) LoadModel(ctx context.Context) (map[string]any, error) {
+	configDetails, err := o.prepare()
+	if err != nil {
+		return nil, err
+	}
+
+	return loader.LoadModelWithContext(ctx, configDetails, o.loadOptions...)
+}
+
+// prepare converts ProjectOptions into loader's types.ConfigDetails and configures default load options
+func (o *ProjectOptions) prepare() (types.ConfigDetails, error) {
+	configs, err := o.GeConfigFiles()
+	if err != nil {
+		return types.ConfigDetails{}, err
+	}
+
+	workingDir, err := o.GetWorkingDir()
+	if err != nil {
+		return types.ConfigDetails{}, err
+	}
+
+	configDetails := types.ConfigDetails{
 		ConfigFiles: configs,
 		WorkingDir:  workingDir,
-		Environment: options.Environment,
-	}, options.loadOptions...)
-	if err != nil {
-		return nil, err
+		Environment: o.Environment,
 	}
 
-	project.ComposeFiles = configPaths
-	return project, nil
+	o.loadOptions = append(o.loadOptions,
+		withNamePrecedenceLoad(workingDir, o),
+		withConvertWindowsPaths(o),
+		withListeners(o))
+	return configDetails, nil
+}
+
+// ProjectFromOptions load a compose project based on command line options
+// Deprecated: use ProjectOptions.LoadProject or ProjectOptions.LoadModel
+func ProjectFromOptions(ctx context.Context, options *ProjectOptions) (*types.Project, error) {
+	return options.LoadProject(ctx)
 }
 
 func withNamePrecedenceLoad(absWorkingDir string, options *ProjectOptions) func(*loader.Options) {
@@ -480,10 +518,17 @@ func withConvertWindowsPaths(options *ProjectOptions) func(*loader.Options) {
 	}
 }
 
-// getConfigPathsFromOptions retrieves the config files for project based on project options
-func getConfigPathsFromOptions(options *ProjectOptions) ([]string, error) {
-	if len(options.ConfigPaths) != 0 {
-		return absolutePaths(options.ConfigPaths)
+// save listeners from ProjectOptions (compose) to loader.Options
+func withListeners(options *ProjectOptions) func(*loader.Options) {
+	return func(opts *loader.Options) {
+		opts.Listeners = append(opts.Listeners, options.Listeners...)
+	}
+}
+
+// getConfigPaths retrieves the config files for project based on project options
+func (o *ProjectOptions) getConfigPaths() ([]string, error) {
+	if len(o.ConfigPaths) != 0 {
+		return absolutePaths(o.ConfigPaths)
 	}
 	return nil, fmt.Errorf("no configuration file provided: %w", errdefs.ErrNotFound)
 }

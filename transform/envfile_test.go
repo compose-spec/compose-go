@@ -25,7 +25,7 @@ import (
 )
 
 func TestSingle(t *testing.T) {
-	env, err := transformEnvFile(".env", tree.NewPath("service.test.env_file"))
+	env, err := transformEnvFile(".env", tree.NewPath("service.test.env_file"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, env, []any{
 		map[string]any{
@@ -42,7 +42,7 @@ func TestSequence(t *testing.T) {
   - other.env
 `), &in)
 	assert.NilError(t, err)
-	env, err := transformEnvFile(in, tree.NewPath("service.test.env_file"))
+	env, err := transformEnvFile(in, tree.NewPath("service.test.env_file"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, env, []any{
 		map[string]any{
@@ -64,7 +64,7 @@ func TestOptional(t *testing.T) {
     required: false
 `), &in)
 	assert.NilError(t, err)
-	env, err := transformEnvFile(in, tree.NewPath("service.test.env_file"))
+	env, err := transformEnvFile(in, tree.NewPath("service.test.env_file"), false)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, env, []any{
 		map[string]any{

@@ -70,7 +70,7 @@ func loadYAML(yaml string) (*types.Project, error) {
 }
 
 func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Project, error) {
-	return Load(buildConfigDetails(yaml, env), func(options *Options) {
+	return LoadWithContext(context.TODO(), buildConfigDetails(yaml, env), func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 		options.ResolvePaths = true
@@ -1390,6 +1390,23 @@ networks:
 	assert.Check(t, is.DeepEqual(expected, config.Networks))
 }
 
+func TestLoadVolumeSubpath(t *testing.T) {
+	config, err := loadYAML(`
+name: load-volume-subpath
+services:
+  test:
+    image: alpine:latest
+    volumes:
+      - type: volume
+        source: asdf
+        target: /app
+        volume:
+          subpath: etc/settings
+`)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(config.Services["test"].Volumes[0].Volume.Subpath, "etc/settings"))
+}
+
 func TestLoadExpandedPortFormat(t *testing.T) {
 	config, err := loadYAML(`
 name: load-expanded-port-format
@@ -1672,6 +1689,7 @@ networks:
 
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
+	enableIPv6 := true
 	expected := &types.Project{
 		Name:       "load-network-link-local-ips",
 		WorkingDir: workingDir,
@@ -1694,7 +1712,7 @@ networks:
 			"network1": {
 				Name:       "network1",
 				Driver:     "bridge",
-				EnableIPv6: true,
+				EnableIPv6: &enableIPv6,
 				Ipam: types.IPAMConfig{
 					Config: []*types.IPAMPool{
 						{Subnet: "10.1.0.0/16"},
@@ -1705,6 +1723,49 @@ networks:
 		},
 		Environment: types.Mapping{
 			"COMPOSE_PROJECT_NAME": "load-network-link-local-ips",
+		},
+	}
+	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+}
+
+func TestLoadServiceNetworkDriverOpts(t *testing.T) {
+	config, err := loadYAML(`
+name: load-service-network-driver-opts
+services:
+  foo:
+    image: alpine
+    networks:
+      network1:
+        driver_opts:
+          com.docker.network.endpoint.sysctls: "ipv6.conf.accept_ra=0"
+networks:
+  network1:
+`)
+	assert.NilError(t, err)
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	expected := &types.Project{
+		Name:       "load-service-network-driver-opts",
+		WorkingDir: workingDir,
+		Services: types.Services{
+			"foo": {
+				Name:  "foo",
+				Image: "alpine",
+				Networks: map[string]*types.ServiceNetworkConfig{
+					"network1": {
+						DriverOpts: types.Options{
+							"com.docker.network.endpoint.sysctls": "ipv6.conf.accept_ra=0",
+						},
+					},
+				},
+			},
+		},
+		Networks: map[string]types.NetworkConfig{
+			"network1": {},
+		},
+		Environment: types.Mapping{
+			"COMPOSE_PROJECT_NAME": "load-service-network-driver-opts",
 		},
 	}
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
@@ -2316,20 +2377,21 @@ services:
 		assert.Equal(t, "overrided-proxy", svc.ContainerName)
 	})
 
-	t.Run("project name env variable interpolation", func(t *testing.T) {
+	t.Run("project name override", func(t *testing.T) {
 		yaml := `
-name: interpolated
+name: another_name
 services:
   web:
     image: web
     container_name: ${COMPOSE_PROJECT_NAME}-web
 `
-		configDetails := buildConfigDetails(yaml, map[string]string{"COMPOSE_PROJECT_NAME": "env-var"})
-		actual, err := Load(configDetails)
+		configDetails := buildConfigDetails(yaml, map[string]string{})
+
+		actual, err := Load(configDetails, withProjectName("interpolated", true))
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)
-		assert.Equal(t, "env-var-web", svc.ContainerName)
+		assert.Equal(t, "interpolated-web", svc.ContainerName)
 	})
 }
 
@@ -2608,52 +2670,21 @@ func TestLoadDependsOnCycle(t *testing.T) {
 			},
 		},
 	})
-	assert.Error(t, err, "dependency cycle detected: service2 -> service3 -> service1", err)
+	assert.Error(t, err, "dependency cycle detected: service1 -> service2 -> service3 -> service1", err)
 }
 
-func TestLoadWithMultipleInclude(t *testing.T) {
-	// include same service twice should not trigger an error
-	p, err := Load(buildConfigDetails(`
-name: 'test-multi-include'
-
-include:
-  - path: ./testdata/subdir/compose-test-extends-imported.yaml
-    env_file: ./testdata/subdir/extra.env
-  - path: ./testdata/compose-include.yaml
-
-services:
-  foo:
-    image: busybox
-    depends_on:
-      - imported
-`, map[string]string{"SOURCE": "override"}), func(options *Options) {
-		options.SkipNormalization = true
-		options.ResolvePaths = true
-	})
+func TestLoadDependsOnSelf(t *testing.T) {
+	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	imported, err := p.GetService("imported")
-	assert.NilError(t, err)
-	assert.Equal(t, imported.ContainerName, "override")
-
-	// include 2 different services with same name should trigger an error
-	p, err = Load(buildConfigDetails(`
-name: 'test-multi-include'
-
-include:
-  - path: ./testdata/subdir/compose-test-extends-imported.yaml
-    env_file: ./testdata/subdir/extra.env
-  - path: ./testdata/compose-include.yaml
-    env_file: ./testdata/subdir/extra.env
-
-
-services:
-  bar:
-    image: busybox
-`, map[string]string{"SOURCE": "override"}), func(options *Options) {
-		options.SkipNormalization = true
-		options.ResolvePaths = true
+	_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+		WorkingDir: filepath.Join(workingDir, "testdata"),
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: filepath.Join(workingDir, "testdata", "compose-depends-on-self.yaml"),
+			},
+		},
 	})
-	assert.ErrorContains(t, err, "services.bar conflicts with imported resource", err)
+	assert.Error(t, err, "dependency cycle detected: service1 -> service1", err)
 }
 
 func TestLoadWithDependsOn(t *testing.T) {
@@ -2861,6 +2892,7 @@ services:
         # rebuild image and recreate service
         - path: ./proxy/proxy.conf
           action: sync+restart
+          target: /etc/nginx/proxy.conf
 `, nil), func(options *Options) {
 		options.ResolvePaths = false
 		options.SkipValidation = true
@@ -2895,9 +2927,31 @@ services:
 			{
 				Path:   "./proxy/proxy.conf",
 				Action: types.WatchActionSyncRestart,
+				Target: "/etc/nginx/proxy.conf",
 			},
 		},
 	})
+}
+
+func TestBadDevelopConfig(t *testing.T) {
+	_, err := LoadWithContext(context.TODO(), buildConfigDetails(`
+name: load-develop
+services:
+  frontend:
+    image: example/webapp
+    build: ./webapp
+    develop:
+      watch:
+        # sync static content
+        - path: ./webapp/html
+          target: /var/www
+          ignore:
+            - node_modules/
+
+`, nil), func(options *Options) {
+		options.ResolvePaths = false
+	})
+	assert.ErrorContains(t, err, "validating filename0.yml: services.frontend.develop.watch.0 action is required")
 }
 
 func TestBadServiceConfig(t *testing.T) {
@@ -3128,4 +3182,107 @@ services:
 	magic, ok := x.(Magic)
 	assert.Check(t, ok)
 	assert.Equal(t, magic.Foo, "bar")
+}
+
+func TestLoadWithEmptyFile(t *testing.T) {
+	yaml := `
+name: test-with-empty-file
+services:
+  test:
+    image: foo
+`
+
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "(inlined)",
+				Content:  []byte(yaml),
+			},
+			{
+				Filename: "(override)",
+				Content:  []byte(""),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, p.Name, "test-with-empty-file")
+}
+
+func TestNamedPort(t *testing.T) {
+	yaml := `
+name: test-named-ports
+services:
+  test:
+    image: foo
+    ports:
+      - name: http
+        published: 8080
+        target: 80
+      - name: https
+        published: 8083
+        target: 443
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	ports := p.Services["test"].Ports
+	assert.Equal(t, ports[0].Name, "http")
+	assert.Equal(t, ports[1].Name, "https")
+}
+
+func TestAppProtocol(t *testing.T) {
+	yaml := `
+name: test-named-ports
+services:
+  test:
+    image: foo
+    ports:
+      - published: 8080
+        target: 80
+        protocol: tcp
+        app_protocol: http
+      - published: 8083
+        target: 443
+        protocol: tcp
+        app_protocol: https
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	ports := p.Services["test"].Ports
+	assert.Equal(t, ports[0].AppProtocol, "http")
+	assert.Equal(t, ports[1].AppProtocol, "https")
+}
+
+func TestBuildEntitlements(t *testing.T) {
+	yaml := `
+name: test-build-entitlements
+services:
+  test:
+    build:
+      context: .
+      entitlements:
+        - network.host
+        - security.insecure
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content: []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	build := p.Services["test"].Build
+	assert.DeepEqual(t, build.Entitlements, []string{"network.host", "security.insecure"})
 }
