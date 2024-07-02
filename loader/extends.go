@@ -128,7 +128,13 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 	return merged, nil
 }
 
-func getExtendsBaseFromFile(ctx context.Context, 	name, ref string, path, refPath string, opts *Options, ct *cycleTracker) (map[string]any, PostProcessor, error) {
+func getExtendsBaseFromFile(
+	ctx context.Context,
+	name, ref string,
+	path, refPath string,
+	opts *Options,
+	ct *cycleTracker,
+) (map[string]any, PostProcessor, error) {
 	for _, loader := range opts.ResourceLoaders {
 		if !loader.Accept(refPath) {
 			continue
