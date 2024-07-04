@@ -407,7 +407,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 			return nil, err
 		}
 	}
-	resolveServicesEnvironment(dict, config)
+	ResolveEnvironment(dict, config.Environment)
 
 	return dict, nil
 }
