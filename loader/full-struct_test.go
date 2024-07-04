@@ -588,6 +588,7 @@ func secrets(workingDir string) map[string]types.SecretConfig {
 		"secret4": {
 			Name:        "bar",
 			Environment: "BAR",
+			Content:     "this is a secret",
 			Extensions: map[string]interface{}{
 				"x-bar": "baz",
 				"x-foo": "bar",

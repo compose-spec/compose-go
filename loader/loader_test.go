@@ -3288,3 +3288,29 @@ services:
 	build := p.Services["test"].Build
 	assert.DeepEqual(t, build.Entitlements, []string{"network.host", "security.insecure"})
 }
+
+func TestLoadSecretEnvironment(t *testing.T) {
+	config, err := loadYAMLWithEnv(`
+name: load-secret-environment
+configs:
+  config:
+    environment: GA
+secrets:
+  secret:
+    environment: MEU
+`, map[string]string{
+		"GA":  "BU",
+		"MEU": "Shadoks",
+	})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, config.Configs, types.Configs{
+		"config": {
+			Environment: "GA",
+			Content:     "BU",
+		}})
+	assert.DeepEqual(t, config.Secrets, types.Secrets{
+		"secret": {
+			Environment: "MEU",
+			Content:     "Shadoks",
+		}})
+}
