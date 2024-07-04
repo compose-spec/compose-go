@@ -336,3 +336,43 @@ services:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expect, model)
 }
+
+func TestNormalizeEnvironment(t *testing.T) {
+	project := `
+name: myProject
+services:  
+  test: 
+    environment:
+      - FOO
+      - BAR
+      - ZOT=QIX
+`
+
+	expected := `
+name: myProject
+networks:
+  default:
+    name: myProject_default
+services:  
+  test: 
+    environment:
+      - FOO
+      - BAR=bar
+      - ZOT=QIX
+    networks:
+      default: null
+`
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
+	assert.NilError(t, err)
+	model, err = Normalize(model, map[string]string{
+		"BAR": "bar",
+		"ZOT": "zot",
+	})
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
+}
