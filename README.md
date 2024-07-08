@@ -95,3 +95,4 @@ make check_compose_spec
 * [kurtosis](https://github.com/kurtosis-tech/kurtosis/)
 * [testcontainers-go's Compose module](https://github.com/testcontainers/testcontainers-go/tree/main/modules/compose)
 * [compose2nix](https://github.com/aksiksi/compose2nix)
+* [Defang](https://github.com/DefangLabs/defang)
