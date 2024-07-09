@@ -314,6 +314,12 @@ configs:
     external: true
     x-config-ext: config
 services:
+  another:
+    image: busybox
+    depends_on:
+      foo:
+        condition: service_started
+        x-depends-on: depends
   foo:
     image: busybox
     x-foo: bar
@@ -325,7 +331,7 @@ services:
 	assert.Check(t, is.DeepEqual(types.Extensions{
 		"x-project": "project",
 	}, actual.Extensions))
-	assert.Check(t, is.Len(actual.Services, 1))
+	assert.Check(t, is.Len(actual.Services, 2))
 	service := actual.Services["foo"]
 	assert.Check(t, is.Equal("busybox", service.Image))
 
@@ -341,6 +347,11 @@ services:
 	assert.Check(t, is.DeepEqual(types.Extensions{
 		"x-healthcheck": "health",
 	}, service.HealthCheck.Extensions))
+
+	another := actual.Services["another"]
+	assert.Check(t, is.DeepEqual(types.Extensions{
+		"x-depends-on": "depends",
+	}, another.DependsOn["foo"].Extensions))
 }
 
 func TestLoadExtends(t *testing.T) {
