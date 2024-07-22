@@ -190,7 +190,7 @@ func getExtendsBaseFromFile(
 			)
 		}
 
-		// Attempt to make a canonical model so ResolveRelativePaths can operate on source:target short syntaxes
+		// Attempt to make a canonical model so ResolveRelativePaths can operate on source:target short syntax
 		source, err = transform.Canonical(source, true)
 		if err != nil {
 			return nil, nil, err
