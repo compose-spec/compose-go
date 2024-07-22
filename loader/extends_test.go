@@ -484,3 +484,20 @@ services:
 	assert.NilError(t, err)
 	assert.Check(t, p.Services["test"].Command == nil)
 }
+
+func TestExtendsWithInterpolation(t *testing.T) {
+	yaml := `
+name: test-extends-with-interpolation
+services:
+  test:
+    extends: { file: testdata/extends/interpolated.yaml, service: foo }
+`
+	p, err := Load(types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{
+			Content:  []byte(yaml),
+			Filename: "-",
+		}},
+	})
+	assert.NilError(t, err)
+	assert.Check(t, p.Services["test"].Volumes[0].Source == "/dev/null")
+}

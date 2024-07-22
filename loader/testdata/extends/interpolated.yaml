@@ -1,0 +1,5 @@
+services:
+  foo:
+    image: bash
+    volumes:
+      - ${SOURCE:-/dev/null}:/tmp/foo:ro
