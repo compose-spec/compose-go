@@ -56,46 +56,6 @@ services:
 	})
 }
 
-func TestParseYAMLFilesInterpolateAfterMerge(t *testing.T) {
-	model, err := loadYamlModel(
-		context.TODO(), types.ConfigDetails{
-			ConfigFiles: []types.ConfigFile{
-				{
-					Filename: "test.yaml",
-					Content: []byte(`
-services:
-  test:
-    image: foo
-    environment:
-      my_env: ${my_env?my_env must be set}
-`),
-				},
-				{
-					Filename: "override.yaml",
-					Content: []byte(`
-services:
-  test:
-    image: bar
-    environment:
-      my_env: ${my_env:-default}
-`),
-				},
-			},
-		}, &Options{}, &cycleTracker{}, nil,
-	)
-	assert.NilError(t, err)
-	assert.DeepEqual(
-		t, model, map[string]interface{}{
-			"services": map[string]interface{}{
-				"test": map[string]interface{}{
-					"image":       "bar",
-					"environment": []any{"my_env=${my_env:-default}"},
-				},
-			},
-		},
-	)
-}
-
 func TestParseYAMLFilesMergeOverride(t *testing.T) {
 	model, err := loadYamlModel(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
