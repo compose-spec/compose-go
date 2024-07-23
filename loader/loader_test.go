@@ -3325,3 +3325,31 @@ secrets:
 			Content:     "Shadoks",
 		}})
 }
+
+func TestLoadDoubleDollarVarInclude(t *testing.T) {
+	//Special use case for $$VAR, where it should conserve the espcae var and not try to solve in each interpolation step
+	include := `
+name: interpolation-include-error
+include:
+  - path: ./testdata/include/interpolation/compose.yml
+    env_file: ./testdata/include/interpolation/.env
+`
+
+	p, err := LoadWithContext(context.Background(), buildConfigDetailsMultipleFiles(nil, include))
+
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["busybox"].HealthCheck.Test, types.HealthCheckTest{"CMD-SHELL",
+		"echo test TEST! $SOME_VAR"})
+
+	// make sure second level include has the same behaviour
+	include = `
+name: interpolation-include-error
+include:
+  - ./testdata/include/interpolation/compose-2.yml
+`
+
+	p, err = LoadWithContext(context.Background(), buildConfigDetailsMultipleFiles(nil, include))
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["busybox"].HealthCheck.Test, types.HealthCheckTest{"CMD-SHELL",
+		"echo test TEST! $SOME_VAR"})
+}

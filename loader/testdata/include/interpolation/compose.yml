@@ -1,0 +1,8 @@
+name: test-local-env
+services:
+  busybox:
+    image: busybox
+    environment:
+      SOME_VAR: user
+    healthcheck:
+      test: ["CMD-SHELL", "echo test $VAR $$SOME_VAR"]
