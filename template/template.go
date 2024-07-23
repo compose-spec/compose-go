@@ -173,7 +173,7 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 	matches := pattern.FindStringSubmatch(substring)
 	groups := matchGroups(matches, pattern)
 	if escaped := groups[groupEscaped]; escaped != "" {
-		return escaped, true, nil
+		return "$$", true, nil
 	}
 
 	braced := false

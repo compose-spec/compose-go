@@ -23,6 +23,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/interpolation"
+	interp "github.com/compose-spec/compose-go/v2/interpolation"
 	"github.com/compose-spec/compose-go/v2/override"
 	"github.com/compose-spec/compose-go/v2/paths"
 	"github.com/compose-spec/compose-go/v2/template"
@@ -188,6 +189,13 @@ func getExtendsBaseFromFile(
 				ref,
 				refPath,
 			)
+		}
+
+		if opts.Interpolate != nil && !opts.SkipInterpolation {
+			source, err = interp.Interpolate(source, *opts.Interpolate)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		// Attempt to make a canonical model so ResolveRelativePaths can operate on source:target short syntax

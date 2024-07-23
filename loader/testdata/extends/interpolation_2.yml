@@ -1,0 +1,5 @@
+services:
+  test_service:
+    image: busybox
+    volumes:
+      - "$HOME/.Xauthority:/root/.Xauthority:ro"

@@ -172,11 +172,6 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 
 // importResources import into model all resources defined by imported, and report error on conflict
 func importResources(source map[string]any, target map[string]any) error {
-	aux, ok := escape(source).(map[string]any)
-	if ok {
-		source = aux
-	}
-
 	if err := importResource(source, target, "services"); err != nil {
 		return err
 	}
@@ -216,25 +211,4 @@ func importResource(source map[string]any, target map[string]any, key string) er
 		target[key] = to
 	}
 	return nil
-}
-
-// Necessary to handle the double dollar ($$VAR) case when including a file
-// In include, it performs n+1 Interpolations, where n is the include depth.
-// So Interpolation would completly remove the $ in this case. This function, serves as a tweak to add one extra dollar sign
-// to revert the Interpolation effect.
-func escape(a any) any {
-	switch v := a.(type) {
-	case string:
-		return strings.ReplaceAll(v, "$", "$$")
-	case []any:
-		for i, el := range v {
-			v[i] = escape(el)
-		}
-		return v
-	case map[string]any:
-		for k, el := range v {
-			v[k] = escape(el)
-		}
-	}
-	return a
 }

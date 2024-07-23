@@ -3327,7 +3327,7 @@ secrets:
 }
 
 func TestLoadDoubleDollarVarInclude(t *testing.T) {
-	//Special use case for $$VAR, where it should conserve the espcae var and not try to solve in each interpolation step
+	// Special use case for $$VAR, where it should conserve the espcae var and not try to solve in each interpolation step
 	include := `
 name: interpolation-include-error
 include:
@@ -3352,4 +3352,20 @@ include:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services["busybox"].HealthCheck.Test, types.HealthCheckTest{"CMD-SHELL",
 		"echo test TEST! $SOME_VAR"})
+}
+
+func TestExtendsInterpolation(t *testing.T) {
+	extends := `
+name: extends-interpolation
+services:
+  test_service_2:
+    extends:
+      file: ./testdata/extends/interpolation_2.yml
+      service: test_service
+`
+
+	p, err := LoadWithContext(context.Background(), buildConfigDetailsMultipleFiles(nil, extends))
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["test_service_2"].Volumes[0].Source, "/.Xauthority")
+	assert.DeepEqual(t, p.Services["test_service_2"].Volumes[0].Target, "/root/.Xauthority")
 }

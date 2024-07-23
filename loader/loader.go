@@ -333,7 +333,32 @@ func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetail
 		return nil, err
 	}
 
-	return load(ctx, *configDetails, opts, nil)
+	model, err := load(ctx, *configDetails, opts, nil)
+	if err != nil {
+		return nil, err
+	}
+	m, ok := escape(model).(map[string]any)
+	if ok {
+		return m, nil
+	}
+	return model, nil
+}
+
+// During Interpolation we ignore double $$, at the end of processing we need to handle this case
+func escape(a any) any {
+	switch v := a.(type) {
+	case string:
+		return strings.ReplaceAll(v, "$$", "$")
+	case []any:
+		for i, el := range v {
+			v[i] = escape(el)
+		}
+	case map[string]any:
+		for k, el := range v {
+			v[k] = escape(el)
+		}
+	}
+	return a
 }
 
 func toOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
