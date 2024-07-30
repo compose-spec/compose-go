@@ -79,9 +79,7 @@ func removeSecretsContentProperty(config map[string]interface{}) map[string]inte
 	if secrets, ok := config["secrets"].(map[string]interface{}); ok {
 		for _, secret := range secrets {
 			if secretMap, ok := secret.(map[string]interface{}); ok {
-				if _, ok := secretMap["content"]; ok {
-					delete(secretMap, "content")
-				}
+				delete(secretMap, "content")
 			}
 		}
 	}
