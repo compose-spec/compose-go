@@ -57,6 +57,7 @@ var Schema string
 
 // Validate uses the jsonschema to validate the configuration
 func Validate(config map[string]interface{}) error {
+	config = removeSecretsContentProperty(config)
 	schemaLoader := gojsonschema.NewStringLoader(Schema)
 	dataLoader := gojsonschema.NewGoLoader(config)
 
@@ -70,6 +71,21 @@ func Validate(config map[string]interface{}) error {
 	}
 
 	return nil
+}
+
+// removeSecretsContentProperty removes the content property from secrets
+// we add the content key here loader/environment.go:66
+func removeSecretsContentProperty(config map[string]interface{}) map[string]interface{} {
+	if secrets, ok := config["secrets"].(map[string]interface{}); ok {
+		for _, secret := range secrets {
+			if secretMap, ok := secret.(map[string]interface{}); ok {
+				if _, ok := secretMap["content"]; ok {
+					delete(secretMap, "content")
+				}
+			}
+		}
+	}
+	return config
 }
 
 func toError(result *gojsonschema.Result) error {

@@ -119,15 +119,6 @@ environment: CONFIG
 			err: "",
 		},
 		{
-			name: "environment + content",
-			input: `
-name: test
-environment: CONFIG
-content: foo=bar
-`,
-			err: "secrets.test: content is not allowed for secrets",
-		},
-		{
 			name: "conflict config",
 			input: `
 name: test

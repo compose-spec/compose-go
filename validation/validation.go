@@ -28,7 +28,7 @@ type checkerFunc func(value any, p tree.Path) error
 var checks = map[tree.Path]checkerFunc{
 	"volumes.*":                       checkVolume,
 	"configs.*":                       checkFileObject("file", "environment", "content"),
-	"secrets.*":                       checkSecrets,
+	"secrets.*":                       checkFileObject("file", "environment"),
 	"services.*.develop.watch.*.path": checkPath,
 }
 
@@ -58,19 +58,6 @@ func check(value any, p tree.Path) error {
 			}
 		}
 	}
-	return nil
-}
-
-func checkSecrets(value any, p tree.Path) error {
-	if err := checkFileObject("file", "environment")(value, p); err != nil {
-		return err
-	}
-
-	v := value.(map[string]any)
-	if _, ok := v["content"]; ok {
-		return fmt.Errorf("%s: content is not allowed for secrets", p)
-	}
-
 	return nil
 }
 
