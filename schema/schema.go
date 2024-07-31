@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/xeipuuv/gojsonschema"
 )
 
@@ -76,14 +77,15 @@ func Validate(config map[string]interface{}) error {
 // removeSecretsContentProperty removes the content property from secrets
 // we add the content key here loader/environment.go:66
 func removeSecretsContentProperty(config map[string]interface{}) map[string]interface{} {
-	if secrets, ok := config["secrets"].(map[string]interface{}); ok {
+	configClone := utils.CloneMap(config)
+	if secrets, ok := configClone["secrets"].(map[string]interface{}); ok {
 		for _, secret := range secrets {
 			if secretMap, ok := secret.(map[string]interface{}); ok {
 				delete(secretMap, "content")
 			}
 		}
 	}
-	return config
+	return configClone
 }
 
 func toError(result *gojsonschema.Result) error {
