@@ -697,7 +697,27 @@ services:
     image: busybox
     environment: "FOO=1"
 `)
-	assert.ErrorContains(t, err, "services.dict-env.environment must be a mapping")
+	assert.ErrorContains(t, err, "services.dict-env.environment must be a list")
+}
+
+func TestCommentedEnvironmentObject(t *testing.T) {
+	config, err := loadYAML(`
+name: commented-environment-object
+services:
+  commented-env:
+    image: busybox
+    environment:
+      #- FOO=1
+`)
+	assert.NilError(t, err)
+
+	expected := types.MappingWithEquals{}
+
+	assert.Check(t, is.Equal(1, len(config.Services)))
+
+	for _, service := range config.Services {
+		assert.Check(t, is.DeepEqual(expected, service.Environment))
+	}
 }
 
 func TestLoadWithEnvironmentInterpolation(t *testing.T) {
@@ -2261,7 +2281,7 @@ services:
       context: .
       ssh:
 `)
-	assert.ErrorContains(t, err, "services.test.build.ssh must be a mapping")
+	assert.ErrorContains(t, err, "services.test.build.ssh: invalid type <nil> for ssh")
 }
 
 func TestLoadLegacyBoolean(t *testing.T) {

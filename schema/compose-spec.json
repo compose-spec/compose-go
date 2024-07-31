@@ -17,12 +17,17 @@
     },
 
     "include": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "$ref": "#/definitions/include"
-      },
-      "description": "compose sub-projects to be included."
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/include"
+          },
+          "description": "compose sub-projects to be included."
+        },
+        {"type": "null"}
+      ]
     },
 
     "services": {
@@ -103,12 +108,12 @@
                 "context": {"type": "string"},
                 "dockerfile": {"type": "string"},
                 "dockerfile_inline": {"type": "string"},
-                "entitlements": {"type": "array", "items": {"type": "string"}},
+                "entitlements": {"$ref": "#/definitions/list_of_strings"},
                 "args": {"$ref": "#/definitions/list_or_dict"},
                 "ssh": {"$ref": "#/definitions/list_or_dict"},
                 "labels": {"$ref": "#/definitions/list_or_dict"},
-                "cache_from": {"type": "array", "items": {"type": "string"}},
-                "cache_to": {"type": "array", "items": {"type": "string"}},
+                "cache_from": {"$ref": "#/definitions/list_of_strings"},
+                "cache_to": {"$ref": "#/definitions/list_of_strings"},
                 "no_cache": {"type": ["boolean", "string"]},
                 "additional_contexts": {"$ref": "#/definitions/list_or_dict"},
                 "network": {"type": "string"},
@@ -119,9 +124,9 @@
                 "isolation": {"type": "string"},
                 "privileged": {"type": ["boolean", "string"]},
                 "secrets": {"$ref": "#/definitions/service_config_or_secret"},
-                "tags": {"type": "array", "items": {"type": "string"}},
+                "tags": {"$ref": "#/definitions/list_of_strings"},
                 "ulimits": {"$ref": "#/definitions/ulimits"},
-                "platforms": {"type": "array", "items": {"type": "string"}}
+                "platforms": {"$ref": "#/definitions/list_of_strings"}
               },
               "additionalProperties": false,
               "patternProperties": {"^x-": {}}
@@ -132,31 +137,26 @@
           "type": "object",
           "properties": {
             "device_read_bps": {
-              "type": "array",
-              "items": {"$ref": "#/definitions/blkio_limit"}
+              "$ref": "#/definitions/blkio_limit_list"
             },
             "device_read_iops": {
-              "type": "array",
-              "items": {"$ref": "#/definitions/blkio_limit"}
+              "$ref": "#/definitions/blkio_limit_list"
             },
             "device_write_bps": {
-              "type": "array",
-              "items": {"$ref": "#/definitions/blkio_limit"}
+              "$ref": "#/definitions/blkio_limit_list"
             },
             "device_write_iops": {
-              "type": "array",
-              "items": {"$ref": "#/definitions/blkio_limit"}
+              "$ref": "#/definitions/blkio_limit_list"
             },
             "weight": {"type": ["integer", "string"]},
             "weight_device": {
-              "type": "array",
-              "items": {"$ref": "#/definitions/blkio_weight"}
+              "$ref": "#/definitions/blkio_weight_list"
             }
           },
           "additionalProperties": false
         },
-        "cap_add": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-        "cap_drop": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "cap_add": {"$ref": "#/definitions/list_of_unique_strings"},
+        "cap_drop": {"$ref": "#/definitions/list_of_unique_strings"},
         "cgroup": {"type": "string", "enum": ["host", "private"]},
         "cgroup_parent": {"type": "string"},
         "command": {"$ref": "#/definitions/command"},
@@ -189,7 +189,7 @@
         },
         "depends_on": {
           "oneOf": [
-            {"$ref": "#/definitions/list_of_strings"},
+            {"$ref": "#/definitions/list_of_unique_strings"},
             {
               "type": "object",
               "additionalProperties": false,
@@ -215,10 +215,10 @@
             }
           ]
         },
-        "device_cgroup_rules": {"$ref": "#/definitions/list_of_strings"},
-        "devices": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "device_cgroup_rules": {"$ref": "#/definitions/list_of_unique_strings"},
+        "devices": {"$ref": "#/definitions/list_of_unique_strings"},
         "dns": {"$ref": "#/definitions/string_or_list"},
-        "dns_opt": {"type": "array","items": {"type": "string"}, "uniqueItems": true},
+        "dns_opt": {"$ref": "#/definitions/list_of_unique_strings"},
         "dns_search": {"$ref": "#/definitions/string_or_list"},
         "domainname": {"type": "string"},
         "entrypoint": {"$ref": "#/definitions/command"},
@@ -248,7 +248,7 @@
             }
           ]
         },
-        "external_links": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "external_links": {"$ref": "#/definitions/list_of_unique_strings"},
         "extra_hosts": {"$ref": "#/definitions/list_or_dict"},
         "group_add": {
           "type": "array",
@@ -264,7 +264,7 @@
         "ipc": {"type": "string"},
         "isolation": {"type": "string"},
         "labels": {"$ref": "#/definitions/list_or_dict"},
-        "links": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "links": {"$ref": "#/definitions/list_of_unique_strings"},
         "logging": {
           "type": "object",
 
@@ -288,7 +288,7 @@
         "network_mode": {"type": "string"},
         "networks": {
           "oneOf": [
-            {"$ref": "#/definitions/list_of_strings"},
+            {"$ref": "#/definitions/list_of_unique_strings"},
             {
               "type": "object",
               "patternProperties": {
@@ -297,10 +297,10 @@
                     {
                       "type": "object",
                       "properties": {
-                        "aliases": {"$ref": "#/definitions/list_of_strings"},
+                        "aliases": {"$ref": "#/definitions/list_of_unique_strings"},
                         "ipv4_address": {"type": "string"},
                         "ipv6_address": {"type": "string"},
-                        "link_local_ips": {"$ref": "#/definitions/list_of_strings"},
+                        "link_local_ips": {"$ref": "#/definitions/list_of_unique_strings"},
                         "mac_address": {"type": "string"},
                         "driver_opts": {
                           "type": "object",
@@ -354,7 +354,7 @@
           "uniqueItems": true
         },
         "privileged": {"type": ["boolean", "string"]},
-        "profiles": {"$ref": "#/definitions/list_of_strings"},
+        "profiles": {"$ref": "#/definitions/list_of_unique_strings"},
         "pull_policy": {"type": "string", "enum": [
           "always", "never", "if_not_present", "build", "missing"
         ]},
@@ -366,7 +366,7 @@
         "scale": {
           "type": ["integer", "string"]
         },
-        "security_opt": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "security_opt": {"$ref": "#/definitions/list_of_unique_strings"},
         "shm_size": {"type": ["number", "string"]},
         "secrets": {"$ref": "#/definitions/service_config_or_secret"},
         "sysctls": {"$ref": "#/definitions/list_or_dict"},
@@ -436,9 +436,7 @@
           "uniqueItems": true
         },
         "volumes_from": {
-          "type": "array",
-          "items": {"type": "string"},
-          "uniqueItems": true
+          "$ref": "#/definitions/list_of_unique_strings"
         },
         "working_dir": {"type": "string"}
       },
@@ -456,7 +454,7 @@
         "test": {
           "oneOf": [
             {"type": "string"},
-            {"type": "array", "items": {"type": "string"}}
+            {"$ref": "#/definitions/list_of_strings"}
           ]
         },
         "timeout": {"type": "string"},
@@ -476,7 +474,7 @@
             "type": "object",
             "required": ["path", "action"],
             "properties": {
-              "ignore": {"type": "array", "items": {"type": "string"}},
+              "ignore": {"$ref": "#/definitions/list_of_strings"},
               "path": {"type": "string"},
               "action": {"type": "string", "enum": ["rebuild", "sync", "sync+restart"]},
               "target": {"type": "string"}
@@ -567,7 +565,7 @@
         "placement": {
           "type": "object",
           "properties": {
-            "constraints": {"type": "array", "items": {"type": "string"}},
+            "constraints": {"$ref": "#/definitions/list_of_strings"},
             "preferences": {
               "type": "array",
               "items": {
@@ -616,9 +614,9 @@
       "items": {
         "type": "object",
         "properties": {
-          "capabilities": {"$ref": "#/definitions/list_of_strings"},
+          "capabilities": {"$ref": "#/definitions/list_of_unique_strings"},
           "count": {"type": ["string", "integer"]},
-          "device_ids": {"$ref": "#/definitions/list_of_strings"},
+          "device_ids": {"$ref": "#/definitions/list_of_unique_strings"},
           "driver":{"type": "string"},
           "options":{"$ref": "#/definitions/list_or_dict"}
         },
@@ -790,12 +788,13 @@
       "oneOf": [
         {"type": "null"},
         {"type": "string"},
-        {"type": "array","items": {"type": "string"}}
+        {"type": "array", "items": {"type": "string"}}
       ]
     },
 
     "env_file": {
       "oneOf": [
+        {"type": "null"},
         {"type": "string"},
         {
           "type": "array",
@@ -827,14 +826,29 @@
     "string_or_list": {
       "oneOf": [
         {"type": "string"},
-        {"$ref": "#/definitions/list_of_strings"}
+        {"$ref": "#/definitions/list_of_unique_strings"}
+      ]
+    },
+
+    "list_of_unique_strings": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        {"type": "null"}
       ]
     },
 
     "list_of_strings": {
-      "type": "array",
-      "items": {"type": "string"},
-      "uniqueItems": true
+      "oneOf": [
+        {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        {"type": "null"}
+      ]
     },
 
     "list_or_dict": {
@@ -848,7 +862,7 @@
           },
           "additionalProperties": false
         },
-        {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+        {"$ref": "#/definitions/list_of_unique_strings"}
       ]
     },
 
@@ -860,6 +874,13 @@
       },
       "additionalProperties": false
     },
+    "blkio_limit_list": {
+      "oneOf": [
+        {"type": "array", "items": {"$ref": "#/definitions/blkio_limit"}},
+        {"type": "null"}
+      ]
+    },
+
     "blkio_weight": {
       "type": "object",
       "properties": {
@@ -868,25 +889,37 @@
       },
       "additionalProperties": false
     },
+    "blkio_weight_list": {
+      "oneOf": [
+        {"type": "array", "items": {"$ref": "#/definitions/blkio_weight"}},
+        {"type": "null"}
+      ]
+    },
+
     "service_config_or_secret": {
-      "type": "array",
-      "items": {
-        "oneOf": [
-          {"type": "string"},
-          {
-            "type": "object",
-            "properties": {
-              "source": {"type": "string"},
-              "target": {"type": "string"},
-              "uid": {"type": "string"},
-              "gid": {"type": "string"},
-              "mode": {"type": ["number", "string"]}
-            },
-            "additionalProperties": false,
-            "patternProperties": {"^x-": {}}
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {
+                "type": "object",
+                "properties": {
+                  "source": {"type": "string"},
+                  "target": {"type": "string"},
+                  "uid": {"type": "string"},
+                  "gid": {"type": "string"},
+                  "mode": {"type": ["number", "string"]}
+                },
+                "additionalProperties": false,
+                "patternProperties": {"^x-": {}}
+              }
+            ]
           }
-        ]
-      }
+        }
+      ]
     },
     "ulimits": {
       "type": "object",
