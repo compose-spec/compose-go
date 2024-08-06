@@ -24,7 +24,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestValidateSecret(t *testing.T) {
+func TestValidateConfig(t *testing.T) {
 	checker := checks["configs.*"]
 	tests := []struct {
 		name  string
@@ -92,5 +92,70 @@ external: true
 				assert.Equal(t, tt.err, err.Error())
 			}
 		})
+	}
+}
+
+func TestValidateSecret(t *testing.T) {
+	checker := checks["secrets.*"]
+	tests := []struct {
+		name  string
+		input string
+		err   string
+	}{
+		{
+			name: "file secret",
+			input: `
+name: test
+file: ./httpd.conf
+`,
+			err: "",
+		},
+		{
+			name: "environment secret",
+			input: `
+name: test
+environment: CONFIG
+`,
+			err: "",
+		},
+		{
+			name: "conflict config",
+			input: `
+name: test
+environment: CONFIG
+file: ./httpd.conf
+`,
+			err: "secrets.test: file|environment attributes are mutually exclusive",
+		},
+		{
+			name: "missing config",
+			input: `
+name: test
+`,
+			err: "secrets.test: one of file|environment must be set",
+		},
+		{
+			name: "external config",
+			input: `
+name: test
+external: true
+`,
+			err: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				var input map[string]any
+				err := yaml.Unmarshal([]byte(tt.input), &input)
+				assert.NilError(t, err)
+				err = checker(input, tree.NewPath("secrets.test"))
+				if tt.err == "" {
+					assert.NilError(t, err)
+				} else {
+					assert.Equal(t, tt.err, err.Error())
+				}
+			},
+		)
 	}
 }
