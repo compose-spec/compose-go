@@ -2885,6 +2885,7 @@ services:
         # sync static content
         - path: ./webapp/html
           action: sync
+          x-initialSync: true
           target: /var/www
           ignore:
             - node_modules/
@@ -2920,6 +2921,9 @@ services:
 				Action: types.WatchActionSync,
 				Target: "/var/www",
 				Ignore: []string{"node_modules/"},
+				Extensions: types.Extensions{
+					"x-initialSync": true,
+				},
 			},
 		},
 	})
