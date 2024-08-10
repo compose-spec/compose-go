@@ -41,6 +41,29 @@ func ParseVolume(spec string) (types.ServiceVolumeConfig, error) {
 		return volume, nil
 	}
 
+	if strings.Count(spec, "/dev") == 2 {
+		parts := strings.Split(spec, ":/dev")
+		source := parts[0]
+		target := "/dev" + parts[1]
+
+		if err := populateFieldFromBuffer(':', []rune(source), &volume); err != nil {
+			populateType(&volume)
+			return volume, fmt.Errorf("invalid spec: %s: %w", spec, err)
+		}
+
+		if err := populateFieldFromBuffer(endOfSpec, []rune(target), &volume); err != nil {
+			populateType(&volume)
+			return volume, fmt.Errorf("invalid spec: %s: %w", spec, err)
+		}
+
+		targetParts := strings.Split(target, ":")
+		if len(targetParts) > 1 {
+			parseOptions(targetParts[len(targetParts)-1], &volume)
+		}
+		populateType(&volume)
+		return volume, nil
+	}
+
 	var buffer []rune
 	for _, char := range spec + string(endOfSpec) {
 		switch {
@@ -83,6 +106,11 @@ func populateFieldFromBuffer(char rune, buffer []rune, volume *types.ServiceVolu
 	case char == ':':
 		return errors.New("too many colons")
 	}
+	parseOptions(strBuffer, volume)
+	return nil
+}
+
+func parseOptions(strBuffer string, volume *types.ServiceVolumeConfig) {
 	for _, option := range strings.Split(strBuffer, ",") {
 		switch option {
 		case "ro":
@@ -98,16 +126,6 @@ func populateFieldFromBuffer(char rune, buffer []rune, volume *types.ServiceVolu
 			// ignore unknown options
 		}
 	}
-	return nil
-}
-
-var Propagations = []string{
-	types.PropagationRPrivate,
-	types.PropagationPrivate,
-	types.PropagationRShared,
-	types.PropagationShared,
-	types.PropagationRSlave,
-	types.PropagationSlave,
 }
 
 type setBindOptionFunc func(bind *types.ServiceVolumeBind, option string)

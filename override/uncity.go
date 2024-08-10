@@ -42,7 +42,7 @@ func init() {
 	unique["services.*.build.labels"] = keyValueIndexer
 	unique["services.*.cap_add"] = keyValueIndexer
 	unique["services.*.cap_drop"] = keyValueIndexer
-	unique["services.*.devices"] = volumeIndexer
+	unique["services.*.devices"] = devicesIndexer
 	unique["services.*.configs"] = mountIndexer("")
 	unique["services.*.deploy.labels"] = keyValueIndexer
 	unique["services.*.dns"] = keyValueIndexer
@@ -127,6 +127,24 @@ func volumeIndexer(y any, p tree.Path) (string, error) {
 		target, ok := value["target"].(string)
 		if !ok {
 			return "", fmt.Errorf("service volume %s is missing a mount target", p)
+		}
+		return target, nil
+	case string:
+		volume, err := format.ParseVolume(value)
+		if err != nil {
+			return "", err
+		}
+		return volume.Target, nil
+	}
+	return "", nil
+}
+
+func devicesIndexer(y any, p tree.Path) (string, error) {
+	switch value := y.(type) {
+	case map[string]any:
+		target, ok := value["target"].(string)
+		if !ok {
+			return "", fmt.Errorf("service devices %s is missing a mount target", p)
 		}
 		return target, nil
 	case string:

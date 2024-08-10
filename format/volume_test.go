@@ -97,6 +97,21 @@ func TestParseVolumeRelativeBindMountWindows(t *testing.T) {
 	}
 }
 
+func TestParseVolumeWithDeviceWithMultipleColons(t *testing.T) {
+	volume, err := ParseVolume("/dev/usb-0:1.3:1.0-port0:/dev/usb-0:1.3:1.0-port0")
+	expected := types.ServiceVolumeConfig{
+		Type:   "bind",
+		Source: "/dev/usb-0:1.3:1.0-port0",
+		Target: "/dev/usb-0:1.3:1.0-port0",
+		Bind: &types.ServiceVolumeBind{
+			CreateHostPath: true,
+			Propagation:    "",
+		},
+	}
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(expected, volume))
+}
+
 func TestParseVolumeWithBindOptions(t *testing.T) {
 	volume, err := ParseVolume("/source:/target:slave")
 	expected := types.ServiceVolumeConfig{
