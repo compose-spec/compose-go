@@ -391,16 +391,38 @@ func (o *ProjectOptions) GetWorkingDir() (string, error) {
 	if o.WorkingDir != "" {
 		return filepath.Abs(o.WorkingDir)
 	}
+
+	osWorkingDir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	workingDir := ""
 	for _, path := range o.ConfigPaths {
 		if path != "-" {
 			absPath, err := filepath.Abs(path)
 			if err != nil {
 				return "", err
 			}
-			return filepath.Dir(absPath), nil
+
+			absDir := filepath.Dir(absPath)
+
+			if absDir == osWorkingDir {
+				workingDir = osWorkingDir
+				continue
+			}
+
+			if workingDir == "" {
+				workingDir = absDir
+			}
 		}
 	}
-	return os.Getwd()
+
+	if workingDir == "" {
+		workingDir = osWorkingDir
+	}
+
+	return workingDir, nil
 }
 
 func (o *ProjectOptions) GeConfigFiles() ([]types.ConfigFile, error) {

@@ -353,3 +353,103 @@ func TestEnvVariablePrecedence(t *testing.T) {
 		})
 	}
 }
+
+func TestGetWorkingDirWithWorkingDirFileAndSubDirFile(t *testing.T) {
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+	err = os.Chdir("testdata/simple")
+	assert.NilError(t, err)
+	defer os.Chdir(wd) //nolint:errcheck
+
+	opts, err := NewProjectOptions([]string{
+		"compose.yaml",
+		"subdirectory/compose.yaml",
+	}, WithName("my_project"))
+	assert.NilError(t, err)
+	currentDir, err := opts.GetWorkingDir()
+	assert.NilError(t, err)
+	assert.Equal(t, currentDir, filepath.Join(wd, "testdata", "simple"))
+}
+
+func TestGetWorkingDirWithSubDirFileAndWorkingDirFile(t *testing.T) {
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+	err = os.Chdir("testdata/simple")
+	assert.NilError(t, err)
+	defer os.Chdir(wd) //nolint:errcheck
+
+	opts, err := NewProjectOptions([]string{
+		"subdirectory/compose.yaml",
+		"compose.yaml",
+	}, WithName("my_project"))
+	assert.NilError(t, err)
+	currentDir, err := opts.GetWorkingDir()
+	assert.NilError(t, err)
+	assert.Equal(t, currentDir, filepath.Join(wd, "testdata", "simple"))
+}
+
+func TestGetWorkingDirWithOneSubDirFile(t *testing.T) {
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+	err = os.Chdir("testdata/simple")
+	assert.NilError(t, err)
+	defer os.Chdir(wd) //nolint:errcheck
+
+	opts, err := NewProjectOptions([]string{
+		"subdirectory/compose.yaml",
+	}, WithName("my_project"))
+	assert.NilError(t, err)
+	currentDir, err := opts.GetWorkingDir()
+	assert.NilError(t, err)
+	assert.Equal(t, currentDir, filepath.Join(wd, "testdata", "simple", "subdirectory"))
+}
+
+func TestGetWorkingDirWithTwoSubDirFiles(t *testing.T) {
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+	err = os.Chdir("testdata/simple")
+	assert.NilError(t, err)
+	defer os.Chdir(wd) //nolint:errcheck
+
+	opts, err := NewProjectOptions([]string{
+		"subdirectory/compose.yaml",
+		"subdirectory/compose-other.yaml",
+	}, WithName("my_project"))
+	assert.NilError(t, err)
+	currentDir, err := opts.GetWorkingDir()
+	assert.NilError(t, err)
+	assert.Equal(t, currentDir, filepath.Join(wd, "testdata", "simple", "subdirectory"))
+}
+
+func TestGetWorkingDirWithOneWorkingDirFile(t *testing.T) {
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+	err = os.Chdir("testdata/simple")
+	assert.NilError(t, err)
+	defer os.Chdir(wd) //nolint:errcheck
+
+	opts, err := NewProjectOptions([]string{
+		"compose.yaml",
+	}, WithName("my_project"))
+	assert.NilError(t, err)
+	currentDir, err := opts.GetWorkingDir()
+	assert.NilError(t, err)
+	assert.Equal(t, currentDir, filepath.Join(wd, "testdata", "simple"))
+}
+
+func TestGetWorkingDirWithTwoWorkingDirFiles(t *testing.T) {
+	wd, err := os.Getwd()
+	assert.NilError(t, err)
+	err = os.Chdir("testdata/simple")
+	assert.NilError(t, err)
+	defer os.Chdir(wd) //nolint:errcheck
+
+	opts, err := NewProjectOptions([]string{
+		"compose.yaml",
+		"compose-other.yaml",
+	}, WithName("my_project"))
+	assert.NilError(t, err)
+	currentDir, err := opts.GetWorkingDir()
+	assert.NilError(t, err)
+	assert.Equal(t, currentDir, filepath.Join(wd, "testdata", "simple"))
+}
