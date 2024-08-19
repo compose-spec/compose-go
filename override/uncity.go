@@ -62,6 +62,7 @@ func init() {
 	unique["services.*.sysctls"] = keyValueIndexer
 	unique["services.*.tmpfs"] = keyValueIndexer
 	unique["services.*.volumes"] = volumeIndexer
+	unique["services.*.devices"] = deviceMappingIndexer
 }
 
 // EnforceUnicity removes redefinition of elements declared in a sequence
@@ -135,6 +136,24 @@ func volumeIndexer(y any, p tree.Path) (string, error) {
 			return "", err
 		}
 		return volume.Target, nil
+	}
+	return "", nil
+}
+
+func deviceMappingIndexer(y any, p tree.Path) (string, error) {
+	switch value := y.(type) {
+	case map[string]any:
+		target, ok := value["target"].(string)
+		if !ok {
+			return "", fmt.Errorf("service device %s is missing a mount target", p)
+		}
+		return target, nil
+	case string:
+		arr := strings.Split(value, ":")
+		if len(arr) == 1 {
+			return arr[0], nil
+		}
+		return arr[1], nil
 	}
 	return "", nil
 }

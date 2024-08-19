@@ -216,7 +216,25 @@
           ]
         },
         "device_cgroup_rules": {"$ref": "#/definitions/list_of_strings"},
-        "devices": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "devices": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {"type": "string"},
+              {
+                "type": "object",
+                "required": ["source"],
+                "properties": {
+                  "source": {"type": "string"},
+                  "target": {"type": "string"},
+                  "permissions": {"type": "string"}
+                },
+                "additionalProperties": false,
+                "patternProperties": {"^x-": {}}
+              }
+            ]
+          }
+        },
         "dns": {"$ref": "#/definitions/string_or_list"},
         "dns_opt": {"type": "array","items": {"type": "string"}, "uniqueItems": true},
         "dns_search": {"$ref": "#/definitions/string_or_list"},
