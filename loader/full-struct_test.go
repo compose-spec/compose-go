@@ -164,7 +164,10 @@ func services(workingDir, homeDir string) types.Services {
 				"c 1:3 mr",
 				"a 7:* rmw",
 			},
-			Devices:    []string{"/dev/ttyUSB0:/dev/ttyUSB0"},
+			Devices: []types.DeviceMapping{
+				{
+					Source: "/dev/ttyUSB0", Target: "/dev/ttyUSB0", Permissions: "rwm",
+				}},
 			DNS:        []string{"8.8.8.8", "9.9.9.9"},
 			DNSSearch:  []string{"dc1.example.com", "dc2.example.com"},
 			DomainName: "foo.com",
@@ -719,7 +722,9 @@ services:
       - c 1:3 mr
       - a 7:* rmw
     devices:
-      - /dev/ttyUSB0:/dev/ttyUSB0
+      - source: /dev/ttyUSB0
+        target: /dev/ttyUSB0
+        permissions: rwm
     dns:
       - 8.8.8.8
       - 9.9.9.9
@@ -1314,7 +1319,11 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "a 7:* rmw"
       ],
       "devices": [
-        "/dev/ttyUSB0:/dev/ttyUSB0"
+        {
+          "source": "/dev/ttyUSB0",
+          "target": "/dev/ttyUSB0",
+          "permissions": "rwm"
+        }
       ],
       "dns": [
         "8.8.8.8",

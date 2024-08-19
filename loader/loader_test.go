@@ -3329,3 +3329,51 @@ secrets:
 			Content:     "Shadoks",
 		}})
 }
+
+func TestLoadDeviceMapping(t *testing.T) {
+	config, err := loadYAML(`
+name: load-device-mapping
+services:
+  test:
+    devices:
+      - /dev/source:/dev/target:permissions
+      - /dev/single
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, config.Services["test"].Devices, []types.DeviceMapping{
+		{
+			Source:      "/dev/source",
+			Target:      "/dev/target",
+			Permissions: "permissions",
+		},
+		{
+			Source:      "/dev/single",
+			Target:      "/dev/single",
+			Permissions: "rwm",
+		},
+	})
+}
+
+func TestLoadDeviceMappingLongSyntax(t *testing.T) {
+	config, err := loadYAML(`
+name: load-device-mapping-long-syntax
+services:
+  test:
+    devices:
+      - source: /dev/source
+        target: /dev/target
+        permissions: permissions
+        x-foo: bar
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, config.Services["test"].Devices, []types.DeviceMapping{
+		{
+			Source:      "/dev/source",
+			Target:      "/dev/target",
+			Permissions: "permissions",
+			Extensions: map[string]any{
+				"x-foo": "bar",
+			},
+		},
+	})
+}
