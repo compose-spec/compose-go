@@ -115,7 +115,7 @@
                 "pull": {"type": ["boolean", "string"]},
                 "target": {"type": "string"},
                 "shm_size": {"type": ["integer", "string"]},
-                "extra_hosts": {"$ref": "#/definitions/list_or_dict"},
+                "extra_hosts": {"$ref": "#/definitions/extra_hosts"},
                 "isolation": {"type": "string"},
                 "privileged": {"type": ["boolean", "string"]},
                 "secrets": {"$ref": "#/definitions/service_config_or_secret"},
@@ -267,7 +267,7 @@
           ]
         },
         "external_links": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
-        "extra_hosts": {"$ref": "#/definitions/list_or_dict"},
+        "extra_hosts": {"$ref": "#/definitions/extra_hosts"},
         "group_add": {
           "type": "array",
           "items": {
@@ -864,6 +864,21 @@
           "patternProperties": {
             ".+": {
               "type": ["string", "number", "boolean", "null"]
+            }
+          },
+          "additionalProperties": false
+        },
+        {"type": "array", "items": {"type": "string"}, "uniqueItems": true}
+      ]
+    },
+
+    "extra_hosts": {
+      "oneOf": [
+        {
+          "type": "object",
+          "patternProperties": {
+            ".+": {
+              "type": ["string", "array"]
             }
           },
           "additionalProperties": false

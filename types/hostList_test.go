@@ -107,6 +107,13 @@ func testHostsList(t *testing.T, sep string) {
 			},
 			expectedOut: "foo:127.0.0.2 foo:ff02::1",
 		},
+		{
+			doc: "list of values",
+			input: []string{
+				"foo=127.0.0.2,127.0.0.3",
+			},
+			expectedOut: "foo:127.0.0.2 foo:127.0.0.3",
+		},
 	}
 
 	for _, tc := range testCases {
