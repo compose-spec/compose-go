@@ -36,7 +36,6 @@ func init() {
 	unique["services.*.annotations"] = keyValueIndexer
 	unique["services.*.build.args"] = keyValueIndexer
 	unique["services.*.build.additional_contexts"] = keyValueIndexer
-	unique["services.*.build.extra_hosts"] = keyValueIndexer
 	unique["services.*.build.platform"] = keyValueIndexer
 	unique["services.*.build.tags"] = keyValueIndexer
 	unique["services.*.build.labels"] = keyValueIndexer
@@ -51,7 +50,6 @@ func init() {
 	unique["services.*.environment"] = keyValueIndexer
 	unique["services.*.env_file"] = envFileIndexer
 	unique["services.*.expose"] = exposeIndexer
-	unique["services.*.extra_hosts"] = keyValueIndexer
 	unique["services.*.labels"] = keyValueIndexer
 	unique["services.*.links"] = keyValueIndexer
 	unique["services.*.networks.*.aliases"] = keyValueIndexer
@@ -109,16 +107,16 @@ func enforceUnicity(value any, p tree.Path) (any, error) {
 	return value, nil
 }
 
-func keyValueIndexer(y any, p tree.Path) (string, error) {
-	switch value := y.(type) {
+func keyValueIndexer(v any, p tree.Path) (string, error) {
+	switch value := v.(type) {
 	case string:
 		key, _, found := strings.Cut(value, "=")
-		if !found {
-			return value, nil
+		if found {
+			return key, nil
 		}
-		return key, nil
+		return value, nil
 	default:
-		return "", fmt.Errorf("%s: unexpected type %T", p, y)
+		return "", fmt.Errorf("%s: unexpected type %T", p, v)
 	}
 }
 

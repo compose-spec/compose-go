@@ -82,6 +82,7 @@ services:
         - "registry/username/myrepos:my-other-tag"
       extra_hosts:
         - "somehost=162.242.195.82"
+        - "otherhost=50.31.209.229"
         - "otherhost=50.31.209.230"
         - "myhostv6=::1"
 `)

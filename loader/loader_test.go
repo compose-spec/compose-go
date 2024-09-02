@@ -3377,3 +3377,35 @@ services:
 		},
 	})
 }
+
+func TestLoadExtraHostsRepeated(t *testing.T) {
+	p, err := loadYAML(`
+name: load-extra-hosts
+services:
+  test:
+    extra_hosts:
+      - "myhost=0.0.0.1,0.0.0.2"
+`)
+	assert.NilError(t, err)
+	hosts := p.Services["test"].ExtraHosts
+	assert.DeepEqual(t, hosts, types.HostsList{
+		"myhost": []string{"0.0.0.1", "0.0.0.2"},
+	})
+}
+
+func TestLoadExtraHostsLongSyntax(t *testing.T) {
+	p, err := loadYAML(`
+name: load-extra-hosts
+services:
+  test:
+    extra_hosts:
+      myhost:
+        - "0.0.0.1"
+        - "0.0.0.2"
+`)
+	assert.NilError(t, err)
+	hosts := p.Services["test"].ExtraHosts
+	assert.DeepEqual(t, hosts, types.HostsList{
+		"myhost": []string{"0.0.0.1", "0.0.0.2"},
+	})
+}
