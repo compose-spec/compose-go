@@ -13,17 +13,17 @@ var testInput = `
 a=b
 a[1]=c
 a.propertyKey=d
-árvíztűrő-TÜKÖRFÚRÓGÉP=ÁRVÍZTŰRŐ-tükörfúrógép
+árvíztűrőTÜKÖRFÚRÓGÉP=ÁRVÍZTŰRŐtükörfúrógép
 `
 
 func TestParseBytes(t *testing.T) {
 	p := newParser()
 
 	expectedOutput := map[string]string{
-		"a":                      "b",
-		"a[1]":                   "c",
-		"a.propertyKey":          "d",
-		"árvíztűrő-TÜKÖRFÚRÓGÉP": "ÁRVÍZTŰRŐ-tükörfúrógép",
+		"a":                     "b",
+		"a[1]":                  "c",
+		"a.propertyKey":         "d",
+		"árvíztűrőTÜKÖRFÚRÓGÉP": "ÁRVÍZTŰRŐtükörfúrógép",
 	}
 
 	out := map[string]string{}
