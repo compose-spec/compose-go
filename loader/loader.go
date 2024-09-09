@@ -774,6 +774,11 @@ func secretConfigDecoderHook(from, to reflect.Type, data interface{}) (interface
 				if val, ok := ext[types.SecretConfigXValue].(string); ok {
 					// Return a map with the Content field populated
 					v["Content"] = val
+					delete(ext, types.SecretConfigXValue)
+
+					if len(ext) == 0 {
+						delete(v, "#extensions")
+					}
 				}
 			}
 		}
