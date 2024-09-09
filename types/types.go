@@ -239,6 +239,10 @@ const (
 	NetworkModeContainerPrefix = ContainerPrefix
 )
 
+const (
+	SecretConfigXValue = "x-#value"
+)
+
 // GetDependencies retrieves all services this service depends on
 func (s ServiceConfig) GetDependencies() []string {
 	var dependencies []string
