@@ -97,3 +97,4 @@ make check_compose_spec
 * [compose2nix](https://github.com/aksiksi/compose2nix)
 * [Defang](https://github.com/DefangLabs/defang)
 * [score-compose](https://github.com/score-spec/score-compose)
+* [CasaOS](https://github.com/IceWhaleTech/CasaOS)
