@@ -32,16 +32,10 @@ func newParser() *parser {
 
 func (p *parser) parse(src string, out map[string]string, lookupFn LookupFn) error {
 	cutset := src
-	//println("Current source:")
-	//println(cutset)
-	//println("----")
 	if lookupFn == nil {
 		lookupFn = noLookupFn
 	}
 	for {
-		//println("Ingesting:")
-		//println(cutset)
-		//println()
 		cutset = p.getStatementStart(cutset)
 		if cutset == "" {
 			// reached end of file
