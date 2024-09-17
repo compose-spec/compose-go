@@ -691,6 +691,14 @@ func TestUTF8BOM(t *testing.T) {
 	loadEnvAndCompareValues(t, Load, envFileName, expectedValues, noopPresets)
 }
 
+func TestDash(t *testing.T) {
+	loadEnvAndCompareValues(t, Load, "fixtures/special.env", map[string]string{
+		"VAR-WITH-DASHES":      "dashes",
+		"VAR.WITH.DOTS":        "dots",
+		"VAR_WITH_UNDERSCORES": "underscores",
+	}, noopPresets)
+}
+
 func TestGetEnvFromFile(t *testing.T) {
 	wd := t.TempDir()
 	f := filepath.Join(wd, ".env")
