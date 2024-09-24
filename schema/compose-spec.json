@@ -500,9 +500,7 @@
             },
             "additionalProperties": false,
             "patternProperties": {"^x-": {}}
-          },
-          "additionalProperties": false,
-          "patternProperties": {"^x-": {}}
+          }
         }
       }
     },
