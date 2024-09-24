@@ -370,6 +370,8 @@
           },
           "uniqueItems": true
         },
+        "post_start": {"type": "array", "items": {"$ref": "#/definitions/service_hook"}},
+        "pre_stop": {"type": "array", "items": {"$ref": "#/definitions/service_hook"}},
         "privileged": {"type": ["boolean", "string"]},
         "profiles": {"$ref": "#/definitions/list_of_strings"},
         "pull_policy": {"type": "string", "enum": [
@@ -814,6 +816,20 @@
         {"type": "string"},
         {"type": "array","items": {"type": "string"}}
       ]
+    },
+
+    "service_hook": {
+      "id": "#/definitions/service_hook",
+      "type": "object",
+      "properties": {
+        "command": {"$ref": "#/definitions/command"},
+        "user": {"type": "string"},
+        "privileged": {"type": ["boolean", "string"]},
+        "working_dir": {"type": "string"},
+        "environment": {"$ref": "#/definitions/list_or_dict"}
+      },
+      "additionalProperties": false,
+      "patternProperties": {"^x-": {}}
     },
 
     "env_file": {

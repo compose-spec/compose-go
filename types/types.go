@@ -132,6 +132,8 @@ type ServiceConfig struct {
 	Volumes         []ServiceVolumeConfig            `yaml:"volumes,omitempty" json:"volumes,omitempty"`
 	VolumesFrom     []string                         `yaml:"volumes_from,omitempty" json:"volumes_from,omitempty"`
 	WorkingDir      string                           `yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
+	PostStart       []ServiceHook                    `yaml:"post_start,omitempty" json:"post_start,omitempty"`
+	PreStop         []ServiceHook                    `yaml:"pre_stop,omitempty" json:"pre_stop,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
