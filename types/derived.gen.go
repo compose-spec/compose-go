@@ -674,6 +674,42 @@ func deriveDeepCopyService(dst, src *ServiceConfig) {
 		copy(dst.VolumesFrom, src.VolumesFrom)
 	}
 	dst.WorkingDir = src.WorkingDir
+	if src.PostStart == nil {
+		dst.PostStart = nil
+	} else {
+		if dst.PostStart != nil {
+			if len(src.PostStart) > len(dst.PostStart) {
+				if cap(dst.PostStart) >= len(src.PostStart) {
+					dst.PostStart = (dst.PostStart)[:len(src.PostStart)]
+				} else {
+					dst.PostStart = make([]ServiceHook, len(src.PostStart))
+				}
+			} else if len(src.PostStart) < len(dst.PostStart) {
+				dst.PostStart = (dst.PostStart)[:len(src.PostStart)]
+			}
+		} else {
+			dst.PostStart = make([]ServiceHook, len(src.PostStart))
+		}
+		deriveDeepCopy_22(dst.PostStart, src.PostStart)
+	}
+	if src.PreStop == nil {
+		dst.PreStop = nil
+	} else {
+		if dst.PreStop != nil {
+			if len(src.PreStop) > len(dst.PreStop) {
+				if cap(dst.PreStop) >= len(src.PreStop) {
+					dst.PreStop = (dst.PreStop)[:len(src.PreStop)]
+				} else {
+					dst.PreStop = make([]ServiceHook, len(src.PreStop))
+				}
+			} else if len(src.PreStop) < len(dst.PreStop) {
+				dst.PreStop = (dst.PreStop)[:len(src.PreStop)]
+			}
+		} else {
+			dst.PreStop = make([]ServiceHook, len(src.PreStop))
+		}
+		deriveDeepCopy_22(dst.PreStop, src.PreStop)
+	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
 		src.Extensions.DeepCopy(dst.Extensions)
@@ -698,7 +734,7 @@ func deriveDeepCopy_(dst, src map[string]NetworkConfig) {
 	for src_key, src_value := range src {
 		func() {
 			field := new(NetworkConfig)
-			deriveDeepCopy_22(field, &src_value)
+			deriveDeepCopy_23(field, &src_value)
 			dst[src_key] = *field
 		}()
 	}
@@ -709,7 +745,7 @@ func deriveDeepCopy_1(dst, src map[string]VolumeConfig) {
 	for src_key, src_value := range src {
 		func() {
 			field := new(VolumeConfig)
-			deriveDeepCopy_23(field, &src_value)
+			deriveDeepCopy_24(field, &src_value)
 			dst[src_key] = *field
 		}()
 	}
@@ -720,7 +756,7 @@ func deriveDeepCopy_2(dst, src map[string]SecretConfig) {
 	for src_key, src_value := range src {
 		func() {
 			field := new(SecretConfig)
-			deriveDeepCopy_24(field, &src_value)
+			deriveDeepCopy_25(field, &src_value)
 			dst[src_key] = *field
 		}()
 	}
@@ -731,7 +767,7 @@ func deriveDeepCopy_3(dst, src map[string]ConfigObjConfig) {
 	for src_key, src_value := range src {
 		func() {
 			field := new(ConfigObjConfig)
-			deriveDeepCopy_25(field, &src_value)
+			deriveDeepCopy_26(field, &src_value)
 			dst[src_key] = *field
 		}()
 	}
@@ -938,7 +974,7 @@ func deriveDeepCopy_6(dst, src *DevelopConfig) {
 		} else {
 			dst.Watch = make([]Trigger, len(src.Watch))
 		}
-		deriveDeepCopy_26(dst.Watch, src.Watch)
+		deriveDeepCopy_27(dst.Watch, src.Watch)
 	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
@@ -967,7 +1003,7 @@ func deriveDeepCopy_7(dst, src *BlkioConfig) {
 		} else {
 			dst.WeightDevice = make([]WeightDevice, len(src.WeightDevice))
 		}
-		deriveDeepCopy_27(dst.WeightDevice, src.WeightDevice)
+		deriveDeepCopy_28(dst.WeightDevice, src.WeightDevice)
 	}
 	if src.DeviceReadBps == nil {
 		dst.DeviceReadBps = nil
@@ -985,7 +1021,7 @@ func deriveDeepCopy_7(dst, src *BlkioConfig) {
 		} else {
 			dst.DeviceReadBps = make([]ThrottleDevice, len(src.DeviceReadBps))
 		}
-		deriveDeepCopy_28(dst.DeviceReadBps, src.DeviceReadBps)
+		deriveDeepCopy_29(dst.DeviceReadBps, src.DeviceReadBps)
 	}
 	if src.DeviceReadIOps == nil {
 		dst.DeviceReadIOps = nil
@@ -1003,7 +1039,7 @@ func deriveDeepCopy_7(dst, src *BlkioConfig) {
 		} else {
 			dst.DeviceReadIOps = make([]ThrottleDevice, len(src.DeviceReadIOps))
 		}
-		deriveDeepCopy_28(dst.DeviceReadIOps, src.DeviceReadIOps)
+		deriveDeepCopy_29(dst.DeviceReadIOps, src.DeviceReadIOps)
 	}
 	if src.DeviceWriteBps == nil {
 		dst.DeviceWriteBps = nil
@@ -1021,7 +1057,7 @@ func deriveDeepCopy_7(dst, src *BlkioConfig) {
 		} else {
 			dst.DeviceWriteBps = make([]ThrottleDevice, len(src.DeviceWriteBps))
 		}
-		deriveDeepCopy_28(dst.DeviceWriteBps, src.DeviceWriteBps)
+		deriveDeepCopy_29(dst.DeviceWriteBps, src.DeviceWriteBps)
 	}
 	if src.DeviceWriteIOps == nil {
 		dst.DeviceWriteIOps = nil
@@ -1039,7 +1075,7 @@ func deriveDeepCopy_7(dst, src *BlkioConfig) {
 		} else {
 			dst.DeviceWriteIOps = make([]ThrottleDevice, len(src.DeviceWriteIOps))
 		}
-		deriveDeepCopy_28(dst.DeviceWriteIOps, src.DeviceWriteIOps)
+		deriveDeepCopy_29(dst.DeviceWriteIOps, src.DeviceWriteIOps)
 	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
@@ -1054,7 +1090,7 @@ func deriveDeepCopy_8(dst, src []ServiceConfigObjConfig) {
 	for src_i, src_value := range src {
 		func() {
 			field := new(ServiceConfigObjConfig)
-			deriveDeepCopy_29(field, &src_value)
+			deriveDeepCopy_30(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
@@ -1078,7 +1114,7 @@ func deriveDeepCopy_10(dst, src map[string]ServiceDependency) {
 	for src_key, src_value := range src {
 		func() {
 			field := new(ServiceDependency)
-			deriveDeepCopy_30(field, &src_value)
+			deriveDeepCopy_31(field, &src_value)
 			dst[src_key] = *field
 		}()
 	}
@@ -1103,28 +1139,28 @@ func deriveDeepCopy_11(dst, src *DeployConfig) {
 		dst.UpdateConfig = nil
 	} else {
 		dst.UpdateConfig = new(UpdateConfig)
-		deriveDeepCopy_31(dst.UpdateConfig, src.UpdateConfig)
+		deriveDeepCopy_32(dst.UpdateConfig, src.UpdateConfig)
 	}
 	if src.RollbackConfig == nil {
 		dst.RollbackConfig = nil
 	} else {
 		dst.RollbackConfig = new(UpdateConfig)
-		deriveDeepCopy_31(dst.RollbackConfig, src.RollbackConfig)
+		deriveDeepCopy_32(dst.RollbackConfig, src.RollbackConfig)
 	}
 	func() {
 		field := new(Resources)
-		deriveDeepCopy_32(field, &src.Resources)
+		deriveDeepCopy_33(field, &src.Resources)
 		dst.Resources = *field
 	}()
 	if src.RestartPolicy == nil {
 		dst.RestartPolicy = nil
 	} else {
 		dst.RestartPolicy = new(RestartPolicy)
-		deriveDeepCopy_33(dst.RestartPolicy, src.RestartPolicy)
+		deriveDeepCopy_34(dst.RestartPolicy, src.RestartPolicy)
 	}
 	func() {
 		field := new(Placement)
-		deriveDeepCopy_34(field, &src.Placement)
+		deriveDeepCopy_35(field, &src.Placement)
 		dst.Placement = *field
 	}()
 	dst.EndpointMode = src.EndpointMode
@@ -1141,7 +1177,7 @@ func deriveDeepCopy_12(dst, src []DeviceMapping) {
 	for src_i, src_value := range src {
 		func() {
 			field := new(DeviceMapping)
-			deriveDeepCopy_35(field, &src_value)
+			deriveDeepCopy_36(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
@@ -1275,7 +1311,7 @@ func deriveDeepCopy_17(dst, src map[string]*ServiceNetworkConfig) {
 			dst[src_key] = nil
 		} else {
 			dst[src_key] = new(ServiceNetworkConfig)
-			deriveDeepCopy_36(dst[src_key], src_value)
+			deriveDeepCopy_37(dst[src_key], src_value)
 		}
 	}
 }
@@ -1285,7 +1321,7 @@ func deriveDeepCopy_18(dst, src []ServicePortConfig) {
 	for src_i, src_value := range src {
 		func() {
 			field := new(ServicePortConfig)
-			deriveDeepCopy_37(field, &src_value)
+			deriveDeepCopy_38(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
@@ -1296,7 +1332,7 @@ func deriveDeepCopy_19(dst, src []ServiceSecretConfig) {
 	for src_i, src_value := range src {
 		func() {
 			field := new(ServiceSecretConfig)
-			deriveDeepCopy_38(field, &src_value)
+			deriveDeepCopy_39(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
@@ -1312,7 +1348,7 @@ func deriveDeepCopy_20(dst, src map[string]*UlimitsConfig) {
 			dst[src_key] = nil
 		} else {
 			dst[src_key] = new(UlimitsConfig)
-			deriveDeepCopy_39(dst[src_key], src_value)
+			deriveDeepCopy_40(dst[src_key], src_value)
 		}
 	}
 }
@@ -1322,14 +1358,25 @@ func deriveDeepCopy_21(dst, src []ServiceVolumeConfig) {
 	for src_i, src_value := range src {
 		func() {
 			field := new(ServiceVolumeConfig)
-			deriveDeepCopy_40(field, &src_value)
+			deriveDeepCopy_41(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
 }
 
 // deriveDeepCopy_22 recursively copies the contents of src into dst.
-func deriveDeepCopy_22(dst, src *NetworkConfig) {
+func deriveDeepCopy_22(dst, src []ServiceHook) {
+	for src_i, src_value := range src {
+		func() {
+			field := new(ServiceHook)
+			deriveDeepCopy_42(field, &src_value)
+			dst[src_i] = *field
+		}()
+	}
+}
+
+// deriveDeepCopy_23 recursively copies the contents of src into dst.
+func deriveDeepCopy_23(dst, src *NetworkConfig) {
 	dst.Name = src.Name
 	dst.Driver = src.Driver
 	if src.DriverOpts != nil {
@@ -1340,7 +1387,7 @@ func deriveDeepCopy_22(dst, src *NetworkConfig) {
 	}
 	func() {
 		field := new(IPAMConfig)
-		deriveDeepCopy_41(field, &src.Ipam)
+		deriveDeepCopy_43(field, &src.Ipam)
 		dst.Ipam = *field
 	}()
 	dst.External = src.External
@@ -1366,44 +1413,9 @@ func deriveDeepCopy_22(dst, src *NetworkConfig) {
 	}
 }
 
-// deriveDeepCopy_23 recursively copies the contents of src into dst.
-func deriveDeepCopy_23(dst, src *VolumeConfig) {
-	dst.Name = src.Name
-	dst.Driver = src.Driver
-	if src.DriverOpts != nil {
-		dst.DriverOpts = make(map[string]string, len(src.DriverOpts))
-		deriveDeepCopy_4(dst.DriverOpts, src.DriverOpts)
-	} else {
-		dst.DriverOpts = nil
-	}
-	dst.External = src.External
-	if src.Labels != nil {
-		dst.Labels = make(map[string]string, len(src.Labels))
-		deriveDeepCopy_4(dst.Labels, src.Labels)
-	} else {
-		dst.Labels = nil
-	}
-	if src.Extensions != nil {
-		dst.Extensions = make(map[string]any, len(src.Extensions))
-		src.Extensions.DeepCopy(dst.Extensions)
-	} else {
-		dst.Extensions = nil
-	}
-}
-
 // deriveDeepCopy_24 recursively copies the contents of src into dst.
-func deriveDeepCopy_24(dst, src *SecretConfig) {
+func deriveDeepCopy_24(dst, src *VolumeConfig) {
 	dst.Name = src.Name
-	dst.File = src.File
-	dst.Environment = src.Environment
-	dst.Content = src.Content
-	dst.External = src.External
-	if src.Labels != nil {
-		dst.Labels = make(map[string]string, len(src.Labels))
-		deriveDeepCopy_4(dst.Labels, src.Labels)
-	} else {
-		dst.Labels = nil
-	}
 	dst.Driver = src.Driver
 	if src.DriverOpts != nil {
 		dst.DriverOpts = make(map[string]string, len(src.DriverOpts))
@@ -1411,7 +1423,13 @@ func deriveDeepCopy_24(dst, src *SecretConfig) {
 	} else {
 		dst.DriverOpts = nil
 	}
-	dst.TemplateDriver = src.TemplateDriver
+	dst.External = src.External
+	if src.Labels != nil {
+		dst.Labels = make(map[string]string, len(src.Labels))
+		deriveDeepCopy_4(dst.Labels, src.Labels)
+	} else {
+		dst.Labels = nil
+	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
 		src.Extensions.DeepCopy(dst.Extensions)
@@ -1421,7 +1439,7 @@ func deriveDeepCopy_24(dst, src *SecretConfig) {
 }
 
 // deriveDeepCopy_25 recursively copies the contents of src into dst.
-func deriveDeepCopy_25(dst, src *ConfigObjConfig) {
+func deriveDeepCopy_25(dst, src *SecretConfig) {
 	dst.Name = src.Name
 	dst.File = src.File
 	dst.Environment = src.Environment
@@ -1450,40 +1468,69 @@ func deriveDeepCopy_25(dst, src *ConfigObjConfig) {
 }
 
 // deriveDeepCopy_26 recursively copies the contents of src into dst.
-func deriveDeepCopy_26(dst, src []Trigger) {
-	for src_i, src_value := range src {
-		func() {
-			field := new(Trigger)
-			deriveDeepCopy_42(field, &src_value)
-			dst[src_i] = *field
-		}()
+func deriveDeepCopy_26(dst, src *ConfigObjConfig) {
+	dst.Name = src.Name
+	dst.File = src.File
+	dst.Environment = src.Environment
+	dst.Content = src.Content
+	dst.External = src.External
+	if src.Labels != nil {
+		dst.Labels = make(map[string]string, len(src.Labels))
+		deriveDeepCopy_4(dst.Labels, src.Labels)
+	} else {
+		dst.Labels = nil
+	}
+	dst.Driver = src.Driver
+	if src.DriverOpts != nil {
+		dst.DriverOpts = make(map[string]string, len(src.DriverOpts))
+		deriveDeepCopy_4(dst.DriverOpts, src.DriverOpts)
+	} else {
+		dst.DriverOpts = nil
+	}
+	dst.TemplateDriver = src.TemplateDriver
+	if src.Extensions != nil {
+		dst.Extensions = make(map[string]any, len(src.Extensions))
+		src.Extensions.DeepCopy(dst.Extensions)
+	} else {
+		dst.Extensions = nil
 	}
 }
 
 // deriveDeepCopy_27 recursively copies the contents of src into dst.
-func deriveDeepCopy_27(dst, src []WeightDevice) {
+func deriveDeepCopy_27(dst, src []Trigger) {
 	for src_i, src_value := range src {
 		func() {
-			field := new(WeightDevice)
-			deriveDeepCopy_43(field, &src_value)
-			dst[src_i] = *field
-		}()
-	}
-}
-
-// deriveDeepCopy_28 recursively copies the contents of src into dst.
-func deriveDeepCopy_28(dst, src []ThrottleDevice) {
-	for src_i, src_value := range src {
-		func() {
-			field := new(ThrottleDevice)
+			field := new(Trigger)
 			deriveDeepCopy_44(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
 }
 
+// deriveDeepCopy_28 recursively copies the contents of src into dst.
+func deriveDeepCopy_28(dst, src []WeightDevice) {
+	for src_i, src_value := range src {
+		func() {
+			field := new(WeightDevice)
+			deriveDeepCopy_45(field, &src_value)
+			dst[src_i] = *field
+		}()
+	}
+}
+
 // deriveDeepCopy_29 recursively copies the contents of src into dst.
-func deriveDeepCopy_29(dst, src *ServiceConfigObjConfig) {
+func deriveDeepCopy_29(dst, src []ThrottleDevice) {
+	for src_i, src_value := range src {
+		func() {
+			field := new(ThrottleDevice)
+			deriveDeepCopy_46(field, &src_value)
+			dst[src_i] = *field
+		}()
+	}
+}
+
+// deriveDeepCopy_30 recursively copies the contents of src into dst.
+func deriveDeepCopy_30(dst, src *ServiceConfigObjConfig) {
 	dst.Source = src.Source
 	dst.Target = src.Target
 	dst.UID = src.UID
@@ -1502,8 +1549,8 @@ func deriveDeepCopy_29(dst, src *ServiceConfigObjConfig) {
 	}
 }
 
-// deriveDeepCopy_30 recursively copies the contents of src into dst.
-func deriveDeepCopy_30(dst, src *ServiceDependency) {
+// deriveDeepCopy_31 recursively copies the contents of src into dst.
+func deriveDeepCopy_31(dst, src *ServiceDependency) {
 	dst.Condition = src.Condition
 	dst.Restart = src.Restart
 	if src.Extensions != nil {
@@ -1515,8 +1562,8 @@ func deriveDeepCopy_30(dst, src *ServiceDependency) {
 	dst.Required = src.Required
 }
 
-// deriveDeepCopy_31 recursively copies the contents of src into dst.
-func deriveDeepCopy_31(dst, src *UpdateConfig) {
+// deriveDeepCopy_32 recursively copies the contents of src into dst.
+func deriveDeepCopy_32(dst, src *UpdateConfig) {
 	if src.Parallelism == nil {
 		dst.Parallelism = nil
 	} else {
@@ -1536,19 +1583,19 @@ func deriveDeepCopy_31(dst, src *UpdateConfig) {
 	}
 }
 
-// deriveDeepCopy_32 recursively copies the contents of src into dst.
-func deriveDeepCopy_32(dst, src *Resources) {
+// deriveDeepCopy_33 recursively copies the contents of src into dst.
+func deriveDeepCopy_33(dst, src *Resources) {
 	if src.Limits == nil {
 		dst.Limits = nil
 	} else {
 		dst.Limits = new(Resource)
-		deriveDeepCopy_45(dst.Limits, src.Limits)
+		deriveDeepCopy_47(dst.Limits, src.Limits)
 	}
 	if src.Reservations == nil {
 		dst.Reservations = nil
 	} else {
 		dst.Reservations = new(Resource)
-		deriveDeepCopy_45(dst.Reservations, src.Reservations)
+		deriveDeepCopy_47(dst.Reservations, src.Reservations)
 	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
@@ -1558,8 +1605,8 @@ func deriveDeepCopy_32(dst, src *Resources) {
 	}
 }
 
-// deriveDeepCopy_33 recursively copies the contents of src into dst.
-func deriveDeepCopy_33(dst, src *RestartPolicy) {
+// deriveDeepCopy_34 recursively copies the contents of src into dst.
+func deriveDeepCopy_34(dst, src *RestartPolicy) {
 	dst.Condition = src.Condition
 	if src.Delay == nil {
 		dst.Delay = nil
@@ -1587,8 +1634,8 @@ func deriveDeepCopy_33(dst, src *RestartPolicy) {
 	}
 }
 
-// deriveDeepCopy_34 recursively copies the contents of src into dst.
-func deriveDeepCopy_34(dst, src *Placement) {
+// deriveDeepCopy_35 recursively copies the contents of src into dst.
+func deriveDeepCopy_35(dst, src *Placement) {
 	if src.Constraints == nil {
 		dst.Constraints = nil
 	} else {
@@ -1623,7 +1670,7 @@ func deriveDeepCopy_34(dst, src *Placement) {
 		} else {
 			dst.Preferences = make([]PlacementPreferences, len(src.Preferences))
 		}
-		deriveDeepCopy_46(dst.Preferences, src.Preferences)
+		deriveDeepCopy_48(dst.Preferences, src.Preferences)
 	}
 	dst.MaxReplicas = src.MaxReplicas
 	if src.Extensions != nil {
@@ -1634,8 +1681,8 @@ func deriveDeepCopy_34(dst, src *Placement) {
 	}
 }
 
-// deriveDeepCopy_35 recursively copies the contents of src into dst.
-func deriveDeepCopy_35(dst, src *DeviceMapping) {
+// deriveDeepCopy_36 recursively copies the contents of src into dst.
+func deriveDeepCopy_36(dst, src *DeviceMapping) {
 	dst.Source = src.Source
 	dst.Target = src.Target
 	dst.Permissions = src.Permissions
@@ -1647,8 +1694,8 @@ func deriveDeepCopy_35(dst, src *DeviceMapping) {
 	}
 }
 
-// deriveDeepCopy_36 recursively copies the contents of src into dst.
-func deriveDeepCopy_36(dst, src *ServiceNetworkConfig) {
+// deriveDeepCopy_37 recursively copies the contents of src into dst.
+func deriveDeepCopy_37(dst, src *ServiceNetworkConfig) {
 	dst.Priority = src.Priority
 	if src.Aliases == nil {
 		dst.Aliases = nil
@@ -1703,8 +1750,8 @@ func deriveDeepCopy_36(dst, src *ServiceNetworkConfig) {
 	}
 }
 
-// deriveDeepCopy_37 recursively copies the contents of src into dst.
-func deriveDeepCopy_37(dst, src *ServicePortConfig) {
+// deriveDeepCopy_38 recursively copies the contents of src into dst.
+func deriveDeepCopy_38(dst, src *ServicePortConfig) {
 	dst.Name = src.Name
 	dst.Mode = src.Mode
 	dst.HostIP = src.HostIP
@@ -1720,8 +1767,8 @@ func deriveDeepCopy_37(dst, src *ServicePortConfig) {
 	}
 }
 
-// deriveDeepCopy_38 recursively copies the contents of src into dst.
-func deriveDeepCopy_38(dst, src *ServiceSecretConfig) {
+// deriveDeepCopy_39 recursively copies the contents of src into dst.
+func deriveDeepCopy_39(dst, src *ServiceSecretConfig) {
 	dst.Source = src.Source
 	dst.Target = src.Target
 	dst.UID = src.UID
@@ -1740,8 +1787,8 @@ func deriveDeepCopy_38(dst, src *ServiceSecretConfig) {
 	}
 }
 
-// deriveDeepCopy_39 recursively copies the contents of src into dst.
-func deriveDeepCopy_39(dst, src *UlimitsConfig) {
+// deriveDeepCopy_40 recursively copies the contents of src into dst.
+func deriveDeepCopy_40(dst, src *UlimitsConfig) {
 	dst.Single = src.Single
 	dst.Soft = src.Soft
 	dst.Hard = src.Hard
@@ -1753,8 +1800,8 @@ func deriveDeepCopy_39(dst, src *UlimitsConfig) {
 	}
 }
 
-// deriveDeepCopy_40 recursively copies the contents of src into dst.
-func deriveDeepCopy_40(dst, src *ServiceVolumeConfig) {
+// deriveDeepCopy_41 recursively copies the contents of src into dst.
+func deriveDeepCopy_41(dst, src *ServiceVolumeConfig) {
 	dst.Type = src.Type
 	dst.Source = src.Source
 	dst.Target = src.Target
@@ -1764,19 +1811,19 @@ func deriveDeepCopy_40(dst, src *ServiceVolumeConfig) {
 		dst.Bind = nil
 	} else {
 		dst.Bind = new(ServiceVolumeBind)
-		deriveDeepCopy_47(dst.Bind, src.Bind)
+		deriveDeepCopy_49(dst.Bind, src.Bind)
 	}
 	if src.Volume == nil {
 		dst.Volume = nil
 	} else {
 		dst.Volume = new(ServiceVolumeVolume)
-		deriveDeepCopy_48(dst.Volume, src.Volume)
+		deriveDeepCopy_50(dst.Volume, src.Volume)
 	}
 	if src.Tmpfs == nil {
 		dst.Tmpfs = nil
 	} else {
 		dst.Tmpfs = new(ServiceVolumeTmpfs)
-		deriveDeepCopy_49(dst.Tmpfs, src.Tmpfs)
+		deriveDeepCopy_51(dst.Tmpfs, src.Tmpfs)
 	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
@@ -1786,8 +1833,39 @@ func deriveDeepCopy_40(dst, src *ServiceVolumeConfig) {
 	}
 }
 
-// deriveDeepCopy_41 recursively copies the contents of src into dst.
-func deriveDeepCopy_41(dst, src *IPAMConfig) {
+// deriveDeepCopy_42 recursively copies the contents of src into dst.
+func deriveDeepCopy_42(dst, src *ServiceHook) {
+	if src.Command == nil {
+		dst.Command = nil
+	} else {
+		if dst.Command != nil {
+			if len(src.Command) > len(dst.Command) {
+				if cap(dst.Command) >= len(src.Command) {
+					dst.Command = (dst.Command)[:len(src.Command)]
+				} else {
+					dst.Command = make([]string, len(src.Command))
+				}
+			} else if len(src.Command) < len(dst.Command) {
+				dst.Command = (dst.Command)[:len(src.Command)]
+			}
+		} else {
+			dst.Command = make([]string, len(src.Command))
+		}
+		copy(dst.Command, src.Command)
+	}
+	dst.User = src.User
+	dst.Privileged = src.Privileged
+	dst.WorkingDir = src.WorkingDir
+	if src.Environment != nil {
+		dst.Environment = make(map[string]*string, len(src.Environment))
+		deriveDeepCopy_13(dst.Environment, src.Environment)
+	} else {
+		dst.Environment = nil
+	}
+}
+
+// deriveDeepCopy_43 recursively copies the contents of src into dst.
+func deriveDeepCopy_43(dst, src *IPAMConfig) {
 	dst.Driver = src.Driver
 	if src.Config == nil {
 		dst.Config = nil
@@ -1805,7 +1883,7 @@ func deriveDeepCopy_41(dst, src *IPAMConfig) {
 		} else {
 			dst.Config = make([]*IPAMPool, len(src.Config))
 		}
-		deriveDeepCopy_50(dst.Config, src.Config)
+		deriveDeepCopy_52(dst.Config, src.Config)
 	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
@@ -1815,8 +1893,8 @@ func deriveDeepCopy_41(dst, src *IPAMConfig) {
 	}
 }
 
-// deriveDeepCopy_42 recursively copies the contents of src into dst.
-func deriveDeepCopy_42(dst, src *Trigger) {
+// deriveDeepCopy_44 recursively copies the contents of src into dst.
+func deriveDeepCopy_44(dst, src *Trigger) {
 	dst.Path = src.Path
 	dst.Action = src.Action
 	dst.Target = src.Target
@@ -1846,8 +1924,8 @@ func deriveDeepCopy_42(dst, src *Trigger) {
 	}
 }
 
-// deriveDeepCopy_43 recursively copies the contents of src into dst.
-func deriveDeepCopy_43(dst, src *WeightDevice) {
+// deriveDeepCopy_45 recursively copies the contents of src into dst.
+func deriveDeepCopy_45(dst, src *WeightDevice) {
 	dst.Path = src.Path
 	dst.Weight = src.Weight
 	if src.Extensions != nil {
@@ -1858,8 +1936,8 @@ func deriveDeepCopy_43(dst, src *WeightDevice) {
 	}
 }
 
-// deriveDeepCopy_44 recursively copies the contents of src into dst.
-func deriveDeepCopy_44(dst, src *ThrottleDevice) {
+// deriveDeepCopy_46 recursively copies the contents of src into dst.
+func deriveDeepCopy_46(dst, src *ThrottleDevice) {
 	dst.Path = src.Path
 	dst.Rate = src.Rate
 	if src.Extensions != nil {
@@ -1870,8 +1948,8 @@ func deriveDeepCopy_44(dst, src *ThrottleDevice) {
 	}
 }
 
-// deriveDeepCopy_45 recursively copies the contents of src into dst.
-func deriveDeepCopy_45(dst, src *Resource) {
+// deriveDeepCopy_47 recursively copies the contents of src into dst.
+func deriveDeepCopy_47(dst, src *Resource) {
 	dst.NanoCPUs = src.NanoCPUs
 	dst.MemoryBytes = src.MemoryBytes
 	dst.Pids = src.Pids
@@ -1891,7 +1969,7 @@ func deriveDeepCopy_45(dst, src *Resource) {
 		} else {
 			dst.Devices = make([]DeviceRequest, len(src.Devices))
 		}
-		deriveDeepCopy_51(dst.Devices, src.Devices)
+		deriveDeepCopy_53(dst.Devices, src.Devices)
 	}
 	if src.GenericResources == nil {
 		dst.GenericResources = nil
@@ -1909,7 +1987,7 @@ func deriveDeepCopy_45(dst, src *Resource) {
 		} else {
 			dst.GenericResources = make([]GenericResource, len(src.GenericResources))
 		}
-		deriveDeepCopy_52(dst.GenericResources, src.GenericResources)
+		deriveDeepCopy_54(dst.GenericResources, src.GenericResources)
 	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
@@ -1919,19 +1997,19 @@ func deriveDeepCopy_45(dst, src *Resource) {
 	}
 }
 
-// deriveDeepCopy_46 recursively copies the contents of src into dst.
-func deriveDeepCopy_46(dst, src []PlacementPreferences) {
+// deriveDeepCopy_48 recursively copies the contents of src into dst.
+func deriveDeepCopy_48(dst, src []PlacementPreferences) {
 	for src_i, src_value := range src {
 		func() {
 			field := new(PlacementPreferences)
-			deriveDeepCopy_53(field, &src_value)
+			deriveDeepCopy_55(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
 }
 
-// deriveDeepCopy_47 recursively copies the contents of src into dst.
-func deriveDeepCopy_47(dst, src *ServiceVolumeBind) {
+// deriveDeepCopy_49 recursively copies the contents of src into dst.
+func deriveDeepCopy_49(dst, src *ServiceVolumeBind) {
 	dst.SELinux = src.SELinux
 	dst.Propagation = src.Propagation
 	dst.CreateHostPath = src.CreateHostPath
@@ -1943,8 +2021,8 @@ func deriveDeepCopy_47(dst, src *ServiceVolumeBind) {
 	}
 }
 
-// deriveDeepCopy_48 recursively copies the contents of src into dst.
-func deriveDeepCopy_48(dst, src *ServiceVolumeVolume) {
+// deriveDeepCopy_50 recursively copies the contents of src into dst.
+func deriveDeepCopy_50(dst, src *ServiceVolumeVolume) {
 	dst.NoCopy = src.NoCopy
 	dst.Subpath = src.Subpath
 	if src.Extensions != nil {
@@ -1955,8 +2033,8 @@ func deriveDeepCopy_48(dst, src *ServiceVolumeVolume) {
 	}
 }
 
-// deriveDeepCopy_49 recursively copies the contents of src into dst.
-func deriveDeepCopy_49(dst, src *ServiceVolumeTmpfs) {
+// deriveDeepCopy_51 recursively copies the contents of src into dst.
+func deriveDeepCopy_51(dst, src *ServiceVolumeTmpfs) {
 	dst.Size = src.Size
 	dst.Mode = src.Mode
 	if src.Extensions != nil {
@@ -1967,42 +2045,42 @@ func deriveDeepCopy_49(dst, src *ServiceVolumeTmpfs) {
 	}
 }
 
-// deriveDeepCopy_50 recursively copies the contents of src into dst.
-func deriveDeepCopy_50(dst, src []*IPAMPool) {
+// deriveDeepCopy_52 recursively copies the contents of src into dst.
+func deriveDeepCopy_52(dst, src []*IPAMPool) {
 	for src_i, src_value := range src {
 		if src_value == nil {
 			dst[src_i] = nil
 		} else {
 			dst[src_i] = new(IPAMPool)
-			deriveDeepCopy_54(dst[src_i], src_value)
+			deriveDeepCopy_56(dst[src_i], src_value)
 		}
 	}
 }
 
-// deriveDeepCopy_51 recursively copies the contents of src into dst.
-func deriveDeepCopy_51(dst, src []DeviceRequest) {
+// deriveDeepCopy_53 recursively copies the contents of src into dst.
+func deriveDeepCopy_53(dst, src []DeviceRequest) {
 	for src_i, src_value := range src {
 		func() {
 			field := new(DeviceRequest)
-			deriveDeepCopy_55(field, &src_value)
+			deriveDeepCopy_57(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
 }
 
-// deriveDeepCopy_52 recursively copies the contents of src into dst.
-func deriveDeepCopy_52(dst, src []GenericResource) {
+// deriveDeepCopy_54 recursively copies the contents of src into dst.
+func deriveDeepCopy_54(dst, src []GenericResource) {
 	for src_i, src_value := range src {
 		func() {
 			field := new(GenericResource)
-			deriveDeepCopy_56(field, &src_value)
+			deriveDeepCopy_58(field, &src_value)
 			dst[src_i] = *field
 		}()
 	}
 }
 
-// deriveDeepCopy_53 recursively copies the contents of src into dst.
-func deriveDeepCopy_53(dst, src *PlacementPreferences) {
+// deriveDeepCopy_55 recursively copies the contents of src into dst.
+func deriveDeepCopy_55(dst, src *PlacementPreferences) {
 	dst.Spread = src.Spread
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
@@ -2012,8 +2090,8 @@ func deriveDeepCopy_53(dst, src *PlacementPreferences) {
 	}
 }
 
-// deriveDeepCopy_54 recursively copies the contents of src into dst.
-func deriveDeepCopy_54(dst, src *IPAMPool) {
+// deriveDeepCopy_56 recursively copies the contents of src into dst.
+func deriveDeepCopy_56(dst, src *IPAMPool) {
 	dst.Subnet = src.Subnet
 	dst.Gateway = src.Gateway
 	dst.IPRange = src.IPRange
@@ -2031,8 +2109,8 @@ func deriveDeepCopy_54(dst, src *IPAMPool) {
 	}
 }
 
-// deriveDeepCopy_55 recursively copies the contents of src into dst.
-func deriveDeepCopy_55(dst, src *DeviceRequest) {
+// deriveDeepCopy_57 recursively copies the contents of src into dst.
+func deriveDeepCopy_57(dst, src *DeviceRequest) {
 	if src.Capabilities == nil {
 		dst.Capabilities = nil
 	} else {
@@ -2079,13 +2157,13 @@ func deriveDeepCopy_55(dst, src *DeviceRequest) {
 	}
 }
 
-// deriveDeepCopy_56 recursively copies the contents of src into dst.
-func deriveDeepCopy_56(dst, src *GenericResource) {
+// deriveDeepCopy_58 recursively copies the contents of src into dst.
+func deriveDeepCopy_58(dst, src *GenericResource) {
 	if src.DiscreteResourceSpec == nil {
 		dst.DiscreteResourceSpec = nil
 	} else {
 		dst.DiscreteResourceSpec = new(DiscreteGenericResource)
-		deriveDeepCopy_57(dst.DiscreteResourceSpec, src.DiscreteResourceSpec)
+		deriveDeepCopy_59(dst.DiscreteResourceSpec, src.DiscreteResourceSpec)
 	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
@@ -2095,8 +2173,8 @@ func deriveDeepCopy_56(dst, src *GenericResource) {
 	}
 }
 
-// deriveDeepCopy_57 recursively copies the contents of src into dst.
-func deriveDeepCopy_57(dst, src *DiscreteGenericResource) {
+// deriveDeepCopy_59 recursively copies the contents of src into dst.
+func deriveDeepCopy_59(dst, src *DiscreteGenericResource) {
 	dst.Kind = src.Kind
 	dst.Value = src.Value
 	if src.Extensions != nil {

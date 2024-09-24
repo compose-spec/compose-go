@@ -3509,3 +3509,49 @@ services:
 		},
 	})
 }
+
+func TestLoadServiceHooks(t *testing.T) {
+	p, err := loadYAML(`
+name: load-service-hooks
+services:
+  test:
+    post_start:
+      - command: echo start
+        user: root
+        privileged: true
+        working_dir: /
+        environment:
+          - FOO=BAR
+    pre_stop:
+      - command: echo stop
+        user: root
+        working_dir: /
+        environment:
+          FOO: BAR
+
+`)
+	assert.NilError(t, err)
+	start := p.Services["test"].PostStart
+	assert.DeepEqual(t, start, []types.ServiceHook{
+		{
+			Command:    types.ShellCommand{"echo", "start"},
+			User:       "root",
+			Privileged: true,
+			WorkingDir: "/",
+			Environment: types.MappingWithEquals{
+				"FOO": strPtr("BAR"),
+			},
+		},
+	})
+	stop := p.Services["test"].PreStop
+	assert.DeepEqual(t, stop, []types.ServiceHook{
+		{
+			Command:    types.ShellCommand{"echo", "stop"},
+			User:       "root",
+			WorkingDir: "/",
+			Environment: types.MappingWithEquals{
+				"FOO": strPtr("BAR"),
+			},
+		},
+	})
+}
