@@ -878,7 +878,8 @@
           "patternProperties": {
             ".+": {
               "type": ["string", "array"]
-            }
+            },
+            "uniqueItems": false
           },
           "additionalProperties": false
         },
