@@ -502,7 +502,9 @@
             "patternProperties": {"^x-": {}}
           }
         }
-      }
+      },
+      "additionalProperties": false,
+      "patternProperties": {"^x-": {}}
     },
     "deployment": {
       "id": "#/definitions/deployment",
