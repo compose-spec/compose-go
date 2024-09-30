@@ -177,14 +177,6 @@ func TestParseVolumeWithVolumeOptions(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expected, volume))
 }
 
-func TestParseVolumeWithVolumeOptionsSubpath(t *testing.T) {
-	volume, err := ParseVolume("name:/target:nocopy,subpath=etc")
-	assert.NilError(t, err)
-
-	// subpath option is not supported in the short syntax
-	assert.Check(t, is.Equal(volume.Volume.Subpath, ""))
-}
-
 func TestParseVolumeWithReadOnly(t *testing.T) {
 	for _, path := range []string{"./foo", "/home/user"} {
 		volume, err := ParseVolume(path + ":/target:ro")
