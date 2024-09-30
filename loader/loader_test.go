@@ -3409,3 +3409,24 @@ services:
 		"myhost": []string{"0.0.0.1", "0.0.0.2"},
 	})
 }
+
+func TestLoadDependsOnX(t *testing.T) {
+	p, err := loadYAML(`
+name: load-depends-on-x
+services:
+  test:
+    image: test
+    depends_on:
+      - x-foo
+  x-foo:
+    image: foo
+`)
+	assert.NilError(t, err)
+	test := p.Services["test"]
+	assert.DeepEqual(t, test.DependsOn, types.DependsOnConfig{
+		"x-foo": types.ServiceDependency{
+			Condition: types.ServiceConditionStarted,
+			Required:  true,
+		},
+	})
+}

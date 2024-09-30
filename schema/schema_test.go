@@ -66,6 +66,13 @@ func TestValidateAllowsXFields(t *testing.T) {
 			"bar": dict{
 				"x-extra-stuff": dict{},
 			},
+			"foo": dict{
+				"depends_on": dict{
+					"x-dependency": dict{
+						"condition": "service_started",
+					},
+				},
+			},
 		},
 		"volumes": dict{
 			"bar": dict{

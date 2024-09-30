@@ -675,6 +675,7 @@ func NormalizeProjectName(s string) string {
 
 var userDefinedKeys = []tree.Path{
 	"services",
+	"services.*.depends_on",
 	"volumes",
 	"networks",
 	"secrets",
@@ -687,7 +688,7 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 	for key, value := range dict {
 		skip := false
 		for _, uk := range userDefinedKeys {
-			if uk.Matches(p) {
+			if p.Matches(uk) {
 				skip = true
 				break
 			}
@@ -770,14 +771,14 @@ func secretConfigDecoderHook(from, to reflect.Type, data interface{}) (interface
 	// Check if the input is a map and we're decoding into a SecretConfig
 	if from.Kind() == reflect.Map && to == reflect.TypeOf(types.SecretConfig{}) {
 		if v, ok := data.(map[string]interface{}); ok {
-			if ext, ok := v["#extensions"].(map[string]interface{}); ok {
+			if ext, ok := v[consts.Extensions].(map[string]interface{}); ok {
 				if val, ok := ext[types.SecretConfigXValue].(string); ok {
 					// Return a map with the Content field populated
 					v["Content"] = val
 					delete(ext, types.SecretConfigXValue)
 
 					if len(ext) == 0 {
-						delete(v, "#extensions")
+						delete(v, consts.Extensions)
 					}
 				}
 			}
