@@ -1,8 +1,10 @@
 package dotenv
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -707,4 +709,36 @@ func TestGetEnvFromFile(t *testing.T) {
 
 	_, err = GetEnvFromFile(nil, []string{f})
 	assert.Check(t, strings.HasSuffix(err.Error(), ".env is a directory"))
+}
+
+func TestLoadWithFormat(t *testing.T) {
+	envFileName := "fixtures/custom.format"
+	expectedValues := map[string]string{
+		"FOO": "BAR",
+		"ZOT": "QIX",
+	}
+
+	custom := func(r io.Reader, f string, lookup func(key string) (string, bool)) (map[string]string, error) {
+		vars := map[string]string{}
+		scanner := bufio.NewScanner(r)
+		for scanner.Scan() {
+			key, value, found := strings.Cut(scanner.Text(), ":")
+			if !found {
+				value, found = lookup(key)
+				if !found {
+					continue
+				}
+			}
+			vars[key] = value
+		}
+		return vars, nil
+	}
+
+	RegisterFormat("custom", custom)
+
+	f, err := os.Open(envFileName)
+	assert.NilError(t, err)
+	env, err := ParseWithFormat(f, envFileName, nil, "custom")
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expectedValues, env)
 }
