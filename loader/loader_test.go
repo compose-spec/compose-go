@@ -2123,7 +2123,7 @@ services:
 }
 
 func TestServiceDeviceRequestCountStringType(t *testing.T) {
-	_, err := loadYAML(`
+	project, err := loadYAML(`
 name: service-device-request-count
 services:
   hello-world:
@@ -2137,6 +2137,7 @@ services:
               count: all
 `)
 	assert.NilError(t, err)
+	assert.Equal(t, project.Services["hello-world"].Deploy.Resources.Reservations.Devices[0].Count, types.DeviceCount(-1), err)
 }
 
 func TestServiceDeviceRequestCountIntegerAsStringType(t *testing.T) {
@@ -2155,6 +2156,22 @@ services:
 `)
 	assert.NilError(t, err)
 }
+func TestServiceDeviceRequestWithoutCountAndDeviceIdsType(t *testing.T) {
+	project, err := loadYAML(`
+name: service-device-request-count-type
+services:
+  hello-world:
+    image: redis:alpine
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+`)
+	assert.NilError(t, err)
+	assert.Equal(t, project.Services["hello-world"].Deploy.Resources.Reservations.Devices[0].Count, types.DeviceCount(-1), err)
+}
 
 func TestServiceDeviceRequestCountInvalidStringType(t *testing.T) {
 	_, err := loadYAML(`
@@ -2171,6 +2188,40 @@ services:
               count: some_string
 `)
 	assert.ErrorContains(t, err, `invalid value "some_string", the only value allowed is 'all' or a number`)
+}
+
+func TestServiceDeviceRequestCountAndDeviceIdsExclusive(t *testing.T) {
+	_, err := loadYAML(`
+name: service-device-request-count-type
+services:
+  hello-world:
+    image: redis:alpine
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              count: 2
+              device_ids: ["my-device-id"]
+`)
+	assert.ErrorContains(t, err, `invalid "count" and "device_ids" are attributes are exclusive`)
+}
+
+func TestServiceDeviceRequestCapabilitiesMandatory(t *testing.T) {
+	_, err := loadYAML(`
+name: service-device-request-count-type
+services:
+  hello-world:
+    image: redis:alpine
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 2
+`)
+	assert.ErrorContains(t, err, `"capabilities" attribute is mandatory for device request definition`)
 }
 
 func TestServicePullPolicy(t *testing.T) {

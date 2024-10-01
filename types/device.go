@@ -50,3 +50,48 @@ func (c *DeviceCount) DecodeMapstructure(value interface{}) error {
 	}
 	return nil
 }
+
+func (d *DeviceRequest) DecodeMapstructure(value interface{}) error {
+	v, ok := value.(map[string]any)
+	if !ok {
+		return fmt.Errorf("invalid device request type %T", value)
+	}
+	if _, okCaps := v["capabilities"]; !okCaps {
+		return fmt.Errorf(`"capabilities" attribute is mandatory for device request definition`)
+	}
+	if _, okCount := v["count"]; okCount {
+		if _, okDeviceIds := v["device_ids"]; okDeviceIds {
+			return fmt.Errorf(`invalid "count" and "device_ids" are attributes are exclusive`)
+		}
+	}
+	d.Count = DeviceCount(-1)
+
+	capabilities := v["capabilities"]
+	caps := StringList{}
+	if err := caps.DecodeMapstructure(capabilities); err != nil {
+		return err
+	}
+	d.Capabilities = caps
+	if driver, ok := v["driver"]; ok {
+		if val, ok := driver.(string); ok {
+			d.Driver = val
+		} else {
+			return fmt.Errorf("invalid type for driver value: %T", driver)
+		}
+	}
+	if count, ok := v["count"]; ok {
+		if err := d.Count.DecodeMapstructure(count); err != nil {
+			return err
+		}
+	}
+	if deviceIDs, ok := v["device_ids"]; ok {
+		ids := StringList{}
+		if err := ids.DecodeMapstructure(deviceIDs); err != nil {
+			return err
+		}
+		d.IDs = ids
+		d.Count = DeviceCount(len(ids))
+	}
+	return nil
+
+}
