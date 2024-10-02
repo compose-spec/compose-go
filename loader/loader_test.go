@@ -3481,3 +3481,31 @@ services:
 		},
 	})
 }
+
+func TestLoadDeviceReservation(t *testing.T) {
+	config, err := loadYAML(`
+name: load-device-reservation
+services:
+  test:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: richard_feynman
+              capabilities: ["quantic"]
+              count: all
+              options:
+                q_bits: 42
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, config.Services["test"].Deploy.Resources.Reservations.Devices, []types.DeviceRequest{
+		{
+			Capabilities: []string{"quantic"},
+			Driver:       "richard_feynman",
+			Count:        -1,
+			Options: types.Mapping{
+				"q_bits": "42",
+			},
+		},
+	})
+}
