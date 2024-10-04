@@ -2205,7 +2205,7 @@ services:
               count: 2
               device_ids: ["my-device-id"]
 `)
-	assert.ErrorContains(t, err, `invalid "count" and "device_ids" are attributes are exclusive`)
+	assert.ErrorContains(t, err, `"count" and "device_ids" attributes are exclusive`)
 }
 
 func TestServiceDeviceRequestCapabilitiesMandatory(t *testing.T) {
@@ -2221,7 +2221,7 @@ services:
             - driver: nvidia
               count: 2
 `)
-	assert.ErrorContains(t, err, `"capabilities" attribute is mandatory for device request definition`)
+	assert.ErrorContains(t, err, `capabilities is required`)
 }
 
 func TestServicePullPolicy(t *testing.T) {

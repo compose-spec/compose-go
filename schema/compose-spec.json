@@ -642,7 +642,10 @@
           "options":{"$ref": "#/definitions/list_or_dict"}
         },
         "additionalProperties": false,
-        "patternProperties": {"^x-": {}}
+        "patternProperties": {"^x-": {}},
+        "required": [
+          "capabilities"
+        ]
       }
     },
 
