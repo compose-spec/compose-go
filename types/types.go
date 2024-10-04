@@ -82,6 +82,7 @@ type ServiceConfig struct {
 	ExternalLinks   []string                         `yaml:"external_links,omitempty" json:"external_links,omitempty"`
 	ExtraHosts      HostsList                        `yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
 	GroupAdd        []string                         `yaml:"group_add,omitempty" json:"group_add,omitempty"`
+	Gpus            []DeviceRequest                  `yaml:"gpus,omitempty" json:"gpus,omitempty"`
 	Hostname        string                           `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 	HealthCheck     *HealthCheckConfig               `yaml:"healthcheck,omitempty" json:"healthcheck,omitempty"`
 	Image           string                           `yaml:"image,omitempty" json:"image,omitempty"`
