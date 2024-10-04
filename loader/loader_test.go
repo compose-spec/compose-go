@@ -2224,6 +2224,32 @@ services:
 	assert.ErrorContains(t, err, `capabilities is required`)
 }
 
+func TestServiceGpus(t *testing.T) {
+	p, err := loadYAML(`
+name: service-gpus
+services:
+  test:
+    image: redis:alpine
+    gpus:
+      - driver: nvidia
+      - driver: 3dfx
+        device_ids: ["voodoo2"]
+        capabilities: ["directX"]
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["test"].Gpus, []types.DeviceRequest{
+		{
+			Driver: "nvidia",
+			Count:  -1,
+		},
+		{
+			Capabilities: []string{"directX"},
+			Driver:       "3dfx",
+			IDs:          []string{"voodoo2"},
+		},
+	})
+}
+
 func TestServicePullPolicy(t *testing.T) {
 	actual, err := loadYAML(`
 name: service-pull-policy

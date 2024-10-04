@@ -22,19 +22,15 @@ import (
 	"github.com/compose-spec/compose-go/v2/tree"
 )
 
-func transformDeviceRequest(data any, p tree.Path, ignoreParseError bool) (any, error) {
-	switch v := data.(type) {
-	case map[string]any:
-		_, hasCount := v["count"]
-		_, hasIds := v["device_ids"]
-		if hasCount && hasIds {
-			return nil, fmt.Errorf(`%s: "count" and "device_ids" attributes are exclusive`, p)
-		}
-		if !hasCount && !hasIds {
-			v["count"] = "all"
-		}
-		return transformMapping(v, p, ignoreParseError)
-	default:
+func deviceRequestDefaults(data any, p tree.Path, _ bool) (any, error) {
+	v, ok := data.(map[string]any)
+	if !ok {
 		return data, fmt.Errorf("%s: invalid type %T for device request", p, v)
 	}
+	_, hasCount := v["count"]
+	_, hasIds := v["device_ids"]
+	if !hasCount && !hasIds {
+		v["count"] = "all"
+	}
+	return v, nil
 }
