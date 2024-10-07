@@ -1862,6 +1862,12 @@ func deriveDeepCopy_42(dst, src *ServiceHook) {
 	} else {
 		dst.Environment = nil
 	}
+	if src.Extensions != nil {
+		dst.Extensions = make(map[string]any, len(src.Extensions))
+		src.Extensions.DeepCopy(dst.Extensions)
+	} else {
+		dst.Extensions = nil
+	}
 }
 
 // deriveDeepCopy_43 recursively copies the contents of src into dst.

@@ -23,4 +23,6 @@ type ServiceHook struct {
 	Privileged  bool              `yaml:"privileged,omitempty" json:"privileged,omitempty"`
 	WorkingDir  string            `yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
 	Environment MappingWithEquals `yaml:"environment,omitempty" json:"environment,omitempty"`
+
+	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
