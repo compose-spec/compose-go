@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/docker/go-connections/nat"
@@ -389,30 +388,6 @@ type Resource struct {
 	GenericResources []GenericResource `yaml:"generic_resources,omitempty" json:"generic_resources,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
-}
-
-type NanoCPUs float32
-
-func (n *NanoCPUs) DecodeMapstructure(a any) error {
-	switch v := a.(type) {
-	case string:
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return err
-		}
-		*n = NanoCPUs(f)
-	case float32:
-		*n = NanoCPUs(v)
-	case float64:
-		*n = NanoCPUs(v)
-	default:
-		return fmt.Errorf("unexpected value type %T for cpus", v)
-	}
-	return nil
-}
-
-func (n *NanoCPUs) Value() float32 {
-	return float32(*n)
 }
 
 // GenericResource represents a "user defined" resource which can
