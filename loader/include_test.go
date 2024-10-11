@@ -221,7 +221,7 @@ services:
 		options.SetProjectName("project", true)
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, p.Services["included"].Image, "alpine")
+	assert.Equal(t, p.Services["included"].Image, types.Image("alpine"))
 }
 
 func createFile(t *testing.T, rootDir, content, fileName string) string {

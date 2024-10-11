@@ -23,7 +23,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/distribution/reference"
 	"github.com/docker/go-connections/nat"
+	"github.com/opencontainers/go-digest"
 )
 
 // ServiceConfig is the configuration of one service
@@ -84,7 +86,7 @@ type ServiceConfig struct {
 	GroupAdd        []string                         `yaml:"group_add,omitempty" json:"group_add,omitempty"`
 	Hostname        string                           `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 	HealthCheck     *HealthCheckConfig               `yaml:"healthcheck,omitempty" json:"healthcheck,omitempty"`
-	Image           string                           `yaml:"image,omitempty" json:"image,omitempty"`
+	Image           Image                            `yaml:"image,omitempty" json:"image,omitempty"`
 	Init            *bool                            `yaml:"init,omitempty" json:"init,omitempty"`
 	Ipc             string                           `yaml:"ipc,omitempty" json:"ipc,omitempty"`
 	Isolation       string                           `yaml:"isolation,omitempty" json:"isolation,omitempty"`
@@ -265,6 +267,36 @@ func (s ServiceConfig) GetDependents(p *Project) []string {
 		}
 	}
 	return dependent
+}
+
+type Image string
+
+func (i *Image) DecodeMapstructure(value interface{}) error {
+	switch v := value.(type) {
+	case string:
+		*i = Image(v)
+	case map[string]any:
+		r := v["name"].(string)
+		name, err := reference.WithName(r)
+		if err != nil {
+			return err
+		}
+		if t, ok := v["tag"].(string); ok {
+			name, err = reference.WithTag(name, t)
+			if err != nil {
+				return err
+			}
+		}
+		if d, ok := v["digest"].(string); ok {
+			name, err = reference.WithDigest(name, digest.Digest(d))
+			if err != nil {
+				return err
+			}
+		}
+		*i = Image(reference.FamiliarString(name))
+	}
+	return nil
+
 }
 
 // BuildConfig is a type for build

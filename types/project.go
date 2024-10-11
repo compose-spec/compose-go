@@ -539,7 +539,7 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 		if service.Image == "" {
 			return service, nil
 		}
-		named, err := reference.ParseDockerRef(service.Image)
+		named, err := reference.ParseDockerRef(string(service.Image))
 		if err != nil {
 			return service, err
 		}
@@ -555,7 +555,7 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 				return service, err
 			}
 		}
-		service.Image = named.String()
+		service.Image = Image(named.String())
 		return service, nil
 	})
 }

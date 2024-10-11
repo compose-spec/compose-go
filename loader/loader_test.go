@@ -333,7 +333,7 @@ services:
 	}, actual.Extensions))
 	assert.Check(t, is.Len(actual.Services, 2))
 	service := actual.Services["foo"]
-	assert.Check(t, is.Equal("busybox", service.Image))
+	assert.Check(t, is.Equal(service.Image, types.Image("busybox")))
 
 	assert.Check(t, is.DeepEqual(types.Extensions{
 		"x-foo": "bar",
@@ -2720,7 +2720,7 @@ services:
 		options.ResolvePaths = true
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, p.Services["imported"].Image, "overridden")
+	assert.Equal(t, p.Services["imported"].Image, types.Image("overridden"))
 }
 
 func TestLoadDependsOnCycle(t *testing.T) {
@@ -2921,7 +2921,7 @@ services:
 
 `)
 	assert.NilError(t, err)
-	assert.Equal(t, project.Services["test"].Image, "nginx:override")
+	assert.Equal(t, project.Services["test"].Image, types.Image("nginx:override"))
 }
 
 func TestLoadDevelopConfig(t *testing.T) {
@@ -3554,4 +3554,18 @@ services:
 			},
 		},
 	})
+}
+
+func TestLoadImageReference(t *testing.T) {
+	p, err := loadYAML(`
+name: load-image-reference
+services:
+  test:
+    image:
+      name: registry.com/foo
+      tag: bar
+      digest: sha256:1234567890123456789012345678901234567890123456789012345678901234
+`)
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["test"].Image, types.Image("registry.com/foo:bar@sha256:1234567890123456789012345678901234567890123456789012345678901234"))
 }

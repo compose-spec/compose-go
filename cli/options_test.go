@@ -211,7 +211,7 @@ func TestProjectFromSetOfFiles(t *testing.T) {
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
-	assert.Equal(t, service.Image, "haproxy")
+	assert.Equal(t, service.Image, types.Image("haproxy"))
 }
 
 func TestProjectComposefilesFromSetOfFiles(t *testing.T) {

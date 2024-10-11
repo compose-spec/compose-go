@@ -276,7 +276,7 @@
         },
         "healthcheck": {"$ref": "#/definitions/healthcheck"},
         "hostname": {"type": "string"},
-        "image": {"type": "string"},
+        "image": {"$ref": "#/definitions/imageReference"},
         "init": {"type": ["boolean", "string"]},
         "ipc": {"type": "string"},
         "isolation": {"type": "string"},
@@ -463,6 +463,24 @@
       },
       "patternProperties": {"^x-": {}},
       "additionalProperties": false
+    },
+
+    "imageReference": {
+      "id": "#/definitions/imageReference",
+      "oneOf": [
+        {"type": "string"},
+        {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "tag": {"type": "string"},
+            "digest": {"type": "string"}
+          },
+          "required": ["name"],
+          "additionalProperties": false,
+          "patternProperties": {"^x-": {}}
+        }
+      ]
     },
 
     "healthcheck": {

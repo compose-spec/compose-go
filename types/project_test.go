@@ -200,11 +200,11 @@ func Test_ResolveImages(t *testing.T) {
 
 	for _, test := range tests {
 		service := p.Services["service_1"]
-		service.Image = test.image
+		service.Image = Image(test.image)
 		p.Services["service_1"] = service
 		p, err := p.WithImagesResolved(resolver)
 		assert.NilError(t, err)
-		assert.Equal(t, p.Services["service_1"].Image, test.resolved)
+		assert.Equal(t, p.Services["service_1"].Image, Image(test.resolved))
 	}
 }
 
@@ -218,14 +218,15 @@ func Test_ResolveImages_concurrent(t *testing.T) {
 	}
 	for i := 0; i < 1000; i++ {
 		p.Services[fmt.Sprintf("service_%d", i)] = ServiceConfig{
-			Image: fmt.Sprintf("image_%d", i),
+			Image: Image(fmt.Sprintf("image_%d", i)),
 		}
 	}
 	p, err := p.WithImagesResolved(resolver)
 	assert.NilError(t, err)
 	for i := 0; i < 1000; i++ {
+		expected := fmt.Sprintf("docker.io/library/image_%d:latest@%s", i, garfield)
 		assert.Equal(t, p.Services[fmt.Sprintf("service_%d", i)].Image,
-			fmt.Sprintf("docker.io/library/image_%d:latest@%s", i, garfield))
+			Image(expected))
 	}
 }
 
@@ -238,7 +239,7 @@ func Test_ResolveImages_concurrent_interrupted(t *testing.T) {
 	}
 	for i := 0; i < 10; i++ {
 		p.Services[fmt.Sprintf("service_%d", i)] = ServiceConfig{
-			Image: fmt.Sprintf("image_%d", i),
+			Image: Image(fmt.Sprintf("image_%d", i)),
 		}
 	}
 	_, err := p.WithImagesResolved(resolver)
