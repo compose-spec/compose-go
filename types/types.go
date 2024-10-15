@@ -556,6 +556,7 @@ type ServiceVolumeBind struct {
 	SELinux        string `yaml:"selinux,omitempty" json:"selinux,omitempty"`
 	Propagation    string `yaml:"propagation,omitempty" json:"propagation,omitempty"`
 	CreateHostPath bool   `yaml:"create_host_path,omitempty" json:"create_host_path,omitempty"`
+	Recursive      string `yaml:"recursive,omitempty" json:"recursive,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }

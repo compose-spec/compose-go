@@ -2096,6 +2096,7 @@ func deriveDeepCopy_51(dst, src *ServiceVolumeBind) {
 	dst.SELinux = src.SELinux
 	dst.Propagation = src.Propagation
 	dst.CreateHostPath = src.CreateHostPath
+	dst.Recursive = src.Recursive
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
 		src.Extensions.DeepCopy(dst.Extensions)
