@@ -3581,3 +3581,14 @@ services:
 		},
 	})
 }
+
+func TestOmitEmptyDNS(t *testing.T) {
+	p, err := loadYAML(`
+name: load-empty-dsn
+services:
+  test:
+    dns: ${UNSET_VAR}
+`)
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Services["test"].DNS), 0)
+}

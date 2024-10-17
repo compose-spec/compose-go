@@ -135,9 +135,9 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 			}
 			services[name] = service
 		}
+
 		dict["services"] = services
 	}
-
 	setNameFromKey(dict)
 
 	return dict, nil
