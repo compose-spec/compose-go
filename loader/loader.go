@@ -516,6 +516,8 @@ func loadYamlFile(ctx context.Context, file types.ConfigFile, opts *Options, wor
 			return err
 		}
 
+		dict = OmitEmpty(dict)
+
 		// Canonical transformation can reveal duplicates, typically as ports can be a range and conflict with an override
 		dict, err = override.EnforceUnicity(dict)
 		return err
