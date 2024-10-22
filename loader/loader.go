@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/consts"
+	"github.com/compose-spec/compose-go/v2/errdefs"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
 	"github.com/compose-spec/compose-go/v2/override"
 	"github.com/compose-spec/compose-go/v2/paths"
@@ -139,9 +140,9 @@ func (l localResourceLoader) abs(p string) string {
 	return filepath.Join(l.WorkingDir, p)
 }
 
-func (l localResourceLoader) Accept(p string) bool {
-	_, err := os.Stat(l.abs(p))
-	return err == nil
+func (l localResourceLoader) Accept(_ string) bool {
+	// LocalResourceLoader is the last loader tested so it always should accept the config and try to get the content.
+	return true
 }
 
 func (l localResourceLoader) Load(_ context.Context, p string) (string, error) {
@@ -301,9 +302,9 @@ func parseYAML(decoder *yaml.Decoder) (map[string]interface{}, PostProcessor, er
 }
 
 // LoadConfigFiles ingests config files with ResourceLoader and returns config details with paths to local copies
-func LoadConfigFiles(ctx context.Context, configFiles []string, options ...func(*Options)) (*types.ConfigDetails, error) {
+func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir string, options ...func(*Options)) (*types.ConfigDetails, error) {
 	if len(configFiles) < 1 {
-		return &types.ConfigDetails{}, errors.New("no files specified")
+		return &types.ConfigDetails{}, fmt.Errorf("no configuration file provided: %w", errdefs.ErrNotFound)
 	}
 
 	opts := &Options{}
@@ -318,16 +319,16 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, options ...func(
 
 	for i, p := range configFiles {
 		for _, loader := range opts.ResourceLoaders {
+			_, isLocalResourceLoader := loader.(localResourceLoader)
 			if !loader.Accept(p) {
 				continue
 			}
 			local, err := loader.Load(ctx, p)
 			if err != nil {
-				continue
+				return nil, err
 			}
-			if config.WorkingDir == "" {
+			if config.WorkingDir == "" && !isLocalResourceLoader {
 				config.WorkingDir = filepath.Dir(local)
-
 			}
 			abs, err := filepath.Abs(local)
 			if err != nil {
@@ -338,6 +339,9 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, options ...func(
 			}
 			break
 		}
+	}
+	if config.WorkingDir == "" {
+		config.WorkingDir = workingDir
 	}
 	return config, nil
 }
