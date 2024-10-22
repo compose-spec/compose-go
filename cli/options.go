@@ -404,8 +404,8 @@ func (o *ProjectOptions) GetWorkingDir() (string, error) {
 }
 
 // ReadConfigFiles reads ConfigFiles and populates the content field
-func (o ProjectOptions) ReadConfigFiles(ctx context.Context, options *ProjectOptions) (*types.ConfigDetails, error) {
-	config, err := loader.LoadConfigFiles(ctx, options.ConfigPaths, options.loadOptions...)
+func (o *ProjectOptions) ReadConfigFiles(ctx context.Context, workingDir string, options *ProjectOptions) (*types.ConfigDetails, error) {
+	config, err := loader.LoadConfigFiles(ctx, options.ConfigPaths, workingDir, options.loadOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -477,7 +477,7 @@ func (o *ProjectOptions) prepare(ctx context.Context) (*types.ConfigDetails, err
 		return &types.ConfigDetails{}, err
 	}
 
-	configDetails, err := o.ReadConfigFiles(ctx, o)
+	configDetails, err := o.ReadConfigFiles(ctx, defaultDir, o)
 	if err != nil {
 		return configDetails, err
 	}
