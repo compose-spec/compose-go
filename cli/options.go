@@ -502,8 +502,13 @@ func withNamePrecedenceLoad(absWorkingDir string, options *ProjectOptions) func(
 		} else if nameFromEnv, ok := options.Environment[consts.ComposeProjectName]; ok && nameFromEnv != "" {
 			opts.SetProjectName(nameFromEnv, true)
 		} else {
+			dirname := filepath.Base(absWorkingDir)
+			symlink, err := filepath.EvalSymlinks(absWorkingDir)
+			if err == nil && filepath.Base(symlink) != dirname {
+				logrus.Warnf("project has been loaded without an explicit name from a symlink. Using name %q", dirname)
+			}
 			opts.SetProjectName(
-				loader.NormalizeProjectName(filepath.Base(absWorkingDir)),
+				loader.NormalizeProjectName(dirname),
 				false,
 			)
 		}
