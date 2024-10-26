@@ -26,13 +26,15 @@ import (
 )
 
 type ResetProcessor struct {
-	target interface{}
-	paths  []tree.Path
+	target       interface{}
+	paths        []tree.Path
+	visitedNodes map[*yaml.Node]bool
 }
 
 // UnmarshalYAML implement yaml.Unmarshaler
 func (p *ResetProcessor) UnmarshalYAML(value *yaml.Node) error {
 	resolved, err := p.resolveReset(value, tree.NewPath())
+	p.visitedNodes = nil
 	if err != nil {
 		return err
 	}
@@ -45,6 +47,20 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 	if strings.Contains(path.String(), ".<<") {
 		path = tree.NewPath(strings.Replace(path.String(), ".<<", "", 1))
 	}
+
+	// Check for cycle
+	if p.visitedNodes == nil {
+		p.visitedNodes = make(map[*yaml.Node]bool)
+	}
+
+	// Check if the current node has been visited before (cycle detection)
+	if p.visitedNodes[node] {
+		return nil, fmt.Errorf("cycle detected at path: %s", path.String())
+	}
+
+	// Mark the current node as visited
+	p.visitedNodes[node] = true
+
 	// If the node is an alias, We need to process the alias field in order to consider the !override and !reset tags
 	if node.Kind == yaml.AliasNode {
 		return p.resolveReset(node.Alias, path)

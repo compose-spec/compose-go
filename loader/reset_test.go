@@ -81,3 +81,24 @@ networks:
 	assert.NilError(t, err)
 	assert.Check(t, p.Networks["test"].External == false)
 }
+
+func TestResetCycle(t *testing.T) {
+	_, err := Load(
+		types.ConfigDetails{
+			ConfigFiles: []types.ConfigFile{
+				{
+					Filename: "(inline)",
+					Content: []byte(`
+x-healthcheck: &healthcheck
+  egress-service:
+    <<: *healthcheck
+`),
+				},
+			},
+		}, func(options *Options) {
+			options.SkipNormalization = true
+			options.SkipConsistencyCheck = true
+		},
+	)
+	assert.Error(t, err, "cycle detected at path: x-healthcheck.egress-service")
+}
