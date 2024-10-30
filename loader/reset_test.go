@@ -83,22 +83,71 @@ networks:
 }
 
 func TestResetCycle(t *testing.T) {
-	_, err := Load(
-		types.ConfigDetails{
-			ConfigFiles: []types.ConfigFile{
-				{
-					Filename: "(inline)",
-					Content: []byte(`
+	tests := []struct {
+		name        string
+		config      string
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "no cycle",
+			config: `
+name: test
+services:
+  a: &a
+    image: alpine
+  a2: *a
+`,
+			expectError: false,
+			errorMsg:    "",
+		},
+		{
+			name: "no cycle reversed",
+			config: `
+name: test
+services:
+  a2: &a
+    image: alpine
+  a: *a
+`,
+			expectError: false,
+			errorMsg:    "",
+		},
+		{
+			name: "healthcheck_cycle",
+			config: `
 x-healthcheck: &healthcheck
   egress-service:
     <<: *healthcheck
-`),
-				},
-			},
-		}, func(options *Options) {
-			options.SkipNormalization = true
-			options.SkipConsistencyCheck = true
+`,
+			expectError: true,
+			errorMsg:    "cycle detected at path: x-healthcheck.egress-service",
 		},
-	)
-	assert.Error(t, err, "cycle detected at path: x-healthcheck.egress-service")
+	}
+
+	for _, tt := range tests {
+		t.Run(
+			tt.name, func(t *testing.T) {
+				_, err := Load(
+					types.ConfigDetails{
+						ConfigFiles: []types.ConfigFile{
+							{
+								Filename: "(inline)",
+								Content:  []byte(tt.config),
+							},
+						},
+					}, func(options *Options) {
+						options.SkipNormalization = true
+						options.SkipConsistencyCheck = true
+					},
+				)
+
+				if tt.expectError {
+					assert.Error(t, err, tt.errorMsg)
+				} else {
+					assert.NilError(t, err)
+				}
+			},
+		)
+	}
 }
