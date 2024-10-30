@@ -242,6 +242,36 @@ func TestProjectComposefilesFromWorkingDir(t *testing.T) {
 	})
 }
 
+func TestProjectComposefilesFromStdin(t *testing.T) {
+	composeData := `
+services:
+  simple:
+    image: nginx
+`
+	originalStdin := os.Stdin
+	r, w, _ := os.Pipe()
+	defer func() {
+		os.Stdin = originalStdin
+	}()
+
+	w.WriteString(composeData)
+	w.Close()
+
+	os.Stdin = r
+
+	opts, err := NewProjectOptions(
+		[]string{
+			"-",
+		}, WithName("my_project"),
+	)
+	assert.NilError(t, err)
+	p, err := opts.LoadProject(context.TODO())
+	assert.NilError(t, err)
+	service, err := p.GetService("simple")
+	assert.NilError(t, err)
+	assert.Equal(t, service.Image, "nginx")
+}
+
 func TestProjectWithDotEnv(t *testing.T) {
 	wd, err := os.Getwd()
 	assert.NilError(t, err)
