@@ -49,24 +49,12 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 		path = tree.NewPath(strings.Replace(pathStr, ".<<", "", 1))
 	}
 
-	// Check for cycle
-	if p.visitedNodes == nil {
-		p.visitedNodes = make(map[*yaml.Node]string)
-	}
-
-	// Check for cycle by seeing if the node has already been visited at this path
-	if previousPath, found := p.visitedNodes[node]; found {
-		// If the current node has been visited, we have a cycle if the previous path is a prefix
-		if strings.HasPrefix(pathStr, previousPath) {
-			return nil, fmt.Errorf("cycle detected at path: %s", pathStr)
-		}
-	}
-
-	// Mark the current node as visited
-	p.visitedNodes[node] = pathStr + "."
-
 	// If the node is an alias, We need to process the alias field in order to consider the !override and !reset tags
 	if node.Kind == yaml.AliasNode {
+		if err := p.checkForCycle(node.Alias, path); err != nil {
+			return nil, err
+		}
+
 		return p.resolveReset(node.Alias, path)
 	}
 
@@ -152,5 +140,24 @@ func (p *ResetProcessor) applyNullOverrides(target any, path tree.Path) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (p *ResetProcessor) checkForCycle(node *yaml.Node, path tree.Path) error {
+	if p.visitedNodes == nil {
+		p.visitedNodes = make(map[*yaml.Node]string)
+	}
+
+	// Check for cycle by seeing if the node has already been visited at this path
+	if previousPath, found := p.visitedNodes[node]; found {
+		// If the current node has been visited, we have a cycle if the previous path is a prefix
+		if strings.HasPrefix(path.String(), strings.TrimRight(previousPath, "<<")) {
+			return fmt.Errorf("cycle detected at path: %s", previousPath)
+		}
+	}
+
+	// Mark the current node as visited
+	p.visitedNodes[node] = path.String()
+
 	return nil
 }
