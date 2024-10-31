@@ -114,6 +114,26 @@ services:
 			errorMsg:    "",
 		},
 		{
+			name: "no cycle 2",
+			config: `
+name: blah
+x-templates:
+  x-gluetun: &gluetun
+    environment: &gluetun_env
+      a: b
+  x-gluetun-pia: &gluetun_pia
+    <<: *gluetun
+  x-gluetun-env-pia: &gluetun_env_pia
+    <<: *gluetun_env
+  vp0:
+    <<: *gluetun_pia
+    environment:
+      <<: *gluetun_env_pia
+`,
+			expectError: false,
+			errorMsg:    "",
+		},
+		{
 			name: "healthcheck_cycle",
 			config: `
 x-healthcheck: &healthcheck
