@@ -116,7 +116,7 @@ services:
 		{
 			name: "no cycle 2",
 			config: `
-name: blah
+name: no_cycle_2
 x-templates:
   x-gluetun: &gluetun
     environment: &gluetun_env
@@ -134,6 +134,30 @@ x-templates:
 			errorMsg:    "",
 		},
 		{
+			name: "no cycle 3",
+			config: `
+name: no_cycle_3
+x-common:
+  &common
+  restart: unless-stopped
+
+services:
+  backend:
+    <<: *common
+    image: alpine:latest
+
+  backend-static:
+    <<: *common
+    image: alpine:latest
+
+  backend-worker:
+    <<: *common
+    image: alpine:latest
+`,
+			expectError: false,
+			errorMsg:    "",
+		},
+		{
 			name: "healthcheck_cycle",
 			config: `
 x-healthcheck: &healthcheck
@@ -141,7 +165,7 @@ x-healthcheck: &healthcheck
     <<: *healthcheck
 `,
 			expectError: true,
-			errorMsg:    "cycle detected at path: x-healthcheck.egress-service",
+			errorMsg:    "cycle detected: node at path x-healthcheck.egress-service.egress-service references node at path x-healthcheck.egress-service",
 		},
 	}
 
