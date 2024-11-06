@@ -90,7 +90,7 @@ func TestResetCycle(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name: "no cycle",
+			name: "simple_alias_no_cycle",
 			config: `
 name: test
 services:
@@ -99,10 +99,9 @@ services:
   a2: *a
 `,
 			expectError: false,
-			errorMsg:    "",
 		},
 		{
-			name: "no cycle reversed",
+			name: "simple_alias_reversed_no_cycle",
 			config: `
 name: test
 services:
@@ -111,12 +110,11 @@ services:
   a: *a
 `,
 			expectError: false,
-			errorMsg:    "",
 		},
 		{
-			name: "no cycle 2",
+			name: "nested_merge_no_cycle",
 			config: `
-name: no_cycle_2
+name: test
 x-templates:
   x-gluetun: &gluetun
     environment: &gluetun_env
@@ -131,12 +129,11 @@ x-templates:
       <<: *gluetun_env_pia
 `,
 			expectError: false,
-			errorMsg:    "",
 		},
 		{
-			name: "no cycle 3",
+			name: "multiple_services_common_config",
 			config: `
-name: no_cycle_3
+name: test
 x-common:
   &common
   restart: unless-stopped
@@ -155,11 +152,11 @@ services:
     image: alpine:latest
 `,
 			expectError: false,
-			errorMsg:    "",
 		},
 		{
-			name: "healthcheck_cycle",
+			name: "direct_self_reference_cycle",
 			config: `
+name: test
 x-healthcheck: &healthcheck
   egress-service:
     <<: *healthcheck
