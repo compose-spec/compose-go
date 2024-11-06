@@ -678,16 +678,17 @@ func (u *UlimitsConfig) MarshalJSON() ([]byte, error) {
 
 // NetworkConfig for a network
 type NetworkConfig struct {
-	Name       string     `yaml:"name,omitempty" json:"name,omitempty"`
-	Driver     string     `yaml:"driver,omitempty" json:"driver,omitempty"`
-	DriverOpts Options    `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
-	Ipam       IPAMConfig `yaml:"ipam,omitempty" json:"ipam,omitempty"`
-	External   External   `yaml:"external,omitempty" json:"external,omitempty"`
-	Internal   bool       `yaml:"internal,omitempty" json:"internal,omitempty"`
-	Attachable bool       `yaml:"attachable,omitempty" json:"attachable,omitempty"`
-	Labels     Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
-	EnableIPv6 *bool      `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
-	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+	Name         string     `yaml:"name,omitempty" json:"name,omitempty"`
+	Driver       string     `yaml:"driver,omitempty" json:"driver,omitempty"`
+	DriverOpts   Options    `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
+	Ipam         IPAMConfig `yaml:"ipam,omitempty" json:"ipam,omitempty"`
+	External     External   `yaml:"external,omitempty" json:"external,omitempty"`
+	Internal     bool       `yaml:"internal,omitempty" json:"internal,omitempty"`
+	Attachable   bool       `yaml:"attachable,omitempty" json:"attachable,omitempty"`
+	Labels       Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
+	CustomLabels Labels     `yaml:"-" json:"-"`
+	EnableIPv6   *bool      `yaml:"enable_ipv6,omitempty" json:"enable_ipv6,omitempty"`
+	Extensions   Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // IPAMConfig for a network
@@ -708,12 +709,13 @@ type IPAMPool struct {
 
 // VolumeConfig for a volume
 type VolumeConfig struct {
-	Name       string     `yaml:"name,omitempty" json:"name,omitempty"`
-	Driver     string     `yaml:"driver,omitempty" json:"driver,omitempty"`
-	DriverOpts Options    `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
-	External   External   `yaml:"external,omitempty" json:"external,omitempty"`
-	Labels     Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
-	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+	Name         string     `yaml:"name,omitempty" json:"name,omitempty"`
+	Driver       string     `yaml:"driver,omitempty" json:"driver,omitempty"`
+	DriverOpts   Options    `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
+	External     External   `yaml:"external,omitempty" json:"external,omitempty"`
+	Labels       Labels     `yaml:"labels,omitempty" json:"labels,omitempty"`
+	CustomLabels Labels     `yaml:"-" json:"-"`
+	Extensions   Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // External identifies a Volume or Network as a reference to a resource that is
