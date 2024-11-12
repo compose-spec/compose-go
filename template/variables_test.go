@@ -51,6 +51,15 @@ func TestExtractVariables(t *testing.T) {
 			},
 		},
 		{
+			name: "variable-without-curly-braces-and-with-number-suffix",
+			dict: map[string]interface{}{
+				"foo": "$bar_1",
+			},
+			expected: map[string]Variable{
+				"bar_1": {Name: "bar_1"},
+			},
+		},
+		{
 			name: "variable",
 			dict: map[string]interface{}{
 				"foo": "${bar}",
@@ -66,6 +75,15 @@ func TestExtractVariables(t *testing.T) {
 			},
 			expected: map[string]Variable{
 				"bar": {Name: "bar", DefaultValue: "", Required: true},
+			},
+		},
+		{
+			name: "required-variable-with-number-suffix",
+			dict: map[string]interface{}{
+				"foo": "${bar_1?:foo}",
+			},
+			expected: map[string]Variable{
+				"bar_1": {Name: "bar_1", DefaultValue: "", Required: true},
 			},
 		},
 		{
@@ -93,6 +111,24 @@ func TestExtractVariables(t *testing.T) {
 			},
 			expected: map[string]Variable{
 				"bar": {Name: "bar", DefaultValue: "foo"},
+			},
+		},
+		{
+			name: "default-variable-with-number-suffix",
+			dict: map[string]interface{}{
+				"foo": "${bar_1:-foo}",
+			},
+			expected: map[string]Variable{
+				"bar_1": {Name: "bar_1", DefaultValue: "foo"},
+			},
+		},
+		{
+			name: "default-variable2-with-number-suffix",
+			dict: map[string]interface{}{
+				"foo": "${bar_1-foo}",
+			},
+			expected: map[string]Variable{
+				"bar_1": {Name: "bar_1", DefaultValue: "foo"},
 			},
 		},
 		{
