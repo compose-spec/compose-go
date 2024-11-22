@@ -2319,6 +2319,31 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 	assert.Equal(t, "YES", *service.Environment["HALLO"])
 }
 
+func TestLoadServiceWithLabelFile(t *testing.T) {
+	file, err := os.CreateTemp("", "test-compose-go")
+	assert.NilError(t, err)
+	defer os.Remove(file.Name())
+
+	_, err = file.Write([]byte("MY_LABEL=MY_VALUE"))
+	assert.NilError(t, err)
+
+	p := &types.Project{
+		Services: types.Services{
+			"test": {
+				Name: "test",
+				LabelFiles: []types.LabelFile{
+					{Path: file.Name(), Required: true},
+				},
+			},
+		},
+	}
+	p, err = p.WithServicesLabelsResolved(false)
+	assert.NilError(t, err)
+	service, err := p.GetService("test")
+	assert.NilError(t, err)
+	assert.Equal(t, "MY_VALUE", service.Labels["MY_LABEL"])
+}
+
 func TestLoadNoSSHInBuildConfig(t *testing.T) {
 	actual, err := loadYAML(`
 name: load-no-ssh-in-build-config
