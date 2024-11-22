@@ -20,6 +20,7 @@ import (
 	_ "crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/utils"
@@ -409,4 +410,26 @@ func TestServicesWithCapabilities(t *testing.T) {
 	assert.DeepEqual(t, []string{"service_1", "service_2"}, capabilities)
 	assert.DeepEqual(t, []string{"service_1"}, gpu)
 	assert.DeepEqual(t, []string{"service_1", "service_2"}, tpu)
+}
+
+func TestMarshallOptions(t *testing.T) {
+	p := &Project{
+		Secrets: map[string]SecretConfig{
+			"test": {
+				Name:    "test",
+				Content: "SECRET",
+				File:    "~/.secret",
+			},
+		},
+	}
+	yaml, err := p.MarshalYAML(WithSecretContent)
+	assert.NilError(t, err)
+	expected := `
+services: {}
+secrets:
+  test:
+    name: test
+    file: ~/.secret
+    content: SECRET`
+	assert.Equal(t, strings.TrimSpace(string(yaml)), strings.TrimSpace(expected))
 }
