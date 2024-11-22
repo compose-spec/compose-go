@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"encoding/json"
 	"os"
 	"testing"
 
@@ -54,7 +53,7 @@ func TestJSONMarshalProject(t *testing.T) {
 	project := fullExampleProject(workingDir, homeDir)
 	expected := fullExampleJSON(workingDir, homeDir)
 
-	actual, err := json.MarshalIndent(project, "", "  ")
+	actual, err := project.MarshalJSON()
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(expected, string(actual)))
 
