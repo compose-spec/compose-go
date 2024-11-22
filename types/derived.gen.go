@@ -485,6 +485,24 @@ func deriveDeepCopyService(dst, src *ServiceConfig) {
 	} else {
 		dst.Labels = nil
 	}
+	if src.LabelFiles == nil {
+		dst.LabelFiles = nil
+	} else {
+		if dst.LabelFiles != nil {
+			if len(src.LabelFiles) > len(dst.LabelFiles) {
+				if cap(dst.LabelFiles) >= len(src.LabelFiles) {
+					dst.LabelFiles = (dst.LabelFiles)[:len(src.LabelFiles)]
+				} else {
+					dst.LabelFiles = make([]LabelFile, len(src.LabelFiles))
+				}
+			} else if len(src.LabelFiles) < len(dst.LabelFiles) {
+				dst.LabelFiles = (dst.LabelFiles)[:len(src.LabelFiles)]
+			}
+		} else {
+			dst.LabelFiles = make([]LabelFile, len(src.LabelFiles))
+		}
+		copy(dst.LabelFiles, src.LabelFiles)
+	}
 	if src.CustomLabels != nil {
 		dst.CustomLabels = make(map[string]string, len(src.CustomLabels))
 		deriveDeepCopy_4(dst.CustomLabels, src.CustomLabels)
@@ -1428,6 +1446,12 @@ func deriveDeepCopy_24(dst, src *NetworkConfig) {
 	} else {
 		dst.Labels = nil
 	}
+	if src.CustomLabels != nil {
+		dst.CustomLabels = make(map[string]string, len(src.CustomLabels))
+		deriveDeepCopy_4(dst.CustomLabels, src.CustomLabels)
+	} else {
+		dst.CustomLabels = nil
+	}
 	if src.EnableIPv6 == nil {
 		dst.EnableIPv6 = nil
 	} else {
@@ -1458,6 +1482,12 @@ func deriveDeepCopy_25(dst, src *VolumeConfig) {
 		deriveDeepCopy_4(dst.Labels, src.Labels)
 	} else {
 		dst.Labels = nil
+	}
+	if src.CustomLabels != nil {
+		dst.CustomLabels = make(map[string]string, len(src.CustomLabels))
+		deriveDeepCopy_4(dst.CustomLabels, src.CustomLabels)
+	} else {
+		dst.CustomLabels = nil
 	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
