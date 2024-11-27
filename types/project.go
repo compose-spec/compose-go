@@ -657,7 +657,11 @@ func (p Project) WithServicesLabelsResolved(discardLabelFiles bool) (*Project, e
 		}
 
 		labels = labels.OverrideBy(service.Labels.ToMappingWithEquals())
-		service.Labels = NewLabelsFromMappingWithEquals(labels)
+		if len(labels) == 0 {
+			labels = nil
+		} else {
+			service.Labels = NewLabelsFromMappingWithEquals(labels)
+		}
 
 		if discardLabelFiles {
 			service.LabelFiles = nil
