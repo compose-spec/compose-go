@@ -2013,6 +2013,11 @@ func deriveDeepCopy_46(dst, src *Trigger) {
 	dst.Path = src.Path
 	dst.Action = src.Action
 	dst.Target = src.Target
+	func() {
+		field := new(ServiceHook)
+		deriveDeepCopy_44(field, &src.Exec)
+		dst.Exec = *field
+	}()
 	if src.Ignore == nil {
 		dst.Ignore = nil
 	} else {
