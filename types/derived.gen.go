@@ -493,13 +493,13 @@ func deriveDeepCopyService(dst, src *ServiceConfig) {
 				if cap(dst.LabelFiles) >= len(src.LabelFiles) {
 					dst.LabelFiles = (dst.LabelFiles)[:len(src.LabelFiles)]
 				} else {
-					dst.LabelFiles = make([]LabelFile, len(src.LabelFiles))
+					dst.LabelFiles = make([]string, len(src.LabelFiles))
 				}
 			} else if len(src.LabelFiles) < len(dst.LabelFiles) {
 				dst.LabelFiles = (dst.LabelFiles)[:len(src.LabelFiles)]
 			}
 		} else {
-			dst.LabelFiles = make([]LabelFile, len(src.LabelFiles))
+			dst.LabelFiles = make([]string, len(src.LabelFiles))
 		}
 		copy(dst.LabelFiles, src.LabelFiles)
 	}
@@ -1503,6 +1503,7 @@ func deriveDeepCopy_26(dst, src *SecretConfig) {
 	dst.File = src.File
 	dst.Environment = src.Environment
 	dst.Content = src.Content
+	dst.marshallContent = src.marshallContent
 	dst.External = src.External
 	if src.Labels != nil {
 		dst.Labels = make(map[string]string, len(src.Labels))
@@ -1532,6 +1533,7 @@ func deriveDeepCopy_27(dst, src *ConfigObjConfig) {
 	dst.File = src.File
 	dst.Environment = src.Environment
 	dst.Content = src.Content
+	dst.marshallContent = src.marshallContent
 	dst.External = src.External
 	if src.Labels != nil {
 		dst.Labels = make(map[string]string, len(src.Labels))

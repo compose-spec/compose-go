@@ -2331,8 +2331,8 @@ func TestLoadServiceWithLabelFile(t *testing.T) {
 		Services: types.Services{
 			"test": {
 				Name: "test",
-				LabelFiles: []types.LabelFile{
-					{Path: file.Name()},
+				LabelFiles: []string{
+					file.Name(),
 				},
 			},
 		},
@@ -2349,8 +2349,8 @@ func TestLoadServiceWithLabelFile_NotExists(t *testing.T) {
 		Services: types.Services{
 			"test": {
 				Name: "test",
-				LabelFiles: []types.LabelFile{
-					{Path: "test"},
+				LabelFiles: []string{
+					"test",
 				},
 			},
 		},
