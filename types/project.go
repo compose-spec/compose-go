@@ -714,10 +714,7 @@ func loadEnvFile(envFile EnvFile, resolve dotenv.LookupFn) (Mapping, error) {
 
 func loadLabelFile(labelFile LabelFile, resolve dotenv.LookupFn) (Mapping, error) {
 	if _, err := os.Stat(labelFile.Path); os.IsNotExist(err) {
-		if labelFile.Required {
-			return nil, fmt.Errorf("label file %s not found: %w", labelFile.Path, err)
-		}
-		return nil, nil
+		return nil, fmt.Errorf("label file %s not found: %w", labelFile.Path, err)
 	}
 
 	return loadMappingFile(labelFile.Path, labelFile.Format, resolve)

@@ -2332,7 +2332,7 @@ func TestLoadServiceWithLabelFile(t *testing.T) {
 			"test": {
 				Name: "test",
 				LabelFiles: []types.LabelFile{
-					{Path: file.Name(), Required: true},
+					{Path: file.Name()},
 				},
 			},
 		},
@@ -2342,6 +2342,21 @@ func TestLoadServiceWithLabelFile(t *testing.T) {
 	service, err := p.GetService("test")
 	assert.NilError(t, err)
 	assert.Equal(t, "MY_VALUE", service.Labels["MY_LABEL"])
+}
+
+func TestLoadServiceWithLabelFile_NotExists(t *testing.T) {
+	p := &types.Project{
+		Services: types.Services{
+			"test": {
+				Name: "test",
+				LabelFiles: []types.LabelFile{
+					{Path: "test"},
+				},
+			},
+		},
+	}
+	p, err := p.WithServicesLabelsResolved(false)
+	assert.Error(t, err, "label file test not found: stat test: no such file or directory")
 }
 
 func TestLoadNoSSHInBuildConfig(t *testing.T) {

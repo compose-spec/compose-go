@@ -21,27 +21,16 @@ import (
 )
 
 type LabelFile struct {
-	Path     string `yaml:"path,omitempty" json:"path,omitempty"`
-	Required bool   `yaml:"required" json:"required"`
-	Format   string `yaml:"format,omitempty" json:"format,omitempty"`
+	Path   string `yaml:"path,omitempty" json:"path,omitempty"`
+	Format string `yaml:"format,omitempty" json:"format,omitempty"`
 }
 
 // MarshalYAML makes LabelFile implement yaml.Marshaler
 func (e LabelFile) MarshalYAML() (interface{}, error) {
-	if e.Required {
-		return e.Path, nil
-	}
-	return map[string]any{
-		"path":     e.Path,
-		"required": e.Required,
-	}, nil
+	return e.Path, nil
 }
 
 // MarshalJSON makes LabelFile implement json.Marshaler
 func (e *LabelFile) MarshalJSON() ([]byte, error) {
-	if e.Required {
-		return json.Marshal(e.Path)
-	}
-	// Pass as a value to avoid re-entering this method and use the default implementation
-	return json.Marshal(*e)
+	return json.Marshal(e.Path)
 }

@@ -217,9 +217,23 @@ func services(workingDir, homeDir string) types.Services {
 			Ipc:      "host",
 			Uts:      "host",
 			Labels: map[string]string{
+				"FOO":                     "foo_from_label_file",
+				"BAR":                     "bar_from_label_file_2",
+				"BAZ":                     "baz_from_label_file",
+				"QUX":                     "quz_from_label_file_2",
+				"LABEL.WITH.DOT":          "ok",
+				"LABEL_WITH_UNDERSCORE":   "ok",
 				"com.example.description": "Accounting webapp",
 				"com.example.number":      "42",
 				"com.example.empty-label": "",
+			},
+			LabelFiles: []types.LabelFile{
+				{
+					Path: filepath.Join(workingDir, "example1.label"),
+				},
+				{
+					Path: filepath.Join(workingDir, "example2.label"),
+				},
 			},
 			Links: []string{
 				"db",
@@ -770,9 +784,18 @@ services:
     image: redis
     ipc: host
     labels:
+      BAR: bar_from_label_file_2
+      BAZ: baz_from_label_file
+      FOO: foo_from_label_file
+      LABEL.WITH.DOT: ok
+      LABEL_WITH_UNDERSCORE: ok
+      QUX: quz_from_label_file_2
       com.example.description: Accounting webapp
       com.example.empty-label: ""
       com.example.number: "42"
+    label_file:
+      - %s
+      - %s
     links:
       - db
       - db:database
@@ -1058,6 +1081,8 @@ x-nested:
 		filepath.Join(workingDir, "bar"),
 		filepath.Join(workingDir, "example1.env"),
 		filepath.Join(workingDir, "example2.env"),
+		filepath.Join(workingDir, "example1.label"),
+		filepath.Join(workingDir, "example2.label"),
 		workingDir,
 		filepath.Join(workingDir, "static"),
 		filepath.Join(homeDir, "configs"),
@@ -1382,10 +1407,20 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "image": "redis",
       "ipc": "host",
       "labels": {
+        "BAR": "bar_from_label_file_2",
+        "BAZ": "baz_from_label_file",
+        "FOO": "foo_from_label_file",
+        "LABEL.WITH.DOT": "ok",
+        "LABEL_WITH_UNDERSCORE": "ok",
+        "QUX": "quz_from_label_file_2",
         "com.example.description": "Accounting webapp",
         "com.example.empty-label": "",
         "com.example.number": "42"
       },
+      "label_file": [
+        "%s",
+        "%s"
+      ],
       "links": [
         "db",
         "db:database",
@@ -1707,6 +1742,8 @@ func fullExampleJSON(workingDir, homeDir string) string {
 		toPath(workingDir, "bar"),
 		toPath(workingDir, "example1.env"),
 		toPath(workingDir, "example2.env"),
+		toPath(workingDir, "example1.label"),
+		toPath(workingDir, "example2.label"),
 		toPath(workingDir),
 		toPath(workingDir, "static"),
 		toPath(homeDir, "configs"),
