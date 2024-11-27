@@ -639,6 +639,10 @@ func modelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	}
 
 	project, err = project.WithServicesLabelsResolved(opts.discardEnvFiles)
+	if err != nil {
+		return nil, err
+	}
+
 	return project, nil
 }
 
