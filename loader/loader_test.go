@@ -912,7 +912,7 @@ networks:
 		},
 	}
 
-	assert.DeepEqual(t, expected, config)
+	assertEqual(t, expected, config)
 }
 
 func TestUnsupportedProperties(t *testing.T) {
@@ -1158,8 +1158,8 @@ func TestFullExample(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expectedConfig.Services, config.Services))
 	assert.Check(t, is.DeepEqual(expectedConfig.Networks, config.Networks))
 	assert.Check(t, is.DeepEqual(expectedConfig.Volumes, config.Volumes))
-	assert.Check(t, is.DeepEqual(expectedConfig.Secrets, config.Secrets))
-	assert.Check(t, is.DeepEqual(expectedConfig.Configs, config.Configs))
+	assert.Check(t, is.DeepEqual(expectedConfig.Secrets, config.Secrets, cmpopts.IgnoreUnexported(types.SecretConfig{})))
+	assert.Check(t, is.DeepEqual(expectedConfig.Configs, config.Configs, cmpopts.IgnoreUnexported(types.ConfigObjConfig{})))
 	assert.Check(t, is.DeepEqual(expectedConfig.Extensions, config.Extensions))
 }
 
@@ -1592,7 +1592,7 @@ secrets:
 			External: true,
 		},
 	}
-	assert.Check(t, is.DeepEqual(expected, project.Secrets))
+	assert.Check(t, is.DeepEqual(expected, project.Secrets, cmpopts.IgnoreUnexported(types.SecretConfig{})))
 	assert.Check(t, is.Contains(buf.String(), "secrets.foo: external.name is deprecated. Please set name and external: true"))
 }
 
@@ -1940,7 +1940,7 @@ secrets:
 			"COMPOSE_PROJECT_NAME": "load-template-driver",
 		},
 	}
-	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+	assertEqual(t, expected, config)
 }
 
 func TestLoadSecretDriver(t *testing.T) {
@@ -2012,7 +2012,11 @@ secrets:
 			"COMPOSE_PROJECT_NAME": "load-secret-driver",
 		},
 	}
-	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+	assertEqual(t, config, expected)
+}
+
+func assertEqual(t *testing.T, config *types.Project, expected *types.Project) {
+	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(types.SecretConfig{}), cmpopts.IgnoreUnexported(types.ConfigObjConfig{}))
 }
 
 func TestComposeFileWithVersion(t *testing.T) {
@@ -3424,12 +3428,12 @@ secrets:
 		"config": {
 			Environment: "GA",
 			Content:     "BU",
-		}})
+		}}, cmpopts.IgnoreUnexported(types.ConfigObjConfig{}))
 	assert.DeepEqual(t, config.Secrets, types.Secrets{
 		"secret": {
 			Environment: "MEU",
 			Content:     "Shadoks",
-		}})
+		}}, cmpopts.IgnoreUnexported(types.SecretConfig{}))
 }
 
 func TestLoadDeviceMapping(t *testing.T) {

@@ -733,16 +733,18 @@ type CredentialSpecConfig struct {
 
 // FileObjectConfig is a config type for a file used by a service
 type FileObjectConfig struct {
-	Name           string            `yaml:"name,omitempty" json:"name,omitempty"`
-	File           string            `yaml:"file,omitempty" json:"file,omitempty"`
-	Environment    string            `yaml:"environment,omitempty" json:"environment,omitempty"`
-	Content        string            `yaml:"content,omitempty" json:"content,omitempty"`
-	External       External          `yaml:"external,omitempty" json:"external,omitempty"`
-	Labels         Labels            `yaml:"labels,omitempty" json:"labels,omitempty"`
-	Driver         string            `yaml:"driver,omitempty" json:"driver,omitempty"`
-	DriverOpts     map[string]string `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
-	TemplateDriver string            `yaml:"template_driver,omitempty" json:"template_driver,omitempty"`
-	Extensions     Extensions        `yaml:"#extensions,inline,omitempty" json:"-"`
+	Name        string `yaml:"name,omitempty" json:"name,omitempty"`
+	File        string `yaml:"file,omitempty" json:"file,omitempty"`
+	Environment string `yaml:"environment,omitempty" json:"environment,omitempty"`
+	Content     string `yaml:"content,omitempty" json:"content,omitempty"`
+	// configure marshalling to include Content - excluded by default to prevent sensitive data leaks
+	marshallContent bool
+	External        External          `yaml:"external,omitempty" json:"external,omitempty"`
+	Labels          Labels            `yaml:"labels,omitempty" json:"labels,omitempty"`
+	Driver          string            `yaml:"driver,omitempty" json:"driver,omitempty"`
+	DriverOpts      map[string]string `yaml:"driver_opts,omitempty" json:"driver_opts,omitempty"`
+	TemplateDriver  string            `yaml:"template_driver,omitempty" json:"template_driver,omitempty"`
+	Extensions      Extensions        `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 const (
@@ -776,14 +778,18 @@ type SecretConfig FileObjectConfig
 // MarshalYAML makes SecretConfig implement yaml.Marshaller
 func (s SecretConfig) MarshalYAML() (interface{}, error) {
 	// secret content is set while loading model. Never marshall it
-	s.Content = ""
+	if !s.marshallContent {
+		s.Content = ""
+	}
 	return FileObjectConfig(s), nil
 }
 
 // MarshalJSON makes SecretConfig implement json.Marshaller
 func (s SecretConfig) MarshalJSON() ([]byte, error) {
 	// secret content is set while loading model. Never marshall it
-	s.Content = ""
+	if !s.marshallContent {
+		s.Content = ""
+	}
 	return json.Marshal(FileObjectConfig(s))
 }
 
