@@ -867,6 +867,9 @@
                   "path": {
                     "type": "string"
                   },
+                  "format": {
+                    "type": "string"
+                  },
                   "required": {
                     "type": ["boolean", "string"],
                     "default": true
