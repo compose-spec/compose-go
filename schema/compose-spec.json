@@ -887,27 +887,7 @@
         {"type": "string"},
         {
           "type": "array",
-          "items": {
-            "oneOf": [
-              {"type": "string"},
-              {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "path": {
-                    "type": "string"
-                  },
-                  "required": {
-                    "type": ["boolean", "string"],
-                    "default": true
-                  }
-                },
-                "required": [
-                  "path"
-                ]
-              }
-            ]
-          }
+          "items": {"type": "string"}
         }
       ]
     },
