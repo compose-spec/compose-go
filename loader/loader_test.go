@@ -2356,7 +2356,7 @@ func TestLoadServiceWithLabelFile_NotExists(t *testing.T) {
 		},
 	}
 	p, err := p.WithServicesLabelsResolved(false)
-	assert.Error(t, err, "label file test not found: stat test: no such file or directory")
+	assert.ErrorContains(t, err, "label file test not found")
 }
 
 func TestLoadNoSSHInBuildConfig(t *testing.T) {
