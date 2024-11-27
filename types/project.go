@@ -712,12 +712,12 @@ func loadEnvFile(envFile EnvFile, resolve dotenv.LookupFn) (Mapping, error) {
 	return loadMappingFile(envFile.Path, envFile.Format, resolve)
 }
 
-func loadLabelFile(labelFile LabelFile, resolve dotenv.LookupFn) (Mapping, error) {
-	if _, err := os.Stat(labelFile.Path); os.IsNotExist(err) {
-		return nil, fmt.Errorf("label file %s not found: %w", labelFile.Path, err)
+func loadLabelFile(labelFile string, resolve dotenv.LookupFn) (Mapping, error) {
+	if _, err := os.Stat(labelFile); os.IsNotExist(err) {
+		return nil, fmt.Errorf("label file %s not found: %w", labelFile, err)
 	}
 
-	return loadMappingFile(labelFile.Path, labelFile.Format, resolve)
+	return loadMappingFile(labelFile, "", resolve)
 }
 
 func loadMappingFile(path string, format string, resolve dotenv.LookupFn) (Mapping, error) {

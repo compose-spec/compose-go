@@ -227,13 +227,9 @@ func services(workingDir, homeDir string) types.Services {
 				"com.example.number":      "42",
 				"com.example.empty-label": "",
 			},
-			LabelFiles: []types.LabelFile{
-				{
-					Path: filepath.Join(workingDir, "example1.label"),
-				},
-				{
-					Path: filepath.Join(workingDir, "example2.label"),
-				},
+			LabelFiles: []string{
+				filepath.Join(workingDir, "example1.label"),
+				filepath.Join(workingDir, "example2.label"),
 			},
 			Links: []string{
 				"db",

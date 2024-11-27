@@ -51,7 +51,6 @@ func init() {
 	unique["services.*.env_file"] = envFileIndexer
 	unique["services.*.expose"] = exposeIndexer
 	unique["services.*.labels"] = keyValueIndexer
-	unique["services.*.label_file"] = labelFileIndexer
 	unique["services.*.links"] = keyValueIndexer
 	unique["services.*.networks.*.aliases"] = keyValueIndexer
 	unique["services.*.networks.*.link_local_ips"] = keyValueIndexer
@@ -225,19 +224,6 @@ func envFileIndexer(y any, p tree.Path) (string, error) {
 			return pathValue.(string), nil
 		}
 		return "", fmt.Errorf("environment path attribute %s is missing", p)
-	}
-	return "", nil
-}
-
-func labelFileIndexer(y any, p tree.Path) (string, error) {
-	switch value := y.(type) {
-	case string:
-		return value, nil
-	case map[string]any:
-		if pathValue, ok := value["path"]; ok {
-			return pathValue.(string), nil
-		}
-		return "", fmt.Errorf("label path attribute %s is missing", p)
 	}
 	return "", nil
 }
