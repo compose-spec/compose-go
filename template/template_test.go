@@ -908,3 +908,11 @@ func TestSubstituteWithCustomFuncWithNamedMappings(t *testing.T) {
 	_, err = SubstituteWith("ok ${NOTHERE}", defaultMapping, DefaultPattern, errIsMissing)
 	assert.Check(t, is.ErrorContains(err, "required variable"))
 }
+
+func TestPanicAsErrorInNamedMappings(t *testing.T) {
+	panicMapping := func(name string) (string, bool) {
+		panic("panic")
+	}
+	_, err := SubstituteWithOptions("${env[FOO]}", defaultMapping, WithNamedMappings(NamedMappings{"env": panicMapping}))
+	assert.ErrorContains(t, err, "panic")
+}
