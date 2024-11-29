@@ -929,9 +929,17 @@
           "type": "object",
           "patternProperties": {
             ".+": {
-              "type": ["string", "array"]
-            },
-            "uniqueItems": false
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {},
+                  "uniqueItems": false
+                }
+              ]
+            }
           },
           "additionalProperties": false
         },
