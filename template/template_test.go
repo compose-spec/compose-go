@@ -916,3 +916,75 @@ func TestPanicAsErrorInNamedMappings(t *testing.T) {
 	_, err := SubstituteWithOptions("${env[FOO]}", defaultMapping, WithNamedMappings(NamedMappings{"env": panicMapping}))
 	assert.ErrorContains(t, err, "panic")
 }
+
+func TestMergeMappings(t *testing.T) {
+	mapping1 := Mapping(func(key string) (string, bool) {
+		if key == "FOO" {
+			return "first", true
+		}
+		return "", false
+	})
+	mapping2 := Mapping(func(key string) (string, bool) {
+		if key == "FOO" {
+			return "first_shadowed", true
+		}
+		if key == "BAR" {
+			return "second", true
+		}
+		return "", false
+	})
+	meregedMapping := mapping1.Merge(mapping2)
+	result, ok := meregedMapping("FOO")
+	assert.Check(t, is.Equal(ok, true))
+	assert.Check(t, is.Equal(result, "first")) // mapping1 should take precedence
+	result, ok = meregedMapping("BAR")
+	assert.Check(t, is.Equal(ok, true))
+	assert.Check(t, is.Equal(result, "second"))
+}
+
+func TestMergeNamedMappings(t *testing.T) {
+	namedMappings1 := NamedMappings{
+		"env": Mapping(func(key string) (string, bool) {
+			if key == "FOO" {
+				return "first", true
+			}
+			return "", false
+		}),
+		"secret": Mapping(func(key string) (string, bool) {
+			if key == "access_key" {
+				return "access_key_value", true
+			}
+			return "", false
+		}),
+	}
+	namedMappings2 := NamedMappings{
+		"env": Mapping(func(key string) (string, bool) {
+			if key == "FOO" {
+				return "first_shadowed", true
+			}
+			if key == "BAR" {
+				return "second", true
+			}
+			return "", false
+		}),
+		"labels": Mapping(func(key string) (string, bool) {
+			if key == "label" {
+				return "value", true
+			}
+			return "", false
+		}),
+	}
+	mergedNamedMappings := namedMappings1.Merge(namedMappings2)
+	result, ok := mergedNamedMappings["env"]("FOO")
+	assert.Check(t, is.Equal(ok, true))
+	assert.Check(t, is.Equal(result, "first")) // namedMappings1 should take precedence
+	result, ok = mergedNamedMappings["env"]("BAR")
+	assert.Check(t, is.Equal(ok, true))
+	assert.Check(t, is.Equal(result, "second"))
+	result, ok = mergedNamedMappings["secret"]("access_key")
+	assert.Check(t, is.Equal(ok, true))
+	assert.Check(t, is.Equal(result, "access_key_value"))
+	result, ok = mergedNamedMappings["labels"]("label")
+	assert.Check(t, is.Equal(ok, true))
+	assert.Check(t, is.Equal(result, "value"))
+}
