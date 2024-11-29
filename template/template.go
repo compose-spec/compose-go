@@ -156,7 +156,7 @@ func SubstituteWithOptions(template string, mapping Mapping, options ...Option) 
 	return substituteWithConfig(template, mapping, cfg)
 }
 
-func substituteWithConfig(template string, mapping Mapping, cfg *Config) (string, error) {
+func substituteWithConfig(template string, mapping Mapping, cfg *Config) (result string, returnErr error) {
 	if cfg == nil {
 		cfg = &Config{
 			pattern:         DefaultPattern,
@@ -165,8 +165,21 @@ func substituteWithConfig(template string, mapping Mapping, cfg *Config) (string
 		}
 	}
 
-	var returnErr error
-	result := cfg.pattern.ReplaceAllStringFunc(template, func(substring string) string {
+	defer func() {
+		// Convert panic message to error, so mappings can use panic to report error
+		if r := recover(); r != nil {
+			switch r := r.(type) {
+			case string:
+				returnErr = errors.New(r)
+			case error:
+				returnErr = r
+			default:
+				returnErr = errors.New(fmt.Sprint(r))
+			}
+		}
+	}()
+
+	result = cfg.pattern.ReplaceAllStringFunc(template, func(substring string) string {
 		replacement, err := cfg.replacementFunc(substring, mapping, cfg)
 		if err != nil {
 			// Add the template for template errors
