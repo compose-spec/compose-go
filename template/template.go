@@ -569,3 +569,38 @@ func partition(s, sep string) (string, string) {
 	}
 	return s, ""
 }
+
+// Merge stacks new mapping on top of current mapping, i.e. the merged mapping will:
+// 1. Lookup in current mapping first
+// 2. If not present in current mapping, then lookup in provided mapping
+func (m Mapping) Merge(other Mapping) Mapping {
+	return func(key string) (string, bool) {
+		if value, ok := m(key); ok {
+			return value, ok
+		}
+		return other(key)
+	}
+}
+
+func (m NamedMappings) Merge(other NamedMappings) NamedMappings {
+	if m == nil {
+		return other
+	}
+	if other == nil {
+		return m
+	}
+	merged := make(NamedMappings)
+	for name, mapping := range m {
+		if otherMapping, ok := other[name]; ok {
+			merged[name] = mapping.Merge(otherMapping)
+		} else {
+			merged[name] = mapping
+		}
+	}
+	for name, mapping := range other {
+		if _, ok := merged[name]; !ok {
+			merged[name] = mapping
+		}
+	}
+	return merged
+}
