@@ -935,7 +935,9 @@
                 },
                 {
                   "type": "array",
-                  "items": {},
+                  "items": {
+                    "type": "string"
+                  },
                   "uniqueItems": false
                 }
               ]
