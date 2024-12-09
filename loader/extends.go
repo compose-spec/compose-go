@@ -27,6 +27,8 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
+var exclusions = []string{"extends", "depends_on", "volumes_from"}
+
 func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, tracker *cycleTracker, post ...PostProcessor) error {
 	a, ok := dict["services"]
 	if !ok {
@@ -123,7 +125,9 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 	if err != nil {
 		return nil, err
 	}
-	delete(merged, "extends")
+	for _, exclusion := range exclusions {
+		delete(merged, exclusion)
+	}
 	services[name] = merged
 	return merged, nil
 }
