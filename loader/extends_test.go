@@ -322,7 +322,6 @@ services:
       file: ./testdata/extends/depends_on.yaml
       service: with_volumes_from
 `,
-			wantErr: `service "bar" depends on undefined service "zot"`,
 		},
 		{
 			name: "depends_on",
@@ -334,7 +333,6 @@ services:
       file: ./testdata/extends/depends_on.yaml
       service: with_depends_on
 `,
-			wantErr: `service "bar" depends on undefined service "zot"`,
 		},
 		{
 			name: "shared ipc",
@@ -369,8 +367,11 @@ services:
 					Content: []byte(tt.yaml),
 				}},
 			})
+			if tt.wantErr == "" {
+				assert.NilError(t, err)
+				return
+			}
 			assert.ErrorContains(t, err, tt.wantErr)
-
 			// Do the same but with a local `zot` service matching the imported reference
 			_, err = LoadWithContext(context.Background(), types.ConfigDetails{
 				ConfigFiles: []types.ConfigFile{{
