@@ -500,7 +500,7 @@
             "properties": {
               "ignore": {"type": "array", "items": {"type": "string"}},
               "path": {"type": "string"},
-              "action": {"type": "string", "enum": ["rebuild", "sync", "sync+restart", "sync+exec"]},
+              "action": {"type": "string", "enum": ["rebuild", "sync", "restart", "sync+restart", "sync+exec"]},
               "target": {"type": "string"},
               "exec": {"$ref": "#/definitions/service_hook"}
             },

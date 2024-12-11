@@ -27,6 +27,7 @@ type WatchAction string
 const (
 	WatchActionSync        WatchAction = "sync"
 	WatchActionRebuild     WatchAction = "rebuild"
+	WatchActionRestart     WatchAction = "restart"
 	WatchActionSyncRestart WatchAction = "sync+restart"
 	WatchActionSyncExec    WatchAction = "sync+exec"
 )
