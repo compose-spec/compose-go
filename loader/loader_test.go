@@ -1725,6 +1725,54 @@ networks:
 	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
 }
 
+func TestLoadIPv6Only(t *testing.T) {
+	config, err := loadYAML(`
+name: load-network-ipv6only
+services:
+  foo:
+    image: alpine
+    networks:
+      network1:
+networks:
+  network1:
+    driver: bridge
+    enable_ipv4: false
+    enable_ipv6: true
+    name: network1
+`)
+	assert.NilError(t, err)
+
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	enableIPv4 := false
+	enableIPv6 := true
+	expected := &types.Project{
+		Name:       "load-network-ipv6only",
+		WorkingDir: workingDir,
+		Services: types.Services{
+			"foo": {
+				Name:  "foo",
+				Image: "alpine",
+				Networks: map[string]*types.ServiceNetworkConfig{
+					"network1": nil,
+				},
+			},
+		},
+		Networks: map[string]types.NetworkConfig{
+			"network1": {
+				Name:       "network1",
+				Driver:     "bridge",
+				EnableIPv4: &enableIPv4,
+				EnableIPv6: &enableIPv6,
+			},
+		},
+		Environment: types.Mapping{
+			"COMPOSE_PROJECT_NAME": "load-network-ipv6only",
+		},
+	}
+	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+}
+
 func TestLoadNetworkLinkLocalIPs(t *testing.T) {
 	config, err := loadYAML(`
 name: load-network-link-local-ips
