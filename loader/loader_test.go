@@ -2702,7 +2702,7 @@ services:
 			Name:        "foo",
 			Image:       "busybox",
 			Environment: types.MappingWithEquals{},
-			DependsOn:   types.DependsOnConfig{"imported": {Condition: "service_started", Required: true}},
+			DependsOn:   types.DependsOnConfig{"imported": {Service: "imported", Condition: "service_started", Required: true}},
 		},
 		"imported": {
 			Name:          "imported",
@@ -2844,9 +2844,9 @@ services:
 			Image:       "nginx",
 			Environment: types.MappingWithEquals{},
 			DependsOn: types.DependsOnConfig{
-				"bar": {Condition: types.ServiceConditionStarted, Required: true},
-				"baz": {Condition: types.ServiceConditionHealthy, Required: false},
-				"qux": {Condition: types.ServiceConditionCompletedSuccessfully, Required: true},
+				"bar": {Service: "bar", Condition: types.ServiceConditionStarted, Required: true},
+				"baz": {Service: "baz", Condition: types.ServiceConditionHealthy, Required: false},
+				"qux": {Service: "qux", Condition: types.ServiceConditionCompletedSuccessfully, Required: true},
 			},
 		},
 	})
@@ -3546,6 +3546,7 @@ services:
 	test := p.Services["test"]
 	assert.DeepEqual(t, test.DependsOn, types.DependsOnConfig{
 		"x-foo": types.ServiceDependency{
+			Service:   "x-foo",
 			Condition: types.ServiceConditionStarted,
 			Required:  true,
 		},

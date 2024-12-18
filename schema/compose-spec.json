@@ -198,6 +198,7 @@
                   "additionalProperties": false,
                   "patternProperties": {"^x-": {}},
                   "properties": {
+                    "service": {"type": "string"},
                     "restart": {"type": ["boolean", "string"]},
                     "required": {
                       "type":  "boolean",

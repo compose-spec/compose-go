@@ -249,8 +249,8 @@ const (
 // GetDependencies retrieves all services this service depends on
 func (s ServiceConfig) GetDependencies() []string {
 	var dependencies []string
-	for service := range s.DependsOn {
-		dependencies = append(dependencies, service)
+	for _, dependency := range s.DependsOn {
+		dependencies = append(dependencies, dependency.Service)
 	}
 	return dependencies
 }
@@ -259,8 +259,8 @@ func (s ServiceConfig) GetDependencies() []string {
 func (s ServiceConfig) GetDependents(p *Project) []string {
 	var dependent []string
 	for _, service := range p.Services {
-		for name := range service.DependsOn {
-			if name == s.Name {
+		for _, dependency := range service.DependsOn {
+			if dependency.Service == s.Name {
 				dependent = append(dependent, service.Name)
 			}
 		}
@@ -761,6 +761,7 @@ const (
 type DependsOnConfig map[string]ServiceDependency
 
 type ServiceDependency struct {
+	Service    string     `yaml:"service,omitempty" json:"service,omitempty"`
 	Condition  string     `yaml:"condition,omitempty" json:"condition,omitempty"`
 	Restart    bool       `yaml:"restart,omitempty" json:"restart,omitempty"`
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`

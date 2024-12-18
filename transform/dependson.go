@@ -25,16 +25,19 @@ import (
 func transformDependsOn(data any, p tree.Path, _ bool) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
-		for i, e := range v {
+		for k, e := range v {
 			d, ok := e.(map[string]any)
 			if !ok {
-				return nil, fmt.Errorf("%s.%s: unsupported value %s", p, i, v)
+				return nil, fmt.Errorf("%s.%s: unsupported value %s", p, k, v)
 			}
 			if _, ok := d["condition"]; !ok {
 				d["condition"] = "service_started"
 			}
 			if _, ok := d["required"]; !ok {
 				d["required"] = true
+			}
+			if _, ok := d["service"]; !ok {
+				d["service"] = k
 			}
 		}
 		return v, nil
@@ -44,6 +47,7 @@ func transformDependsOn(data any, p tree.Path, _ bool) (any, error) {
 			d[k.(string)] = map[string]any{
 				"condition": "service_started",
 				"required":  true,
+				"service":   k,
 			}
 		}
 		return d, nil

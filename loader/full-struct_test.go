@@ -96,8 +96,8 @@ func services(workingDir, homeDir string) types.Services {
 			},
 			ContainerName: "my-web-container",
 			DependsOn: types.DependsOnConfig{
-				"db":    {Condition: types.ServiceConditionStarted, Required: true},
-				"redis": {Condition: types.ServiceConditionStarted, Required: true},
+				"db":    {Service: "db", Condition: types.ServiceConditionStarted, Required: true},
+				"redis": {Service: "redis", Condition: types.ServiceConditionStarted, Required: true},
 			},
 			Deploy: &types.DeployConfig{
 				Mode:     "replicated",
@@ -678,9 +678,11 @@ services:
     container_name: my-web-container
     depends_on:
       db:
+        service: db
         condition: service_started
         required: true
       redis:
+        service: redis
         condition: service_started
         required: true
     deploy:
@@ -1262,10 +1264,12 @@ func fullExampleJSON(workingDir, homeDir string) string {
       "container_name": "my-web-container",
       "depends_on": {
         "db": {
+          "service": "db",
           "condition": "service_started",
           "required": true
         },
         "redis": {
+          "service": "redis",
           "condition": "service_started",
           "required": true
         }

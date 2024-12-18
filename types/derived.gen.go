@@ -1612,6 +1612,7 @@ func deriveDeepCopy_31(dst, src *ServiceConfigObjConfig) {
 
 // deriveDeepCopy_32 recursively copies the contents of src into dst.
 func deriveDeepCopy_32(dst, src *ServiceDependency) {
+	dst.Service = src.Service
 	dst.Condition = src.Condition
 	dst.Restart = src.Restart
 	if src.Extensions != nil {
