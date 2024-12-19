@@ -386,6 +386,29 @@ services:
 	}
 }
 
+func TestLoadExtendsDependsOn(t *testing.T) {
+	yaml := `
+name: extends-depends_on
+services:
+  service_a:
+    image: a
+    depends_on:
+      - service_c
+  
+  service_b:
+    extends: service_a
+    depends_on:
+      - service_a
+
+  service_c:
+    image: c`
+	p, err := loadYAML(yaml)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["service_b"].DependsOn, types.DependsOnConfig{
+		"service_a": types.ServiceDependency{Condition: types.ServiceConditionStarted, Required: true},
+	})
+}
+
 func TestLoadExtendsListener(t *testing.T) {
 	yaml := `
   name: listener-extends
