@@ -109,28 +109,35 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 			WorkingDir: r.ProjectDirectory,
 		})
 
+		envFile := r.EnvFile
 		if len(r.EnvFile) == 0 {
-			f := filepath.Join(r.ProjectDirectory, ".env")
-			if s, err := os.Stat(f); err == nil && !s.IsDir() {
-				r.EnvFile = types.StringList{f}
-			}
-		} else {
-			envFile := []string{}
-			for _, f := range r.EnvFile {
-				if !filepath.IsAbs(f) {
-					f = filepath.Join(workingDir, f)
-					s, err := os.Stat(f)
+			envFile = types.StringList{".env"}
+		}
+
+		resolvedEnvFile := []string{}
+		for _, f := range envFile {
+			for _, loader := range options.ResourceLoaders {
+				if loader.Accept(f) {
+					path, err := loader.Load(ctx, f)
+					if err != nil {
+						return err
+					}
+					s, err := os.Stat(path)
+					if os.IsNotExist(err) && len(r.EnvFile) == 0 {
+						break // Skip if default .env not found
+					}
 					if err != nil {
 						return err
 					}
 					if s.IsDir() {
 						return fmt.Errorf("%s is not a file", f)
 					}
+					resolvedEnvFile = append(resolvedEnvFile, path)
+					break
 				}
-				envFile = append(envFile, f)
 			}
-			r.EnvFile = envFile
 		}
+		r.EnvFile = resolvedEnvFile
 
 		envFromFile, err := dotenv.GetEnvFromFile(environment, r.EnvFile)
 		if err != nil {
