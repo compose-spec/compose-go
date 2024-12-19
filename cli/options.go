@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"gopkg.in/yaml.v3"
 
 	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/dotenv"
@@ -480,6 +481,20 @@ func (o *ProjectOptions) prepare(ctx context.Context) (*types.ConfigDetails, err
 	configDetails, err := o.ReadConfigFiles(ctx, defaultDir, o)
 	if err != nil {
 		return configDetails, err
+	}
+
+	if o.Name == "" {
+		type named struct {
+			Name string `yaml:"name,omitempty"`
+		}
+		// if any of the compose file is named, this is equivalent to user passing --project-name
+		for _, cfg := range configDetails.ConfigFiles {
+			var n named
+			yaml.Unmarshal(cfg.Content, &n)
+			if n.Name != "" {
+				o.Name = n.Name
+			}
+		}
 	}
 
 	o.loadOptions = append(o.loadOptions,
