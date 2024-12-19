@@ -482,6 +482,15 @@ func (o *ProjectOptions) prepare(ctx context.Context) (*types.ConfigDetails, err
 		return configDetails, err
 	}
 
+	if o.Name == "" {
+		// if any of the compose file is named, this is equivalent to user passing --project-name
+		for _, cfg := range configDetails.ConfigFiles {
+			if n, ok := cfg.Config["name"]; ok {
+				o.Name = fmt.Sprint(n)
+			}
+		}
+	}
+
 	o.loadOptions = append(o.loadOptions,
 		withNamePrecedenceLoad(defaultDir, o),
 		withConvertWindowsPaths(o),
