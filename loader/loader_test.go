@@ -2477,7 +2477,7 @@ services:
 	assert.NilError(t, err)
 	sshValue, err := svc.Build.SSH.Get("key1")
 	assert.NilError(t, err)
-	assert.Equal(t, "value1", sshValue)
+	assert.Equal(t, filepath.Join(os.Getenv("PWD"), "value1"), sshValue)
 }
 
 func TestLoadSSHWithKeysValuesInBuildConfig(t *testing.T) {
@@ -2490,6 +2490,7 @@ services:
       ssh:
         - key1=value1
         - key2=value2
+        - default
 `)
 	assert.NilError(t, err)
 	svc, err := actual.GetService("test")
@@ -2497,11 +2498,15 @@ services:
 
 	sshValue, err := svc.Build.SSH.Get("key1")
 	assert.NilError(t, err)
-	assert.Equal(t, "value1", sshValue)
+	assert.Equal(t, filepath.Join(os.Getenv("PWD"), "value1"), sshValue)
 
 	sshValue, err = svc.Build.SSH.Get("key2")
 	assert.NilError(t, err)
-	assert.Equal(t, "value2", sshValue)
+	assert.Equal(t, filepath.Join(os.Getenv("PWD"), "value2"), sshValue)
+
+	sshValue, err = svc.Build.SSH.Get("default")
+	assert.NilError(t, err)
+	assert.Equal(t, "", sshValue)
 }
 
 func TestProjectNameInterpolation(t *testing.T) {
