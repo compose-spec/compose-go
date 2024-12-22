@@ -915,6 +915,55 @@ networks:
 	assertEqual(t, expected, config)
 }
 
+func TestLoadWithLabelFile(t *testing.T) {
+	workingDir, err := os.Getwd()
+	assert.NilError(t, err)
+	config, err := loadYAML(`
+name: load-label-file
+services:
+  service_1:
+    label_file: ./example1.label
+  service_2:
+    label_file:
+      - ./example2.label
+`)
+	assert.NilError(t, err)
+
+	expected := &types.Project{
+		Name:        "load-label-file",
+		Environment: types.Mapping{"COMPOSE_PROJECT_NAME": "load-label-file"},
+		WorkingDir:  workingDir,
+		Services: types.Services{
+			"service_1": {
+				Name:        "service_1",
+				Environment: types.MappingWithEquals{},
+				Labels: types.Labels{
+					"BAR":                   "bar_from_label_file",
+					"BAZ":                   "baz_from_label_file",
+					"FOO":                   "foo_from_label_file",
+					"LABEL.WITH.DOT":        "ok",
+					"LABEL_WITH_UNDERSCORE": "ok",
+				},
+				LabelFiles: []string{
+					filepath.Join(workingDir, "example1.label"),
+				},
+			},
+			"service_2": {
+				Name:        "service_2",
+				Environment: types.MappingWithEquals{},
+				Labels: types.Labels{
+					"BAR": "bar_from_label_file_2",
+					"QUX": "quz_from_label_file_2",
+				},
+				LabelFiles: []string{
+					filepath.Join(workingDir, "example2.label"),
+				},
+			},
+		},
+	}
+	assertEqual(t, config, expected)
+}
+
 func TestUnsupportedProperties(t *testing.T) {
 	dict := `
 name: test
