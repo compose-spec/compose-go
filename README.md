@@ -33,7 +33,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	project, err := cli.ProjectFromOptions(ctx, options)
+	project, err := options.LoadProject(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
