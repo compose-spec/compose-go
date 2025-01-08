@@ -117,24 +117,25 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 		resolvedEnvFile := []string{}
 		for _, f := range envFile {
 			for _, loader := range options.ResourceLoaders {
-				if loader.Accept(f) {
-					path, err := loader.Load(ctx, f)
-					if err != nil {
-						return err
-					}
-					s, err := os.Stat(path)
-					if os.IsNotExist(err) && len(r.EnvFile) == 0 {
-						break // Skip if default .env not found
-					}
-					if err != nil {
-						return err
-					}
-					if s.IsDir() {
-						return fmt.Errorf("%s is not a file", f)
-					}
-					resolvedEnvFile = append(resolvedEnvFile, path)
-					break
+				if !loader.Accept(f) {
+					continue
 				}
+				path, err := loader.Load(ctx, f)
+				if err != nil {
+					return err
+				}
+				s, err := os.Stat(path)
+				if os.IsNotExist(err) && len(r.EnvFile) == 0 {
+					break // Skip if default .env not found
+				}
+				if err != nil {
+					return err
+				}
+				if s.IsDir() {
+					return fmt.Errorf("%s is not a file", f)
+				}
+				resolvedEnvFile = append(resolvedEnvFile, path)
+				break
 			}
 		}
 		r.EnvFile = resolvedEnvFile
