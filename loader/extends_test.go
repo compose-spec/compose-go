@@ -322,6 +322,7 @@ services:
       file: ./testdata/extends/depends_on.yaml
       service: with_volumes_from
 `,
+			wantErr: `service "bar" depends on undefined service "zot"`,
 		},
 		{
 			name: "depends_on",
@@ -333,6 +334,7 @@ services:
       file: ./testdata/extends/depends_on.yaml
       service: with_depends_on
 `,
+			wantErr: `service "bar" depends on undefined service "zot"`,
 		},
 		{
 			name: "shared ipc",
@@ -397,7 +399,7 @@ services:
   
   service_b:
     extends: service_a
-    depends_on:
+    depends_on: !override
       - service_a
 
   service_c:
