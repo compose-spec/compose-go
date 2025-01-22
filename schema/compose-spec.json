@@ -320,7 +320,8 @@
                             "^.+$": {"type": ["string", "number"]}
                           }
                         },
-                        "priority": {"type": "number"}
+                        "priority": {"type": "number"},
+                        "gw_priority": {"type": "number"}
                       },
                       "additionalProperties": false,
                       "patternProperties": {"^x-": {}}
