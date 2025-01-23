@@ -3738,3 +3738,15 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, len(p.Services["test"].DNS), 0)
 }
+
+func TestAllGPUS(t *testing.T) {
+	p, err := loadYAML(`
+name: load-all-gpus
+services:
+  test:
+    gpus: all
+`)
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Services["test"].Gpus), 1)
+	assert.Equal(t, p.Services["test"].Gpus[0].Count, types.DeviceCount(-1))
+}
