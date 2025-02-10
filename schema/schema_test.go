@@ -18,8 +18,10 @@ package schema
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/xeipuuv/gojsonschema"
 	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 )
@@ -250,4 +252,15 @@ func TestValidateVariables(t *testing.T) {
 	err = yaml.Unmarshal(bytes, &config)
 	assert.NilError(t, err)
 	assert.NilError(t, Validate(config))
+}
+
+func TestSchema(t *testing.T) {
+	abs, err := filepath.Abs("compose-spec.json")
+	assert.NilError(t, err)
+	schema := gojsonschema.NewReferenceLoader("file:///" + abs)
+	sl := gojsonschema.NewSchemaLoader()
+	sl.Draft = gojsonschema.Draft7
+	sl.Validate = true
+	_, err = sl.Compile(schema)
+	assert.NilError(t, err)
 }
