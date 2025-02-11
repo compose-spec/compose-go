@@ -163,6 +163,85 @@ services:
 
 }
 
+func TestLoadWithIncludeEnvTripleTimes(t *testing.T) {
+	fileName := "compose.yml"
+	tmpdir := t.TempDir()
+	// file in root
+	yaml := `
+include:
+  - path:
+    - ./module/compose.yml
+    env_file:
+      - ./custom.env
+services:
+  a:
+    image: alpine
+    environment:
+      - VAR_NAME`
+	createFile(t, tmpdir, `VAR_NAME=value`, "custom.env")
+	path := createFile(t, tmpdir, yaml, fileName)
+	// file in /module
+	yaml = `
+include:
+  - path:
+    - ./submodule/compose.yml
+    env_file:
+      - ../custom.env
+services:
+  b:
+    image: alpine
+    environment:
+      - VAR_NAME`
+	createFileSubDir(t, tmpdir, "module", yaml, fileName)
+
+	yaml = `
+include:
+  - path:
+    - ./subsubmodule/compose.yml
+    env_file:
+      - ../../custom.env
+services:
+  c:
+    image: alpine
+    environment:
+      - VAR_NAME`
+	createFileSubDir(t, tmpdir, "module/submodule", yaml, fileName)
+
+	yaml = `
+services:
+  d:
+    image: alpine
+    environment:
+      - VAR_NAME`
+	createFileSubDir(t, tmpdir, "module/submodule/subsubmodule", yaml, fileName)
+
+	p, err := Load(types.ConfigDetails{
+		WorkingDir: tmpdir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: path,
+		}},
+		Environment: nil,
+	}, func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.SetProjectName("project", true)
+	})
+	assert.NilError(t, err)
+	a := p.Services["a"]
+	// make sure VAR_NAME is only accessible in include context
+	assert.Check(t, a.Environment["VAR_NAME"] == nil, "VAR_NAME should not be defined in environment")
+	b := p.Services["b"]
+	assert.Check(t, b.Environment["VAR_NAME"] != nil, "VAR_NAME is not defined in environment")
+	assert.Equal(t, *b.Environment["VAR_NAME"], "value")
+	c := p.Services["c"]
+	assert.Check(t, c.Environment["VAR_NAME"] != nil, "VAR_NAME is not defined in environment")
+	assert.Equal(t, *c.Environment["VAR_NAME"], "value")
+	d := p.Services["d"]
+	assert.Check(t, d.Environment["VAR_NAME"] != nil, "VAR_NAME is not defined in environment")
+	assert.Equal(t, *d.Environment["VAR_NAME"], "value")
+
+}
+
 func TestIncludeWithProjectDirectory(t *testing.T) {
 	var envs map[string]string
 	if runtime.GOOS == "windows" {
