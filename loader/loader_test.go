@@ -3073,8 +3073,11 @@ services:
     develop:
       watch:
         # rebuild image and recreate service
-        - path: ./backend/src
-          action: rebuild
+        - action: rebuild
+          path:
+            - ./backend/src
+            - ./backend
+          
   proxy:
     image: example/proxy
     build: ./proxy
@@ -3094,7 +3097,7 @@ services:
 	assert.DeepEqual(t, *frontend.Develop, types.DevelopConfig{
 		Watch: []types.Trigger{
 			{
-				Path:   "./webapp/html",
+				Path:   []string{"./webapp/html"},
 				Action: types.WatchActionSync,
 				Target: "/var/www",
 				Ignore: []string{"node_modules/"},
@@ -3109,7 +3112,7 @@ services:
 	assert.DeepEqual(t, *backend.Develop, types.DevelopConfig{
 		Watch: []types.Trigger{
 			{
-				Path:   "./backend/src",
+				Path:   []string{"./backend/src", "./backend"},
 				Action: types.WatchActionRebuild,
 			},
 		},
@@ -3119,7 +3122,7 @@ services:
 	assert.DeepEqual(t, *proxy.Develop, types.DevelopConfig{
 		Watch: []types.Trigger{
 			{
-				Path:   "./proxy/proxy.conf",
+				Path:   []string{"./proxy/proxy.conf"},
 				Action: types.WatchActionSyncRestart,
 				Target: "/etc/nginx/proxy.conf",
 			},

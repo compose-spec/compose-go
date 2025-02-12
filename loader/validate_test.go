@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -291,71 +292,8 @@ func TestValidateWatch(t *testing.T) {
 						Watch: []types.Trigger{
 							{
 								Action: types.WatchActionSync,
-								Path:   "/app",
+								Path:   []string{"/app"},
 								Target: "/container/app",
-							},
-						},
-					},
-				},
-			},
-		}
-		err := checkConsistency(&project)
-		assert.NilError(t, err)
-	})
-
-	t.Run("watch missing target for sync action", func(t *testing.T) {
-		project := types.Project{
-			Services: types.Services{
-				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
-					Develop: &types.DevelopConfig{
-						Watch: []types.Trigger{
-							{
-								Action: types.WatchActionSync,
-								Path:   "/app",
-							},
-						},
-					},
-				},
-			},
-		}
-		err := checkConsistency(&project)
-		assert.Error(t, err, "services.myservice.develop.watch: target is required for non-rebuild actions: invalid compose project")
-	})
-
-	t.Run("watch missing target for sync+restart action", func(t *testing.T) {
-		project := types.Project{
-			Services: types.Services{
-				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
-					Develop: &types.DevelopConfig{
-						Watch: []types.Trigger{
-							{
-								Action: types.WatchActionSyncRestart,
-								Path:   "/app",
-							},
-						},
-					},
-				},
-			},
-		}
-		err := checkConsistency(&project)
-		assert.Error(t, err, "services.myservice.develop.watch: target is required for non-rebuild actions: invalid compose project")
-	})
-
-	t.Run("watch config valid with missing target for rebuild action", func(t *testing.T) {
-		project := types.Project{
-			Services: types.Services{
-				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
-					Develop: &types.DevelopConfig{
-						Watch: []types.Trigger{
-							{
-								Action: types.WatchActionRebuild,
-								Path:   "/app",
 							},
 						},
 					},
@@ -406,4 +344,109 @@ func TestValidateWatch(t *testing.T) {
 		err := checkConsistency(&project)
 		assert.ErrorContains(t, err, "depends on undefined service")
 	})
+
+	type WatchActionTest struct {
+		action types.WatchAction
+	}
+	tests := []WatchActionTest{
+		{action: types.WatchActionSync},
+		{action: types.WatchActionSyncRestart},
+		{action: types.WatchActionSyncExec},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("watch config is INVALID when missing target for %s action", tt.action), func(t *testing.T) {
+			project := types.Project{
+				Services: types.Services{
+					"myservice": {
+						Name:  "myservice",
+						Image: "scratch",
+						Develop: &types.DevelopConfig{
+							Watch: []types.Trigger{
+								{
+									Action: tt.action,
+									Path:   []string{"/app"},
+									// Missing Target
+								},
+							},
+						},
+					},
+				},
+			}
+			err := checkConsistency(&project)
+			assert.Error(t, err, "services.myservice.develop.watch: target is required for sync, sync+exec and sync+restart actions: invalid compose project")
+		})
+
+		t.Run(fmt.Sprintf("watch config is INVALID with one or more paths for %s action", tt.action), func(t *testing.T) {
+			project := types.Project{
+				Services: types.Services{
+					"myservice": {
+						Name:  "myservice",
+						Image: "scratch",
+						Develop: &types.DevelopConfig{
+							Watch: []types.Trigger{
+								{
+									Action: tt.action,
+									Path:   []string{"/app", "/app2"}, // should only be one path
+									Target: "/container/app",
+								},
+							},
+						},
+					},
+				},
+			}
+			err := checkConsistency(&project)
+			assert.Error(t, err, "services.myservice.develop.watch: can only use more than one path for actions rebuild and restart: invalid compose project")
+		})
+	}
+	tests = []WatchActionTest{
+		{action: types.WatchActionRebuild},
+		{action: types.WatchActionRestart},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("watch config is VALID with missing target for %s action", tt.action), func(t *testing.T) {
+			project := types.Project{
+				Services: types.Services{
+					"myservice": {
+						Name:  "myservice",
+						Image: "scratch",
+						Develop: &types.DevelopConfig{
+							Watch: []types.Trigger{
+								{
+									Action: tt.action,
+									Path:   []string{"/app"},
+								},
+							},
+						},
+					},
+				},
+			}
+			err := checkConsistency(&project)
+			assert.NilError(t, err)
+		})
+
+		t.Run(fmt.Sprintf("watch config is VALID with one or more paths for %s action", tt.action), func(t *testing.T) {
+			project := types.Project{
+				Services: types.Services{
+					"myservice": {
+						Name:  "myservice",
+						Image: "scratch",
+						Develop: &types.DevelopConfig{
+							Watch: []types.Trigger{
+								{
+									Action: tt.action,
+									Path:   []string{"/app"},
+								},
+								{
+									Action: tt.action,
+									Path:   []string{"/app", "/app2"},
+								},
+							},
+						},
+					},
+				},
+			}
+			err := checkConsistency(&project)
+			assert.NilError(t, err)
+		})
+	}
 }
