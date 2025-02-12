@@ -21,8 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
@@ -30,7 +32,6 @@ import (
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
 	godigest "github.com/opencontainers/go-digest"
-	"golang.org/x/exp/maps"
 	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 )
@@ -120,21 +121,21 @@ func (p *Project) ServicesWithBuild() []string {
 	servicesBuild := p.Services.Filter(func(s ServiceConfig) bool {
 		return s.Build != nil && s.Build.Context != ""
 	})
-	return maps.Keys(servicesBuild)
+	return slices.AppendSeq(make([]string, 0), maps.Keys(servicesBuild))
 }
 
 func (p *Project) ServicesWithExtends() []string {
 	servicesExtends := p.Services.Filter(func(s ServiceConfig) bool {
 		return s.Extends != nil && *s.Extends != (ExtendsConfig{})
 	})
-	return maps.Keys(servicesExtends)
+	return slices.AppendSeq(make([]string, 0), maps.Keys(servicesExtends))
 }
 
 func (p *Project) ServicesWithDependsOn() []string {
 	servicesDependsOn := p.Services.Filter(func(s ServiceConfig) bool {
 		return len(s.DependsOn) > 0
 	})
-	return maps.Keys(servicesDependsOn)
+	return slices.AppendSeq(make([]string, 0), maps.Keys(servicesDependsOn))
 }
 
 func (p *Project) ServicesWithCapabilities() ([]string, []string, []string) {
