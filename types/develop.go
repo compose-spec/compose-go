@@ -33,7 +33,7 @@ const (
 )
 
 type Trigger struct {
-	Path       string      `yaml:"path" json:"path"`
+	Path       StringList  `yaml:"path" json:"path"`
 	Action     WatchAction `yaml:"action" json:"action"`
 	Target     string      `yaml:"target,omitempty" json:"target,omitempty"`
 	Exec       ServiceHook `yaml:"exec,omitempty" json:"exec,omitempty"`
