@@ -19,10 +19,10 @@ package override
 import (
 	"cmp"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
-	"golang.org/x/exp/slices"
 )
 
 // Merge applies overrides to a config model
