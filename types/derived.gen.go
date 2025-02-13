@@ -1605,7 +1605,7 @@ func deriveDeepCopy_31(dst, src *ServiceConfigObjConfig) {
 	if src.Mode == nil {
 		dst.Mode = nil
 	} else {
-		dst.Mode = new(uint32)
+		dst.Mode = new(FileMode)
 		*dst.Mode = *src.Mode
 	}
 	if src.Extensions != nil {
@@ -1892,7 +1892,7 @@ func deriveDeepCopy_41(dst, src *ServiceSecretConfig) {
 	if src.Mode == nil {
 		dst.Mode = nil
 	} else {
-		dst.Mode = new(uint32)
+		dst.Mode = new(FileMode)
 		*dst.Mode = *src.Mode
 	}
 	if src.Extensions != nil {

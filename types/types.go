@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -626,15 +627,49 @@ type ServiceVolumeTmpfs struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+type FileMode int64
+
 // FileReferenceConfig for a reference to a swarm file object
 type FileReferenceConfig struct {
-	Source string  `yaml:"source,omitempty" json:"source,omitempty"`
-	Target string  `yaml:"target,omitempty" json:"target,omitempty"`
-	UID    string  `yaml:"uid,omitempty" json:"uid,omitempty"`
-	GID    string  `yaml:"gid,omitempty" json:"gid,omitempty"`
-	Mode   *uint32 `yaml:"mode,omitempty" json:"mode,omitempty"`
+	Source string    `yaml:"source,omitempty" json:"source,omitempty"`
+	Target string    `yaml:"target,omitempty" json:"target,omitempty"`
+	UID    string    `yaml:"uid,omitempty" json:"uid,omitempty"`
+	GID    string    `yaml:"gid,omitempty" json:"gid,omitempty"`
+	Mode   *FileMode `yaml:"mode,omitempty" json:"mode,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+func (f *FileMode) DecodeMapstructure(value interface{}) error {
+	switch v := value.(type) {
+	case *FileMode:
+		return nil
+	case string:
+		i, err := strconv.ParseInt(v, 8, 64)
+		if err != nil {
+			return err
+		}
+		*f = FileMode(i)
+	case int:
+		*f = FileMode(v)
+	default:
+		return fmt.Errorf("unexpected value type %T for mode", value)
+	}
+	return nil
+}
+
+// MarshalYAML makes FileMode implement yaml.Marshaller
+func (f *FileMode) MarshalYAML() (interface{}, error) {
+	return f.String(), nil
+}
+
+// MarshalJSON makes FileMode implement json.Marshaller
+func (f *FileMode) MarshalJSON() ([]byte, error) {
+	return []byte("\"" + f.String() + "\""), nil
+}
+
+func (f *FileMode) String() string {
+	return fmt.Sprintf("0%o", int64(*f))
 }
 
 // ServiceConfigObjConfig is the config obj configuration for a service
