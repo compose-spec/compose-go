@@ -1605,7 +1605,7 @@ func deriveDeepCopy_31(dst, src *ServiceConfigObjConfig) {
 	if src.Mode == nil {
 		dst.Mode = nil
 	} else {
-		dst.Mode = new(uint32)
+		dst.Mode = new(FileMode)
 		*dst.Mode = *src.Mode
 	}
 	if src.Extensions != nil {
@@ -1812,6 +1812,7 @@ func deriveDeepCopy_38(dst, src *DeviceRequest) {
 // deriveDeepCopy_39 recursively copies the contents of src into dst.
 func deriveDeepCopy_39(dst, src *ServiceNetworkConfig) {
 	dst.Priority = src.Priority
+	dst.GatewayPriority = src.GatewayPriority
 	if src.Aliases == nil {
 		dst.Aliases = nil
 	} else {
@@ -1891,7 +1892,7 @@ func deriveDeepCopy_41(dst, src *ServiceSecretConfig) {
 	if src.Mode == nil {
 		dst.Mode = nil
 	} else {
-		dst.Mode = new(uint32)
+		dst.Mode = new(FileMode)
 		*dst.Mode = *src.Mode
 	}
 	if src.Extensions != nil {
