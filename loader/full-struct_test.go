@@ -72,7 +72,7 @@ func services(workingDir, homeDir string) types.Services {
 						Target: "my_secret",
 						UID:    "103",
 						GID:    "103",
-						Mode:   uint32Ptr(0o440),
+						Mode:   ptr(types.FileMode(0o440)),
 					},
 				},
 				Tags:      []string{"foo:v1.0.0", "docker.io/username/foo:my-other-tag", "full_example_project_name:1.0.0"},
@@ -91,7 +91,7 @@ func services(workingDir, homeDir string) types.Services {
 					Target: "/my_config",
 					UID:    "103",
 					GID:    "103",
-					Mode:   uint32Ptr(0o440),
+					Mode:   ptr(types.FileMode(0o440)),
 				},
 			},
 			ContainerName: "my-web-container",
@@ -101,10 +101,10 @@ func services(workingDir, homeDir string) types.Services {
 			},
 			Deploy: &types.DeployConfig{
 				Mode:     "replicated",
-				Replicas: intPtr(6),
+				Replicas: ptr(6),
 				Labels:   map[string]string{"FOO": "BAR"},
 				RollbackConfig: &types.UpdateConfig{
-					Parallelism:     uint64Ptr(3),
+					Parallelism:     ptr(uint64(3)),
 					Delay:           types.Duration(10 * time.Second),
 					FailureAction:   "continue",
 					Monitor:         types.Duration(60 * time.Second),
@@ -112,7 +112,7 @@ func services(workingDir, homeDir string) types.Services {
 					Order:           "start-first",
 				},
 				UpdateConfig: &types.UpdateConfig{
-					Parallelism:     uint64Ptr(3),
+					Parallelism:     ptr(uint64(3)),
 					Delay:           types.Duration(10 * time.Second),
 					FailureAction:   "continue",
 					Monitor:         types.Duration(60 * time.Second),
@@ -145,9 +145,9 @@ func services(workingDir, homeDir string) types.Services {
 				},
 				RestartPolicy: &types.RestartPolicy{
 					Condition:   types.RestartPolicyOnFailure,
-					Delay:       durationPtr(5 * time.Second),
-					MaxAttempts: uint64Ptr(3),
-					Window:      durationPtr(2 * time.Minute),
+					Delay:       ptr(types.Duration(5 * time.Second)),
+					MaxAttempts: ptr(uint64(3)),
+					Window:      ptr(types.Duration(2 * time.Minute)),
 				},
 				Placement: types.Placement{
 					Constraints: []string{"node=foo"},
@@ -207,11 +207,11 @@ func services(workingDir, homeDir string) types.Services {
 			},
 			HealthCheck: &types.HealthCheckConfig{
 				Test:          types.HealthCheckTest([]string{"CMD-SHELL", "echo \"hello world\""}),
-				Interval:      durationPtr(10 * time.Second),
-				Timeout:       durationPtr(1 * time.Second),
-				Retries:       uint64Ptr(5),
-				StartPeriod:   durationPtr(15 * time.Second),
-				StartInterval: durationPtr(5 * time.Second),
+				Interval:      ptr(types.Duration(10 * time.Second)),
+				Timeout:       ptr(types.Duration(1 * time.Second)),
+				Retries:       ptr(uint64(5)),
+				StartPeriod:   ptr(types.Duration(15 * time.Second)),
+				StartInterval: ptr(types.Duration(5 * time.Second)),
 			},
 			Hostname: "foo",
 			Image:    "redis",
@@ -418,7 +418,7 @@ func services(workingDir, homeDir string) types.Services {
 					Target: "my_secret",
 					UID:    "103",
 					GID:    "103",
-					Mode:   uint32Ptr(0o440),
+					Mode:   ptr(types.FileMode(0o440)),
 				},
 			},
 			SecurityOpt: []string{
@@ -428,7 +428,7 @@ func services(workingDir, homeDir string) types.Services {
 			StdinOpen:       true,
 			StopSignal:      "SIGUSR1",
 			StorageOpt:      map[string]string{"size": "20G"},
-			StopGracePeriod: durationPtr(20 * time.Second),
+			StopGracePeriod: ptr(types.Duration(20 * time.Second)),
 			Sysctls: map[string]string{
 				"net.core.somaxconn":      "1024",
 				"net.ipv4.tcp_syncookies": "0",
@@ -649,7 +649,7 @@ services:
           target: my_secret
           uid: "103"
           gid: "103"
-          mode: 288
+          mode: "0440"
       tags:
         - foo:v1.0.0
         - docker.io/username/foo:my-other-tag
@@ -675,7 +675,7 @@ services:
         target: /my_config
         uid: "103"
         gid: "103"
-        mode: 288
+        mode: "0440"
     container_name: my-web-container
     depends_on:
       db:
@@ -919,7 +919,7 @@ services:
         target: my_secret
         uid: "103"
         gid: "103"
-        mode: 288
+        mode: "0440"
     security_opt:
       - label=level:s0:c100,c200
       - label=type:svirt_apache_t
@@ -1220,7 +1220,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
             "target": "my_secret",
             "uid": "103",
             "gid": "103",
-            "mode": 288
+            "mode": "0440"
           }
         ],
         "tags": [
@@ -1257,7 +1257,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
           "target": "/my_config",
           "uid": "103",
           "gid": "103",
-          "mode": 288
+          "mode": "0440"
         }
       ],
       "container_name": "my-web-container",
@@ -1599,7 +1599,7 @@ func fullExampleJSON(workingDir, homeDir string) string {
           "target": "my_secret",
           "uid": "103",
           "gid": "103",
-          "mode": 288
+          "mode": "0440"
         }
       ],
       "security_opt": [

@@ -699,10 +699,10 @@ services:
   web:
     configs:
       - source: appconfig
-        mode: $theint
+        mode: "$theint"
     secrets:
       - source: super
-        mode: $theint
+        mode: "$theint"
     healthcheck:
       retries: ${theint}
       disable: $thebool
@@ -789,32 +789,32 @@ networks:
 				Configs: []types.ServiceConfigObjConfig{
 					{
 						Source: "appconfig",
-						Mode:   uint32Ptr(555),
+						Mode:   ptr(types.FileMode(0o555)),
 					},
 				},
 				Secrets: []types.ServiceSecretConfig{
 					{
 						Source: "super",
 						Target: "/run/secrets/super",
-						Mode:   uint32Ptr(555),
+						Mode:   ptr(types.FileMode(0o555)),
 					},
 				},
 				HealthCheck: &types.HealthCheckConfig{
-					Retries: uint64Ptr(555),
+					Retries: ptr(uint64(555)),
 					Disable: true,
 				},
 				Deploy: &types.DeployConfig{
-					Replicas: intPtr(555),
+					Replicas: ptr(555),
 					UpdateConfig: &types.UpdateConfig{
-						Parallelism:     uint64Ptr(555),
+						Parallelism:     ptr(uint64(555)),
 						MaxFailureRatio: 3.14,
 					},
 					RollbackConfig: &types.UpdateConfig{
-						Parallelism:     uint64Ptr(555),
+						Parallelism:     ptr(uint64(555)),
 						MaxFailureRatio: 3.14,
 					},
 					RestartPolicy: &types.RestartPolicy{
-						MaxAttempts: uint64Ptr(555),
+						MaxAttempts: ptr(uint64(555)),
 					},
 					Placement: types.Placement{
 						MaxReplicas: 555,
@@ -1122,21 +1122,8 @@ services:
 	assert.Equal(t, *foo.Scale, 2)
 }
 
-func durationPtr(value time.Duration) *types.Duration {
-	result := types.Duration(value)
-	return &result
-}
-
-func intPtr(value int) *int {
-	return &value
-}
-
-func uint64Ptr(value uint64) *uint64 {
-	return &value
-}
-
-func uint32Ptr(value uint32) *uint32 {
-	return &value
+func ptr[T any](t T) *T {
+	return &t
 }
 
 func TestFullExample(t *testing.T) {
@@ -3743,4 +3730,34 @@ services:
       - DEBUG = true
 `)
 	assert.Check(t, strings.Contains(err.Error(), "'services[test].environment': environment variable DEBUG  is declared with a trailing space"))
+}
+
+func TestFileModeNumber(t *testing.T) {
+	p, err := loadYAML(`
+name: load-file-mode
+services:
+  test:
+    secrets:
+      - source: server-certificate
+        target: server.cert
+        mode: 0o440 
+`)
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Services["test"].Secrets), 1)
+	assert.Equal(t, *p.Services["test"].Secrets[0].Mode, types.FileMode(0o440))
+}
+
+func TestFileModeString(t *testing.T) {
+	p, err := loadYAML(`
+name: load-file-mode
+services:
+  test:
+    secrets:
+      - source: server-certificate
+        target: server.cert
+        mode: "0440" 
+`)
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Services["test"].Secrets), 1)
+	assert.Equal(t, *p.Services["test"].Secrets[0].Mode, types.FileMode(0o440))
 }
