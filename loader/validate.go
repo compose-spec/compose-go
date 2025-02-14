@@ -173,7 +173,7 @@ func checkConsistency(project *types.Project) error { //nolint:gocyclo
 
 					}
 					if len(watch.Path) > 1 {
-						return fmt.Errorf("services.%s.develop.watch: can only use more than one path for actions %s and %s: %w", s.Name, types.WatchActionRebuild, types.WatchActionRestart, errdefs.ErrInvalid)
+						return fmt.Errorf("services.%s.develop.watch: detected multiple paths %s for action %s. Multiple files are only valid for %s and %s actions: %w", s.Name, watch.Path, watch.Action, types.WatchActionRebuild, types.WatchActionRestart, errdefs.ErrInvalid)
 					}
 				}
 			}

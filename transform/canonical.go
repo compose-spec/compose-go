@@ -36,6 +36,7 @@ func init() {
 	transformers["services.*.networks"] = transformServiceNetworks
 	transformers["services.*.volumes.*"] = transformVolumeMount
 	transformers["services.*.dns"] = transformStringOrList
+	transformers["services.*.develop.watch.*.path"] = transformStringOrList
 	transformers["services.*.devices.*"] = transformDeviceMapping
 	transformers["services.*.secrets.*"] = transformFileMount
 	transformers["services.*.configs.*"] = transformFileMount

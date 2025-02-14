@@ -395,7 +395,7 @@ func TestValidateWatch(t *testing.T) {
 				},
 			}
 			err := checkConsistency(&project)
-			assert.Error(t, err, "services.myservice.develop.watch: can only use more than one path for actions rebuild and restart: invalid compose project")
+			assert.ErrorContains(t, err, "services.myservice.develop.watch: detected multiple paths")
 		})
 	}
 	tests = []WatchActionTest{

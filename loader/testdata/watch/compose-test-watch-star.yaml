@@ -1,0 +1,11 @@
+name: compose-test-watch-star
+services:
+  app:
+    image: example/app
+    develop:
+      watch:
+        - path: ./watch/*.txt
+          action: rebuild
+        # - path: ./watch/*
+        #   target: ./app
+        #   action: sync
