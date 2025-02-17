@@ -167,11 +167,16 @@ func checkConsistency(project *types.Project) error {
 
 		if s.Develop != nil && s.Develop.Watch != nil {
 			for _, watch := range s.Develop.Watch {
-				if watch.Target == "" && watch.Action != types.WatchActionRebuild && watch.Action != types.WatchActionRestart {
-					return fmt.Errorf("services.%s.develop.watch: target is required for non-rebuild actions: %w", s.Name, errdefs.ErrInvalid)
+				if watch.Action != types.WatchActionRebuild && watch.Action != types.WatchActionRestart {
+					if watch.Target == "" {
+						return fmt.Errorf("services.%s.develop.watch: target is required for %s, %s and %s actions: %w", s.Name, types.WatchActionSync, types.WatchActionSyncExec, types.WatchActionSyncRestart, errdefs.ErrInvalid)
+
+					}
+					if len(watch.Path) > 1 {
+						return fmt.Errorf("services.%s.develop.watch: detected multiple paths %s for action %s. Multiple files are only valid for %s and %s actions: %w", s.Name, watch.Path, watch.Action, types.WatchActionRebuild, types.WatchActionRestart, errdefs.ErrInvalid)
+					}
 				}
 			}
-
 		}
 	}
 
