@@ -60,7 +60,7 @@ func TestTraversalWithMultipleParents(t *testing.T) {
 		done <- struct{}{}
 	}()
 
-	err := InDependencyOrder(ctx, &project, func(ctx context.Context, name string, _ types.ServiceConfig) error {
+	err := InDependencyOrder(ctx, &project, func(_ context.Context, name string, _ types.ServiceConfig) error {
 		svc <- name
 		return nil
 	})
@@ -80,7 +80,7 @@ func TestInDependencyUpCommandOrder(t *testing.T) {
 
 	var order []string
 	result, err := CollectInDependencyOrder(ctx, exampleProject(),
-		func(ctx context.Context, name string, _ types.ServiceConfig) (string, error) {
+		func(_ context.Context, name string, _ types.ServiceConfig) (string, error) {
 			order = append(order, name)
 			return name, nil
 		}, WithMaxConcurrency(10))
@@ -98,7 +98,7 @@ func TestInDependencyReverseDownCommandOrder(t *testing.T) {
 	t.Cleanup(cancel)
 
 	var order []string
-	fn := func(ctx context.Context, name string, _ types.ServiceConfig) error {
+	fn := func(_ context.Context, name string, _ types.ServiceConfig) error {
 		order = append(order, name)
 		return nil
 	}
@@ -369,7 +369,7 @@ func TestWith_RootNodesAndUp(t *testing.T) {
 			expected.AddAll("C", "G", "D", "F")
 			var visited []string
 
-			gt := newTraversal(func(ctx context.Context, name string, service types.ServiceConfig) (any, error) {
+			gt := newTraversal(func(_ context.Context, name string, _ types.ServiceConfig) (any, error) {
 				mx.Lock()
 				defer mx.Unlock()
 				visited = append(visited, name)

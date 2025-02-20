@@ -64,7 +64,7 @@ services:
 	}, func(options *Options) {
 		options.ResolvePaths = false
 		options.Listeners = []Listener{
-			func(event string, metadata map[string]any) {
+			func(event string, _ map[string]any) {
 				if event == "extends" {
 					extendsCount++
 				}
@@ -238,7 +238,6 @@ services:
 	})
 	assert.NilError(t, err)
 	assert.Equal(t, len(p.Services["test"].Ports), 1)
-
 }
 
 func TestLoadExtendsSameFile(t *testing.T) {
@@ -285,7 +284,7 @@ services:
 		options.SkipConsistencyCheck = true
 		options.SetProjectName("project", true)
 		options.Listeners = []Listener{
-			func(event string, metadata map[string]any) {
+			func(event string, _ map[string]any) {
 				if event == "extends" {
 					extendsCount++
 				}
@@ -433,7 +432,7 @@ func TestLoadExtendsListener(t *testing.T) {
 		options.SkipNormalization = true
 		options.ResolvePaths = true
 		options.Listeners = []Listener{
-			func(event string, metadata map[string]any) {
+			func(event string, _ map[string]any) {
 				if event == "extends" {
 					extendsCount++
 				}
@@ -481,7 +480,7 @@ services:
 		options.SkipConsistencyCheck = true
 		options.SetProjectName("project", true)
 		options.Listeners = []Listener{
-			func(event string, metadata map[string]any) {
+			func(event string, _ map[string]any) {
 				if event == "extends" {
 					extendsCount++
 				}

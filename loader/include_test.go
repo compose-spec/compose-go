@@ -160,7 +160,6 @@ services:
 	c := p.Services["c"]
 	assert.Check(t, c.Environment["VAR_NAME"] != nil, "VAR_NAME is not defined in environment")
 	assert.Equal(t, *c.Environment["VAR_NAME"], "value")
-
 }
 
 func TestIncludeWithProjectDirectory(t *testing.T) {
@@ -181,7 +180,6 @@ func TestIncludeWithProjectDirectory(t *testing.T) {
 	assert.Equal(t, filepath.ToSlash(p.Services["service"].Build.Context), "testdata/subdir")
 	assert.Equal(t, filepath.ToSlash(p.Services["service"].Volumes[0].Source), "testdata/subdir/compose-test-extends-imported.yaml")
 	assert.Equal(t, filepath.ToSlash(p.Services["service"].EnvFiles[0].Path), "testdata/subdir/extra.env")
-
 }
 
 func TestNestedIncludeAndExtends(t *testing.T) {
@@ -230,10 +228,9 @@ func createFile(t *testing.T, rootDir, content, fileName string) string {
 	return path
 }
 
-func createFileSubDir(t *testing.T, rootDir, subDir, content, fileName string) string {
+func createFileSubDir(t *testing.T, rootDir, subDir, content, fileName string) {
 	subDirPath := filepath.Join(rootDir, subDir)
 	assert.NilError(t, os.Mkdir(subDirPath, 0o700))
 	path := filepath.Join(subDirPath, fileName)
 	assert.NilError(t, os.WriteFile(path, []byte(content), 0o600))
-	return path
 }

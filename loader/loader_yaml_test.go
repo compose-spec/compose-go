@@ -27,7 +27,8 @@ import (
 func TestParseYAMLFiles(t *testing.T) {
 	model, err := loadYamlModel(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "test.yaml",
+			{
+				Filename: "test.yaml",
 				Content: []byte(`
 services:
   test:
@@ -36,14 +37,17 @@ services:
     init: true
 `),
 			},
-			{Filename: "override.yaml",
+			{
+				Filename: "override.yaml",
 				Content: []byte(`
 services:
   test:
     image: bar
     command: echo world
     init: false
-`)}}}, &Options{}, &cycleTracker{}, nil)
+`)},
+		},
+	}, &Options{}, &cycleTracker{}, nil)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, model, map[string]interface{}{
 		"services": map[string]interface{}{
@@ -59,7 +63,8 @@ services:
 func TestParseYAMLFilesMergeOverride(t *testing.T) {
 	model, err := loadYamlModel(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
-			{Filename: "override.yaml",
+			{
+				Filename: "override.yaml",
 				Content: []byte(`
 services:
   base:
@@ -81,7 +86,8 @@ configs:
     content: |
       dummy value
 `)},
-		}}, &Options{}, &cycleTracker{}, nil)
+		},
+	}, &Options{}, &cycleTracker{}, nil)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, model, map[string]interface{}{
 		"configs": map[string]interface{}{"credentials": map[string]interface{}{"content": string("dummy value\n")}},

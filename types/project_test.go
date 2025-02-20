@@ -126,7 +126,7 @@ func Test_ForServicesCycle(t *testing.T) {
 	service := p.Services["service_1"]
 	service.Links = []string{"service_2"}
 	p.Services["service_1"] = service
-	p, err := p.WithSelectedServices([]string{"service_2"})
+	_, err := p.WithSelectedServices([]string{"service_2"})
 	assert.NilError(t, err)
 }
 
@@ -169,7 +169,7 @@ func makeProject() *Project {
 
 func Test_ResolveImages(t *testing.T) {
 	p := makeProject()
-	resolver := func(named reference.Named) (digest.Digest, error) {
+	resolver := func(_ reference.Named) (digest.Digest, error) {
 		return "sha256:1234567890123456789012345678901234567890123456789012345678901234", nil
 	}
 
@@ -211,7 +211,7 @@ func Test_ResolveImages(t *testing.T) {
 
 func Test_ResolveImages_concurrent(t *testing.T) {
 	const garfield = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
-	resolver := func(named reference.Named) (digest.Digest, error) {
+	resolver := func(_ reference.Named) (digest.Digest, error) {
 		return garfield, nil
 	}
 	p := &Project{
@@ -231,7 +231,7 @@ func Test_ResolveImages_concurrent(t *testing.T) {
 }
 
 func Test_ResolveImages_concurrent_interrupted(t *testing.T) {
-	resolver := func(named reference.Named) (digest.Digest, error) {
+	resolver := func(_ reference.Named) (digest.Digest, error) {
 		return "", errors.New("something went wrong")
 	}
 	p := Project{
@@ -309,13 +309,13 @@ func TestServicesWithBuild(t *testing.T) {
 
 func TestServicesWithExtends(t *testing.T) {
 	p := makeProject()
-	assert.DeepEqual(t, []string{}, p.ServicesWithExtends())
+	assert.Equal(t, 0, len(p.ServicesWithExtends()))
 
 	service, err := p.GetService("service_1")
 	assert.NilError(t, err)
 	service.Extends = &ExtendsConfig{}
 	p.Services["service_1"] = service
-	assert.DeepEqual(t, []string{}, p.ServicesWithExtends())
+	assert.Equal(t, 0, len(p.ServicesWithExtends()))
 
 	service.Extends = &ExtendsConfig{
 		File:    ".",
