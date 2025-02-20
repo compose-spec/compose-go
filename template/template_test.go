@@ -218,7 +218,6 @@ func TestInterpolationExternalInterference(t *testing.T) {
 		},
 	}
 	for i, tc := range testCases {
-		tc := tc
 		t.Run(fmt.Sprintf("Interpolation Should not be impacted by outer text: %d", i), func(t *testing.T) {
 			result, err := Substitute(tc.template, defaultMapping)
 			assert.NilError(t, err)
