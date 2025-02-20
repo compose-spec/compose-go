@@ -479,16 +479,13 @@ func ParsePortConfig(value string) ([]ServicePortConfig, error) {
 
 	for _, key := range keys {
 		port := nat.Port(key)
-		converted, err := convertPortToPortConfig(port, portBindings)
-		if err != nil {
-			return nil, err
-		}
+		converted := convertPortToPortConfig(port, portBindings)
 		portConfigs = append(portConfigs, converted...)
 	}
 	return portConfigs, nil
 }
 
-func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.PortBinding) ([]ServicePortConfig, error) {
+func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.PortBinding) []ServicePortConfig {
 	var portConfigs []ServicePortConfig
 	for _, binding := range portBindings[port] {
 		portConfigs = append(portConfigs, ServicePortConfig{
@@ -499,7 +496,7 @@ func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.Port
 			Mode:      "ingress",
 		})
 	}
-	return portConfigs, nil
+	return portConfigs
 }
 
 // ServiceVolumeConfig are references to a volume used by a service

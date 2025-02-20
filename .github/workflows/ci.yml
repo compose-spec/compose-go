@@ -33,7 +33,7 @@ jobs:
         cache: true
     - uses: golangci/golangci-lint-action@v6
       with:
-        version: v1.55.2
+        version: v1.64.2
         args: --verbose
         skip-cache: true
     - name: Test

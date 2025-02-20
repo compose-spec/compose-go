@@ -39,7 +39,6 @@ func TestParseBytes(t *testing.T) {
 func TestParseVariable(t *testing.T) {
 	err := newParser().parse("%!(EXTRA string)=foo", map[string]string{}, nil)
 	assert.Error(t, err, "line 1: unexpected character \"%\" in variable name \"%!(EXTRA string)=foo\"")
-
 }
 
 func TestMemoryExplosion(t *testing.T) {

@@ -167,8 +167,9 @@ func TestProjectName(t *testing.T) {
 	})
 
 	t.Run("by COMPOSE_PROJECT_NAME", func(t *testing.T) {
-		os.Setenv("COMPOSE_PROJECT_NAME", "my_project_from_env") //nolint:errcheck
-		defer os.Unsetenv("COMPOSE_PROJECT_NAME")                //nolint:errcheck
+		err := os.Setenv("COMPOSE_PROJECT_NAME", "my_project_from_env")
+		assert.NilError(t, err)
+		defer os.Unsetenv("COMPOSE_PROJECT_NAME")
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithOsEnv)
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(context.TODO(), opts)
@@ -254,7 +255,7 @@ services:
 		os.Stdin = originalStdin
 	}()
 
-	w.WriteString(composeData)
+	_, _ = w.WriteString(composeData)
 	w.Close()
 
 	os.Stdin = r

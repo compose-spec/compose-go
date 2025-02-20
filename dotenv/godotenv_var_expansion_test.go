@@ -14,7 +14,7 @@ var envMap = map[string]string{
 	"TEST_VAR":  "Test Value",
 }
 
-var notFoundLookup = func(s string) (string, bool) {
+var notFoundLookup = func(_ string) (string, bool) {
 	return "", false
 }
 
@@ -45,7 +45,7 @@ func TestExpandIfEmptyOrUnset(t *testing.T) {
 		t.Run(expected.name, func(t *testing.T) {
 			result, err := expandVariables(expected.input, envMap, notFoundLookup)
 			require.NoError(t, err)
-			assert.Equal(t, result, expected.result)
+			assert.Equal(t, expected.result, result)
 		})
 	}
 }
@@ -77,7 +77,7 @@ func TestExpandIfUnset(t *testing.T) {
 		t.Run(expected.name, func(t *testing.T) {
 			result, err := expandVariables(expected.input, envMap, notFoundLookup)
 			require.NoError(t, err)
-			assert.Equal(t, result, expected.result)
+			assert.Equal(t, expected.result, result)
 		})
 	}
 }

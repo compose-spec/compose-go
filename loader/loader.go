@@ -407,7 +407,14 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	return dict, nil
 }
 
-func loadYamlFile(ctx context.Context, file types.ConfigFile, opts *Options, workingDir string, environment types.Mapping, ct *cycleTracker, dict map[string]interface{}, included []string) (map[string]interface{}, PostProcessor, error) {
+func loadYamlFile(ctx context.Context,
+	file types.ConfigFile,
+	opts *Options,
+	workingDir string,
+	environment types.Mapping,
+	ct *cycleTracker,
+	dict map[string]interface{},
+	included []string) (map[string]interface{}, PostProcessor, error) {
 	ctx = context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
 	if file.Content == nil && file.Config == nil {
 		content, err := os.ReadFile(file.Filename)
@@ -524,7 +531,6 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 			return nil, fmt.Errorf("include cycle detected:\n%s\n include %s", loaded[0], strings.Join(loaded[1:], "\n include "))
 		}
 	}
-	loaded = append(loaded, mainFile)
 
 	dict, err := loadYamlModel(ctx, configDetails, opts, &cycleTracker{}, nil)
 	if err != nil {

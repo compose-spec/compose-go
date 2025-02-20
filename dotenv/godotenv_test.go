@@ -269,7 +269,6 @@ func TestExpanding(t *testing.T) {
 			}
 		})
 	}
-
 }
 
 func TestVariableStringValueSeparator(t *testing.T) {
@@ -470,7 +469,7 @@ func TestLinesToIgnore(t *testing.T) {
 
 	for n, c := range cases {
 		t.Run(n, func(t *testing.T) {
-			got := string(newParser().getStatementStart(c.input))
+			got := newParser().getStatementStart(c.input)
 			if got != c.want {
 				t.Errorf("Expected:\t %q\nGot:\t %q", c.want, got)
 			}
@@ -718,7 +717,7 @@ func TestLoadWithFormat(t *testing.T) {
 		"ZOT": "QIX",
 	}
 
-	custom := func(r io.Reader, f string, lookup func(key string) (string, bool)) (map[string]string, error) {
+	custom := func(r io.Reader, _ string, lookup func(key string) (string, bool)) (map[string]string, error) {
 		vars := map[string]string{}
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {

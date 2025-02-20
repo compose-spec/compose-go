@@ -4,19 +4,37 @@ issues:
 linters:
   disable-all: true
   enable:
-  - errorlint
-  - gocritic
-  - gofmt
-  - goimports
-  - gomodguard
-  - gosimple
-  - govet
-  - ineffassign
-  - misspell
-  - nakedret
-  - revive
-  - testifylint
+    - copyloopvar
+    - depguard
+    - errcheck
+    - errorlint
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - gomodguard
+    - revive
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - nolintlint
+    - revive
+    - staticcheck
+    - testifylint
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
 linters-settings:
+  depguard:
+    rules:
+      all:
+        deny:
+          - pkg: gopkg.in/yaml.v2
+            desc: 'compose-go uses yaml.v3'
   gocritic:
     # Enable multiple checks by tags, run `GL_DEBUG=gocritic golangci-lint run` to see all tags and checks.
     # Empty list by default. See https://github.com/go-critic/go-critic#usage -> section "Tags".
@@ -35,6 +53,8 @@ linters-settings:
           recommendations:
           - errors
           - fmt
+  lll:
+    line-length: 200
   testifylint:
     disable:
     - float-compare

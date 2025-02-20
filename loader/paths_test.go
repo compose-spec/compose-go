@@ -48,7 +48,6 @@ func TestResolveComposeFilePaths(t *testing.T) {
 }
 
 func TestResolveBuildContextPaths(t *testing.T) {
-
 	yaml := `
 name: test-resolve-build-context-paths
 services:

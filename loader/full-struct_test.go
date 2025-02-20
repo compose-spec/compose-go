@@ -167,7 +167,8 @@ func services(workingDir, homeDir string) types.Services {
 			Devices: []types.DeviceMapping{
 				{
 					Source: "/dev/ttyUSB0", Target: "/dev/ttyUSB0", Permissions: "rwm",
-				}},
+				},
+			},
 			DNS:        []string{"8.8.8.8", "9.9.9.9"},
 			DNSSearch:  []string{"dc1.example.com", "dc2.example.com"},
 			DomainName: "foo.com",

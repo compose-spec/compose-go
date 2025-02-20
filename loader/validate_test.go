@@ -301,7 +301,6 @@ func TestValidateWatch(t *testing.T) {
 		}
 		err := checkConsistency(&project)
 		assert.NilError(t, err)
-
 	})
 
 	t.Run("watch missing target for sync action", func(t *testing.T) {

@@ -60,7 +60,8 @@ func buildConfigFiles(yamls []string) []types.ConfigFile {
 	for i, yaml := range yamls {
 		configFiles = append(configFiles, types.ConfigFile{
 			Filename: fmt.Sprintf("filename%d.yml", i),
-			Content:  []byte(yaml)})
+			Content:  []byte(yaml),
+		})
 	}
 	return configFiles
 }
@@ -106,47 +107,6 @@ networks:
       config:
         - subnet: 172.28.0.0/16
 `
-
-var sampleDict = map[string]interface{}{
-	"name": "sample",
-	"services": map[string]interface{}{
-		"foo": map[string]interface{}{
-			"image":    "busybox",
-			"networks": map[string]interface{}{"with_me": nil},
-		},
-		"bar": map[string]interface{}{
-			"image":       "busybox",
-			"environment": []interface{}{"FOO=1"},
-			"networks":    []interface{}{"with_ipam"},
-		},
-	},
-	"volumes": map[string]interface{}{
-		"hello": map[string]interface{}{
-			"driver": "default",
-			"driver_opts": map[string]interface{}{
-				"beep": "boop",
-			},
-		},
-	},
-	"networks": map[string]interface{}{
-		"default": map[string]interface{}{
-			"driver": "bridge",
-			"driver_opts": map[string]interface{}{
-				"beep": "boop",
-			},
-		},
-		"with_ipam": map[string]interface{}{
-			"ipam": map[string]interface{}{
-				"driver": "default",
-				"config": []interface{}{
-					map[string]interface{}{
-						"subnet": "172.28.0.0/16",
-					},
-				},
-			},
-		},
-	},
-}
 
 var samplePortsConfig = []types.ServicePortConfig{
 	{
@@ -1014,7 +974,8 @@ services:
 		{
 			Path:     "example2.env",
 			Required: false,
-		}})
+		},
+	})
 	assert.DeepEqual(t, configWithEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
 
 	// Custom behavior removes the `env_file` entries
@@ -1660,7 +1621,6 @@ networks:
 	}
 	assert.Check(t, is.DeepEqual(expected, project.Networks))
 	assert.Check(t, is.Contains(buf.String(), "networks.foo: external.name is deprecated. Please set name and external: true"))
-
 }
 
 func TestLoadNetworkInvalidExternalNameAndNameCombination(t *testing.T) {
@@ -2158,7 +2118,8 @@ func TestLoadWithExtends(t *testing.T) {
 				{
 					Path:     expectedEnvFilePath,
 					Required: true,
-				}},
+				},
+			},
 			Networks: map[string]*types.ServiceNetworkConfig{"default": nil},
 			Volumes: []types.ServiceVolumeConfig{{
 				Type:   "bind",
@@ -2251,6 +2212,7 @@ services:
 `)
 	assert.NilError(t, err)
 }
+
 func TestServiceDeviceRequestWithoutCountAndDeviceIdsType(t *testing.T) {
 	project, err := loadYAML(`
 name: service-device-request-count-type
@@ -2446,7 +2408,7 @@ func TestLoadServiceWithLabelFile_NotExists(t *testing.T) {
 			},
 		},
 	}
-	p, err := p.WithServicesLabelsResolved(false)
+	_, err := p.WithServicesLabelsResolved(false)
 	assert.ErrorContains(t, err, "label file test not found")
 }
 
@@ -2701,7 +2663,6 @@ func TestDeviceWriteBps(t *testing.T) {
 			},
 		},
 	})
-
 }
 
 func TestInvalidProjectNameType(t *testing.T) {
@@ -3328,13 +3289,13 @@ func TestLoadProjectName(t *testing.T) {
 	}{
 		{
 			name:    "default",
-			options: func(o *Options) {},
+			options: func(_ *Options) {},
 			wantErr: "project name must not be empty",
 		},
 		{
 			name:    "project name from environment",
 			env:     map[string]string{"COMPOSE_PROJECT_NAME": projectName},
-			options: func(o *Options) {},
+			options: func(_ *Options) {},
 			wantErr: "project name must not be empty",
 		},
 		{
@@ -3539,12 +3500,14 @@ secrets:
 		"config": {
 			Environment: "GA",
 			Content:     "BU",
-		}}, cmpopts.IgnoreUnexported(types.ConfigObjConfig{}))
+		},
+	}, cmpopts.IgnoreUnexported(types.ConfigObjConfig{}))
 	assert.DeepEqual(t, config.Secrets, types.Secrets{
 		"secret": {
 			Environment: "MEU",
 			Content:     "Shadoks",
-		}}, cmpopts.IgnoreUnexported(types.SecretConfig{}))
+		},
+	}, cmpopts.IgnoreUnexported(types.SecretConfig{}))
 }
 
 func TestLoadDeviceMapping(t *testing.T) {
