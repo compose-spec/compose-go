@@ -157,7 +157,6 @@ func (m Mapping) Values() []string {
 func (m Mapping) ToMappingWithEquals() MappingWithEquals {
 	mapping := MappingWithEquals{}
 	for k, v := range m {
-		v := v
 		mapping[k] = &v
 	}
 	return mapping

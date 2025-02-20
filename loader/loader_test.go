@@ -1874,7 +1874,6 @@ services:
 		},
 	}
 	for _, testcase := range testcases {
-		testcase := testcase
 		t.Run(testcase.doc, func(t *testing.T) {
 			config, err := loadYAML(testcase.yaml)
 			assert.NilError(t, err)
