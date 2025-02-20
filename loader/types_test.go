@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"context"
 	"os"
 	"testing"
 
@@ -37,7 +38,7 @@ func TestMarshalProject(t *testing.T) {
 	assert.Check(t, is.Equal(expected, string(actual)))
 
 	// Make sure the expected still
-	_, err = Load(buildConfigDetails(expected, map[string]string{}), func(options *Options) {
+	_, err = LoadWithContext(context.TODO(), buildConfigDetails(expected, map[string]string{}), func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 	})
@@ -57,7 +58,7 @@ func TestJSONMarshalProject(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(expected, string(actual)))
 
-	_, err = Load(buildConfigDetails(expected, map[string]string{}), func(options *Options) {
+	_, err = LoadWithContext(context.TODO(), buildConfigDetails(expected, map[string]string{}), func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 	})
