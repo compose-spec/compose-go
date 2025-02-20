@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -24,7 +25,7 @@ import (
 )
 
 func TestResetRemove(t *testing.T) {
-	p, err := Load(types.ConfigDetails{
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "(inline)",
@@ -54,7 +55,7 @@ networks:
 }
 
 func TestOverrideReplace(t *testing.T) {
-	p, err := Load(types.ConfigDetails{
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "(inline)",
@@ -169,7 +170,7 @@ x-healthcheck: &healthcheck
 	for _, tt := range tests {
 		t.Run(
 			tt.name, func(t *testing.T) {
-				_, err := Load(
+				_, err := LoadWithContext(context.TODO(),
 					types.ConfigDetails{
 						ConfigFiles: []types.ConfigFile{
 							{

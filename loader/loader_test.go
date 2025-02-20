@@ -261,14 +261,8 @@ var sampleConfig = types.Config{
 	},
 }
 
-func TestParseYAML(t *testing.T) {
-	dict, err := ParseYAML([]byte(sampleYAML))
-	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(sampleDict, dict))
-}
-
 func TestLoad(t *testing.T) {
-	actual, err := Load(buildConfigDetails(sampleYAML, nil), func(options *Options) {
+	actual, err := LoadWithContext(context.TODO(), buildConfigDetails(sampleYAML, nil), func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 	})
@@ -288,7 +282,7 @@ func TestLoadFromFile(t *testing.T) {
 	if err := os.WriteFile(tmpPath, []byte(sampleYAML), 0o444); err != nil {
 		t.Fatalf("failed to write temporary file: %s", err)
 	}
-	actual, err := Load(types.ConfigDetails{
+	actual, err := LoadWithContext(context.TODO(), types.ConfigDetails{
 		WorkingDir: workingDir,
 		ConfigFiles: []types.ConfigFile{{
 			Filename: tmpPath,
@@ -431,7 +425,7 @@ services:
 `
 	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
 
-	actual, err := Load(types.ConfigDetails{
+	actual, err := LoadWithContext(context.TODO(), types.ConfigDetails{
 		WorkingDir: tmpdir,
 		ConfigFiles: []types.ConfigFile{{
 			Filename: filepath.Join(tmpdir, "compose.yaml"),
@@ -813,7 +807,7 @@ networks:
 		"thesize":     "2gb",
 	}
 
-	config, err := Load(buildConfigDetails(dict, env), func(options *Options) {
+	config, err := LoadWithContext(context.TODO(), buildConfigDetails(dict, env), func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 	})
@@ -982,7 +976,7 @@ services:
 `
 	configDetails := buildConfigDetails(dict, nil)
 
-	_, err := Load(configDetails)
+	_, err := LoadWithContext(context.TODO(), configDetails)
 	assert.NilError(t, err)
 }
 
@@ -1007,7 +1001,7 @@ services:
 	configDetails := buildConfigDetails(dict, nil)
 
 	// Default behavior keeps the `env_file` entries
-	configWithEnvFiles, err := Load(configDetails, func(options *Options) {
+	configWithEnvFiles, err := LoadWithContext(context.TODO(), configDetails, func(options *Options) {
 		options.SkipNormalization = true
 		options.ResolvePaths = false
 	})
@@ -1024,7 +1018,7 @@ services:
 	assert.DeepEqual(t, configWithEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
 
 	// Custom behavior removes the `env_file` entries
-	configWithoutEnvFiles, err := Load(configDetails, WithDiscardEnvFiles)
+	configWithoutEnvFiles, err := LoadWithContext(context.TODO(), configDetails, WithDiscardEnvFiles)
 	assert.NilError(t, err)
 	assert.Equal(t, len(configWithoutEnvFiles.Services["web"].EnvFiles), 0)
 	assert.DeepEqual(t, configWithoutEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
@@ -1034,7 +1028,7 @@ func TestDecodeErrors(t *testing.T) {
 	dict := "name: test\nservices:\n  web:\n    image: nginx\n\tbuild: ."
 
 	configDetails := buildConfigDetails(dict, nil)
-	_, err := Load(configDetails)
+	_, err := LoadWithContext(context.TODO(), configDetails)
 	assert.Error(t, err, "yaml: line 4: found a tab character that violates indentation")
 }
 
@@ -1054,7 +1048,7 @@ services:
      shm_size: 2gb
 `
 	configDetails := buildConfigDetails(dict, nil)
-	actual, err := Load(configDetails)
+	actual, err := LoadWithContext(context.TODO(), configDetails)
 	assert.NilError(t, err)
 
 	wd, _ := os.Getwd()
@@ -1084,7 +1078,7 @@ services:
 `
 	configDetails := buildConfigDetails(dict, nil)
 
-	_, err := Load(configDetails)
+	_, err := LoadWithContext(context.TODO(), configDetails)
 	assert.NilError(t, err)
 }
 
@@ -2145,7 +2139,7 @@ func TestLoadWithExtends(t *testing.T) {
 		Environment: map[string]string{},
 	}
 
-	actual, err := Load(configDetails)
+	actual, err := LoadWithContext(context.TODO(), configDetails)
 	assert.NilError(t, err)
 
 	extendsDir := filepath.Join("testdata", "subdir")
@@ -2189,7 +2183,7 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 		Environment: map[string]string{},
 	}
 
-	actual, err := Load(configDetails)
+	actual, err := LoadWithContext(context.TODO(), configDetails)
 	assert.NilError(t, err)
 
 	expServices := types.Services{
@@ -2568,7 +2562,7 @@ services:
 `
 		configDetails := buildConfigDetails(yaml, map[string]string{})
 
-		actual, err := Load(configDetails)
+		actual, err := LoadWithContext(context.TODO(), configDetails)
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)
@@ -2598,7 +2592,7 @@ services:
 `
 		configDetails := buildConfigDetailsMultipleFiles(map[string]string{}, yaml1, yaml2, yaml3)
 
-		actual, err := Load(configDetails)
+		actual, err := LoadWithContext(context.TODO(), configDetails)
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)
@@ -2623,7 +2617,7 @@ services:
 `
 		configDetails := buildConfigDetails(yaml, map[string]string{})
 
-		actual, err := Load(configDetails, withProjectName("interpolated", true))
+		actual, err := LoadWithContext(context.TODO(), configDetails, withProjectName("interpolated", true))
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)
@@ -2649,7 +2643,7 @@ volumes:
 `
 	configDetails := buildConfigDetails(dict, nil)
 
-	project, err := Load(configDetails)
+	project, err := LoadWithContext(context.TODO(), configDetails)
 	assert.NilError(t, err)
 	path := project.Volumes["data"].DriverOpts["device"]
 	assert.Check(t, filepath.IsAbs(path))
@@ -2665,7 +2659,7 @@ services:
 `
 	configDetails := buildConfigDetails(dict, nil)
 
-	project, err := Load(configDetails)
+	project, err := LoadWithContext(context.TODO(), configDetails)
 	assert.NilError(t, err)
 	assert.Equal(t, project.Services["extension"].Name, "extension")
 	assert.Equal(t, project.Services["extension"].Extensions["x-foo"], "bar")
@@ -2782,7 +2776,7 @@ configs:
 func TestLoadWithInclude(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	p, err := Load(buildConfigDetails(`
+	p, err := LoadWithContext(context.TODO(), buildConfigDetails(`
 name: 'test-include'
 
 include:
@@ -2839,7 +2833,7 @@ services:
 	})
 	*/
 
-	p, err = Load(buildConfigDetails(`
+	p, err = LoadWithContext(context.TODO(), buildConfigDetails(`
 name: 'test-include'
 
 include:
@@ -2864,7 +2858,7 @@ services:
 func TestLoadWithIncludeCycle(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	_, err = Load(types.ConfigDetails{
+	_, err = LoadWithContext(context.TODO(), types.ConfigDetails{
 		WorkingDir: filepath.Join(workingDir, "testdata"),
 		ConfigFiles: []types.ConfigFile{
 			{
@@ -2876,7 +2870,7 @@ func TestLoadWithIncludeCycle(t *testing.T) {
 }
 
 func TestLoadWithIncludeOverride(t *testing.T) {
-	p, err := Load(buildConfigDetailsMultipleFiles(nil, `
+	p, err := LoadWithContext(context.TODO(), buildConfigDetailsMultipleFiles(nil, `
 name: 'test-include-override'
 
 include:
@@ -3097,7 +3091,7 @@ services:
 }
 
 func TestLoadDevelopConfig(t *testing.T) {
-	project, err := Load(buildConfigDetails(`
+	project, err := LoadWithContext(context.TODO(), buildConfigDetails(`
 name: load-develop
 services:
   frontend:
@@ -3225,7 +3219,7 @@ services:
 	if err := os.WriteFile(tmpPath, []byte(yaml), 0o644); err != nil {
 		t.Fatalf("failed to write temporary file: %s", err)
 	}
-	_, err := Load(types.ConfigDetails{
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: tmpPath,
@@ -3246,7 +3240,7 @@ services:
 	if err := os.WriteFile(tmpPath, []byte(yaml), 0o644); err != nil {
 		t.Fatalf("failed to write temporary file: %s", err)
 	}
-	_, err := Load(types.ConfigDetails{
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: tmpPath,
