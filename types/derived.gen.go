@@ -578,6 +578,12 @@ func deriveDeepCopyService(dst, src *ServiceConfig) {
 	}
 	dst.Privileged = src.Privileged
 	dst.PullPolicy = src.PullPolicy
+	if src.PullRefresh == nil {
+		dst.PullRefresh = nil
+	} else {
+		dst.PullRefresh = new(Duration)
+		*dst.PullRefresh = *src.PullRefresh
+	}
 	dst.ReadOnly = src.ReadOnly
 	dst.Restart = src.Restart
 	dst.Runtime = src.Runtime
@@ -1812,6 +1818,7 @@ func deriveDeepCopy_38(dst, src *DeviceRequest) {
 // deriveDeepCopy_39 recursively copies the contents of src into dst.
 func deriveDeepCopy_39(dst, src *ServiceNetworkConfig) {
 	dst.Priority = src.Priority
+	dst.GatewayPriority = src.GatewayPriority
 	if src.Aliases == nil {
 		dst.Aliases = nil
 	} else {

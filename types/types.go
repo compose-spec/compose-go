@@ -111,6 +111,7 @@ type ServiceConfig struct {
 	Ports           []ServicePortConfig              `yaml:"ports,omitempty" json:"ports,omitempty"`
 	Privileged      bool                             `yaml:"privileged,omitempty" json:"privileged,omitempty"`
 	PullPolicy      string                           `yaml:"pull_policy,omitempty" json:"pull_policy,omitempty"`
+	PullRefresh     *Duration                        `yaml:"pull_refresh_after,omitempty" json:"pull_refresh_after,omitempty"`
 	ReadOnly        bool                             `yaml:"read_only,omitempty" json:"read_only,omitempty"`
 	Restart         string                           `yaml:"restart,omitempty" json:"restart,omitempty"`
 	Runtime         string                           `yaml:"runtime,omitempty" json:"runtime,omitempty"`
@@ -215,6 +216,8 @@ const (
 	PullPolicyMissing = "missing"
 	// PullPolicyBuild force building images
 	PullPolicyBuild = "build"
+	// PullPolicyRefresh checks image needs to be updatedq
+	PullPolicyRefresh = "refresh"
 )
 
 const (
