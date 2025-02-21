@@ -370,9 +370,10 @@
         "pre_stop": {"type": "array", "items": {"$ref": "#/definitions/service_hook"}},
         "privileged": {"type": ["boolean", "string"]},
         "profiles": {"$ref": "#/definitions/list_of_strings"},
-        "pull_policy": {"type": "string", "enum": [
-          "always", "never", "if_not_present", "build", "missing"
-        ]},
+        "pull_policy": {"type": "string",
+          "pattern": "always|never|build|if_not_present|missing|refresh|daily|weekly|every_([0-9]+[wdhms])+"
+        },
+        "pull_refresh_after": {"type": "string"},
         "read_only": {"type": ["boolean", "string"]},
         "restart": {"type": "string"},
         "runtime": {

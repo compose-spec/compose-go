@@ -3719,3 +3719,17 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, p.Services["test"].Networks["test"].GatewayPriority, 42)
 }
+
+func TestPullRefresh(t *testing.T) {
+	p, err := loadYAML(`
+name: load-all-gpus
+services:
+  test:
+    pull_policy: every_2d
+`)
+	assert.NilError(t, err)
+	policy, duration, err := p.Services["test"].GetPullPolicy()
+	assert.NilError(t, err)
+	assert.Equal(t, policy, types.PullPolicyRefresh)
+	assert.Equal(t, duration, 2*24*time.Hour)
+}
