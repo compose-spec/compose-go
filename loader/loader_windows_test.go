@@ -24,7 +24,7 @@ import (
 )
 
 func TestConvertWindowsVolumePath(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		windowsPath           string
 		expectedConvertedPath string
 	}{

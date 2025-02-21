@@ -65,7 +65,6 @@ func check(value any, p tree.Path) error {
 
 func checkFileObject(keys ...string) checkerFunc {
 	return func(value any, p tree.Path) error {
-
 		v := value.(map[string]any)
 		count := 0
 		for _, s := range keys {
