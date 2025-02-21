@@ -98,7 +98,7 @@ func TestInterpolateWithDefaults(t *testing.T) {
 }
 
 func TestValidUnexistentInterpolation(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		test     string
 		expected string
 		errMsg   string
@@ -154,7 +154,7 @@ func TestValidUnexistentInterpolation(t *testing.T) {
 }
 
 func TestValidExistentInterpolation(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		test     string
 		expected string
 	}{
@@ -215,7 +215,7 @@ func TestInterpolateWithCast(t *testing.T) {
 }
 
 func TestPathMatches(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		doc      string
 		path     tree.Path
 		pattern  tree.Path

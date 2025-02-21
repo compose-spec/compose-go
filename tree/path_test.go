@@ -24,7 +24,7 @@ import (
 )
 
 func TestPathMatches(t *testing.T) {
-	var testcases = []struct {
+	testcases := []struct {
 		doc      string
 		path     Path
 		pattern  Path

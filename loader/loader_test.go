@@ -1839,7 +1839,7 @@ func TestLoadInit(t *testing.T) {
 	booleanTrue := true
 	booleanFalse := false
 
-	var testcases = []struct {
+	testcases := []struct {
 		doc  string
 		yaml string
 		init *bool

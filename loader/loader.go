@@ -414,7 +414,8 @@ func loadYamlFile(ctx context.Context,
 	environment types.Mapping,
 	ct *cycleTracker,
 	dict map[string]interface{},
-	included []string) (map[string]interface{}, PostProcessor, error) {
+	included []string,
+) (map[string]interface{}, PostProcessor, error) {
 	ctx = context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
 	if file.Content == nil && file.Config == nil {
 		content, err := os.ReadFile(file.Filename)

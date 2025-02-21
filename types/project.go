@@ -746,7 +746,6 @@ func (p *Project) deepCopy() *Project {
 	n := &Project{}
 	deriveDeepCopyProject(n, p)
 	return n
-
 }
 
 // WithServicesTransform applies a transformation to project services and return a new project with transformation results

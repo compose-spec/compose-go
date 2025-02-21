@@ -45,7 +45,8 @@ services:
     image: bar
     command: echo world
     init: false
-`)},
+`),
+			},
 		},
 	}, &Options{}, &cycleTracker{}, nil)
 	assert.NilError(t, err)
@@ -85,7 +86,8 @@ configs:
   credentials:
     content: |
       dummy value
-`)},
+`),
+			},
 		},
 	}, &Options{}, &cycleTracker{}, nil)
 	assert.NilError(t, err)

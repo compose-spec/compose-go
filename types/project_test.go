@@ -42,7 +42,6 @@ func Test_ApplyProfiles(t *testing.T) {
 
 	assert.DeepEqual(t, p.ServiceNames(), []string{"service_1", "service_2", "service_4", "service_5", "service_6"})
 	assert.DeepEqual(t, p.DisabledServiceNames(), []string{"service_3"})
-
 }
 
 func Test_WithoutUnnecessaryResources(t *testing.T) {

@@ -199,7 +199,7 @@ func TestParsePortConfig(t *testing.T) {
 }
 
 func assertContains(t *testing.T, portConfigs []ServicePortConfig, expected ServicePortConfig) {
-	var contains = false
+	contains := false
 	for _, portConfig := range portConfigs {
 		if is.DeepEqual(portConfig, expected)().Success() {
 			contains = true
@@ -331,7 +331,6 @@ func TestMarshalServiceEntrypoint(t *testing.T) {
 			assertEqual(t, actualJSON, tc.expectedJSON)
 		})
 	}
-
 }
 
 func TestMarshalBuild_DockerfileInline(t *testing.T) {
