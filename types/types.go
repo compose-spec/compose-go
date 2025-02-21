@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/xhit/go-str2duration/v2"
 )
 
 // ServiceConfig is the configuration of one service
@@ -215,6 +217,8 @@ const (
 	PullPolicyMissing = "missing"
 	// PullPolicyBuild force building images
 	PullPolicyBuild = "build"
+	// PullPolicyRefresh checks if image needs to be updated
+	PullPolicyRefresh = "refresh"
 )
 
 const (
@@ -266,6 +270,27 @@ func (s ServiceConfig) GetDependents(p *Project) []string {
 		}
 	}
 	return dependent
+}
+
+func (s ServiceConfig) GetPullPolicy() (string, time.Duration, error) {
+	switch s.PullPolicy {
+	case PullPolicyAlways, PullPolicyNever, PullPolicyIfNotPresent, PullPolicyMissing, PullPolicyBuild:
+		return s.PullPolicy, 0, nil
+	case "daily":
+		return PullPolicyRefresh, 24 * time.Hour, nil
+	case "weekly":
+		return PullPolicyRefresh, 7 * 24 * time.Hour, nil
+	default:
+		if strings.HasPrefix(s.PullPolicy, "every_") {
+			delay := s.PullPolicy[6:]
+			duration, err := str2duration.ParseDuration(delay)
+			if err != nil {
+				return "", 0, err
+			}
+			return PullPolicyRefresh, duration, nil
+		}
+		return PullPolicyMissing, 0, nil
+	}
 }
 
 // BuildConfig is a type for build
