@@ -20,13 +20,13 @@ import (
 	_ "crypto/sha256"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
-	"golang.org/x/exp/slices"
 	"gotest.tools/v3/assert"
 )
 
