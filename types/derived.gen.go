@@ -1812,6 +1812,7 @@ func deriveDeepCopy_38(dst, src *DeviceRequest) {
 // deriveDeepCopy_39 recursively copies the contents of src into dst.
 func deriveDeepCopy_39(dst, src *ServiceNetworkConfig) {
 	dst.Priority = src.Priority
+	dst.GatewayPriority = src.GatewayPriority
 	if src.Aliases == nil {
 		dst.Aliases = nil
 	} else {
