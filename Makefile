@@ -31,9 +31,8 @@ fmt: ## Format go files
 	go fmt ./...
 
 .PHONY: deepcopy
-deepcopy:
-	goderive -h >/dev/null 2>&1 || go install github.com/awalterschulze/goderive@0a721d5b1d722ae6ba0dddefa1200607ca3ece97
-	goderive ./types/...
+deepcopy: build-validate-image
+	docker run --rm -v .:/go/src $(IMAGE_PREFIX)validate goderive ./types/...
 
 .PHONY: build-validate-image
 build-validate-image:
@@ -41,11 +40,11 @@ build-validate-image:
 
 .PHONY: lint
 lint: build-validate-image
-	docker run --rm $(IMAGE_PREFIX)validate bash -c "golangci-lint run --config ./.golangci.yml ./..."
+	docker run --rm -v .:/go/src $(IMAGE_PREFIX)validate golangci-lint run --config ./.golangci.yml ./...
 
 .PHONY: check-license
 check-license: build-validate-image
-	docker run --rm $(IMAGE_PREFIX)validate bash -c "./scripts/validate/fileheader"
+	docker run --rm -v .:/go/src $(IMAGE_PREFIX)validate ltag -t scripts/validate/template --excludes "validate dotenv" --check -v
 
 .PHONY: setup
 setup: ## Setup the precommit hook
