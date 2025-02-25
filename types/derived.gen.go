@@ -2025,6 +2025,24 @@ func deriveDeepCopy_46(dst, src *Trigger) {
 		deriveDeepCopy_44(field, &src.Exec)
 		dst.Exec = *field
 	}()
+	if src.Include == nil {
+		dst.Include = nil
+	} else {
+		if dst.Include != nil {
+			if len(src.Include) > len(dst.Include) {
+				if cap(dst.Include) >= len(src.Include) {
+					dst.Include = (dst.Include)[:len(src.Include)]
+				} else {
+					dst.Include = make([]string, len(src.Include))
+				}
+			} else if len(src.Include) < len(dst.Include) {
+				dst.Include = (dst.Include)[:len(src.Include)]
+			}
+		} else {
+			dst.Include = make([]string, len(src.Include))
+		}
+		copy(dst.Include, src.Include)
+	}
 	if src.Ignore == nil {
 		dst.Ignore = nil
 	} else {
