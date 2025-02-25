@@ -3051,7 +3051,8 @@ services:
 }
 
 func TestLoadDevelopConfig(t *testing.T) {
-	project, err := LoadWithContext(context.TODO(), buildConfigDetails(`
+	t.Run("successfully load watch config", func(t *testing.T) {
+		project, err := LoadWithContext(context.Background(), buildConfigDetails(`
 name: load-develop
 services:
   frontend:
@@ -3066,15 +3067,16 @@ services:
           target: /var/www
           ignore:
             - node_modules/
-
   backend:
     image: example/backend
     build: ./backend
     develop:
       watch:
         # rebuild image and recreate service
-        - path: ./backend/src
-          action: rebuild
+        - action: rebuild
+          path:
+            - ./backend/src
+            - ./backend
   proxy:
     image: example/proxy
     build: ./proxy
@@ -3085,50 +3087,54 @@ services:
           action: sync+restart
           target: /etc/nginx/proxy.conf
 `, nil), func(options *Options) {
-		options.ResolvePaths = false
-		options.SkipValidation = true
-	})
-	assert.NilError(t, err)
-	frontend, err := project.GetService("frontend")
-	assert.NilError(t, err)
-	assert.DeepEqual(t, *frontend.Develop, types.DevelopConfig{
-		Watch: []types.Trigger{
-			{
-				Path:   "./webapp/html",
-				Action: types.WatchActionSync,
-				Target: "/var/www",
-				Ignore: []string{"node_modules/"},
-				Extensions: types.Extensions{
-					"x-initialSync": true,
+			options.ResolvePaths = false
+			options.SkipValidation = true
+		})
+		assert.NilError(t, err)
+		frontend, err := project.GetService("frontend")
+		assert.NilError(t, err)
+		assert.DeepEqual(t, *frontend.Develop, types.DevelopConfig{
+			Watch: []types.Trigger{
+				{
+					Path:   "./webapp/html",
+					Action: types.WatchActionSync,
+					Target: "/var/www",
+					Ignore: []string{"node_modules/"},
+					Extensions: types.Extensions{
+						"x-initialSync": true,
+					},
 				},
 			},
-		},
-	})
-	backend, err := project.GetService("backend")
-	assert.NilError(t, err)
-	assert.DeepEqual(t, *backend.Develop, types.DevelopConfig{
-		Watch: []types.Trigger{
-			{
-				Path:   "./backend/src",
-				Action: types.WatchActionRebuild,
+		})
+		backend, err := project.GetService("backend")
+		assert.NilError(t, err)
+		assert.DeepEqual(t, *backend.Develop, types.DevelopConfig{
+			Watch: []types.Trigger{
+				{
+					Path:   "./backend/src",
+					Action: types.WatchActionRebuild,
+				},
+				{
+					Path:   "./backend",
+					Action: types.WatchActionRebuild,
+				},
 			},
-		},
-	})
-	proxy, err := project.GetService("proxy")
-	assert.NilError(t, err)
-	assert.DeepEqual(t, *proxy.Develop, types.DevelopConfig{
-		Watch: []types.Trigger{
-			{
-				Path:   "./proxy/proxy.conf",
-				Action: types.WatchActionSyncRestart,
-				Target: "/etc/nginx/proxy.conf",
+		})
+		proxy, err := project.GetService("proxy")
+		assert.NilError(t, err)
+		assert.DeepEqual(t, *proxy.Develop, types.DevelopConfig{
+			Watch: []types.Trigger{
+				{
+					Path:   "./proxy/proxy.conf",
+					Action: types.WatchActionSyncRestart,
+					Target: "/etc/nginx/proxy.conf",
+				},
 			},
-		},
+		})
 	})
-}
 
-func TestBadDevelopConfig(t *testing.T) {
-	_, err := LoadWithContext(context.TODO(), buildConfigDetails(`
+	t.Run("should not load successfully bad watch config", func(t *testing.T) {
+		_, err := LoadWithContext(context.TODO(), buildConfigDetails(`
 name: load-develop
 services:
   frontend:
@@ -3136,16 +3142,16 @@ services:
     build: ./webapp
     develop:
       watch:
-        # sync static content
+      # sync static content
         - path: ./webapp/html
           target: /var/www
           ignore:
             - node_modules/
-
 `, nil), func(options *Options) {
-		options.ResolvePaths = false
+			options.ResolvePaths = false
+		})
+		assert.ErrorContains(t, err, "validating filename0.yml: services.frontend.develop.watch.0 action is required")
 	})
-	assert.ErrorContains(t, err, "validating filename0.yml: services.frontend.develop.watch.0 action is required")
 }
 
 func TestBadServiceConfig(t *testing.T) {

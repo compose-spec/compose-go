@@ -93,6 +93,7 @@ func checkPath(value any, p tree.Path) error {
 	if v == "" {
 		return fmt.Errorf("%s: value can't be blank", p)
 	}
+
 	return nil
 }
 

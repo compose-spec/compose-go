@@ -167,8 +167,11 @@ func checkConsistency(project *types.Project) error { //nolint:gocyclo
 
 		if s.Develop != nil && s.Develop.Watch != nil {
 			for _, watch := range s.Develop.Watch {
-				if watch.Target == "" && watch.Action != types.WatchActionRebuild && watch.Action != types.WatchActionRestart {
-					return fmt.Errorf("services.%s.develop.watch: target is required for non-rebuild actions: %w", s.Name, errdefs.ErrInvalid)
+				if watch.Action != types.WatchActionRebuild && watch.Action != types.WatchActionRestart {
+					if watch.Target == "" {
+						return fmt.Errorf("services.%s.develop.watch: target is required for %s, %s and %s actions: %w",
+							s.Name, types.WatchActionSync, types.WatchActionSyncExec, types.WatchActionSyncRestart, errdefs.ErrInvalid)
+					}
 				}
 			}
 		}

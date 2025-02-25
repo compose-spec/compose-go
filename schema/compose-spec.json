@@ -492,7 +492,7 @@
             "required": ["path", "action"],
             "properties": {
               "ignore": {"type": "array", "items": {"type": "string"}},
-              "path": {"type": "string"},
+              "path": {"$ref": "#/definitions/string_or_list"},
               "action": {"type": "string", "enum": ["rebuild", "sync", "restart", "sync+restart", "sync+exec"]},
               "target": {"type": "string"},
               "exec": {"$ref": "#/definitions/service_hook"}

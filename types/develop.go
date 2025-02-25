@@ -16,6 +16,11 @@
 
 package types
 
+import (
+	"path/filepath"
+	"strings"
+)
+
 type DevelopConfig struct {
 	Watch []Trigger `yaml:"watch,omitempty" json:"watch,omitempty"`
 
@@ -39,4 +44,28 @@ type Trigger struct {
 	Exec       ServiceHook `yaml:"exec,omitempty" json:"exec,omitempty"`
 	Ignore     []string    `yaml:"ignore,omitempty" json:"ignore,omitempty"`
 	Extensions Extensions  `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+func (t Trigger) AnchorPath() string {
+	if t.IsGlobPath() {
+		pathList := strings.Split(filepath.FromSlash(t.Path), "/")
+		path := []string{}
+
+		for _, a := range pathList {
+			if strings.Contains(a, "*") {
+				break
+			}
+			path = append(path, a)
+		}
+		return strings.Join(path, string(filepath.Separator))
+	}
+	return t.Path
+}
+
+func (t Trigger) IsGlobPath() bool {
+	return strings.Contains(t.Path, "*")
+}
+
+func (t Trigger) IsSyncAction() bool {
+	return t.Action == WatchActionSync || t.Action == WatchActionSyncRestart
 }
