@@ -491,7 +491,8 @@
             "type": "object",
             "required": ["path", "action"],
             "properties": {
-              "ignore": {"type": "array", "items": {"type": "string"}},
+              "ignore": {"$ref": "#/definitions/string_or_list"},
+              "include": {"$ref": "#/definitions/string_or_list"},
               "path": {"type": "string"},
               "action": {"type": "string", "enum": ["rebuild", "sync", "restart", "sync+restart", "sync+exec"]},
               "target": {"type": "string"},
