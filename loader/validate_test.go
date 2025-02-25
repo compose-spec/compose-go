@@ -292,7 +292,7 @@ func TestValidateWatch(t *testing.T) {
 						Watch: []types.Trigger{
 							{
 								Action: types.WatchActionSync,
-								Path:   []string{"/app"},
+								Path:   "/app",
 								Target: "/container/app",
 							},
 						},
@@ -364,7 +364,7 @@ func TestValidateWatch(t *testing.T) {
 							Watch: []types.Trigger{
 								{
 									Action: tt.action,
-									Path:   []string{"/app"},
+									Path:   "/app",
 									// Missing Target
 								},
 							},
@@ -374,28 +374,6 @@ func TestValidateWatch(t *testing.T) {
 			}
 			err := checkConsistency(&project)
 			assert.Error(t, err, "services.myservice.develop.watch: target is required for sync, sync+exec and sync+restart actions: invalid compose project")
-		})
-
-		t.Run(fmt.Sprintf("watch config is INVALID with one or more paths for %s action", tt.action), func(t *testing.T) {
-			project := types.Project{
-				Services: types.Services{
-					"myservice": {
-						Name:  "myservice",
-						Image: "scratch",
-						Develop: &types.DevelopConfig{
-							Watch: []types.Trigger{
-								{
-									Action: tt.action,
-									Path:   []string{"/app", "/app2"}, // should only be one path
-									Target: "/container/app",
-								},
-							},
-						},
-					},
-				},
-			}
-			err := checkConsistency(&project)
-			assert.ErrorContains(t, err, "services.myservice.develop.watch: detected multiple paths")
 		})
 	}
 	tests = []WatchActionTest{
@@ -413,7 +391,7 @@ func TestValidateWatch(t *testing.T) {
 							Watch: []types.Trigger{
 								{
 									Action: tt.action,
-									Path:   []string{"/app"},
+									Path:   "/app",
 								},
 							},
 						},
@@ -434,11 +412,11 @@ func TestValidateWatch(t *testing.T) {
 							Watch: []types.Trigger{
 								{
 									Action: tt.action,
-									Path:   []string{"/app"},
+									Path:   "/app",
 								},
 								{
 									Action: tt.action,
-									Path:   []string{"/app", "/app2"},
+									Path:   "/app2",
 								},
 							},
 						},

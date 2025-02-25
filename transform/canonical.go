@@ -36,7 +36,7 @@ func init() {
 	transformers["services.*.networks"] = transformServiceNetworks
 	transformers["services.*.volumes.*"] = transformVolumeMount
 	transformers["services.*.dns"] = transformStringOrList
-	transformers["services.*.develop.watch.*.path"] = transformStringOrList
+	transformers["services.*.develop.watch"] = transformWatch
 	transformers["services.*.devices.*"] = transformDeviceMapping
 	transformers["services.*.secrets.*"] = transformFileMount
 	transformers["services.*.configs.*"] = transformFileMount
@@ -50,6 +50,51 @@ func init() {
 	transformers["secrets.*"] = transformMaybeExternal
 	transformers["configs.*"] = transformMaybeExternal
 	transformers["include.*"] = transformInclude
+}
+
+func transformWatch(data any, _ tree.Path, _ bool) (any, error) {
+	t, ok := data.([]interface{})
+	if !ok {
+		return data, nil
+	}
+
+	for i, w := range t {
+		watchConf, ok := w.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		path, ok := watchConf["path"]
+		if !ok {
+			// This should not happen
+			continue
+		}
+		paths, ok := path.([]interface{})
+		if !ok {
+			// if path is a string there is nothing to do
+			continue
+		}
+
+		// remove the current path that is a list
+		if i == len(t)-1 {
+			t = t[:i]
+		} else {
+			t = append(t[:i], t[i+1:])
+		}
+
+		// transform each element into a watch item
+		for _, p := range paths {
+			extend := make(map[string]interface{})
+			for k, v := range watchConf {
+				if k == "path" {
+					extend[k] = p
+					continue
+				}
+				extend[k] = v
+			}
+			t = append(t, extend)
+		}
+	}
+	return t, nil
 }
 
 func transformStringOrList(data any, _ tree.Path, _ bool) (any, error) {

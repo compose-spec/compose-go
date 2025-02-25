@@ -3096,7 +3096,7 @@ services:
 		assert.DeepEqual(t, *frontend.Develop, types.DevelopConfig{
 			Watch: []types.Trigger{
 				{
-					Path:   []string{"./webapp/html"},
+					Path:   "./webapp/html",
 					Action: types.WatchActionSync,
 					Target: "/var/www",
 					Ignore: []string{"node_modules/"},
@@ -3111,7 +3111,11 @@ services:
 		assert.DeepEqual(t, *backend.Develop, types.DevelopConfig{
 			Watch: []types.Trigger{
 				{
-					Path:   []string{"./backend/src", "./backend"},
+					Path:   "./backend/src",
+					Action: types.WatchActionRebuild,
+				},
+				{
+					Path:   "./backend",
 					Action: types.WatchActionRebuild,
 				},
 			},
@@ -3121,7 +3125,7 @@ services:
 		assert.DeepEqual(t, *proxy.Develop, types.DevelopConfig{
 			Watch: []types.Trigger{
 				{
-					Path:   []string{"./proxy/proxy.conf"},
+					Path:   "./proxy/proxy.conf",
 					Action: types.WatchActionSyncRestart,
 					Target: "/etc/nginx/proxy.conf",
 				},
@@ -3147,42 +3151,6 @@ services:
 			options.ResolvePaths = false
 		})
 		assert.ErrorContains(t, err, "validating filename0.yml: services.frontend.develop.watch.0 action is required")
-	})
-
-	t.Run("should return an error when cannot resolve path", func(t *testing.T) {
-		b, err := os.ReadFile("testdata/watch/compose-test-watch-star.yaml")
-		assert.NilError(t, err)
-
-		configDetails := types.ConfigDetails{
-			WorkingDir: "testdata",
-			ConfigFiles: []types.ConfigFile{
-				{Filename: "watch/compose-test-watch-star.yaml", Content: b},
-			},
-			Environment: map[string]string{},
-		}
-		expServices := types.Services{
-			"app": {
-				Name:        "app",
-				Image:       "example/app",
-				Environment: types.MappingWithEquals{},
-				Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
-				Develop: &types.DevelopConfig{
-					Watch: []types.Trigger{
-						{
-							Path: []string{
-								filepath.FromSlash("testdata/watch/other.txt"),
-								filepath.FromSlash("testdata/watch/some-text.txt"),
-							},
-							Action: types.WatchActionRebuild,
-						},
-					},
-				},
-			},
-		}
-
-		actual, err := LoadWithContext(context.Background(), configDetails)
-		assert.NilError(t, err)
-		assert.DeepEqual(t, actual.Services, expServices)
 	})
 }
 

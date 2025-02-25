@@ -17,7 +17,6 @@
 package paths
 
 import (
-	"fmt"
 	"path"
 	"path/filepath"
 
@@ -50,41 +49,9 @@ func (r *relativePathsResolver) absSymbolicLink(value any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch t := abs.(type) {
-	case string:
-		// this can return []string if * matches more than one file
-		return resolveAbsStarPath(t)
-	case []any:
-		var res []any
-		for _, tt := range t {
-			s, _ := tt.(string)
-			r, err := resolveAbsStarPath(s)
-			if err != nil {
-				return nil, err
-			}
-			res = append(res, r...)
-		}
-		return res, nil
+	str, ok := abs.(string)
+	if !ok {
+		return abs, nil
 	}
-
-	return abs, nil
-}
-
-func resolveAbsStarPath(t string) ([]any, error) {
-	matches, err := filepath.Glob(t)
-	if err != nil {
-		return nil, err
-	}
-	if len(matches) == 0 {
-		return nil, fmt.Errorf("could not resolve %s. Please make sure it exists?", t)
-	}
-	res := make([]any, len(matches))
-	for i, m := range matches {
-		symb, err := utils.ResolveSymbolicLink(m)
-		if err != nil {
-			return nil, err
-		}
-		res[i] = symb
-	}
-	return res, nil
+	return utils.ResolveSymbolicLink(str)
 }

@@ -89,19 +89,11 @@ func checkFileObject(keys ...string) checkerFunc {
 }
 
 func checkPath(value any, p tree.Path) error {
-	switch v := value.(type) {
-	case string:
-		if v == "" {
-			return fmt.Errorf("%s: value can't be blank", p)
-		}
-	case []interface{}:
-		for _, el := range v {
-			e := el.(string)
-			if e == "" {
-				return fmt.Errorf("%s: value in paths can't be blank", e)
-			}
-		}
+	v := value.(string)
+	if v == "" {
+		return fmt.Errorf("%s: value can't be blank", p)
 	}
+
 	return nil
 }
 
