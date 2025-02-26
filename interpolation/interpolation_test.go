@@ -27,9 +27,12 @@ import (
 )
 
 var defaults = map[string]string{
-	"USER":  "jenny",
-	"FOO":   "bar",
-	"count": "5",
+	"USER":   "jenny",
+	"FOO":    "bar",
+	"count":  "5",
+	"ARR[0]": "zero",
+	"ARR[1]": "one",
+	"ARR[2]": "two",
 }
 
 func defaultMapping(name string) (string, bool) {
@@ -40,8 +43,11 @@ func defaultMapping(name string) (string, bool) {
 func TestInterpolate(t *testing.T) {
 	services := map[string]interface{}{
 		"servicea": map[string]interface{}{
-			"image":   "example:${USER}",
-			"volumes": []interface{}{"$FOO:/target"},
+			"image": "example:${USER}",
+			"volumes": []interface{}{
+				"$FOO:/target",
+				"$ARR[*]",
+			},
 			"logging": map[string]interface{}{
 				"driver": "${FOO}",
 				"options": map[string]interface{}{
@@ -52,8 +58,13 @@ func TestInterpolate(t *testing.T) {
 	}
 	expected := map[string]interface{}{
 		"servicea": map[string]interface{}{
-			"image":   "example:jenny",
-			"volumes": []interface{}{"bar:/target"},
+			"image": "example:jenny",
+			"volumes": []interface{}{
+				"bar:/target",
+				"zero",
+				"one",
+				"two",
+			},
 			"logging": map[string]interface{}{
 				"driver": "bar",
 				"options": map[string]interface{}{
