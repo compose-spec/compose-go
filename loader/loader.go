@@ -35,7 +35,6 @@ import (
 	"github.com/compose-spec/compose-go/v2/override"
 	"github.com/compose-spec/compose-go/v2/paths"
 	"github.com/compose-spec/compose-go/v2/schema"
-	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/transform"
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
@@ -351,7 +350,7 @@ func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetail
 func toOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
 	opts := &Options{
 		Interpolate: &interp.Options{
-			Substitute:      template.Substitute,
+			Substitute:      interp.DefaultSubstitute,
 			LookupValue:     configDetails.LookupEnv,
 			TypeCastMapping: interpolateTypeCastMapping,
 		},

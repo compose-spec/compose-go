@@ -19,7 +19,9 @@ package interpolation
 import (
 	"errors"
 	"fmt"
+	"github.com/compose-spec/compose-go/v2/arraytemplate"
 	"os"
+	"reflect"
 
 	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -32,7 +34,12 @@ type Options struct {
 	// TypeCastMapping maps key paths to functions to cast to a type
 	TypeCastMapping map[tree.Path]Cast
 	// Substitution function to use
-	Substitute func(string, template.Mapping) (string, error)
+	Substitute func(string, LookupValue) (*SubstitutionResult, error)
+}
+
+type SubstitutionResult struct {
+	String string
+	Array  []string
 }
 
 // LookupValue is a function which maps from variable names to values.
@@ -53,7 +60,7 @@ func Interpolate(config map[string]interface{}, opts Options) (map[string]interf
 		opts.TypeCastMapping = make(map[tree.Path]Cast)
 	}
 	if opts.Substitute == nil {
-		opts.Substitute = template.Substitute
+		opts.Substitute = DefaultSubstitute
 	}
 
 	out := map[string]interface{}{}
@@ -69,18 +76,30 @@ func Interpolate(config map[string]interface{}, opts Options) (map[string]interf
 	return out, nil
 }
 
+func DefaultSubstitute(t string, lookup LookupValue) (*SubstitutionResult, error) {
+	if (arraytemplate.ArraySubstitutionPattern).MatchString(t) {
+		arr, err := arraytemplate.Substitute(t, arraytemplate.Mapping(lookup))
+		return &SubstitutionResult{Array: arr}, err
+	}
+	str, err := template.Substitute(t, template.Mapping(lookup))
+	return &SubstitutionResult{String: str}, err
+}
+
 func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (interface{}, error) {
 	switch value := value.(type) {
 	case string:
-		newValue, err := opts.Substitute(value, template.Mapping(opts.LookupValue))
+		result, err := opts.Substitute(value, opts.LookupValue)
 		if err != nil {
 			return value, newPathError(path, err)
 		}
+		if result.Array != nil {
+			return result.Array, nil
+		}
 		caster, ok := opts.getCasterForPath(path)
 		if !ok {
-			return newValue, nil
+			return result.String, nil
 		}
-		casted, err := caster(newValue)
+		casted, err := caster(result.String)
 		if err != nil {
 			return casted, newPathError(path, fmt.Errorf("failed to cast to expected type: %w", err))
 		}
@@ -98,19 +117,39 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 		return out, nil
 
 	case []interface{}:
-		out := make([]interface{}, len(value))
-		for i, elem := range value {
+		out := make([]interface{}, 0, len(value))
+		for _, elem := range value {
 			interpolatedElem, err := recursiveInterpolate(elem, path.Next(tree.PathMatchList), opts)
 			if err != nil {
 				return nil, err
 			}
-			out[i] = interpolatedElem
+			if isStringSlice(interpolatedElem) {
+				for _, nestedElem := range interpolatedElem.([]string) {
+					out = append(out, nestedElem)
+				}
+			} else {
+				out = append(out, interpolatedElem)
+			}
 		}
 		return out, nil
 
 	default:
 		return value, nil
 	}
+}
+
+func isStringSlice(value interface{}) bool {
+	if value == nil {
+		return false
+	}
+	t := reflect.TypeOf(value)
+	if t.Kind() != reflect.Slice {
+		return false
+	}
+	if t.Elem().Kind() != reflect.String {
+		return false
+	}
+	return true
 }
 
 func newPathError(path tree.Path, err error) error {
