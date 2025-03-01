@@ -27,12 +27,13 @@ import (
 )
 
 var defaults = map[string]string{
-	"USER":   "jenny",
-	"FOO":    "bar",
-	"count":  "5",
-	"ARR[0]": "zero",
-	"ARR[1]": "one",
-	"ARR[2]": "two",
+	"USER":             "jenny",
+	"FOO":              "bar",
+	"count":            "5",
+	"INDEXED_ARRAY[0]": "/zero",
+	"INDEXED_ARRAY[1]": "/one",
+	"INDEXED_ARRAY[2]": "/two",
+	"INLINED_ARRAY":    "(8080:80 8443:443)",
 }
 
 func defaultMapping(name string) (string, bool) {
@@ -46,8 +47,11 @@ func TestInterpolate(t *testing.T) {
 			"image": "example:${USER}",
 			"volumes": []interface{}{
 				"$FOO:/target",
-				"$ARR[*]",
+				"$INDEXED_ARRAY[*]",
+				"${INLINED_ARRAY}",
 			},
+			"ports":   "${INLINED_ARRAY[*]}",
+			"devices": "${NON_EXISTENT_ARRAY[*]}",
 			"logging": map[string]interface{}{
 				"driver": "${FOO}",
 				"options": map[string]interface{}{
@@ -61,10 +65,16 @@ func TestInterpolate(t *testing.T) {
 			"image": "example:jenny",
 			"volumes": []interface{}{
 				"bar:/target",
-				"zero",
-				"one",
-				"two",
+				"/zero",
+				"/one",
+				"/two",
+				"(8080:80 8443:443)",
 			},
+			"ports": []string{
+				"8080:80",
+				"8443:443",
+			},
+			"devices": []string{},
 			"logging": map[string]interface{}{
 				"driver": "bar",
 				"options": map[string]interface{}{
@@ -88,6 +98,23 @@ func TestInvalidInterpolation(t *testing.T) {
 	assert.Error(t, err, `invalid interpolation format for servicea.image.
 You may need to escape any $ with another $.
 ${`)
+}
+
+func TestInvalidInlinedArrayValueInterpolation(t *testing.T) {
+	services := map[string]interface{}{
+		"servicea": map[string]interface{}{
+			"volumes": "${INLINED_ARRAY[*]}",
+		},
+	}
+
+	erroneousMapping := func(name string) (string, bool) {
+		return "('no closing quote)", true
+	}
+
+	_, err := Interpolate(services, Options{LookupValue: erroneousMapping})
+	assert.Error(t, err, `error while interpolating servicea.volumes:
+could not substitute array template "${INLINED_ARRAY[*]}":
+invalid array definition: "('no closing quote)" - quote not closed`)
 }
 
 func TestInterpolateWithDefaults(t *testing.T) {
@@ -151,7 +178,7 @@ func TestValidUnexistentInterpolation(t *testing.T) {
 	}
 
 	getFullErrorMsg := func(msg string) string {
-		return fmt.Sprintf("error while interpolating myservice.environment.TESTVAR: required variable FOO is missing a value: %s", msg)
+		return fmt.Sprintf("error while interpolating myservice.environment.TESTVAR:\nrequired variable FOO is missing a value: %s", msg)
 	}
 
 	for _, testcase := range testcases {
