@@ -380,12 +380,7 @@ func (p *Project) WithServicesEnabled(names ...string) (*Project, error) {
 		service := p.DisabledServices[name]
 		profiles = append(profiles, service.Profiles...)
 	}
-	newProject, err := newProject.WithProfiles(profiles)
-	if err != nil {
-		return newProject, err
-	}
-
-	return newProject.WithServicesEnvironmentResolved(true)
+	return newProject.WithProfiles(profiles)
 }
 
 // WithoutUnnecessaryResources drops networks/volumes/secrets/configs that are not referenced by active services
