@@ -542,7 +542,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		return nil, errors.New("empty compose file")
 	}
 
-	if opts.projectName == "" {
+	if !opts.SkipValidation && opts.projectName == "" {
 		return nil, errors.New("project name must not be empty")
 	}
 
