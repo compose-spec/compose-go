@@ -3733,3 +3733,14 @@ services:
 	assert.Equal(t, policy, types.PullPolicyRefresh)
 	assert.Equal(t, duration, 2*24*time.Hour)
 }
+
+func TestEnvironmentWhitespace(t *testing.T) {
+	_, err := loadYAML(`
+name: environment_whitespace
+services:
+  test:
+    environment:
+      - DEBUG = true
+`)
+	assert.Check(t, strings.Contains(err.Error(), "'services[test].environment': environment variable DEBUG  is declared with a trailing space"))
+}
