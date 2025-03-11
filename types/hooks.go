@@ -18,11 +18,12 @@ package types
 
 // ServiceHook is a command to exec inside container by some lifecycle events
 type ServiceHook struct {
-	Command     ShellCommand      `yaml:"command,omitempty" json:"command"`
-	User        string            `yaml:"user,omitempty" json:"user,omitempty"`
-	Privileged  bool              `yaml:"privileged,omitempty" json:"privileged,omitempty"`
-	WorkingDir  string            `yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
-	Environment MappingWithEquals `yaml:"environment,omitempty" json:"environment,omitempty"`
+	Command     ShellCommand        `yaml:"command,omitempty" json:"command"`
+	Copy        FileReferenceConfig `yaml:"copy,omitempty" json:"copy"`
+	User        string              `yaml:"user,omitempty" json:"user,omitempty"`
+	Privileged  bool                `yaml:"privileged,omitempty" json:"privileged,omitempty"`
+	WorkingDir  string              `yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
+	Environment MappingWithEquals   `yaml:"environment,omitempty" json:"environment,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }

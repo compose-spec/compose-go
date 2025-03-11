@@ -264,3 +264,35 @@ func TestSchema(t *testing.T) {
 	_, err = sl.Compile(schema)
 	assert.NilError(t, err)
 }
+
+func TestValidateMutuallyExclusive(t *testing.T) {
+	var config dict
+	err := yaml.Unmarshal([]byte(`services:
+  test:
+    post_start:
+      - command: echo hello
+`), &config)
+	assert.NilError(t, err)
+	assert.NilError(t, Validate(config))
+
+	err = yaml.Unmarshal([]byte(`services:
+  test:
+    post_start:
+      - copy:
+          source: ./foo
+          target: /bar
+`), &config)
+	assert.NilError(t, err)
+	assert.NilError(t, Validate(config))
+
+	err = yaml.Unmarshal([]byte(`services:
+  test:
+    post_start:
+      - command: echo hello
+        copy:
+          source: ./foo
+          target: /bar
+`), &config)
+	assert.NilError(t, err)
+	assert.Check(t, Validate(config) != nil)
+}

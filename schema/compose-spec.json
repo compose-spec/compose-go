@@ -832,6 +832,7 @@
     "service_hook": {
       "type": "object",
       "properties": {
+        "copy": {"$ref": "#/definitions/copy_file"},
         "command": {"$ref": "#/definitions/command"},
         "user": {"type": "string"},
         "privileged": {"type": ["boolean", "string"]},
@@ -839,7 +840,8 @@
         "environment": {"$ref": "#/definitions/list_or_dict"}
       },
       "additionalProperties": false,
-      "patternProperties": {"^x-": {}}
+      "patternProperties": {"^x-": {}},
+      "if": {"required": ["command"]}, "then": {"not": {"required": ["copy"]}}
     },
 
     "env_file": {
@@ -960,21 +962,23 @@
       "items": {
         "oneOf": [
           {"type": "string"},
-          {
-            "type": "object",
-            "properties": {
-              "source": {"type": "string"},
-              "target": {"type": "string"},
-              "uid": {"type": "string"},
-              "gid": {"type": "string"},
-              "mode": {"type": ["number", "string"]}
-            },
-            "additionalProperties": false,
-            "patternProperties": {"^x-": {}}
-          }
+          {"$ref": "#/definitions/copy_file"}
         ]
       }
     },
+    "copy_file": {
+      "type": "object",
+      "properties": {
+        "source": {"type": "string"},
+        "target": {"type": "string"},
+        "uid": {"type": "string"},
+        "gid": {"type": "string"},
+        "mode": {"type": ["number", "string"]}
+      },
+      "additionalProperties": false,
+      "patternProperties": {"^x-": {}}
+    },
+
     "ulimits": {
       "type": "object",
       "patternProperties": {

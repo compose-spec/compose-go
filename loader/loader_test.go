@@ -3744,3 +3744,20 @@ services:
 `)
 	assert.Check(t, strings.Contains(err.Error(), "'services[test].environment': environment variable DEBUG  is declared with a trailing space"))
 }
+
+func TestCopyHook(t *testing.T) {
+	p, err := loadYAML(`
+name: copy_hook
+services:
+  test:
+    post_start:
+      - copy:
+          source: ./foo
+          target: /bar
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["test"].PostStart[0].Copy, types.FileReferenceConfig{
+		Source: "./foo",
+		Target: "/bar",
+	})
+}
