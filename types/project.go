@@ -722,12 +722,7 @@ func loadMappingFile(path string, format string, resolve dotenv.LookupFn) (Mappi
 	}
 	defer file.Close()
 
-	var fileVars map[string]string
-	if format != "" {
-		fileVars, err = dotenv.ParseWithFormat(file, path, resolve, format)
-	} else {
-		fileVars, err = dotenv.ParseWithLookup(file, resolve)
-	}
+	fileVars, err := dotenv.ParseWithFormat(file, path, resolve, format)
 	if err != nil {
 		return nil, err
 	}
