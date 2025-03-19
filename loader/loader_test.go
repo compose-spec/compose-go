@@ -3761,3 +3761,18 @@ services:
 	assert.Equal(t, len(p.Services["test"].Secrets), 1)
 	assert.Equal(t, *p.Services["test"].Secrets[0].Mode, types.FileMode(0o440))
 }
+
+func TestDependsOnTimeout(t *testing.T) {
+	p, err := loadYAML(`
+name: depends-on-timeout
+services:
+  test:
+    depends_on:
+      another: 
+        condition: service_healthy
+        timeout: 20s
+`)
+	assert.NilError(t, err)
+	to := p.Services["test"].DependsOn["another"].Timeout
+	assert.Equal(t, *to, types.Duration(20*time.Second))
+}

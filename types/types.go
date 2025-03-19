@@ -820,10 +820,12 @@ const (
 type DependsOnConfig map[string]ServiceDependency
 
 type ServiceDependency struct {
-	Condition  string     `yaml:"condition,omitempty" json:"condition,omitempty"`
-	Restart    bool       `yaml:"restart,omitempty" json:"restart,omitempty"`
+	Condition string    `yaml:"condition,omitempty" json:"condition,omitempty"`
+	Restart   bool      `yaml:"restart,omitempty" json:"restart,omitempty"`
+	Required  bool      `yaml:"required" json:"required"`
+	Timeout   *Duration `yaml:"timeout,omitempty" json:"timeout,omitempty"`
+
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
-	Required   bool       `yaml:"required" json:"required"`
 }
 
 type ExtendsConfig struct {

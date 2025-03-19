@@ -1620,13 +1620,19 @@ func deriveDeepCopy_31(dst, src *ServiceConfigObjConfig) {
 func deriveDeepCopy_32(dst, src *ServiceDependency) {
 	dst.Condition = src.Condition
 	dst.Restart = src.Restart
+	dst.Required = src.Required
+	if src.Timeout == nil {
+		dst.Timeout = nil
+	} else {
+		dst.Timeout = new(Duration)
+		*dst.Timeout = *src.Timeout
+	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
 		src.Extensions.DeepCopy(dst.Extensions)
 	} else {
 		dst.Extensions = nil
 	}
-	dst.Required = src.Required
 }
 
 // deriveDeepCopy_33 recursively copies the contents of src into dst.
