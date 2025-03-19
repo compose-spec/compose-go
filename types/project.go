@@ -298,16 +298,25 @@ func (p *Project) withServices(names []string, fn ServiceFunc, seen map[string]b
 	return nil
 }
 
-func (p *Project) GetDependentsForService(s ServiceConfig) []string {
-	return utils.MapKeys(p.dependentsForService(s))
+func (p *Project) GetDependentsForService(s ServiceConfig, filter ...func(ServiceDependency) bool) []string {
+	return utils.MapKeys(p.dependentsForService(s, filter...))
 }
 
-func (p *Project) dependentsForService(s ServiceConfig) map[string]ServiceDependency {
+func (p *Project) dependentsForService(s ServiceConfig, filter ...func(ServiceDependency) bool) map[string]ServiceDependency {
 	dependent := make(map[string]ServiceDependency)
 	for _, service := range p.Services {
 		for name, dependency := range service.DependsOn {
 			if name == s.Name {
-				dependent[service.Name] = dependency
+				depends := true
+				for _, f := range filter {
+					if !f(dependency) {
+						depends = false
+						break
+					}
+				}
+				if depends {
+					dependent[service.Name] = dependency
+				}
 			}
 		}
 	}
