@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -42,7 +43,6 @@ import (
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 )
 
