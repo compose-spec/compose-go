@@ -717,8 +717,7 @@ func TestLoadWithFormat(t *testing.T) {
 		"ZOT": "QIX",
 	}
 
-	custom := func(r io.Reader, _ string, lookup func(key string) (string, bool)) (map[string]string, error) {
-		vars := map[string]string{}
+	custom := func(r io.Reader, _ string, vars map[string]string, lookup func(key string) (string, bool)) error {
 		scanner := bufio.NewScanner(r)
 		for scanner.Scan() {
 			key, value, found := strings.Cut(scanner.Text(), ":")
@@ -730,14 +729,15 @@ func TestLoadWithFormat(t *testing.T) {
 			}
 			vars[key] = value
 		}
-		return vars, nil
+		return nil
 	}
 
 	RegisterFormat("custom", custom)
 
 	f, err := os.Open(envFileName)
 	assert.NilError(t, err)
-	env, err := ParseWithFormat(f, envFileName, nil, "custom")
+	env := map[string]string{}
+	err = ParseWithFormat(f, envFileName, env, nil, "custom")
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expectedValues, env)
 }
