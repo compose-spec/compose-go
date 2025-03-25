@@ -639,27 +639,27 @@ func (p *Project) MarshalJSON(options ...func(*marshallOptions)) ([]byte, error)
 func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project, error) {
 	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
-		service.Environment = service.Environment.Resolve(newProject.Environment.Resolve)
+		service.Environment = service.Environment.Resolve(newProject.Environment.Resolve).RemoveEmpty()
 
-		environment := MappingWithEquals{}
-		// resolve variables based on other files we already parsed, + project's environment
-		var resolve dotenv.LookupFn = func(s string) (string, bool) {
-			v, ok := environment[s]
-			if ok && v != nil {
-				return *v, ok
-			}
-			return newProject.Environment.Resolve(s)
-		}
-
+		environment := service.Environment.ToMapping()
 		for _, envFile := range service.EnvFiles {
-			vars, err := loadEnvFile(envFile, resolve)
+			err := loadEnvFile(envFile, environment, func(k string) (string, bool) {
+				// project.env has precedence doing interpolation
+				if resolve, ok := p.Environment.Resolve(k); ok {
+					return resolve, true
+				}
+				// then service.environment
+				if s, ok := service.Environment[k]; ok {
+					return *s, true
+				}
+				return "", false
+			})
 			if err != nil {
 				return nil, err
 			}
-			environment.OverrideBy(vars.ToMappingWithEquals())
 		}
 
-		service.Environment = environment.OverrideBy(service.Environment)
+		service.Environment = environment.ToMappingWithEquals().OverrideBy(service.Environment)
 
 		if discardEnvFiles {
 			service.EnvFiles = nil
@@ -707,15 +707,16 @@ func (p Project) WithServicesLabelsResolved(discardLabelFiles bool) (*Project, e
 	return newProject, nil
 }
 
-func loadEnvFile(envFile EnvFile, resolve dotenv.LookupFn) (Mapping, error) {
+func loadEnvFile(envFile EnvFile, environment Mapping, resolve dotenv.LookupFn) error {
 	if _, err := os.Stat(envFile.Path); os.IsNotExist(err) {
 		if envFile.Required {
-			return nil, fmt.Errorf("env file %s not found: %w", envFile.Path, err)
+			return fmt.Errorf("env file %s not found: %w", envFile.Path, err)
 		}
-		return nil, nil
+		return nil
 	}
 
-	return loadMappingFile(envFile.Path, envFile.Format, resolve)
+	err := loadMappingFile(envFile.Path, envFile.Format, environment, resolve)
+	return err
 }
 
 func loadLabelFile(labelFile string, resolve dotenv.LookupFn) (Mapping, error) {
@@ -723,21 +724,19 @@ func loadLabelFile(labelFile string, resolve dotenv.LookupFn) (Mapping, error) {
 		return nil, fmt.Errorf("label file %s not found: %w", labelFile, err)
 	}
 
-	return loadMappingFile(labelFile, "", resolve)
+	labels := Mapping{}
+	err := loadMappingFile(labelFile, "", labels, resolve)
+	return labels, err
 }
 
-func loadMappingFile(path string, format string, resolve dotenv.LookupFn) (Mapping, error) {
+func loadMappingFile(path string, format string, vars Mapping, resolve dotenv.LookupFn) error {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer file.Close()
 
-	fileVars, err := dotenv.ParseWithFormat(file, path, resolve, format)
-	if err != nil {
-		return nil, err
-	}
-	return fileVars, nil
+	return dotenv.ParseWithFormat(file, path, vars, resolve, format)
 }
 
 func (p *Project) deepCopy() *Project {
