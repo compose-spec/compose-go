@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 
@@ -279,6 +280,18 @@ func TestWithServices(t *testing.T) {
 	}, IncludeDependencies)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, seen, []string{"service_1", "service_2", "service_4"})
+}
+
+func TestWithServicesWithWildcard(t *testing.T) {
+	p := makeProject()
+	var seen []string
+	err := p.ForEachService([]string{"service_*"}, func(name string, _ *ServiceConfig) error {
+		seen = append(seen, name)
+		return nil
+	}, IgnoreDependencies)
+	assert.NilError(t, err)
+	sort.Strings(seen)
+	assert.DeepEqual(t, seen, []string{"service_1", "service_2", "service_3", "service_4", "service_5", "service_6"})
 }
 
 func TestServicesWithBuild(t *testing.T) {
