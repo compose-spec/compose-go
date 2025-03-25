@@ -16,7 +16,7 @@
 
 package loader
 
-// fixEmptyNotNull is a workaround for https://github.com/xeipuuv/gojsonschema/issues/141
+// fixEmptyNotNull is a workaround for https://github.com/santhosh-tekuri/jsonschema/issues/141
 // as go-yaml `[]` will load as a `[]any(nil)`, which is not the same as an empty array
 func fixEmptyNotNull(value any) interface{} {
 	switch v := value.(type) {
