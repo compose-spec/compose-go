@@ -21,13 +21,13 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
-	"golang.org/x/exp/slices"
 	"gotest.tools/v3/assert"
 )
 
@@ -296,13 +296,13 @@ func TestWithServicesWithWildcard(t *testing.T) {
 
 func TestServicesWithBuild(t *testing.T) {
 	p := makeProject()
-	assert.DeepEqual(t, []string{}, p.ServicesWithBuild())
+	assert.Equal(t, len(p.ServicesWithBuild()), 0)
 
 	service, err := p.GetService("service_1")
 	assert.NilError(t, err)
 	service.Build = &BuildConfig{}
 	p.Services["service_1"] = service
-	assert.DeepEqual(t, []string{}, p.ServicesWithBuild())
+	assert.Equal(t, len(p.ServicesWithBuild()), 0)
 
 	service.Build = &BuildConfig{
 		Context: ".",
