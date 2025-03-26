@@ -20,8 +20,8 @@ import (
 	_ "crypto/sha256"
 	"errors"
 	"fmt"
-	"sort"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 
