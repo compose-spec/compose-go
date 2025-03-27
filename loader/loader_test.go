@@ -3760,3 +3760,20 @@ services:
 	assert.Equal(t, len(p.Services["test"].Secrets), 1)
 	assert.Equal(t, *p.Services["test"].Secrets[0].Mode, types.FileMode(0o440))
 }
+
+func TestExternalService(t *testing.T) {
+	p, err := loadYAML(`
+name: external-service
+services:
+  test:
+    external:
+      type: foo
+      options:
+        bar: zot
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["test"].External, &types.ExternalServiceConfig{
+		Type:    "foo",
+		Options: map[string]string{"bar": "zot"},
+	})
+}
