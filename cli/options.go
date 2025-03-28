@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -403,14 +404,13 @@ func (o *ProjectOptions) GetWorkingDir() (string, error) {
 }
 
 // ReadConfigFiles reads ConfigFiles and populates the content field
-func (o *ProjectOptions) ReadConfigFiles(ctx context.Context, workingDir string, options *ProjectOptions) (*types.ConfigDetails, error) {
-	config, err := loader.LoadConfigFiles(ctx, options.ConfigPaths, workingDir, options.loadOptions...)
+func (o *ProjectOptions) ReadConfigFiles(ctx context.Context, workingDir string) (*types.ConfigDetails, error) {
+	config, err := loader.LoadConfigFiles(ctx, o.ConfigPaths, workingDir, o.loadOptions...)
 	if err != nil {
 		return nil, err
 	}
-	configs := make([][]byte, len(config.ConfigFiles))
-
-	for i, c := range config.ConfigFiles {
+	configs := make([]types.ConfigFile, 0, len(config.ConfigFiles))
+	for _, c := range config.ConfigFiles {
 		var err error
 		var b []byte
 		if c.IsStdin() {
@@ -418,21 +418,40 @@ func (o *ProjectOptions) ReadConfigFiles(ctx context.Context, workingDir string,
 			if err != nil {
 				return nil, err
 			}
+
+			configs = append(configs, types.ConfigFile{
+				Filename: "-",
+				Content:  b,
+				Config:   nil,
+			})
 		} else {
 			f, err := filepath.Abs(c.Filename)
 			if err != nil {
 				return nil, err
 			}
-			b, err = os.ReadFile(f)
+
+			matches, err := filepath.Glob(f)
 			if err != nil {
 				return nil, err
 			}
+
+			slices.Sort(matches)
+
+			for _, match := range matches {
+				b, err = os.ReadFile(match)
+				if err != nil {
+					return nil, err
+				}
+
+				configs = append(configs, types.ConfigFile{
+					Filename: match,
+					Content:  b,
+					Config:   nil,
+				})
+			}
 		}
-		configs[i] = b
 	}
-	for i, c := range configs {
-		config.ConfigFiles[i].Content = c
-	}
+	config.ConfigFiles = configs
 	return config, nil
 }
 
@@ -476,7 +495,7 @@ func (o *ProjectOptions) prepare(ctx context.Context) (*types.ConfigDetails, err
 		return &types.ConfigDetails{}, err
 	}
 
-	configDetails, err := o.ReadConfigFiles(ctx, defaultDir, o)
+	configDetails, err := o.ReadConfigFiles(ctx, defaultDir)
 	if err != nil {
 		return configDetails, err
 	}
