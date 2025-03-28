@@ -596,7 +596,6 @@ services:
 		"BAR": strPtr("2"),
 		"GA":  strPtr("2.5"),
 		"BU":  strPtr(""),
-		"ZO":  nil,
 		"MEU": strPtr("Shadoks"),
 	}
 

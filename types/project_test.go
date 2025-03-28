@@ -432,3 +432,67 @@ secrets:
     content: SECRET`
 	assert.Equal(t, strings.TrimSpace(string(yaml)), strings.TrimSpace(expected))
 }
+
+func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
+	p := &Project{
+		Services: Services{
+			"base": ServiceConfig{
+				Environment: MappingWithEquals{
+					"FOO": ptr("foo_from_environment"),
+					"BAR": ptr("bar_from_environment"),
+					"QIX": nil,
+				},
+				EnvFiles: []EnvFile{
+					{Path: "fixtures/base.env"},
+				},
+			},
+			"override": ServiceConfig{
+				Environment: MappingWithEquals{
+					"FOO": ptr("foo_from_environment"),
+				},
+				EnvFiles: []EnvFile{
+					{Path: "fixtures/base.env"},
+					{Path: "fixtures/override.env"},
+				},
+			},
+		},
+		Environment: map[string]string{
+			"FOO": "FOO_from_os.env",
+			"QIX": "QIX_from_os.env",
+		},
+	}
+	p, err := p.WithServicesEnvironmentResolved(true)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["base"].Environment, MappingWithEquals{
+		// service.environment has precedence over env_file
+		"FOO": ptr("foo_from_environment"),
+		"BAR": ptr("bar_from_environment"),
+		// service.environment without a value propagates os.env to container
+		"QIX": ptr("QIX_from_os.env"),
+		// value from env_file is loaded
+		"ZOT": ptr("zot_from_base.env"),
+		// os.env is always preferred for interpolation
+		"INTERPOLATED_FOO": ptr("FOO_from_os.env"),
+		// then service.environment is preferred for interpolation
+		"INTERPOLATED_BAR": ptr("bar_from_environment"),
+		// interpolation uses the value previously set in env file
+		"INTERPOLATED_ZOT": ptr("zot_from_base.env"),
+	})
+	assert.DeepEqual(t, p.Services["override"].Environment, MappingWithEquals{
+		// service.environment has precedence over env_file
+		"FOO": ptr("foo_from_environment"),
+		// value from env_file are loaded, with override
+		"BAR": ptr("bar_from_override.env"),
+		"ZOT": ptr("zot_from_base.env"),
+		// os.env is always preferred for interpolation
+		"INTERPOLATED_FOO": ptr("FOO_from_os.env"),
+		// interpolation uses the overridden value from override.env
+		"INTERPOLATED_BAR": ptr("bar_from_override.env"),
+		// interpolation uses the value previously set in env file
+		"INTERPOLATED_ZOT": ptr("zot_from_base.env"),
+	})
+}
+
+func ptr[T any](s T) *T {
+	return &s
+}
