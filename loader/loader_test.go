@@ -453,13 +453,13 @@ func TestParseAndLoad(t *testing.T) {
 
 func TestInvalidTopLevelObjectType(t *testing.T) {
 	_, err := loadYAML("1")
-	assert.ErrorContains(t, err, "Top-level object must be a mapping")
+	assert.ErrorContains(t, err, "top-level object must be a mapping")
 
 	_, err = loadYAML("\"hello\"")
-	assert.ErrorContains(t, err, "Top-level object must be a mapping")
+	assert.ErrorContains(t, err, "top-level object must be a mapping")
 
 	_, err = loadYAML("[\"hello\"]")
-	assert.ErrorContains(t, err, "Top-level object must be a mapping")
+	assert.ErrorContains(t, err, "top-level object must be a mapping")
 }
 
 func TestNonStringKeys(t *testing.T) {
@@ -468,7 +468,7 @@ func TestNonStringKeys(t *testing.T) {
   foo:
     image: busybox
 `)
-	assert.ErrorContains(t, err, "Non-string key at top level: 123")
+	assert.ErrorContains(t, err, "non-string key at top level: 123")
 
 	_, err = loadYAML(`
 services:
@@ -477,7 +477,7 @@ services:
   123:
     image: busybox
 `)
-	assert.ErrorContains(t, err, "Non-string key in services: 123")
+	assert.ErrorContains(t, err, "non-string key in services: 123")
 
 	_, err = loadYAML(`
 services:
@@ -489,7 +489,7 @@ networks:
       config:
         - 123: oh dear
 `)
-	assert.ErrorContains(t, err, "Non-string key in networks.default.ipam.config[0]: 123")
+	assert.ErrorContains(t, err, "non-string key in networks.default.ipam.config[0]: 123")
 
 	_, err = loadYAML(`
 services:
@@ -498,7 +498,7 @@ services:
     environment:
       1: FOO
 `)
-	assert.ErrorContains(t, err, "Non-string key in services.dict-env.environment: 1")
+	assert.ErrorContains(t, err, "non-string key in services.dict-env.environment: 1")
 }
 
 func TestV1Unsupported(t *testing.T) {

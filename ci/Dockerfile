@@ -16,7 +16,7 @@ FROM golang:1.24
 
 WORKDIR /go/src
 
-ARG GOLANGCILINT_VERSION=v1.64.5
+ARG GOLANGCILINT_VERSION=v2.0.2
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCILINT_VERSION}
 RUN go install github.com/awalterschulze/goderive@v0.5.1
 RUN go install github.com/containerd/ltag@v0.3.0

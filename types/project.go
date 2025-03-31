@@ -157,9 +157,10 @@ func (p *Project) ServicesWithCapabilities() ([]string, []string, []string) {
 				capabilities = append(capabilities, service.Name)
 			}
 			for _, c := range d.Capabilities {
-				if c == "gpu" {
+				switch c {
+				case "gpu":
 					gpu = append(gpu, service.Name)
-				} else if c == "tpu" {
+				case "tpu":
 					tpu = append(tpu, service.Name)
 				}
 			}
