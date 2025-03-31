@@ -407,3 +407,26 @@ func TestWildcards(t *testing.T) {
 		},
 	})
 }
+
+func TestFolder(t *testing.T) {
+	options, err := NewProjectOptions([]string{"testdata/wildcards/"})
+	assert.NilError(t, err)
+	files, err := options.ReadConfigFiles(context.TODO(), ".")
+	assert.NilError(t, err)
+
+	abs, err := filepath.Abs("testdata/wildcards")
+	assert.NilError(t, err)
+	assert.DeepEqual(t, files, &types.ConfigDetails{
+		WorkingDir: ".",
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: filepath.Join(abs, "compose-A.yaml"),
+				Content:  []byte{},
+			},
+			{
+				Filename: filepath.Join(abs, "compose-B.yaml"),
+				Content:  []byte{},
+			},
+		},
+	})
+}

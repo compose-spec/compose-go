@@ -430,6 +430,10 @@ func (o *ProjectOptions) ReadConfigFiles(ctx context.Context, workingDir string)
 				return nil, err
 			}
 
+			if stat, err := os.Stat(f); err == nil && stat.IsDir() {
+				f = filepath.Join(f, "*.yaml")
+			}
+
 			matches, err := filepath.Glob(f)
 			if err != nil {
 				return nil, err
