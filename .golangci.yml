@@ -1,8 +1,6 @@
-issues:
-  max-issues-per-linter: 0
-  max-same-issues: 0
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - copyloopvar
     - depguard
@@ -10,11 +8,7 @@ linters:
     - errorlint
     - gocritic
     - gocyclo
-    - gofumpt
-    - goimports
     - gomodguard
-    - revive
-    - gosimple
     - govet
     - ineffassign
     - lll
@@ -24,51 +18,70 @@ linters:
     - revive
     - staticcheck
     - testifylint
-    - typecheck
     - unconvert
     - unparam
     - unused
-linters-settings:
-  depguard:
-    rules:
-      all:
-        deny:
-          - pkg: gopkg.in/yaml.v2
-            desc: 'compose-go uses yaml.v3'
-  gocritic:
-    # Enable multiple checks by tags, run `GL_DEBUG=gocritic golangci-lint run` to see all tags and checks.
-    # Empty list by default. See https://github.com/go-critic/go-critic#usage -> section "Tags".
-    enabled-tags:
-      - diagnostic
-      - opinionated
-      - style
-    disabled-checks:
-      - paramTypeCombine
-      - unnamedResult
-      - whyNoLint
-  gomodguard:
-    blocked:
-      modules:
-      - github.com/pkg/errors:
-          recommendations:
-          - errors
-          - fmt
-  lll:
-    line-length: 200
-  testifylint:
-    disable:
-    - float-compare
-    - go-require
-    enable:
-    - bool-compare
-    - compares
-    - empty
-    - error-is-as
-    - error-nil
-    - expected-actual
-    - len
-    - require-error
-    - suite-dont-use-pkg
-    - suite-extra-assert-call
-run:
-  timeout: 5m
+  settings:
+    depguard:
+      rules:
+        all:
+          deny:
+            - pkg: gopkg.in/yaml.v2
+              desc: compose-go uses yaml.v3
+    gocritic:
+      disabled-checks:
+        - paramTypeCombine
+        - unnamedResult
+        - whyNoLint
+      enabled-tags:
+        - diagnostic
+        - opinionated
+        - style
+    gomodguard:
+      blocked:
+        modules:
+          - github.com/pkg/errors:
+              recommendations:
+                - errors
+                - fmt
+    lll:
+      line-length: 200
+    testifylint:
+      enable:
+        - bool-compare
+        - compares
+        - empty
+        - error-is-as
+        - error-nil
+        - expected-actual
+        - len
+        - require-error
+        - suite-dont-use-pkg
+        - suite-extra-assert-call
+      disable:
+        - float-compare
+        - go-require
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

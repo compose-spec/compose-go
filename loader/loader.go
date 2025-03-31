@@ -337,7 +337,7 @@ func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
 func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (map[string]any, error) {
 	if len(configDetails.ConfigFiles) < 1 {
-		return nil, errors.New("No files specified")
+		return nil, errors.New("no compose file specified")
 	}
 
 	err := projectName(configDetails, opts)
@@ -432,7 +432,7 @@ func loadYamlFile(ctx context.Context,
 		}
 		cfg, ok := converted.(map[string]interface{})
 		if !ok {
-			return errors.New("Top-level object must be a mapping")
+			return errors.New("top-level object must be a mapping")
 		}
 
 		if opts.Interpolate != nil && !opts.SkipInterpolation {
@@ -877,7 +877,7 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 	} else {
 		location = fmt.Sprintf("in %s", keyPrefix)
 	}
-	return fmt.Errorf("Non-string key %s: %#v", location, key)
+	return fmt.Errorf("non-string key %s: %#v", location, key)
 }
 
 // Windows path, c:\\my\\path\\shiny, need to be changed to be compatible with
