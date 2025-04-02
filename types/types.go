@@ -76,7 +76,7 @@ type ServiceConfig struct {
 	//
 	// Set to `[]` or an empty string to clear the entrypoint from the image.
 	Entrypoint      ShellCommand                     `yaml:"entrypoint,omitempty" json:"entrypoint"` // NOTE: we can NOT omitempty for JSON! see ShellCommand type for details.
-	External        *ExternalServiceConfig           `yaml:"external,omitempty" json:"external,omitempty"`
+	Provider        *ServiceProviderConfig           `yaml:"provider,omitempty" json:"provider,omitempty"`
 	Environment     MappingWithEquals                `yaml:"environment,omitempty" json:"environment,omitempty"`
 	EnvFiles        []EnvFile                        `yaml:"env_file,omitempty" json:"env_file,omitempty"`
 	Expose          StringOrNumberList               `yaml:"expose,omitempty" json:"expose,omitempty"`
@@ -142,7 +142,7 @@ type ServiceConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
-type ExternalServiceConfig struct {
+type ServiceProviderConfig struct {
 	Type       string     `yaml:"type,omitempty" json:"driver,omitempty"`
 	Options    Options    `yaml:"options,omitempty" json:"options,omitempty"`
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`

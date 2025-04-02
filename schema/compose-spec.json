@@ -259,7 +259,7 @@
             }
           ]
         },
-        "external": {
+        "provider": {
           "type": "object",
           "properties": {
             "type": {"type": "string"},

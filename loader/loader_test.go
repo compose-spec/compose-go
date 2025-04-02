@@ -3761,18 +3761,18 @@ services:
 	assert.Equal(t, *p.Services["test"].Secrets[0].Mode, types.FileMode(0o440))
 }
 
-func TestExternalService(t *testing.T) {
+func TestServiceProvider(t *testing.T) {
 	p, err := loadYAML(`
-name: external-service
+name: service-provider
 services:
   test:
-    external:
+    provider:
       type: foo
       options:
         bar: zot
 `)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Services["test"].External, &types.ExternalServiceConfig{
+	assert.DeepEqual(t, p.Services["test"].Provider, &types.ServiceProviderConfig{
 		Type:    "foo",
 		Options: map[string]string{"bar": "zot"},
 	})
