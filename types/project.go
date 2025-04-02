@@ -190,16 +190,25 @@ func (p *Project) getServicesByNames(names ...string) (Services, []string) {
 	if len(names) == 0 {
 		return p.Services, nil
 	}
+
 	services := Services{}
 	var servicesNotFound []string
 	for _, name := range names {
-		service, ok := p.Services[name]
-		if !ok {
-			servicesNotFound = append(servicesNotFound, name)
-			continue
+		matched := false
+
+		for serviceName, service := range p.Services {
+			match, _ := filepath.Match(name, serviceName)
+			if match {
+				services[serviceName] = service
+				matched = true
+			}
 		}
-		services[name] = service
+
+		if !matched {
+			servicesNotFound = append(servicesNotFound, name)
+		}
 	}
+
 	return services, servicesNotFound
 }
 
