@@ -94,3 +94,81 @@ external: true
 		})
 	}
 }
+
+func TestValidateType(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		err   string
+	}{
+		{
+			name: "unset",
+			input: `
+name: test
+services:
+  test:
+    image: test
+`,
+			err: "",
+		},
+		{
+			name: "default",
+			input: `
+name: test
+services:
+  test:
+    type: docker
+    image: test
+`,
+			err: "",
+		},
+		{
+			name: "third-party",
+			input: `
+name: test
+services:
+  test:
+    type: third-party
+    options:
+      foo: bar
+`,
+			err: "",
+		},
+		{
+			name: "conflict",
+			input: `
+name: test
+services:
+  test:
+    type: potato
+    image: test
+`,
+			err: "services.test: image attribute can't be set for service with type potato",
+		},
+		{
+			name: "unsupported options",
+			input: `
+name: test
+services:
+  test:
+    image: test
+    options:
+      foo: bar
+`,
+			err: "services.test: options attribute only can be used when type is set",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var input map[string]any
+			err := yaml.Unmarshal([]byte(tt.input), &input)
+			assert.NilError(t, err)
+			err = Validate(input)
+			if tt.err == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Equal(t, tt.err, err.Error())
+			}
+		})
+	}
+}

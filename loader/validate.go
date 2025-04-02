@@ -29,7 +29,7 @@ import (
 // checkConsistency validate a compose model is consistent
 func checkConsistency(project *types.Project) error { //nolint:gocyclo
 	for name, s := range project.Services {
-		if s.Build == nil && s.Image == "" && s.External == nil {
+		if s.Build == nil && s.Image == "" && (s.Type == "" || s.Type == "docker") {
 			return fmt.Errorf("service %q has neither an image nor a build context specified: %w", s.Name, errdefs.ErrInvalid)
 		}
 

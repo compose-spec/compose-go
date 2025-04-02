@@ -83,6 +83,14 @@
       "type": "object",
 
       "properties": {
+        "type": {"type": "string"},
+        "options": {
+          "type": "object",
+          "patternProperties": {
+            "^.+$": {"type": ["string", "number", "null"]}
+          }
+        },
+
         "develop": {"$ref": "#/definitions/development"},
         "deploy": {"$ref": "#/definitions/deployment"},
         "annotations": {"$ref": "#/definitions/list_or_dict"},
@@ -258,20 +266,6 @@
               "additionalProperties": false
             }
           ]
-        },
-        "external": {
-          "type": "object",
-          "properties": {
-            "type": {"type": "string"},
-            "options": {
-              "type": "object",
-              "patternProperties": {
-                "^.+$": {"type": ["string", "number", "null"]}
-              }
-            }
-          },
-          "additionalProperties": false,
-          "patternProperties": {"^x-": {}}
         },
         "external_links": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "extra_hosts": {"$ref": "#/definitions/extra_hosts"},

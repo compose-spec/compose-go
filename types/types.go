@@ -31,6 +31,7 @@ import (
 // ServiceConfig is the configuration of one service
 type ServiceConfig struct {
 	Name     string   `yaml:"name,omitempty" json:"-"`
+	Type     string   `yaml:"type,omitempty" json:"type,omitempty"`
 	Profiles []string `yaml:"profiles,omitempty" json:"profiles,omitempty"`
 
 	Annotations  Mapping        `yaml:"annotations,omitempty" json:"annotations,omitempty"`
@@ -76,7 +77,6 @@ type ServiceConfig struct {
 	//
 	// Set to `[]` or an empty string to clear the entrypoint from the image.
 	Entrypoint      ShellCommand                     `yaml:"entrypoint,omitempty" json:"entrypoint"` // NOTE: we can NOT omitempty for JSON! see ShellCommand type for details.
-	External        *ExternalServiceConfig           `yaml:"external,omitempty" json:"external,omitempty"`
 	Environment     MappingWithEquals                `yaml:"environment,omitempty" json:"environment,omitempty"`
 	EnvFiles        []EnvFile                        `yaml:"env_file,omitempty" json:"env_file,omitempty"`
 	Expose          StringOrNumberList               `yaml:"expose,omitempty" json:"expose,omitempty"`
@@ -139,12 +139,9 @@ type ServiceConfig struct {
 	PostStart       []ServiceHook                    `yaml:"post_start,omitempty" json:"post_start,omitempty"`
 	PreStop         []ServiceHook                    `yaml:"pre_stop,omitempty" json:"pre_stop,omitempty"`
 
-	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
-}
+	// Configuration for service of types != docker
+	Options Options `yaml:"options,omitempty" json:"options,omitempty"`
 
-type ExternalServiceConfig struct {
-	Type       string     `yaml:"type,omitempty" json:"driver,omitempty"`
-	Options    Options    `yaml:"options,omitempty" json:"options,omitempty"`
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 

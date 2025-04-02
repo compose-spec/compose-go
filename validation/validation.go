@@ -25,13 +25,38 @@ import (
 
 type checkerFunc func(value any, p tree.Path) error
 
-var checks = map[tree.Path]checkerFunc{
-	"volumes.*":                       checkVolume,
-	"configs.*":                       checkFileObject("file", "environment", "content"),
-	"secrets.*":                       checkFileObject("file", "environment"),
-	"services.*.develop.watch.*.path": checkPath,
-	"services.*.deploy.resources.reservations.devices.*": checkDeviceRequest,
-	"services.*.gpus.*": checkDeviceRequest,
+var checks map[tree.Path]checkerFunc
+
+func init() {
+	checks = map[tree.Path]checkerFunc{
+		"volumes.*":                       checkVolume,
+		"configs.*":                       checkFileObject("file", "environment", "content"),
+		"secrets.*":                       checkFileObject("file", "environment"),
+		"services.*":                      checkService,
+		"services.*.develop.watch.*.path": checkPath,
+		"services.*.deploy.resources.reservations.devices.*": checkDeviceRequest,
+		"services.*.gpus.*": checkDeviceRequest,
+	}
+}
+
+func checkService(value any, p tree.Path) error {
+	service := value.(map[string]any)
+	t := service["type"]
+	hasType := (t != nil && t != "docker")
+	for k, v := range service {
+		if hasType && k != "type" && k != "options" {
+			return fmt.Errorf("%s: %s attribute can't be set for service with type %s", p, k, t)
+		}
+		if !hasType && k == "options" {
+			return fmt.Errorf("%s: %s attribute only can be used when type is set", p, k)
+		}
+
+		err := check(v, p.Next(k))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func Validate(dict map[string]any) error {

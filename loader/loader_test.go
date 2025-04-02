@@ -3766,14 +3766,13 @@ func TestExternalService(t *testing.T) {
 name: external-service
 services:
   test:
-    external:
-      type: foo
-      options:
-        bar: zot
+    type: foo
+    options:
+      bar: zot
 `)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Services["test"].External, &types.ExternalServiceConfig{
+	assert.DeepEqual(t, p.Services["test"], types.ServiceConfig{
 		Type:    "foo",
-		Options: map[string]string{"bar": "zot"},
+		Options: types.Options{"bar": "zot"},
 	})
 }
