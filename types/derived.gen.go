@@ -355,11 +355,11 @@ func deriveDeepCopyService(dst, src *ServiceConfig) {
 		}
 		copy(dst.Entrypoint, src.Entrypoint)
 	}
-	if src.External == nil {
-		dst.External = nil
+	if src.Provider == nil {
+		dst.Provider = nil
 	} else {
-		dst.External = new(ExternalServiceConfig)
-		deriveDeepCopy_13(dst.External, src.External)
+		dst.Provider = new(ServiceProviderConfig)
+		deriveDeepCopy_13(dst.Provider, src.Provider)
 	}
 	if src.Environment != nil {
 		dst.Environment = make(map[string]*string, len(src.Environment))
@@ -1226,7 +1226,7 @@ func deriveDeepCopy_12(dst, src []DeviceMapping) {
 }
 
 // deriveDeepCopy_13 recursively copies the contents of src into dst.
-func deriveDeepCopy_13(dst, src *ExternalServiceConfig) {
+func deriveDeepCopy_13(dst, src *ServiceProviderConfig) {
 	dst.Type = src.Type
 	if src.Options != nil {
 		dst.Options = make(map[string]string, len(src.Options))
