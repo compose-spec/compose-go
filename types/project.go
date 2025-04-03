@@ -639,7 +639,7 @@ func (p *Project) MarshalJSON(options ...func(*marshallOptions)) ([]byte, error)
 func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project, error) {
 	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
-		service.Environment = service.Environment.Resolve(newProject.Environment.Resolve).RemoveEmpty()
+		service.Environment = service.Environment.Resolve(newProject.Environment.Resolve)
 
 		environment := service.Environment.ToMapping()
 		for _, envFile := range service.EnvFiles {

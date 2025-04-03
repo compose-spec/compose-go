@@ -597,6 +597,7 @@ services:
 		"GA":  strPtr("2.5"),
 		"BU":  strPtr(""),
 		"MEU": strPtr("Shadoks"),
+		"ZO":  nil,
 	}
 
 	assert.Check(t, is.Equal(2, len(config.Services)))
