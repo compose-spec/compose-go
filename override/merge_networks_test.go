@@ -17,7 +17,10 @@
 package override
 
 import (
+	"strings"
 	"testing"
+
+	"github.com/compose-spec/compose-go/v2/tree"
 )
 
 func Test_mergeYamlServiceNetworkSequence(t *testing.T) {
@@ -225,4 +228,41 @@ networks:
       - "com.example.department-new=New"
   network2:
 `)
+}
+
+func Test_mergeIPAMConfig_invalidTypes(t *testing.T) {
+	tests := []struct {
+		name    string
+		c       any
+		o       any
+		wantErr string
+	}{
+		{
+			name:    "c is not a list",
+			c:       map[string]any{},
+			o:       []any{},
+			wantErr: "base value is not a list",
+		},
+		{
+			name:    "o is not a list",
+			c:       []any{},
+			o:       map[string]any{},
+			wantErr: "override value is not a list",
+		},
+		{
+			name:    "both are not lists",
+			c:       "invalid",
+			o:       123,
+			wantErr: "base value is not a list",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := mergeIPAMConfig(tt.c, tt.o, tree.NewPath("networks", "ipam", "config"))
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("expected error containing %q, got %v", tt.wantErr, err)
+			}
+		})
+	}
 }
