@@ -227,9 +227,17 @@ func mergeUlimit(_ any, o any, p tree.Path) (any, error) {
 
 func mergeIPAMConfig(c any, o any, path tree.Path) (any, error) {
 	var ipamConfigs []any
-	for _, original := range c.([]any) {
+	configs, ok := c.([]any)
+	if !ok {
+		return o, fmt.Errorf("%s: unexpected type %T", path, c)
+	}
+	overrides, ok := o.([]any)
+	if !ok {
+		return o, fmt.Errorf("%s: unexpected type %T", path, c)
+	}
+	for _, original := range configs {
 		right := convertIntoMapping(original, nil)
-		for _, override := range o.([]any) {
+		for _, override := range overrides {
 			left := convertIntoMapping(override, nil)
 			if left["subnet"] != right["subnet"] {
 				// check if left is already in ipamConfigs, add it if not and continue with the next config
