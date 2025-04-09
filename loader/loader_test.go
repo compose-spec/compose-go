@@ -3778,3 +3778,24 @@ services:
 		Options: map[string]string{"bar": "zot"},
 	})
 }
+
+func TestImageVolume(t *testing.T) {
+	p, err := loadYAML(`
+name: imageVolume
+services:
+  test:
+    volumes:
+      - type: image
+        source: app/image
+        target: /mnt/image
+        image:
+          subpath: /foo
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["test"].Volumes[0], types.ServiceVolumeConfig{
+		Type:   "image",
+		Source: "app/image",
+		Target: "/mnt/image",
+		Image:  &types.ServiceVolumeImage{SubPath: "/foo"},
+	})
+}
