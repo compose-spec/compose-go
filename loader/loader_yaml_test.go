@@ -30,6 +30,9 @@ func TestParseYAMLFiles(t *testing.T) {
 			{
 				Filename: "test.yaml",
 				Content: []byte(`
+x-extension:
+    test1: first
+
 services:
   test:
     image: foo
@@ -40,6 +43,9 @@ services:
 			{
 				Filename: "override.yaml",
 				Content: []byte(`
+x-extension:
+    test2: second
+
 services:
   test:
     image: bar
@@ -57,6 +63,10 @@ services:
 				"command": "echo world",
 				"init":    false,
 			},
+		},
+		"x-extension": map[string]interface{}{
+			"test1": "first",
+			"test2": "second",
 		},
 	})
 }

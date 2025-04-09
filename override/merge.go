@@ -20,7 +20,6 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
 )
@@ -104,7 +103,7 @@ func mergeYaml(e any, o any, p tree.Path) (any, error) {
 func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (map[string]any, error) {
 	for k, v := range other {
 		e, ok := mapping[k]
-		if !ok || strings.HasPrefix(k, "x-") {
+		if !ok {
 			mapping[k] = v
 			continue
 		}
