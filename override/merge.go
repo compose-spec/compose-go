@@ -61,6 +61,7 @@ func init() {
 	mergeSpecials["services.*.extra_hosts"] = mergeExtraHosts
 	mergeSpecials["services.*.healthcheck.test"] = override
 	mergeSpecials["services.*.labels"] = mergeToSequence
+	mergeSpecials["services.*.volumes.*.volume.labels"] = mergeToSequence
 	mergeSpecials["services.*.logging"] = mergeLogging
 	mergeSpecials["services.*.networks"] = mergeNetworks
 	mergeSpecials["services.*.sysctls"] = mergeToSequence
