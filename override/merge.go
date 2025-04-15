@@ -226,6 +226,13 @@ func mergeUlimit(_ any, o any, p tree.Path) (any, error) {
 }
 
 func mergeIPAMConfig(c any, o any, path tree.Path) (any, error) {
+	if _, ok := c.([]any); !ok {
+		return nil, fmt.Errorf("cannot merge IPAM config at %s: base value is not a list", path)
+	}
+	if _, ok := o.([]any); !ok {
+		return nil, fmt.Errorf("cannot merge IPAM config at %s: override value is not a list", path)
+	}
+
 	var ipamConfigs []any
 	configs, ok := c.([]any)
 	if !ok {
