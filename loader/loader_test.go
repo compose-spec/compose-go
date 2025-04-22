@@ -3799,3 +3799,24 @@ services:
 		Image:  &types.ServiceVolumeImage{SubPath: "/foo"},
 	})
 }
+
+func TestNpipeVolume(t *testing.T) {
+	p, err := loadYAML(`
+name: imageVolume
+services:
+  test:
+    volumes:
+      - type: npipe
+        source: \\.\pipe\docker_engine
+        target: \\.\pipe\docker_engine
+        image:
+          subpath: /foo
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["test"].Volumes[0], types.ServiceVolumeConfig{
+		Type:   "npipe",
+		Source: "\\\\.\\pipe\\docker_engine",
+		Target: "\\\\.\\pipe\\docker_engine",
+		Image:  &types.ServiceVolumeImage{SubPath: "/foo"},
+	})
+}
