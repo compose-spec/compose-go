@@ -190,16 +190,25 @@ func (p *Project) getServicesByNames(names ...string) (Services, []string) {
 	if len(names) == 0 {
 		return p.Services, nil
 	}
+
 	services := Services{}
 	var servicesNotFound []string
 	for _, name := range names {
-		service, ok := p.Services[name]
-		if !ok {
-			servicesNotFound = append(servicesNotFound, name)
-			continue
+		matched := false
+
+		for serviceName, service := range p.Services {
+			match, _ := filepath.Match(name, serviceName)
+			if match {
+				services[serviceName] = service
+				matched = true
+			}
 		}
-		services[name] = service
+
+		if !matched {
+			servicesNotFound = append(servicesNotFound, name)
+		}
 	}
+
 	return services, servicesNotFound
 }
 
@@ -639,7 +648,7 @@ func (p *Project) MarshalJSON(options ...func(*marshallOptions)) ([]byte, error)
 func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project, error) {
 	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
-		service.Environment = service.Environment.Resolve(newProject.Environment.Resolve).RemoveEmpty()
+		service.Environment = service.Environment.Resolve(newProject.Environment.Resolve)
 
 		environment := service.Environment.ToMapping()
 		for _, envFile := range service.EnvFiles {
