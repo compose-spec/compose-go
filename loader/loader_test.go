@@ -3820,3 +3820,18 @@ services:
 		Image:  &types.ServiceVolumeImage{SubPath: "/foo"},
 	})
 }
+
+func TestInterfaceName(t *testing.T) {
+	p, err := loadYAML(`
+name: interface-name
+services:
+  test:
+    networks:
+      test:
+        interface_name: eth0
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["test"].Networks["test"], &types.ServiceNetworkConfig{
+		InterfaceName: "eth0",
+	})
+}
