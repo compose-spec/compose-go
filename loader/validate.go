@@ -172,6 +172,24 @@ func checkConsistency(project *types.Project) error { //nolint:gocyclo
 				}
 			}
 		}
+
+		mounts := map[string]string{}
+		for i, tmpfs := range s.Tmpfs {
+			loc := fmt.Sprintf("services.%s.tmpfs[%d]", s.Name, i)
+			path, _, _ := strings.Cut(tmpfs, ":")
+			if p, ok := mounts[path]; ok {
+				return fmt.Errorf("%s: target %s already mounted as %s", loc, path, p)
+			}
+			mounts[path] = loc
+		}
+		for i, volume := range s.Volumes {
+			loc := fmt.Sprintf("services.%s.volumes[%d]", s.Name, i)
+			if p, ok := mounts[volume.Target]; ok {
+				return fmt.Errorf("%s: target %s already mounted as %s", loc, volume.Target, p)
+			}
+			mounts[volume.Target] = loc
+		}
+
 	}
 
 	for name, secret := range project.Secrets {

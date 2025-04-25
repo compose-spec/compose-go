@@ -407,3 +407,32 @@ func TestValidateWatch(t *testing.T) {
 		assert.ErrorContains(t, err, "depends on undefined service")
 	})
 }
+
+func TestValidateMountConflict(t *testing.T) {
+	project := &types.Project{
+		Services: types.Services{
+			"myservice": {
+				Name:  "myservice",
+				Image: "scratch",
+				Tmpfs: []string{
+					"/foo",
+					"/conflict:size=64m",
+				},
+				Volumes: []types.ServiceVolumeConfig{
+					{
+						Type:   "bind",
+						Target: "/bar",
+						Source: ".",
+					},
+					{
+						Type:   "bind",
+						Target: "/conflict",
+						Source: ".",
+					},
+				},
+			},
+		},
+	}
+	err := checkConsistency(project)
+	assert.Error(t, err, "services.myservice.volumes[1]: target /conflict already mounted as services.myservice.tmpfs[1]")
+}
