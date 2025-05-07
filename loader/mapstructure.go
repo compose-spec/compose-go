@@ -65,14 +65,20 @@ func cast(from reflect.Value, to reflect.Value) (interface{}, error) {
 			return toInt(from.String())
 		case reflect.Int64:
 			return toInt64(from.String())
+		case reflect.Uint64:
+			return toInt64(from.String())
 		case reflect.Float32:
 			return toFloat32(from.String())
 		case reflect.Float64:
 			return toFloat(from.String())
 		}
-	case reflect.Int:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if to.Kind() == reflect.String {
 			return strconv.FormatInt(from.Int(), 10), nil
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if to.Kind() == reflect.String {
+			return strconv.FormatUint(from.Uint(), 10), nil
 		}
 	}
 	return from.Interface(), nil

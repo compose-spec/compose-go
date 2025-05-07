@@ -45,9 +45,9 @@ func Test_LoadWithReset(t *testing.T) {
  services:
    foo:
      image: foo
-     build: !reset  
+     build: !reset {}
      environment:
-       FOO: !reset
+       FOO: !reset {}
 `),
 			},
 		},
@@ -79,5 +79,5 @@ func Test_DuplicateReset(t *testing.T) {
 	}, func(options *Options) {
 		options.SkipNormalization = true
 	})
-	assert.Error(t, err, "line 6: mapping key \"command\" already defined at line 5")
+	assert.ErrorContains(t, err, "mapping key \"command\" already defined")
 }

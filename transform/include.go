@@ -31,6 +31,6 @@ func transformInclude(data any, p tree.Path, _ bool) (any, error) {
 			"path": v,
 		}, nil
 	default:
-		return data, fmt.Errorf("%s: invalid type %T for external", p, v)
+		return data, fmt.Errorf("%s: invalid type %T for include", p, v)
 	}
 }

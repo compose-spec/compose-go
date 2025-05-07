@@ -31,9 +31,9 @@ import (
 	"github.com/compose-spec/compose-go/v2/errdefs"
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
+	"github.com/goccy/go-yaml"
 	godigest "github.com/opencontainers/go-digest"
 	"golang.org/x/sync/errgroup"
-	"gopkg.in/yaml.v3"
 )
 
 // Project is the result of loading a set of compose files
@@ -606,9 +606,11 @@ func applyMarshallOptions(p *Project, options ...func(*marshallOptions)) *Projec
 // MarshalYAML marshal Project into a yaml tree
 func (p *Project) MarshalYAML(options ...func(*marshallOptions)) ([]byte, error) {
 	buf := bytes.NewBuffer([]byte{})
-	encoder := yaml.NewEncoder(buf)
-	encoder.SetIndent(2)
-	// encoder.CompactSeqIndent() FIXME https://github.com/go-yaml/yaml/pull/753
+	encoder := yaml.NewEncoder(buf,
+		yaml.Indent(2),
+		yaml.UseLiteralStyleIfMultiline(true),
+		yaml.IndentSequence(true),
+	)
 	src := applyMarshallOptions(p, options...)
 	err := encoder.Encode(src)
 	if err != nil {

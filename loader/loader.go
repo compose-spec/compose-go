@@ -42,8 +42,9 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml/parser"
 	"github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
 )
 
 // Options supported by Load
@@ -260,8 +261,6 @@ func WithProfiles(profiles []string) func(*Options) {
 // PostProcessor is used to tweak compose model based on metadata extracted during yaml Unmarshal phase
 // that hardly can be implemented using go-yaml and mapstructure
 type PostProcessor interface {
-	yaml.Unmarshaler
-
 	// Apply changes to compose model based on recorder metadata
 	Apply(interface{}) error
 }
@@ -430,6 +429,9 @@ func loadYamlFile(ctx context.Context,
 		if err != nil {
 			return err
 		}
+		if converted == nil {
+			return errors.New("empty compose file")
+		}
 		cfg, ok := converted.(map[string]interface{})
 		if !ok {
 			return errors.New("top-level object must be a mapping")
@@ -501,17 +503,25 @@ func loadYamlFile(ctx context.Context,
 	if file.Config == nil {
 		r := bytes.NewReader(file.Content)
 		decoder := yaml.NewDecoder(r)
-		for {
-			var raw interface{}
-			reset := &ResetProcessor{target: &raw}
-			err := decoder.Decode(reset)
-			if err != nil && errors.Is(err, io.EOF) {
-				break
+		all, err := io.ReadAll(r)
+		if err != nil {
+			return nil, nil, err
+		}
+		y, err := parser.ParseBytes(all, parser.ParseComments)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, doc := range y.Docs {
+			if doc.Body == nil {
+				continue // empty file
 			}
+			processor = NewResetProcessor(doc)
+
+			var raw interface{}
+			err := decoder.DecodeFromNodeContext(ctx, doc.Body, &raw)
 			if err != nil {
 				return nil, nil, err
 			}
-			processor = reset
 			if err := processRawYaml(raw, processor); err != nil {
 				return nil, nil, err
 			}
@@ -873,14 +883,8 @@ func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interfac
 	return value, nil
 }
 
-func formatInvalidKeyError(keyPrefix string, key interface{}) error {
-	var location string
-	if keyPrefix == "" {
-		location = "at top level"
-	} else {
-		location = fmt.Sprintf("in %s", keyPrefix)
-	}
-	return fmt.Errorf("non-string key %s: %#v", location, key)
+func formatInvalidKeyError(location string, key interface{}) error {
+	return fmt.Errorf("%s: non-string key %#v", location, key)
 }
 
 // Windows path, c:\\my\\path\\shiny, need to be changed to be compatible with

@@ -162,6 +162,8 @@ func exposeIndexer(a any, path tree.Path) (string, error) {
 		return v, nil
 	case int:
 		return strconv.Itoa(v), nil
+	case uint64:
+		return strconv.FormatUint(v, 10), nil
 	default:
 		return "", fmt.Errorf("%s: unsupported expose value %s", path, a)
 	}

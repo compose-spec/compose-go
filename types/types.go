@@ -424,7 +424,7 @@ type Resource struct {
 }
 
 // GenericResource represents a "user defined" resource which can
-// only be an integer (e.g: SSD=3) for a service
+// only be an toInt (e.g: SSD=3) for a service
 type GenericResource struct {
 	DiscreteResourceSpec *DiscreteGenericResource `yaml:"discrete_resource_spec,omitempty" json:"discrete_resource_spec,omitempty"`
 
@@ -432,7 +432,7 @@ type GenericResource struct {
 }
 
 // DiscreteGenericResource represents a "user defined" resource which is defined
-// as an integer
+// as an toInt
 // "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
 // Value is used to count the resource (SSD=5, HDD=3, ...)
 type DiscreteGenericResource struct {
@@ -668,6 +668,8 @@ func (f *FileMode) DecodeMapstructure(value interface{}) error {
 		*f = FileMode(i)
 	case int:
 		*f = FileMode(v)
+	case uint64:
+		*f = FileMode(v)
 	default:
 		return fmt.Errorf("unexpected value type %T for mode", value)
 	}
@@ -712,15 +714,19 @@ func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {
 		u.Single = v
 		u.Soft = 0
 		u.Hard = 0
+	case uint64:
+		u.Single = int(v)
+		u.Soft = 0
+		u.Hard = 0
 	case map[string]any:
 		u.Single = 0
 		soft, ok := v["soft"]
 		if ok {
-			u.Soft = soft.(int)
+			u.Soft = toInt(soft)
 		}
 		hard, ok := v["hard"]
 		if ok {
-			u.Hard = hard.(int)
+			u.Hard = toInt(hard)
 		}
 	default:
 		return fmt.Errorf("unexpected value type %T for ulimit", value)
@@ -893,4 +899,35 @@ type IncludeConfig struct {
 	Path             StringList `yaml:"path,omitempty" json:"path,omitempty"`
 	ProjectDirectory string     `yaml:"project_directory,omitempty" json:"project_directory,omitempty"`
 	EnvFile          StringList `yaml:"env_file,omitempty" json:"env_file,omitempty"`
+}
+
+func toInt(value any) int {
+	return int(toInt64(value))
+}
+
+func toInt64(value any) int64 {
+	switch v := value.(type) {
+	case int:
+		return int64(v)
+	case int8:
+		return int64(v)
+	case int16:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case int64:
+		return v
+	case uint:
+		return int64(v)
+	case uint8:
+		return int64(v)
+	case uint16:
+		return int64(v)
+	case uint32:
+		return int64(v)
+	case uint64:
+		return int64(v)
+	default:
+		return 0
+	}
 }

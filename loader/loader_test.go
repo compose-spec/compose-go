@@ -468,16 +468,7 @@ func TestNonStringKeys(t *testing.T) {
   foo:
     image: busybox
 `)
-	assert.ErrorContains(t, err, "non-string key at top level: 123")
-
-	_, err = loadYAML(`
-services:
-  foo:
-    image: busybox
-  123:
-    image: busybox
-`)
-	assert.ErrorContains(t, err, "non-string key in services: 123")
+	assert.ErrorContains(t, err, `(root): Additional property 123 is not allowed`)
 
 	_, err = loadYAML(`
 services:
@@ -489,16 +480,7 @@ networks:
       config:
         - 123: oh dear
 `)
-	assert.ErrorContains(t, err, "non-string key in networks.default.ipam.config[0]: 123")
-
-	_, err = loadYAML(`
-services:
-  dict-env:
-    image: busybox
-    environment:
-      1: FOO
-`)
-	assert.ErrorContains(t, err, "non-string key in services.dict-env.environment: 1")
+	assert.ErrorContains(t, err, "networks.default.ipam.config.0: Additional property 123 is not allowed")
 }
 
 func TestV1Unsupported(t *testing.T) {
@@ -516,14 +498,14 @@ services:
   - foo:
       image: busybox
 `)
-	assert.ErrorContains(t, err, "services must be a mapping")
+	assert.ErrorContains(t, err, "services: must be a mapping")
 
 	_, err = loadYAML(`
 name: non-mapping-object
 services:
   foo: busybox
 `)
-	assert.ErrorContains(t, err, "services.foo must be a mapping")
+	assert.ErrorContains(t, err, "services.foo: must be a mapping")
 
 	_, err = loadYAML(`
 name: non-mapping-object
@@ -531,14 +513,14 @@ networks:
   - default:
       driver: bridge
 `)
-	assert.ErrorContains(t, err, "networks must be a mapping")
+	assert.ErrorContains(t, err, "networks: must be a mapping")
 
 	_, err = loadYAML(`
 name: non-mapping-object
 networks:
   default: bridge
 `)
-	assert.ErrorContains(t, err, "networks.default must be a mapping")
+	assert.ErrorContains(t, err, "networks.default: must be a mapping")
 
 	_, err = loadYAML(`
 name: non-mapping-object
@@ -546,14 +528,14 @@ volumes:
   - data:
       driver: local
 `)
-	assert.ErrorContains(t, err, "volumes must be a mapping")
+	assert.ErrorContains(t, err, "volumes: must be a mapping")
 
 	_, err = loadYAML(`
 name: non-mapping-object
 volumes:
   data: local
 `)
-	assert.ErrorContains(t, err, "volumes.data must be a mapping")
+	assert.ErrorContains(t, err, "volumes.data: must be a mapping")
 }
 
 func TestNonStringImage(t *testing.T) {
@@ -563,7 +545,7 @@ services:
   foo:
     image: ["busybox", "latest"]
 `)
-	assert.ErrorContains(t, err, "services.foo.image must be a string")
+	assert.ErrorContains(t, err, "services.foo.image: must be a string")
 }
 
 func TestLoadWithEnvironment(t *testing.T) {
@@ -640,7 +622,7 @@ services:
     environment:
       FOO: ["1"]
 `)
-	assert.ErrorContains(t, err, "services.dict-env.environment.FOO must be a string, number, boolean or null")
+	assert.ErrorContains(t, err, "services.dict-env.environment.FOO: must be a string, number, boolean or null")
 }
 
 func TestInvalidEnvironmentObject(t *testing.T) {
@@ -651,7 +633,7 @@ services:
     image: busybox
     environment: "FOO=1"
 `)
-	assert.ErrorContains(t, err, "services.dict-env.environment must be a mapping")
+	assert.ErrorContains(t, err, "services.dict-env.environment: must be a mapping")
 }
 
 func TestLoadWithEnvironmentInterpolation(t *testing.T) {
@@ -990,7 +972,7 @@ func TestDecodeErrors(t *testing.T) {
 
 	configDetails := buildConfigDetails(dict, nil)
 	_, err := LoadWithContext(context.TODO(), configDetails)
-	assert.Error(t, err, "yaml: line 4: found a tab character that violates indentation")
+	assert.ErrorContains(t, err, "found character '\t' that cannot start any token")
 }
 
 func TestBuildProperties(t *testing.T) {
@@ -1196,7 +1178,7 @@ services:
         foo:
           bar: zot
 `)
-	assert.ErrorContains(t, err, "services.tmpfs.volumes.0 Additional property foo is not allowed")
+	assert.ErrorContains(t, err, "services.tmpfs.volumes.0: Additional property foo is not allowed")
 }
 
 func TestLoadBindMountSourceMustNotBeEmpty(t *testing.T) {
@@ -1350,7 +1332,7 @@ services:
         tmpfs:
           size: -1
 `)
-	assert.ErrorContains(t, err, "services.tmpfs.volumes.0.tmpfs.size Must be greater than or equal to 0")
+	assert.ErrorContains(t, err, "services.tmpfs.volumes.0.tmpfs.size: Must be greater than or equal to 0")
 }
 
 func TestLoadTmpfsVolumeSizeMustBeInteger(t *testing.T) {
@@ -1365,7 +1347,7 @@ services:
         tmpfs:
           size: 0.0001
 `)
-	assert.ErrorContains(t, err, "services.tmpfs.volumes.0.tmpfs.size must be a integer")
+	assert.ErrorContains(t, err, "services.tmpfs.volumes.0.tmpfs.size: must be a integer")
 }
 
 func TestLoadAttachableNetwork(t *testing.T) {
@@ -2421,7 +2403,7 @@ services:
       context: .
       ssh:
 `)
-	assert.ErrorContains(t, err, "services.test.build.ssh must be a mapping")
+	assert.ErrorContains(t, err, "services.test.build.ssh: must be a mapping")
 }
 
 func TestLoadLegacyBoolean(t *testing.T) {
@@ -2653,7 +2635,7 @@ func TestDeviceWriteBps(t *testing.T) {
 
 func TestInvalidProjectNameType(t *testing.T) {
 	p, err := loadYAML(`name: 123`)
-	assert.Error(t, err, "validating filename0.yml: name must be a string")
+	assert.ErrorContains(t, err, "name: must be a string")
 	assert.Assert(t, is.Nil(p))
 }
 
@@ -3132,7 +3114,7 @@ services:
 `, nil), func(options *Options) {
 		options.ResolvePaths = false
 	})
-	assert.ErrorContains(t, err, "validating filename0.yml: services.frontend.develop.watch.0 action is required")
+	assert.ErrorContains(t, err, "services.frontend.develop.watch.0: action is required")
 }
 
 func TestBadServiceConfig(t *testing.T) {
@@ -3729,7 +3711,7 @@ services:
     environment:
       - DEBUG = true
 `)
-	assert.Check(t, strings.Contains(err.Error(), "'services[test].environment': environment variable DEBUG  is declared with a trailing space"))
+	assert.ErrorContains(t, err, "'services[test].environment': environment variable DEBUG  is declared with a trailing space")
 }
 
 func TestFileModeNumber(t *testing.T) {

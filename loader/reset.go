@@ -18,94 +18,79 @@ package loader
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml/ast"
 )
 
 type ResetProcessor struct {
-	target       interface{}
-	paths        []tree.Path
-	visitedNodes map[*yaml.Node][]string
+	paths   []tree.Path
+	anchors map[string]*ast.AnchorNode
 }
 
-// UnmarshalYAML implement yaml.Unmarshaler
-func (p *ResetProcessor) UnmarshalYAML(value *yaml.Node) error {
-	p.visitedNodes = make(map[*yaml.Node][]string)
-	resolved, err := p.resolveReset(value, tree.NewPath())
-	p.visitedNodes = nil
-	if err != nil {
-		return err
+func NewResetProcessor(doc *ast.DocumentNode) PostProcessor {
+	r := &ResetProcessor{
+		anchors: make(map[string]*ast.AnchorNode),
 	}
-	return resolved.Decode(p.target)
+	r.parse(doc.Body)
+	return r
 }
 
-// resolveReset detects `!reset` tag being set on yaml nodes and record position in the yaml tree
-func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.Node, error) {
-	pathStr := path.String()
-	// If the path contains "<<", removing the "<<" element and merging the path
-	if strings.Contains(pathStr, ".<<") {
-		path = tree.NewPath(strings.Replace(pathStr, ".<<", "", 1))
-	}
-
-	// If the node is an alias, We need to process the alias field in order to consider the !override and !reset tags
-	if node.Kind == yaml.AliasNode {
-		if err := p.checkForCycle(node.Alias, path); err != nil {
-			return nil, err
+func (p *ResetProcessor) parse(n ast.Node) bool {
+	switch n.Type() {
+	case ast.TagType:
+		t := n.(*ast.TagNode)
+		tag := t.Start.Value
+		if tag == "!reset" {
+			p.paths = append(p.paths, tree.Path(strings.TrimPrefix(n.GetPath(), "$.")))
+			return true
 		}
-
-		return p.resolveReset(node.Alias, path)
-	}
-
-	if node.Tag == "!reset" {
-		p.paths = append(p.paths, path)
-		return nil, nil
-	}
-	if node.Tag == "!override" {
-		p.paths = append(p.paths, path)
-		return node, nil
-	}
-
-	keys := map[string]int{}
-	switch node.Kind {
-	case yaml.SequenceNode:
-		var nodes []*yaml.Node
-		for idx, v := range node.Content {
-			next := path.Next(strconv.Itoa(idx))
-			resolved, err := p.resolveReset(v, next)
-			if err != nil {
-				return nil, err
-			}
-			if resolved != nil {
-				nodes = append(nodes, resolved)
+		if tag == "!override" {
+			p.paths = append(p.paths, tree.Path(strings.TrimPrefix(n.GetPath(), "$.")))
+			return false
+		}
+	case ast.MappingType:
+		node := n.(*ast.MappingNode)
+		for _, value := range node.Values {
+			if p.parse(value.Value) {
+				node.Values = removeMapping(node.Values, value.Key.String())
 			}
 		}
-		node.Content = nodes
-	case yaml.MappingNode:
-		var key string
-		var nodes []*yaml.Node
-		for idx, v := range node.Content {
-			if idx%2 == 0 {
-				key = v.Value
-				if line, seen := keys[key]; seen {
-					return nil, fmt.Errorf("line %d: mapping key %#v already defined at line %d", v.Line, key, line)
-				}
-				keys[key] = v.Line
-			} else {
-				resolved, err := p.resolveReset(v, path.Next(key))
-				if err != nil {
-					return nil, err
-				}
-				if resolved != nil {
-					nodes = append(nodes, node.Content[idx-1], resolved)
-				}
+	case ast.SequenceType:
+		for _, value := range n.(*ast.SequenceNode).Values {
+			p.parse(value)
+		}
+	case ast.AnchorType:
+		anchor := n.(*ast.AnchorNode)
+		p.parse(anchor.Value)
+		p.anchors[anchor.Name.String()] = anchor
+	case ast.AliasType:
+		// copy all path from the anchor, updating path accordingly
+		alias := n.(*ast.AliasNode)
+		from := tree.NewPath(strings.TrimPrefix(alias.Path, "$.")).Parent().String()
+		ref := p.anchors[alias.Value.String()]
+		if ref == nil {
+			return false
+		}
+		pattern := strings.TrimPrefix(ref.Path, "$.")
+		for _, path := range p.paths {
+			if strings.HasPrefix(string(path), pattern) {
+				replace := strings.Replace(string(path), pattern, from, 1)
+				p.paths = append(p.paths, tree.Path(replace))
 			}
 		}
-		node.Content = nodes
 	}
-	return node, nil
+	return false
+}
+
+func removeMapping(nodes []*ast.MappingValueNode, key string) []*ast.MappingValueNode {
+	for i, node := range nodes {
+		if node.Key.String() == key {
+			return append(nodes[:i], nodes[i+1:]...)
+		}
+	}
+	return nodes
 }
 
 // Apply finds the go attributes matching recorded paths and reset them to zero value
@@ -148,49 +133,4 @@ func (p *ResetProcessor) applyNullOverrides(target any, path tree.Path) error {
 		}
 	}
 	return nil
-}
-
-func (p *ResetProcessor) checkForCycle(node *yaml.Node, path tree.Path) error {
-	paths := p.visitedNodes[node]
-	pathStr := path.String()
-
-	for _, prevPath := range paths {
-		// If we're visiting the exact same path, it's not a cycle
-		if pathStr == prevPath {
-			continue
-		}
-
-		// If either path is using a merge key, it's legitimate YAML merging
-		if strings.Contains(prevPath, "<<") || strings.Contains(pathStr, "<<") {
-			continue
-		}
-
-		// Only consider it a cycle if one path is contained within the other
-		// and they're not in different service definitions
-		if (strings.HasPrefix(pathStr, prevPath+".") ||
-			strings.HasPrefix(prevPath, pathStr+".")) &&
-			!areInDifferentServices(pathStr, prevPath) {
-			return fmt.Errorf("cycle detected: node at path %s references node at path %s", pathStr, prevPath)
-		}
-	}
-
-	p.visitedNodes[node] = append(paths, pathStr)
-	return nil
-}
-
-// areInDifferentServices checks if two paths are in different service definitions
-func areInDifferentServices(path1, path2 string) bool {
-	// Split paths into components
-	parts1 := strings.Split(path1, ".")
-	parts2 := strings.Split(path2, ".")
-
-	// Look for the services component and compare the service names
-	for i := 0; i < len(parts1) && i < len(parts2); i++ {
-		if parts1[i] == "services" && i+1 < len(parts1) &&
-			parts2[i] == "services" && i+1 < len(parts2) {
-			// If they're different services, it's not a cycle
-			return parts1[i+1] != parts2[i+1]
-		}
-	}
-	return false
 }

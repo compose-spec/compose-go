@@ -88,7 +88,6 @@ services:
     configs: !override
       - source: credentials
         target: /literally-anywhere-else
-
   y:
     <<: *x
 

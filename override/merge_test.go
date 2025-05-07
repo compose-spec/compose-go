@@ -19,7 +19,7 @@ package override
 import (
 	"testing"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 	"gotest.tools/v3/assert"
 )
 
