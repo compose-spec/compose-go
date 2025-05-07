@@ -184,6 +184,33 @@ services:
 	assert.NilError(t, err)
 }
 
+func TestExtendsWihtMissingService(t *testing.T) {
+	yaml := `
+name: test-extends-port
+services:
+  test:
+    image: test
+    extends:
+      file: testdata/extends/base.yaml
+`
+	abs, err := filepath.Abs(".")
+	assert.NilError(t, err)
+
+	_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Content:  []byte(yaml),
+				Filename: "(inline)",
+			},
+		},
+		WorkingDir: abs,
+	}, func(options *Options) {
+		options.ResolvePaths = false
+		options.SkipValidation = true
+	})
+	assert.Error(t, err, "extends.test.service is required")
+}
+
 func TestIncludeWithExtends(t *testing.T) {
 	yaml := `
 name: test-include-with-extends
