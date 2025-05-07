@@ -45,9 +45,9 @@ func Test_LoadWithReset(t *testing.T) {
  services:
    foo:
      image: foo
-     build: !reset  
+     build: !reset {}
      environment:
-       FOO: !reset
+       FOO: !reset {}
 `),
 			},
 		},

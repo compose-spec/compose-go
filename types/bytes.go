@@ -39,8 +39,10 @@ func (u *UnitBytes) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {
 	case int:
 		*u = UnitBytes(v)
+	case uint64:
+		*u = UnitBytes(v)
 	case string:
-		b, err := units.RAMInBytes(fmt.Sprint(value))
+		b, err := units.RAMInBytes(v)
 		*u = UnitBytes(b)
 		return err
 	}

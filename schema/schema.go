@@ -125,7 +125,7 @@ type validationError struct {
 
 func (err validationError) Error() string {
 	description := getDescription(err)
-	return fmt.Sprintf("%s %s", err.parent.Field(), description)
+	return fmt.Sprintf("%s: %s", err.parent.Field(), description)
 }
 
 func getMostSpecificError(errors []gojsonschema.ResultError) validationError {
