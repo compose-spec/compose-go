@@ -436,3 +436,31 @@ func TestValidateMountConflict(t *testing.T) {
 	err := checkConsistency(project)
 	assert.Error(t, err, "services.myservice.volumes[1]: target /conflict already mounted as services.myservice.tmpfs[1]")
 }
+
+func TestValidateNegativeScale(t *testing.T) {
+	project := &types.Project{
+		Services: types.Services{
+			"myservice": {
+				Name:  "myservice",
+				Image: "scratch",
+				Scale: ptr(-1),
+			},
+		},
+	}
+	err := checkConsistency(project)
+	assert.Error(t, err, "services.myservice.scale: must be greater than or equal to 0")
+
+	project = &types.Project{
+		Services: types.Services{
+			"myservice": {
+				Name:  "myservice",
+				Image: "scratch",
+				Deploy: &types.DeployConfig{
+					Replicas: ptr(-1),
+				},
+			},
+		},
+	}
+	err = checkConsistency(project)
+	assert.Error(t, err, "services.myservice.deploy.replicas: must be greater than or equal to 0")
+}
