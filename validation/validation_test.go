@@ -94,3 +94,30 @@ external: true
 		})
 	}
 }
+
+func TestValidateHostIp(t *testing.T) {
+	checker := checks["services.*.ports.*"]
+	tests := []struct {
+		name  string
+		input map[string]any
+		err   string
+	}{
+		{
+			name: "invalid host ip",
+			input: map[string]any{
+				"host_ip": "invalidip",
+			},
+			err: "invalid IP address: invalidip",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checker(tt.input, tree.NewPath("services.ports"))
+			if tt.err == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Equal(t, tt.err, err.Error())
+			}
+		})
+	}
+}

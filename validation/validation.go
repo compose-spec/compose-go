@@ -18,6 +18,7 @@ package validation
 
 import (
 	"fmt"
+	"net"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -31,7 +32,8 @@ var checks = map[tree.Path]checkerFunc{
 	"secrets.*":                       checkFileObject("file", "environment"),
 	"services.*.develop.watch.*.path": checkPath,
 	"services.*.deploy.resources.reservations.devices.*": checkDeviceRequest,
-	"services.*.gpus.*": checkDeviceRequest,
+	"services.*.gpus.*":  checkDeviceRequest,
+	"services.*.ports.*": checkHostIp,
 }
 
 func Validate(dict map[string]any) error {
@@ -59,6 +61,19 @@ func check(value any, p tree.Path) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func checkHostIp(value any, _ tree.Path) error {
+	v := value.(map[string]any)
+	ip, ok := v["host_ip"]
+	// IP is optional and might be not set
+	if !ok {
+		return nil
+	}
+	if ip != "" && net.ParseIP(ip.(string)) == nil {
+		return fmt.Errorf("invalid IP address: %s", ip)
 	}
 	return nil
 }
