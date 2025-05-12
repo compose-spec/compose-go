@@ -3771,11 +3771,25 @@ services:
       type: foo
       options:
         bar: zot
+        strings:
+          - foo
+          - bar
+        numbers:
+          - 12
+          - 34
+        booleans:
+          - true
+          - false
 `)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services["test"].Provider, &types.ServiceProviderConfig{
-		Type:    "foo",
-		Options: map[string]string{"bar": "zot"},
+		Type: "foo",
+		Options: types.MultiOptions{
+			"bar":      []string{"zot"},
+			"strings":  []string{"foo", "bar"},
+			"numbers":  []string{"12", "34"},
+			"booleans": []string{"true", "false"},
+		},
 	})
 }
 
