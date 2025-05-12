@@ -94,3 +94,49 @@ external: true
 		})
 	}
 }
+
+func TestIPAddress(t *testing.T) {
+	checker := checks["services.*.ports.*"]
+	tests := []struct {
+		name  string
+		input string
+		err   string
+	}{
+		{
+			name: "port long syntax, invalid IP",
+			input: `
+host_ip: notavalidip
+target: 1234
+published: "1234"
+`,
+			err: "configs.test.ports[0]: invalid ip address: notavalidip",
+		},
+		{
+			name: "port long syntax, no IP",
+			input: `
+target: 1234
+published: "1234"
+`,
+		},
+		{
+			name: "port long syntax, valid IP",
+			input: `
+host_ip: 192.168.3.4
+target: 1234
+published: "1234"
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		var input map[string]any
+		err := yaml.Unmarshal([]byte(tt.input), &input)
+		assert.NilError(t, err)
+		err = checker(input, tree.NewPath("configs.test.ports[0]"))
+		if tt.err == "" {
+			assert.NilError(t, err)
+		} else {
+			assert.Equal(t, tt.err, err.Error())
+		}
+	}
+}
