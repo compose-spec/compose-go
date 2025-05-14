@@ -640,7 +640,7 @@ services:
     environment:
       FOO: ["1"]
 `)
-	assert.ErrorContains(t, err, "services.dict-env.environment.FOO must be a string, number, boolean or null")
+	assert.ErrorContains(t, err, "services.dict-env.environment.FOO must be a boolean, null, number or string")
 }
 
 func TestInvalidEnvironmentObject(t *testing.T) {
@@ -1054,7 +1054,7 @@ func TestInvalidResource(t *testing.T) {
                 impossible:
                   x: 1
 `)
-	assert.ErrorContains(t, err, "Additional property impossible is not allowed")
+	assert.ErrorContains(t, err, "additional properties 'impossible' not allowed")
 }
 
 func TestInvalidExternalAndDriverCombination(t *testing.T) {
@@ -1196,7 +1196,7 @@ services:
         foo:
           bar: zot
 `)
-	assert.ErrorContains(t, err, "services.tmpfs.volumes.0 Additional property foo is not allowed")
+	assert.ErrorContains(t, err, "services.tmpfs.volumes.0 additional properties 'foo' not allowed")
 }
 
 func TestLoadBindMountSourceMustNotBeEmpty(t *testing.T) {
@@ -1350,7 +1350,7 @@ services:
         tmpfs:
           size: -1
 `)
-	assert.ErrorContains(t, err, "services.tmpfs.volumes.0.tmpfs.size Must be greater than or equal to 0")
+	assert.ErrorContains(t, err, "services.tmpfs.volumes.0.tmpfs.size must be greater than or equal to 0")
 }
 
 func TestLoadTmpfsVolumeSizeMustBeInteger(t *testing.T) {
@@ -2264,7 +2264,7 @@ services:
             - driver: nvidia
               count: 2
 `)
-	assert.ErrorContains(t, err, `capabilities is required`)
+	assert.ErrorContains(t, err, "missing property 'capabilities'")
 }
 
 func TestServiceGpus(t *testing.T) {
@@ -3132,7 +3132,7 @@ services:
 `, nil), func(options *Options) {
 		options.ResolvePaths = false
 	})
-	assert.ErrorContains(t, err, "validating filename0.yml: services.frontend.develop.watch.0 action is required")
+	assert.ErrorContains(t, err, "services.frontend.develop.watch.0 missing property 'action'")
 }
 
 func TestBadServiceConfig(t *testing.T) {
@@ -3803,7 +3803,7 @@ services:
         numbers: 12
         booleans: true
 `)
-	assert.Check(t, strings.Contains(err.Error(), "services.test.provider type is required"))
+	assert.ErrorContains(t, err, "services.test.provider missing property 'type'")
 }
 
 func TestImageVolume(t *testing.T) {
