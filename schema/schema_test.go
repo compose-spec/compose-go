@@ -18,20 +18,18 @@ package schema
 
 import (
 	"os"
-	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/xeipuuv/gojsonschema"
+	"github.com/santhosh-tekuri/jsonschema/v6"
 	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 )
 
-type dict map[string]interface{}
-
 func TestValidate(t *testing.T) {
-	config := dict{
-		"services": dict{
-			"foo": dict{
+	config := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image": "busybox",
 			},
 		},
@@ -41,21 +39,21 @@ func TestValidate(t *testing.T) {
 }
 
 func TestValidateUndefinedTopLevelOption(t *testing.T) {
-	config := dict{
-		"helicopters": dict{
-			"foo": dict{
+	config := map[string]any{
+		"helicopters": map[string]any{
+			"foo": map[string]any{
 				"image": "busybox",
 			},
 		},
 	}
 
 	err := Validate(config)
-	assert.ErrorContains(t, err, "Additional property helicopters is not allowed")
+	assert.ErrorContains(t, err, "additional properties 'helicopters' not allowed")
 }
 
 func TestValidateAllowsXTopLevelFields(t *testing.T) {
-	config := dict{
-		"x-extra-stuff": dict{},
+	config := map[string]any{
+		"x-extra-stuff": map[string]any{},
 	}
 
 	assert.NilError(t, Validate(config))
@@ -63,37 +61,37 @@ func TestValidateAllowsXTopLevelFields(t *testing.T) {
 }
 
 func TestValidateAllowsXFields(t *testing.T) {
-	config := dict{
-		"services": dict{
-			"bar": dict{
-				"x-extra-stuff": dict{},
+	config := map[string]any{
+		"services": map[string]any{
+			"bar": map[string]any{
+				"x-extra-stuff": map[string]any{},
 			},
-			"foo": dict{
-				"depends_on": dict{
-					"x-dependency": dict{
+			"foo": map[string]any{
+				"depends_on": map[string]any{
+					"x-dependency": map[string]any{
 						"condition": "service_started",
 					},
 				},
 			},
 		},
-		"volumes": dict{
-			"bar": dict{
-				"x-extra-stuff": dict{},
+		"volumes": map[string]any{
+			"bar": map[string]any{
+				"x-extra-stuff": map[string]any{},
 			},
 		},
-		"networks": dict{
-			"bar": dict{
-				"x-extra-stuff": dict{},
+		"networks": map[string]any{
+			"bar": map[string]any{
+				"x-extra-stuff": map[string]any{},
 			},
 		},
-		"configs": dict{
-			"bar": dict{
-				"x-extra-stuff": dict{},
+		"configs": map[string]any{
+			"bar": map[string]any{
+				"x-extra-stuff": map[string]any{},
 			},
 		},
-		"secrets": dict{
-			"bar": dict{
-				"x-extra-stuff": dict{},
+		"secrets": map[string]any{
+			"bar": map[string]any{
+				"x-extra-stuff": map[string]any{},
 			},
 		},
 	}
@@ -102,14 +100,14 @@ func TestValidateAllowsXFields(t *testing.T) {
 }
 
 func TestValidateSecretConfigNames(t *testing.T) {
-	config := dict{
-		"configs": dict{
-			"bar": dict{
+	config := map[string]any{
+		"configs": map[string]any{
+			"bar": map[string]any{
 				"name": "foobar",
 			},
 		},
-		"secrets": dict{
-			"baz": dict{
+		"secrets": map[string]any{
+			"baz": map[string]any{
 				"name": "foobaz",
 			},
 		},
@@ -119,17 +117,15 @@ func TestValidateSecretConfigNames(t *testing.T) {
 	assert.NilError(t, Validate(config))
 }
 
-type array []interface{}
-
 func TestValidatePlacement(t *testing.T) {
-	config := dict{
-		"services": dict{
-			"foo": dict{
+	config := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image": "busybox",
-				"deploy": dict{
-					"placement": dict{
-						"preferences": array{
-							dict{
+				"deploy": map[string]any{
+					"placement": map[string]any{
+						"preferences": []any{
+							map[string]any{
 								"spread": "node.labels.az",
 							},
 						},
@@ -144,9 +140,9 @@ func TestValidatePlacement(t *testing.T) {
 }
 
 func TestValidateIsolation(t *testing.T) {
-	config := dict{
-		"services": dict{
-			"foo": dict{
+	config := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image":     "busybox",
 				"isolation": "some-isolation-value",
 			},
@@ -157,12 +153,12 @@ func TestValidateIsolation(t *testing.T) {
 }
 
 func TestValidateRollbackConfig(t *testing.T) {
-	config := dict{
-		"services": dict{
-			"foo": dict{
+	config := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image": "busybox",
-				"deploy": dict{
-					"rollback_config": dict{
+				"deploy": map[string]any{
+					"rollback_config": map[string]any{
 						"parallelism": 1,
 					},
 				},
@@ -175,12 +171,12 @@ func TestValidateRollbackConfig(t *testing.T) {
 }
 
 func TestValidateRollbackConfigWithOrder(t *testing.T) {
-	config := dict{
-		"services": dict{
-			"foo": dict{
+	config := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image": "busybox",
-				"deploy": dict{
-					"rollback_config": dict{
+				"deploy": map[string]any{
+					"rollback_config": map[string]any{
 						"parallelism": 1,
 						"order":       "start-first",
 					},
@@ -194,16 +190,16 @@ func TestValidateRollbackConfigWithOrder(t *testing.T) {
 }
 
 func TestValidateRollbackConfigWithUpdateConfig(t *testing.T) {
-	config := dict{
-		"services": dict{
-			"foo": dict{
+	config := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image": "busybox",
-				"deploy": dict{
-					"update_config": dict{
+				"deploy": map[string]any{
+					"update_config": map[string]any{
 						"parallelism": 1,
 						"order":       "start-first",
 					},
-					"rollback_config": dict{
+					"rollback_config": map[string]any{
 						"parallelism": 1,
 						"order":       "start-first",
 					},
@@ -217,19 +213,19 @@ func TestValidateRollbackConfigWithUpdateConfig(t *testing.T) {
 }
 
 func TestValidateRollbackConfigWithUpdateConfigFull(t *testing.T) {
-	config := dict{
-		"services": dict{
-			"foo": dict{
+	config := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
 				"image": "busybox",
-				"deploy": dict{
-					"update_config": dict{
+				"deploy": map[string]any{
+					"update_config": map[string]any{
 						"parallelism":    1,
 						"order":          "start-first",
 						"delay":          "10s",
 						"failure_action": "pause",
 						"monitor":        "10s",
 					},
-					"rollback_config": dict{
+					"rollback_config": map[string]any{
 						"parallelism":    1,
 						"order":          "start-first",
 						"delay":          "10s",
@@ -248,19 +244,19 @@ func TestValidateRollbackConfigWithUpdateConfigFull(t *testing.T) {
 func TestValidateVariables(t *testing.T) {
 	bytes, err := os.ReadFile("using-variables.yaml")
 	assert.NilError(t, err)
-	var config dict
+	var config map[string]any
 	err = yaml.Unmarshal(bytes, &config)
 	assert.NilError(t, err)
 	assert.NilError(t, Validate(config))
 }
 
 func TestSchema(t *testing.T) {
-	abs, err := filepath.Abs("compose-spec.json")
+	compiler := jsonschema.NewCompiler()
+	json, err := jsonschema.UnmarshalJSON(strings.NewReader(Schema))
 	assert.NilError(t, err)
-	schema := gojsonschema.NewReferenceLoader("file:///" + abs)
-	sl := gojsonschema.NewSchemaLoader()
-	sl.Draft = gojsonschema.Draft7
-	sl.Validate = true
-	_, err = sl.Compile(schema)
+	err = compiler.AddResource("compose-spec.json", json)
+	assert.NilError(t, err)
+	compiler.DefaultDraft(jsonschema.Draft7)
+	_, err = compiler.Compile("compose-spec.json")
 	assert.NilError(t, err)
 }
