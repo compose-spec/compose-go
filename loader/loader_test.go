@@ -667,6 +667,11 @@ services:
       - home2=${HOME}
       - nonexistent=$NONEXISTENT
       - default=${NONEXISTENT-default}
+      - rawarray=${INLINED_ARRAY}
+    ports:
+      - "1000:1000"
+      - ${INLINED_ARRAY[*]}
+      - ${INDEXED_ARRAY[*]}
 networks:
   test:
     driver: $HOME
@@ -674,8 +679,11 @@ volumes:
   test:
     driver: $HOME
 `, map[string]string{
-		"HOME": home,
-		"FOO":  "foo",
+		"HOME":             home,
+		"FOO":              "foo",
+		"INLINED_ARRAY":    "(2000:2000 3000:3000)",
+		"INDEXED_ARRAY[0]": "4000:4000",
+		"INDEXED_ARRAY[1]": "5000:5000",
 	})
 
 	assert.NilError(t, err)
@@ -685,9 +693,19 @@ volumes:
 		"home2":       home,
 		"nonexistent": "",
 		"default":     "default",
+		"rawarray":    "(2000:2000 3000:3000)",
+	}
+
+	expectedPorts := []types.ServicePortConfig{
+		{Target: 1000, Published: "1000", Mode: "ingress", Protocol: "tcp"},
+		{Target: 2000, Published: "2000", Mode: "ingress", Protocol: "tcp"},
+		{Target: 3000, Published: "3000", Mode: "ingress", Protocol: "tcp"},
+		{Target: 4000, Published: "4000", Mode: "ingress", Protocol: "tcp"},
+		{Target: 5000, Published: "5000", Mode: "ingress", Protocol: "tcp"},
 	}
 
 	assert.Check(t, is.DeepEqual(expectedLabels, config.Services["test"].Labels))
+	assert.Check(t, is.DeepEqual(expectedPorts, config.Services["test"].Ports))
 	assert.Check(t, is.Equal(home, config.Networks["test"].Driver))
 	assert.Check(t, is.Equal(home, config.Volumes["test"].Driver))
 }
@@ -1055,6 +1073,19 @@ func TestInvalidResource(t *testing.T) {
                   x: 1
 `)
 	assert.ErrorContains(t, err, "Additional property impossible is not allowed")
+}
+
+func TestInterpolatedArrayWhereStringExpected(t *testing.T) {
+	_, err := loadYAMLWithEnv(`
+        name: test
+        services:
+          foo:
+            image: ${INLINED_ARRAY[*]}
+`, map[string]string{
+		"INLINED_ARRAY": "(busybox)",
+	})
+
+	assert.ErrorContains(t, err, "validating filename0.yml: services.foo.image must be a string")
 }
 
 func TestInvalidExternalAndDriverCombination(t *testing.T) {
