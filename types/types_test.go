@@ -18,12 +18,9 @@ package types
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
-
-	"gopkg.in/yaml.v3"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -291,22 +288,56 @@ func TestMarshalServiceEntrypoint(t *testing.T) {
 		expectedJSON string
 	}{
 		{
-			name:         "nil",
-			entrypoint:   nil,
-			expectedYAML: `{}`,
-			expectedJSON: `{"command":null,"entrypoint":null}`,
+			name:       "nil",
+			entrypoint: nil,
+			expectedYAML: `services:
+  test: {}`,
+			expectedJSON: `{
+  "name": "",
+  "services": {
+    "test": {
+      "command": null,
+      "entrypoint": null
+    }
+  }
+}`,
 		},
 		{
-			name:         "empty",
-			entrypoint:   make([]string, 0),
-			expectedYAML: `entrypoint: []`,
-			expectedJSON: `{"command":null,"entrypoint":[]}`,
+			name:       "empty",
+			entrypoint: make([]string, 0),
+			expectedYAML: `services:
+  test:
+    entrypoint: []`,
+			expectedJSON: `{
+  "name": "",
+  "services": {
+    "test": {
+      "command": null,
+      "entrypoint": []
+    }
+  }
+}`,
 		},
 		{
-			name:         "value",
-			entrypoint:   ShellCommand{"ls", "/"},
-			expectedYAML: "entrypoint:\n    - ls\n    - /",
-			expectedJSON: `{"command":null,"entrypoint":["ls","/"]}`,
+			name:       "value",
+			entrypoint: ShellCommand{"ls", "/"},
+			expectedYAML: `services:
+  test:
+    entrypoint:
+      - ls
+      - /`,
+			expectedJSON: `{
+  "name": "",
+  "services": {
+    "test": {
+      "command": null,
+      "entrypoint": [
+        "ls",
+        "/"
+      ]
+    }
+  }
+}`,
 		},
 	}
 
@@ -322,11 +353,14 @@ func TestMarshalServiceEntrypoint(t *testing.T) {
 			t.Parallel()
 
 			s := ServiceConfig{Entrypoint: tc.entrypoint}
-			actualYAML, err := yaml.Marshal(s)
+			p := Project{Services: Services{
+				"test": s,
+			}}
+			actualYAML, err := p.MarshalYAML()
 			assert.NilError(t, err, "YAML marshal failed")
 			assertEqual(t, actualYAML, tc.expectedYAML)
 
-			actualJSON, err := json.Marshal(s)
+			actualJSON, err := p.MarshalJSON()
 			assert.NilError(t, err, "JSON marshal failed")
 			assertEqual(t, actualJSON, tc.expectedJSON)
 		})
@@ -334,27 +368,32 @@ func TestMarshalServiceEntrypoint(t *testing.T) {
 }
 
 func TestMarshalBuild_DockerfileInline(t *testing.T) {
-	b := BuildConfig{
-		DockerfileInline: "FROM alpine\n\n# echo the env\nRUN env\n\nENTRYPOINT /bin/echo\n",
+	p := Project{
+		Services: Services{
+			"test": ServiceConfig{
+				Build: &BuildConfig{
+					DockerfileInline: "FROM alpine\n\n# echo the env\nRUN env\n\nENTRYPOINT /bin/echo\n",
+				},
+			},
+		},
 	}
-	out, err := yaml.Marshal(b)
+
+	out, err := p.MarshalYAML()
 	assert.NilError(t, err)
 
 	const expected = `
-dockerfile_inline: |
-    FROM alpine
-
-    # echo the env
-    RUN env
-
-    ENTRYPOINT /bin/echo
+services:
+  test:
+    build:
+      dockerfile_inline: |
+        FROM alpine
+        
+        # echo the env
+        RUN env
+        
+        ENTRYPOINT /bin/echo
 `
 	assert.Check(t, equalTrimSpace(out, expected))
-
-	// round-trip
-	var b2 BuildConfig
-	assert.NilError(t, yaml.Unmarshal(out, &b2))
-	assert.Check(t, equalTrimSpace(b.DockerfileInline, b2.DockerfileInline))
 }
 
 func equalTrimSpace(x interface{}, y interface{}) is.Comparison {

@@ -468,7 +468,7 @@ func TestNonStringKeys(t *testing.T) {
   foo:
     image: busybox
 `)
-	assert.ErrorContains(t, err, "non-string key at top level: 123")
+	assert.ErrorContains(t, err, "(root): Additional property 123 is not allowed")
 
 	_, err = loadYAML(`
 services:
@@ -477,7 +477,7 @@ services:
   123:
     image: busybox
 `)
-	assert.ErrorContains(t, err, "non-string key in services: 123")
+	assert.ErrorContains(t, err, "services: Additional property 123 is not allowed")
 
 	_, err = loadYAML(`
 services:
@@ -489,7 +489,7 @@ networks:
       config:
         - 123: oh dear
 `)
-	assert.ErrorContains(t, err, "non-string key in networks.default.ipam.config[0]: 123")
+	assert.ErrorContains(t, err, "networks.default.ipam.config.0: Additional property 123 is not allowed")
 
 	_, err = loadYAML(`
 services:
@@ -990,7 +990,7 @@ func TestDecodeErrors(t *testing.T) {
 
 	configDetails := buildConfigDetails(dict, nil)
 	_, err := LoadWithContext(context.TODO(), configDetails)
-	assert.Error(t, err, "yaml: line 4: found a tab character that violates indentation")
+	assert.ErrorContains(t, err, "found character '\t' that cannot start any token")
 }
 
 func TestBuildProperties(t *testing.T) {
@@ -3729,7 +3729,7 @@ services:
     environment:
       - DEBUG = true
 `)
-	assert.Check(t, strings.Contains(err.Error(), "'services[test].environment': environment variable DEBUG  is declared with a trailing space"))
+	assert.ErrorContains(t, err, "'services[test].environment': environment variable DEBUG  is declared with a trailing space")
 }
 
 func TestFileModeNumber(t *testing.T) {
