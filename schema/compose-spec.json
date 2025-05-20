@@ -392,6 +392,7 @@
         "provider": {
           "type": "object",
           "description": "Specify a service which will not be manage by Compose directly, and delegate its management to an external provider.",
+          "required": ["type"],
           "properties": {
             "type": {
               "type": "string",

@@ -3791,6 +3791,19 @@ services:
 			"booleans": []string{"true", "false"},
 		},
 	})
+
+	_, err = loadYAML(`
+name: service-provider
+services:
+  test:
+    provider:
+      options:
+        bar: zot
+        strings: foo
+        numbers: 12
+        booleans: true
+`)
+	assert.Check(t, strings.Contains(err.Error(), "services.test.provider type is required"))
 }
 
 func TestImageVolume(t *testing.T) {
