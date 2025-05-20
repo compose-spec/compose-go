@@ -36,6 +36,8 @@ func (c *DeviceCount) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {
 	case int:
 		*c = DeviceCount(v)
+	case uint64:
+		*c = DeviceCount(v)
 	case string:
 		if strings.ToLower(v) == "all" {
 			*c = -1

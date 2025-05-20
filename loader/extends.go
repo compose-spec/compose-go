@@ -34,7 +34,7 @@ func ApplyExtends(ctx context.Context, dict map[string]any, opts *Options, track
 	}
 	services, ok := a.(map[string]any)
 	if !ok {
-		return fmt.Errorf("services must be a mapping")
+		return fmt.Errorf("services: must be a mapping")
 	}
 	for name := range services {
 		merged, err := applyServiceExtends(ctx, name, services, opts, tracker, post...)
@@ -54,7 +54,7 @@ func applyServiceExtends(ctx context.Context, name string, services map[string]a
 	}
 	service, ok := s.(map[string]any)
 	if !ok {
-		return nil, fmt.Errorf("services.%s must be a mapping", name)
+		return nil, fmt.Errorf("services.%s: must be a mapping", name)
 	}
 	extends, ok := service["extends"]
 	if !ok {
