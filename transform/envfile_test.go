@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/tree"
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 	"gotest.tools/v3/assert"
 )
 

@@ -21,8 +21,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/goccy/go-yaml"
 	"github.com/xeipuuv/gojsonschema"
-	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 )
 

@@ -33,18 +33,10 @@ func transformPorts(data any, p tree.Path, ignoreParseError bool) (any, error) {
 		var ports []any
 		for _, entry := range entries {
 			switch value := entry.(type) {
-			case int:
-				parsed, err := types.ParsePortConfig(fmt.Sprint(value))
-				if err != nil {
-					return data, err
-				}
-				for _, v := range parsed {
-					m, err := encode(v)
-					if err != nil {
-						return nil, err
-					}
-					ports = append(ports, m)
-				}
+			case int, int64, uint64:
+				ports = append(ports, map[string]any{
+					"target": value,
+				})
 			case string:
 				parsed, err := types.ParsePortConfig(value)
 				if err != nil {
