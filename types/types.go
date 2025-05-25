@@ -579,6 +579,8 @@ const (
 	VolumeTypeCluster = "cluster"
 	// VolumeTypeImage is the tpe for mounting an image
 	VolumeTypeImage = "image"
+	// VolumeTypeAPISocket specifies a volume that bind mounts the container runtime API socket.
+	VolumeTypeAPISocket = "api-socket"
 
 	// SElinuxShared share the volume content
 	SElinuxShared = "z"
