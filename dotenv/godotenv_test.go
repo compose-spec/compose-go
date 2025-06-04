@@ -741,3 +741,34 @@ func TestLoadWithFormat(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expectedValues, env)
 }
+
+func TestMultipleFiles(t *testing.T) {
+	base := filepath.Join(t.TempDir(), "base.env")
+	err := os.WriteFile(base, []byte(`
+ENV_HOSTNAME=localhost
+ENV_MY_URL="http://${ENV_HOSTNAME}"
+`), 0o600)
+	assert.NilError(t, err)
+
+	override := filepath.Join(t.TempDir(), "override.env")
+	err = os.WriteFile(override, []byte(`
+ENV_HOSTNAME=dev.my-company.com
+ENV_MY_URL="http://${ENV_HOSTNAME}"
+`), 0o600)
+	assert.NilError(t, err)
+
+	env, err := GetEnvFromFile(nil, []string{base, override})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, env, map[string]string{
+		"ENV_HOSTNAME": "dev.my-company.com",
+		"ENV_MY_URL":   "http://dev.my-company.com",
+	})
+
+	osEnv := map[string]string{"ENV_HOSTNAME": "host.local"}
+	env, err = GetEnvFromFile(osEnv, []string{base, override})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, env, map[string]string{
+		"ENV_HOSTNAME": "dev.my-company.com",
+		"ENV_MY_URL":   "http://host.local",
+	})
+}
