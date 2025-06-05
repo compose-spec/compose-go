@@ -1,11 +1,11 @@
 # Compose file parsing
 
-This document describes the logic parsing and merging compose file 
+This document describes the logic parsing and merging compose file
 and overrides.
 
 ## Phase 1: parse yaml document
 
-Yaml document is parsed using de-facto standard [go-yaml](https://github.com/go-yaml/yaml)
+Yaml document is parsed using de-facto standard [go-yaml](https://github.com/yaml/go-yaml)
 library. This one manages anchors and aliases, which are only supported within
 a yaml document (an override can't refer to another compose file anchor)
 
@@ -74,7 +74,7 @@ for `!reset` to remove an element from original service definition.
 A compose file can use `include` to rely on compose resources defined by third-parties
 as a separate compose file
 
-Included compose definition is fully parsed (as described in this document) then included 
+Included compose definition is fully parsed (as described in this document) then included
 to the compose yaml model being processed. Conflicting resources are detected and rejected
 
 The resulting compose model is equivalent to a copy/paste of the included compose model
@@ -82,19 +82,19 @@ The resulting compose model is equivalent to a copy/paste of the included compos
 
 # Phase 8: merge overrides
 
-If loaded document is an override, the yaml tree is merged with the one from 
+If loaded document is an override, the yaml tree is merged with the one from
 main compose file. `!reset` can be used to remove elements.
-The merge logic generally is "_append to lists, replace in mapping_" with a 
+The merge logic generally is "_append to lists, replace in mapping_" with a
 few exceptions:
 - shell commands always are replaced by an override
-- `options` is only merged if both file declare the same `driver`, otherwise 
+- `options` is only merged if both file declare the same `driver`, otherwise
   the override fully replaces the original.
 - Attributes which can be expressed both as a mapping and a sequence are converted
   so that merge can apply on equivalent data structures.
 
 # Phase 9: enforce unicity
 
-While modeled as a list, some attributes actually require some unicity to be 
+While modeled as a list, some attributes actually require some unicity to be
 applied. Volume mount definition for a service typically must be unique
 regarding the target mount path. As such attribute can be defined as a single
 string and set by a variable, we have to apply the "_append to list_" merge
@@ -113,7 +113,7 @@ must result into an error being reported to the user
 networks:
   foo:
     external: true
-    driver: macvlan # This will trigger an error, as external network should not have any resource creation parameter set 
+    driver: macvlan # This will trigger an error, as external network should not have any resource creation parameter set
 ```
 
 # Phase 11: transform into canonical representation
@@ -123,13 +123,13 @@ syntax. It also supports use of single string or list of strings for some
 repeatable attributes. Some attributes can be declared both as a list of
 key=value strings or as a yaml mapping.
 
-During loading, all those attributes are transformed into canonical 
+During loading, all those attributes are transformed into canonical
 representation, so that we get a single format that will match to go structs
 for binding.
 
 # Phase 12: set-defaults
 
-Some attributes are required by the model but optional in the compose file, as an implicit 
+Some attributes are required by the model but optional in the compose file, as an implicit
 default value is defined by the specification, like [`build.context`](https://github.com/compose-spec/compose-spec/blob/master/build.md#context)
 During this phase, such unset attributes get default value assigned.
 
@@ -162,7 +162,7 @@ volumes:
 
 Eventually, the yaml tree can be unmarshalled into go structs. We rely on
 [mapstructure](https://github.com/go-viper/mapstructure/) library for this purpose.
-Decoder is configured so that custom decode function can be defined by target type, 
+Decoder is configured so that custom decode function can be defined by target type,
 allowing type conversions. For example, byte units (`640k`) and durations set in yaml
 as plain string are actually modeled in go types as `int64`.
 
