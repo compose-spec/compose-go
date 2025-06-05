@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 	"gotest.tools/v3/assert"
 )
 
@@ -78,23 +78,23 @@ networks:
 func TestNormalizeVolumes(t *testing.T) {
 	project := `
 name: myProject
-volumes:  
-  myExternalVol: 
+volumes:
+  myExternalVol:
     external: true
   myvol: {}
-  myNamedVol: 
+  myNamedVol:
     name: CustomName
 `
 
 	expected := `
 name: myProject
-volumes:  
-  myExternalVol: 
+volumes:
+  myExternalVol:
     name: myExternalVol
     external: true
-  myvol: 
+  myvol:
     name: myProject_myvol
-  myNamedVol: 
+  myNamedVol:
     name: CustomName
 `
 	var model map[string]any
@@ -114,14 +114,14 @@ func TestNormalizeDependsOn(t *testing.T) {
 name: myProject
 services:
   foo:
-    depends_on: 
+    depends_on:
       bar:
         condition: service_healthy
         required: true
         restart: true
     network_mode: service:zot
 
-  bar: 
+  bar:
     volumes_from:
       - zot
       - container:xxx
@@ -184,7 +184,7 @@ services:
     volumes_from: [quux]
     links: [corge]
     depends_on: # explicit dependency MUST not be overridden
-      foo: 
+      foo:
         condition: service_healthy
 `
 
@@ -199,25 +199,25 @@ services:
     volumes_from: [quux]
     links: [corge]
     depends_on: # explicit dependency MUST not be overridden
-      foo: 
+      foo:
         condition: service_healthy
-      bar: 
+      bar:
         condition: service_started
         restart: true
         required: true
-      baz: 
+      baz:
         condition: service_started
         restart: true
         required: true
-      qux: 
+      qux:
         condition: service_started
         restart: true
         required: true
-      quux: 
+      quux:
         condition: service_started
         required: true
         restart: false
-      corge: 
+      corge:
         condition: service_started
         restart: true
         required: true
@@ -243,13 +243,13 @@ networks:
 func TestImplicitContextPath(t *testing.T) {
 	project := `
 name: myProject
-services: 
+services:
   test:
     build: {}
 `
 	expected := `
 name: myProject
-services: 
+services:
   test:
     build:
       context: .
@@ -276,7 +276,7 @@ networks:
 func TestNormalizeDefaultNetwork(t *testing.T) {
 	project := `
 name: myProject
-services:  
+services:
   test:
     image: test
 `
@@ -286,8 +286,8 @@ name: myProject
 networks:
   default:
     name: myProject_default
-services:  
-  test: 
+services:
+  test:
     image: test
     networks:
       default: null
@@ -307,8 +307,8 @@ services:
 func TestNormalizeCustomNetwork(t *testing.T) {
 	project := `
 name: myProject
-services:  
-  test: 
+services:
+  test:
     networks:
       my_network: null
 networks:
@@ -320,8 +320,8 @@ name: myProject
 networks:
   my_network:
     name: myProject_my_network
-services:  
-  test: 
+services:
+  test:
     networks:
       my_network: null
 `
@@ -340,8 +340,8 @@ services:
 func TestNormalizeEnvironment(t *testing.T) {
 	project := `
 name: myProject
-services:  
-  test: 
+services:
+  test:
     environment:
       - FOO
       - BAR
@@ -353,8 +353,8 @@ name: myProject
 networks:
   default:
     name: myProject_default
-services:  
-  test: 
+services:
+  test:
     environment:
       - FOO
       - BAR=bar
