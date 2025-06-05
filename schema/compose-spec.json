@@ -739,6 +739,10 @@
           "$ref": "#/definitions/ulimits",
           "description": "Override the default ulimits for a container."
         },
+        "use_api_socket": {
+          "type": "boolean",
+          "description": "Bind mount Docker API socket and required auth."
+        },
         "user": {
           "type": "string",
           "description": "Username or UID to run the container process as."
