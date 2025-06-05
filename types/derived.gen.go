@@ -675,6 +675,7 @@ func deriveDeepCopyService(dst, src *ServiceConfig) {
 	} else {
 		dst.Ulimits = nil
 	}
+	dst.UseAPISocket = src.UseAPISocket
 	dst.User = src.User
 	dst.UserNSMode = src.UserNSMode
 	dst.Uts = src.Uts
