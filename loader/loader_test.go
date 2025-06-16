@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
@@ -33,6 +34,8 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/types"
 )
+
+var ignoreLoaderEnv = cmpopts.IgnoreFields(types.ServiceConfig{}, "LoaderEnv")
 
 func buildConfigDetails(yaml string, env map[string]string) types.ConfigDetails {
 	return buildConfigDetailsMultipleFiles(env, yaml)
@@ -227,7 +230,7 @@ func TestLoad(t *testing.T) {
 		options.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(sampleConfig.Services, actual.Services))
+	assert.Check(t, is.DeepEqual(sampleConfig.Services, actual.Services, ignoreLoaderEnv))
 	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
 	assert.Check(t, is.DeepEqual(sampleConfig.Volumes, actual.Volumes))
 }
@@ -253,7 +256,7 @@ func TestLoadFromFile(t *testing.T) {
 		options.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(sampleConfig.Services, actual.Services))
+	assert.Check(t, is.DeepEqual(sampleConfig.Services, actual.Services, ignoreLoaderEnv))
 	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
 	assert.Check(t, is.DeepEqual(sampleConfig.Volumes, actual.Volumes))
 }
@@ -780,7 +783,6 @@ networks:
 	typesDuration := types.Duration(duration)
 	expected := &types.Project{
 		Name:             "load-with-interpolation-cast-full",
-		Environment:      env,
 		WorkingDir:       workingDir,
 		DisabledServices: types.Services{},
 		Services: types.Services{
@@ -884,9 +886,8 @@ services:
 	assert.NilError(t, err)
 
 	expected := &types.Project{
-		Name:        "load-label-file",
-		Environment: types.Mapping{"COMPOSE_PROJECT_NAME": "load-label-file"},
-		WorkingDir:  workingDir,
+		Name:       "load-label-file",
+		WorkingDir: workingDir,
 		Services: types.Services{
 			"service_1": {
 				Name:        "service_1",
@@ -1659,11 +1660,8 @@ networks:
 			"network1": {Name: "network2"},
 			"network3": {},
 		},
-		Environment: types.Mapping{
-			"COMPOSE_PROJECT_NAME": "load-network-with-name",
-		},
 	}
-	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+	assertEqual(t, config, expected)
 }
 
 func TestLoadIPv6Only(t *testing.T) {
@@ -1707,11 +1705,8 @@ networks:
 				EnableIPv6: &enableIPv6,
 			},
 		},
-		Environment: types.Mapping{
-			"COMPOSE_PROJECT_NAME": "load-network-ipv6only",
-		},
 	}
-	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+	assertEqual(t, config, expected)
 }
 
 func TestLoadNetworkLinkLocalIPs(t *testing.T) {
@@ -1772,11 +1767,8 @@ networks:
 				},
 			},
 		},
-		Environment: types.Mapping{
-			"COMPOSE_PROJECT_NAME": "load-network-link-local-ips",
-		},
 	}
-	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+	assertEqual(t, config, expected)
 }
 
 func TestLoadServiceNetworkDriverOpts(t *testing.T) {
@@ -1815,11 +1807,8 @@ networks:
 		Networks: map[string]types.NetworkConfig{
 			"network1": {},
 		},
-		Environment: types.Mapping{
-			"COMPOSE_PROJECT_NAME": "load-service-network-driver-opts",
-		},
 	}
-	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty())
+	assertEqual(t, config, expected)
 }
 
 func TestLoadInit(t *testing.T) {
@@ -1973,9 +1962,6 @@ secrets:
 				TemplateDriver: "secret-driver",
 			},
 		},
-		Environment: types.Mapping{
-			"COMPOSE_PROJECT_NAME": "load-template-driver",
-		},
 	}
 	assertEqual(t, expected, config)
 }
@@ -2045,15 +2031,16 @@ secrets:
 				},
 			},
 		},
-		Environment: types.Mapping{
-			"COMPOSE_PROJECT_NAME": "load-secret-driver",
-		},
 	}
 	assertEqual(t, config, expected)
 }
 
 func assertEqual(t *testing.T, config *types.Project, expected *types.Project) {
-	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(types.SecretConfig{}), cmpopts.IgnoreUnexported(types.ConfigObjConfig{}))
+	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty(),
+		cmpopts.IgnoreUnexported(types.SecretConfig{}),
+		cmpopts.IgnoreUnexported(types.ConfigObjConfig{}),
+		cmpopts.IgnoreFields(types.Project{}, "Environment"),
+	)
 }
 
 func TestComposeFileWithVersion(t *testing.T) {
@@ -2338,16 +2325,17 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 	_, err = file.Write([]byte("HALLO=$TEST"))
 	assert.NilError(t, err)
 
+	environment := map[string]string{
+		"TEST": "YES",
+	}
 	p := &types.Project{
-		Environment: map[string]string{
-			"TEST": "YES",
-		},
 		Services: types.Services{
 			"test": {
 				Name: "test",
 				EnvFiles: []types.EnvFile{
 					{Path: file.Name(), Required: true},
 				},
+				LoaderEnv: environment,
 			},
 		},
 	}
@@ -2366,6 +2354,9 @@ func TestLoadServiceWithLabelFile(t *testing.T) {
 	_, err = file.Write([]byte("MY_LABEL=MY_VALUE"))
 	assert.NilError(t, err)
 
+	environment := map[string]string{
+		"TEST": "YES",
+	}
 	p := &types.Project{
 		Services: types.Services{
 			"test": {
@@ -2373,6 +2364,7 @@ func TestLoadServiceWithLabelFile(t *testing.T) {
 				LabelFiles: []string{
 					file.Name(),
 				},
+				LoaderEnv: environment,
 			},
 		},
 	}
@@ -2684,7 +2676,7 @@ volumes:
 				},
 			},
 		},
-	})
+	}, ignoreLoaderEnv)
 }
 
 func TestXService(t *testing.T) {
@@ -2767,7 +2759,7 @@ services:
 				},
 			},
 		},
-	})
+	}, ignoreLoaderEnv)
 	/* TODO(ndeloof) restore support for include tracking
 	assert.DeepEqual(t, p.IncludeReferences, map[string][]types.IncludeConfig{
 		filepath.Join(workingDir, "filename0.yml"): {
@@ -2892,7 +2884,7 @@ services:
 				"qux": {Condition: types.ServiceConditionCompletedSuccessfully, Required: true},
 			},
 		},
-	})
+	}, ignoreLoaderEnv)
 }
 
 type customLoader struct {
@@ -2959,7 +2951,7 @@ services:
 				},
 			},
 		},
-	})
+	}, ignoreLoaderEnv)
 }
 
 func TestLoadWithMissingResources(t *testing.T) {
@@ -3280,7 +3272,7 @@ func TestLoadProjectName(t *testing.T) {
 		},
 		{
 			name:    "project name from environment",
-			env:     map[string]string{"COMPOSE_PROJECT_NAME": projectName},
+			env:     map[string]string{consts.ComposeProjectName: projectName},
 			options: func(_ *Options) {},
 			wantErr: "project name must not be empty",
 		},
@@ -3322,7 +3314,6 @@ services:
 			}
 			assert.NilError(t, err)
 			assert.Equal(t, project.Name, projectName)
-			assert.Equal(t, project.Environment["COMPOSE_PROJECT_NAME"], projectName)
 			assert.Equal(t, project.Services["web"].ContainerName, projectName+"-web")
 		})
 	}

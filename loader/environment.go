@@ -40,6 +40,11 @@ func resolveServicesEnvironment(dict map[string]any, environment types.Mapping) 
 		if !ok {
 			continue
 		}
+		if _, ok := serviceConfig[types.LoaderEnvironment]; !ok && environment != nil {
+			serviceConfig[types.LoaderEnvironment] = map[string]string(environment)
+		}
+		services[service] = serviceConfig
+
 		serviceEnv, ok := serviceConfig["environment"].([]any)
 		if !ok {
 			continue
@@ -58,7 +63,6 @@ func resolveServicesEnvironment(dict map[string]any, environment types.Mapping) 
 			}
 		}
 		serviceConfig["environment"] = envs
-		services[service] = serviceConfig
 	}
 	dict["services"] = services
 }

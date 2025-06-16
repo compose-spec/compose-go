@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
-	interp "github.com/compose-spec/compose-go/v2/interpolation"
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
@@ -142,11 +141,8 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 			ConfigFiles: types.ToConfigFiles(r.Path),
 			Environment: environment.Clone().Merge(envFromFile),
 		}
-		loadOptions.Interpolate = &interp.Options{
-			Substitute:      options.Interpolate.Substitute,
-			LookupValue:     config.LookupEnv,
-			TypeCastMapping: options.Interpolate.TypeCastMapping,
-		}
+		loadOptions.Interpolate = options.Interpolate.Clone()
+		loadOptions.Interpolate.LookupValue = config.LookupEnv
 		imported, err := loadYamlModel(ctx, config, loadOptions, &cycleTracker{}, included)
 		if err != nil {
 			return err

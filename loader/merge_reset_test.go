@@ -59,7 +59,7 @@ func Test_LoadWithReset(t *testing.T) {
 		Name:        "foo",
 		Image:       "foo",
 		Environment: types.MappingWithEquals{},
-	})
+	}, ignoreLoaderEnv)
 }
 
 func Test_DuplicateReset(t *testing.T) {

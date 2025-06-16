@@ -167,7 +167,7 @@ func ReadFile(filename string, lookupFn LookupFn) (map[string]string, error) {
 	return ParseWithLookup(file, lookupFn)
 }
 
-func expandVariables(value string, envMap map[string]string, lookupFn LookupFn) (string, error) {
+func ExpandVariables(value string, envMap map[string]string, lookupFn LookupFn) (string, error) {
 	retVal, err := template.Substitute(value, func(k string) (string, bool) {
 		if v, ok := lookupFn(k); ok {
 			return v, true

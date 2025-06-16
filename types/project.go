@@ -648,34 +648,43 @@ func (p *Project) MarshalJSON(options ...func(*marshallOptions)) ([]byte, error)
 func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project, error) {
 	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
-		service.Environment = service.Environment.Resolve(newProject.Environment.Resolve)
-
-		environment := service.Environment.ToMapping()
-		for _, envFile := range service.EnvFiles {
-			err := loadEnvFile(envFile, environment, func(k string) (string, bool) {
-				// project.env has precedence doing interpolation
-				if resolve, ok := p.Environment.Resolve(k); ok {
-					return resolve, true
-				}
-				// then service.environment
-				if s, ok := service.Environment[k]; ok && s != nil {
-					return *s, true
-				}
-				return "", false
-			})
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		service.Environment = environment.ToMappingWithEquals().OverrideBy(service.Environment)
-
-		if discardEnvFiles {
-			service.EnvFiles = nil
+		err := service.WithEnvironmentResolved(discardEnvFiles)
+		if err != nil {
+			return nil, err
 		}
 		newProject.Services[i] = service
 	}
 	return newProject, nil
+}
+
+func (s *ServiceConfig) WithEnvironmentResolved(discardEnvFiles bool) error {
+	s.Environment = s.Environment.Resolve(s.LoaderEnv.Resolve)
+
+	environment := s.Environment.ToMapping()
+	for _, envFile := range s.EnvFiles {
+		err := loadEnvFile(envFile, environment, func(k string) (string, bool) {
+			// project.env has precedence doing interpolation
+			if resolve, ok := s.LoaderEnv.Resolve(k); ok {
+				return resolve, true
+			}
+			// then service.environment
+			if s, ok := s.Environment[k]; ok && s != nil {
+				return *s, true
+			}
+			return "", false
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	s.Environment = environment.ToMappingWithEquals().OverrideBy(s.Environment)
+
+	if discardEnvFiles {
+		s.EnvFiles = nil
+	}
+	s.LoaderEnv = nil
+	return nil
 }
 
 // WithServicesLabelsResolved parses label_files set for services to resolve the actual label map for services
