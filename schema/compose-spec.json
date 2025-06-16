@@ -604,52 +604,7 @@
           "type": "string",
           "description": "Target platform to run on, e.g., 'linux/amd64', 'linux/arm64', or 'windows/amd64'."
         },
-        "ports": {
-          "type": "array",
-          "description": "Expose container ports. Short format ([HOST:]CONTAINER[/PROTOCOL]).",
-          "items": {
-            "oneOf": [
-              {"type": "number"},
-              {"type": "string"},
-              {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "description": "A human-readable name for this port mapping."
-                  },
-                  "mode": {
-                    "type": "string",
-                    "description": "The port binding mode, either 'host' for publishing a host port or 'ingress' for load balancing."
-                  },
-                  "host_ip": {
-                    "type": "string",
-                    "description": "The host IP to bind to."
-                  },
-                  "target": {
-                    "type": ["integer", "string"],
-                    "description": "The port inside the container."
-                  },
-                  "published": {
-                    "type": ["string", "integer"],
-                    "description": "The publicly exposed port."
-                  },
-                  "protocol": {
-                    "type": "string",
-                    "description": "The port protocol (tcp or udp)."
-                  },
-                  "app_protocol": {
-                    "type": "string",
-                    "description": "Application protocol to use with the port (e.g., http, https, mysql)."
-                  }
-                },
-                "additionalProperties": false,
-                "patternProperties": {"^x-": {}}
-              }
-            ]
-          },
-          "uniqueItems": true
-        },
+        "ports": {"$ref": "#/definitions/ports"},
         "post_start": {
           "type": "array",
           "items": {"$ref": "#/definitions/service_hook"},
@@ -929,6 +884,14 @@
       "type": ["object", "null"],
       "description": "Development configuration for the service, used for development workflows.",
       "properties": {
+        "command": {
+          "$ref": "#/definitions/command",
+          "description": "Command to execute in development mode."
+        },
+        "ports":  {
+          "$ref": "#/definitions/ports",
+          "description": "Additional ports to expose in development mode. Short format ([HOST:]CONTAINER[/PROTOCOL])."
+        },
         "watch": {
           "type": "array",
           "description": "Configure watch mode for the service, which monitors file changes and performs actions in response.",
@@ -1587,6 +1550,53 @@
       "additionalProperties": false,
       "patternProperties": {"^x-": {}},
       "required": ["command"]
+    },
+
+    "ports": {
+      "type": "array",
+      "description": "Expose container ports. Short format ([HOST:]CONTAINER[/PROTOCOL]).",
+      "items": {
+        "oneOf": [
+          {"type": "number"},
+          {"type": "string"},
+          {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "A human-readable name for this port mapping."
+              },
+              "mode": {
+                "type": "string",
+                "description": "The port binding mode, either 'host' for publishing a host port or 'ingress' for load balancing."
+              },
+              "host_ip": {
+                "type": "string",
+                "description": "The host IP to bind to."
+              },
+              "target": {
+                "type": ["integer", "string"],
+                "description": "The port inside the container."
+              },
+              "published": {
+                "type": ["string", "integer"],
+                "description": "The publicly exposed port."
+              },
+              "protocol": {
+                "type": "string",
+                "description": "The port protocol (tcp or udp)."
+              },
+              "app_protocol": {
+                "type": "string",
+                "description": "Application protocol to use with the port (e.g., http, https, mysql)."
+              }
+            },
+            "additionalProperties": false,
+            "patternProperties": {"^x-": {}}
+          }
+        ]
+      },
+      "uniqueItems": true
     },
 
     "env_file": {

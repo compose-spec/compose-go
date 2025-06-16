@@ -43,6 +43,18 @@ func NewMappingWithEquals(values []string) MappingWithEquals {
 	return mapping
 }
 
+func (m MappingWithEquals) Values() []string {
+	values := make([]string, 0, len(m))
+	for key, val := range m {
+		if val != nil {
+			values = append(values, fmt.Sprintf("%s=%s", key, val))
+		} else {
+			values = append(values, key)
+		}
+	}
+	return values
+}
+
 // OverrideBy update MappingWithEquals with values from another MappingWithEquals
 func (m MappingWithEquals) OverrideBy(other MappingWithEquals) MappingWithEquals {
 	for k, v := range other {
