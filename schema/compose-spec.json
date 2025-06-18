@@ -1226,8 +1226,17 @@
         },
         "additionalProperties": false,
         "patternProperties": {"^x-": {}},
-        "required": [
-          "capabilities"
+        "oneOf": [
+          {
+            "required": [
+              "capabilities"
+            ]
+          },
+          {
+            "required": [
+              "driver"
+            ]
+          }
         ]
       }
     },
@@ -1247,7 +1256,7 @@
             "properties": {
               "capabilities": {
                 "$ref": "#/definitions/list_of_strings",
-                "description": "List of capabilities the GPU needs to have (e.g., 'compute', 'utility')."
+                "description": "List of capabilities the GPU needs to have."
               },
               "count": {
                 "type": ["string", "integer"],
@@ -1259,7 +1268,7 @@
               },
               "driver": {
                 "type": "string",
-                "description": "GPU driver to use (e.g., 'nvidia')."
+                "description": "GPU driver to use (e.g., 'nvidia'). If this is not specified any available driver with the 'gpu' capability will be selected."
               },
               "options": {
                 "$ref": "#/definitions/list_or_dict",
