@@ -759,6 +759,12 @@ func deriveDeepCopyService(dst, src *ServiceConfig) {
 	} else {
 		dst.Extensions = nil
 	}
+	if src.LoaderEnv != nil {
+		dst.LoaderEnv = make(map[string]string, len(src.LoaderEnv))
+		deriveDeepCopy_4(dst.LoaderEnv, src.LoaderEnv)
+	} else {
+		dst.LoaderEnv = nil
+	}
 }
 
 // deriveDeepCopy recursively copies the contents of src into dst.

@@ -141,6 +141,7 @@ type ServiceConfig struct {
 	PreStop         []ServiceHook                    `yaml:"pre_stop,omitempty" json:"pre_stop,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+	LoaderEnv  Mapping    `yaml:"x-#loader-environment,omitempty" json:"-"`
 }
 
 type ServiceProviderConfig struct {
@@ -154,6 +155,7 @@ func (s ServiceConfig) MarshalYAML() (interface{}, error) {
 	type t ServiceConfig
 	value := t(s)
 	value.Name = "" // set during map to slice conversion, not part of the yaml representation
+	value.LoaderEnv = nil
 	return value, nil
 }
 
@@ -256,6 +258,7 @@ const (
 
 const (
 	SecretConfigXValue = "x-#value"
+	LoaderEnvironment  = "x-#loader-environment" // Environment used during the parsing phase to resolve variables
 )
 
 // GetDependencies retrieves all services this service depends on
