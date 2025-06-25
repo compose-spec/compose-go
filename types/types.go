@@ -103,6 +103,7 @@ type ServiceConfig struct {
 	MemSwapLimit    UnitBytes                        `yaml:"memswap_limit,omitempty" json:"memswap_limit,omitempty"`
 	MemSwappiness   UnitBytes                        `yaml:"mem_swappiness,omitempty" json:"mem_swappiness,omitempty"`
 	MacAddress      string                           `yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
+	Models          map[string]*ServiceModelConfig   `yaml:"models,omitempty" json:"models,omitempty"`
 	Net             string                           `yaml:"net,omitempty" json:"net,omitempty"`
 	NetworkMode     string                           `yaml:"network_mode,omitempty" json:"network_mode,omitempty"`
 	Networks        map[string]*ServiceNetworkConfig `yaml:"networks,omitempty" json:"networks,omitempty"`
