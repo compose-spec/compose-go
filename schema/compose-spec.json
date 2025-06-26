@@ -407,13 +407,6 @@
                   { "type": "array", "items": {"type": ["string", "number", "boolean"]}}
                 ]}
               }
-            },
-            "configs": {
-              "type": "object",
-              "description": "Config files to pass to the provider.",
-              "patternProperties": {
-                "^.+$": {"type": ["string"]}
-              }
             }
           },
           "additionalProperties": false,
