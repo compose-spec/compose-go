@@ -1905,6 +1905,7 @@ func deriveDeepCopy_42(dst, src *DeviceRequest) {
 // deriveDeepCopy_43 recursively copies the contents of src into dst.
 func deriveDeepCopy_43(dst, src *ServiceModelConfig) {
 	dst.EndpointVariable = src.EndpointVariable
+	dst.ModelVariable = src.ModelVariable
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
 		src.Extensions.DeepCopy(dst.Extensions)
