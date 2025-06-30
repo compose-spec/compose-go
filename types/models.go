@@ -26,5 +26,6 @@ type ModelConfig struct {
 
 type ServiceModelConfig struct {
 	EndpointVariable string     `yaml:"endpoint_var,omitempty" json:"endpoint_var,omitempty"`
+	ModelVariable    string     `yaml:"model_var,omitempty" json:"model_var,omitempty"`
 	Extensions       Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }

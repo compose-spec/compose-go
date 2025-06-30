@@ -3875,6 +3875,7 @@ services:
     models:
       foo:
         endpoint_var: MODEL_URL
+        model_var: MODEL
 
 models:
   foo:
@@ -3895,6 +3896,7 @@ models:
 	assert.DeepEqual(t, p.Services["test_mapping"].Models, map[string]*types.ServiceModelConfig{
 		"foo": {
 			EndpointVariable: "MODEL_URL",
+			ModelVariable:    "MODEL",
 		},
 	})
 }
