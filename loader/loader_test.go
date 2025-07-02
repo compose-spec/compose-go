@@ -3729,7 +3729,7 @@ services:
     environment:
       - DEBUG = true
 `)
-	assert.Check(t, strings.Contains(err.Error(), "'services[test].environment': environment variable DEBUG  is declared with a trailing space"))
+	assert.Check(t, strings.Contains(err.Error(), "'services[test].environment' environment variable DEBUG  is declared with a trailing space"), err.Error())
 }
 
 func TestFileModeNumber(t *testing.T) {
