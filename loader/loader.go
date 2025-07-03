@@ -179,6 +179,7 @@ func (o *Options) clone() *Options {
 		SkipConsistencyCheck:       o.SkipConsistencyCheck,
 		SkipExtends:                o.SkipExtends,
 		SkipInclude:                o.SkipInclude,
+		SkipResolveEnvironment:     o.SkipResolveEnvironment,
 		Interpolate:                o.Interpolate,
 		discardEnvFiles:            o.discardEnvFiles,
 		projectName:                o.projectName,
@@ -362,6 +363,9 @@ func toOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Op
 		op(opts)
 	}
 	opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{configDetails.WorkingDir})
+	if opts.SkipResolveEnvironment {
+		opts.Interpolate.Exclude = append(opts.Interpolate.Exclude, "services.*.environment")
+	}
 	return opts
 }
 
@@ -724,8 +728,10 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 			}
 		}
 		if !skip && strings.HasPrefix(key, "x-") {
-			extras[key] = value
-			delete(dict, key)
+			if key != types.LoaderEnvironment {
+				extras[key] = value
+				delete(dict, key)
+			}
 			continue
 		}
 		switch v := value.(type) {

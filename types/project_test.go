@@ -447,6 +447,10 @@ secrets:
 }
 
 func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
+	environment := map[string]string{
+		"FOO": "FOO_from_os.env",
+		"QIX": "QIX_from_os.env",
+	}
 	p := &Project{
 		Services: Services{
 			"base": ServiceConfig{
@@ -458,6 +462,7 @@ func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
 				EnvFiles: []EnvFile{
 					{Path: "fixtures/base.env"},
 				},
+				LoaderEnv: environment,
 			},
 			"override": ServiceConfig{
 				Environment: MappingWithEquals{
@@ -467,11 +472,8 @@ func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
 					{Path: "fixtures/base.env"},
 					{Path: "fixtures/override.env"},
 				},
+				LoaderEnv: environment,
 			},
-		},
-		Environment: map[string]string{
-			"FOO": "FOO_from_os.env",
-			"QIX": "QIX_from_os.env",
 		},
 	}
 	p, err := p.WithServicesEnvironmentResolved(true)
