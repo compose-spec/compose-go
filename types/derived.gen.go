@@ -2025,6 +2025,12 @@ func deriveDeepCopy_47(dst, src *UlimitsConfig) {
 // deriveDeepCopy_48 recursively copies the contents of src into dst.
 func deriveDeepCopy_48(dst, src *ServiceVolumeConfig) {
 	dst.Type = src.Type
+	if src.Mount == nil {
+		dst.Mount = nil
+	} else {
+		dst.Mount = new(bool)
+		*dst.Mount = *src.Mount
+	}
 	dst.Source = src.Source
 	dst.Target = src.Target
 	dst.ReadOnly = src.ReadOnly

@@ -815,6 +815,10 @@
                     "type": "string",
                     "description": "The consistency requirements for the mount. Available values are platform specific."
                   },
+                  "mount": {
+                    "type": "boolean",
+                    "description": "Use the mount API (bind is preferred by default)"
+                  },
                   "bind": {
                     "type": "object",
                     "description": "Configuration specific to bind mounts.",

@@ -537,6 +537,7 @@ func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.Port
 // ServiceVolumeConfig are references to a volume used by a service
 type ServiceVolumeConfig struct {
 	Type        string               `yaml:"type,omitempty" json:"type,omitempty"`
+	Mount       *bool                `yaml:"mount,omitempty" json:"mount,omitempty"`
 	Source      string               `yaml:"source,omitempty" json:"source,omitempty"`
 	Target      string               `yaml:"target,omitempty" json:"target,omitempty"`
 	ReadOnly    bool                 `yaml:"read_only,omitempty" json:"read_only,omitempty"`
