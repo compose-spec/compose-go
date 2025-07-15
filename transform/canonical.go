@@ -22,9 +22,10 @@ import (
 	"github.com/compose-spec/compose-go/v2/tree"
 )
 
-type transformFunc func(data any, p tree.Path, ignoreParseError bool) (any, error)
+// Func is a function that can transform data at a specific path
+type Func func(data any, p tree.Path, ignoreParseError bool) (any, error)
 
-var transformers = map[tree.Path]transformFunc{}
+var transformers = map[tree.Path]Func{}
 
 func init() {
 	transformers["services.*"] = transformService
