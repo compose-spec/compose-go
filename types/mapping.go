@@ -85,7 +85,7 @@ func (m MappingWithEquals) ToMapping() Mapping {
 
 func (m *MappingWithEquals) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		mapping := make(MappingWithEquals, len(v))
 		for k, e := range v {
 			mapping[k] = mappingValue(e)
@@ -157,6 +157,14 @@ func (m Mapping) Values() []string {
 	return values
 }
 
+// OverrideBy update Mapping with values from another Mapping
+func (m Mapping) OverrideBy(other Mapping) Mapping {
+	for k, v := range other {
+		m[k] = v
+	}
+	return m
+}
+
 // ToMappingWithEquals converts Mapping into a MappingWithEquals with pointer references
 func (m Mapping) ToMappingWithEquals() MappingWithEquals {
 	mapping := MappingWithEquals{}
@@ -191,6 +199,8 @@ func (m Mapping) Merge(o Mapping) Mapping {
 
 func (m *Mapping) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {
+	case map[string]string:
+		*m = v
 	case map[string]interface{}:
 		mapping := make(Mapping, len(v))
 		for k, e := range v {

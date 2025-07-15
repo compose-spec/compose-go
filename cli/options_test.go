@@ -167,9 +167,9 @@ func TestProjectName(t *testing.T) {
 	})
 
 	t.Run("by COMPOSE_PROJECT_NAME", func(t *testing.T) {
-		err := os.Setenv("COMPOSE_PROJECT_NAME", "my_project_from_env")
+		err := os.Setenv(consts.ComposeProjectName, "my_project_from_env")
 		assert.NilError(t, err)
-		defer os.Unsetenv("COMPOSE_PROJECT_NAME")
+		defer os.Unsetenv(consts.ComposeProjectName)
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithOsEnv)
 		assert.NilError(t, err)
 		p, err := ProjectFromOptions(context.TODO(), opts)

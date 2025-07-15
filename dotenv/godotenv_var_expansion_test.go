@@ -43,7 +43,7 @@ func TestExpandIfEmptyOrUnset(t *testing.T) {
 
 	for _, expected := range templateResults {
 		t.Run(expected.name, func(t *testing.T) {
-			result, err := expandVariables(expected.input, envMap, notFoundLookup)
+			result, err := ExpandVariables(expected.input, envMap, notFoundLookup)
 			require.NoError(t, err)
 			assert.Equal(t, expected.result, result)
 		})
@@ -75,7 +75,7 @@ func TestExpandIfUnset(t *testing.T) {
 
 	for _, expected := range templateResults {
 		t.Run(expected.name, func(t *testing.T) {
-			result, err := expandVariables(expected.input, envMap, notFoundLookup)
+			result, err := ExpandVariables(expected.input, envMap, notFoundLookup)
 			require.NoError(t, err)
 			assert.Equal(t, expected.result, result)
 		})
@@ -111,7 +111,7 @@ func TestErrorIfEmptyOrUnset(t *testing.T) {
 
 	for _, expected := range templateResults {
 		t.Run(expected.name, func(t *testing.T) {
-			result, err := expandVariables(expected.input, envMap, notFoundLookup)
+			result, err := ExpandVariables(expected.input, envMap, notFoundLookup)
 			assert.Equal(t, expected.err, err)
 			assert.Equal(t, expected.result, result)
 		})
@@ -147,7 +147,7 @@ func TestErrorIfUnset(t *testing.T) {
 
 	for _, expected := range templateResults {
 		t.Run(expected.name, func(t *testing.T) {
-			result, err := expandVariables(expected.input, envMap, notFoundLookup)
+			result, err := ExpandVariables(expected.input, envMap, notFoundLookup)
 			assert.Equal(t, expected.err, err)
 			assert.Equal(t, expected.result, result)
 		})
