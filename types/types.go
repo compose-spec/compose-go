@@ -309,6 +309,8 @@ type BuildConfig struct {
 	DockerfileInline   string                    `yaml:"dockerfile_inline,omitempty" json:"dockerfile_inline,omitempty"`
 	Entitlements       []string                  `yaml:"entitlements,omitempty" json:"entitlements,omitempty"`
 	Args               MappingWithEquals         `yaml:"args,omitempty" json:"args,omitempty"`
+	Provenance         string                    `yaml:"provenance,omitempty" json:"provenance,omitempty"`
+	SBOM               string                    `yaml:"sbom,omitempty" json:"sbom,omitempty"`
 	SSH                SSHConfig                 `yaml:"ssh,omitempty" json:"ssh,omitempty"`
 	Labels             Labels                    `yaml:"labels,omitempty" json:"labels,omitempty"`
 	CacheFrom          StringList                `yaml:"cache_from,omitempty" json:"cache_from,omitempty"`
@@ -328,6 +330,12 @@ type BuildConfig struct {
 	Privileged         bool                      `yaml:"privileged,omitempty" json:"privileged,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+type Attestation struct {
+	Type     string `yaml:"type,omitempty" json:"type,omitempty"`
+	Disabled bool   `yaml:"disabled,omitempty" json:"disabled,omitempty"`
+	Attrs    map[string]string
 }
 
 // BlkioConfig define blkio config

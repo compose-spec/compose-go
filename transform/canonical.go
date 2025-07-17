@@ -17,6 +17,8 @@
 package transform
 
 import (
+	"fmt"
+
 	"github.com/compose-spec/compose-go/v2/tree"
 )
 
@@ -27,6 +29,8 @@ var transformers = map[tree.Path]transformFunc{}
 func init() {
 	transformers["services.*"] = transformService
 	transformers["services.*.build.secrets.*"] = transformFileMount
+	transformers["services.*.build.provenance"] = transformStringOrX
+	transformers["services.*.build.sbom"] = transformStringOrX
 	transformers["services.*.build.additional_contexts"] = transformKeyValue
 	transformers["services.*.depends_on"] = transformDependsOn
 	transformers["services.*.env_file"] = transformEnvFile
@@ -120,4 +124,13 @@ func transformMapping(v map[string]any, p tree.Path, ignoreParseError bool) (map
 		v[k] = t
 	}
 	return v, nil
+}
+
+func transformStringOrX(data any, _ tree.Path, _ bool) (any, error) {
+	switch v := data.(type) {
+	case string:
+		return v, nil
+	default:
+		return fmt.Sprint(v), nil
+	}
 }

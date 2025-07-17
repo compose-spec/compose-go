@@ -3900,3 +3900,19 @@ models:
 		},
 	})
 }
+
+func TestAttestations(t *testing.T) {
+	p, err := loadYAML(`
+name: attestations
+services:
+  test:
+    build:
+      context: .
+      provenance: mode=max
+      sbom: true
+`)
+	assert.NilError(t, err)
+	build := p.Services["test"].Build
+	assert.Equal(t, build.Provenance, "mode=max")
+	assert.Equal(t, build.SBOM, "true")
+}
