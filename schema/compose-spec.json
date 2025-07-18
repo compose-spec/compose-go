@@ -206,7 +206,8 @@
         },
         "container_name": {
           "type": "string",
-          "description": "Specify a custom container name, rather than a generated default name."
+          "description": "Specify a custom container name, rather than a generated default name.",
+          "pattern": "[a-zA-Z0-9][a-zA-Z0-9_.-]+"
         },
         "cpu_count": {
           "oneOf": [
