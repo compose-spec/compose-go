@@ -191,6 +191,22 @@ func TestExtractVariables(t *testing.T) {
 				"SUBDOMAIN":  {Name: "SUBDOMAIN", DefaultValue: "$ROOTDOMAIN"},
 			},
 		},
+		{
+			name: "nested-array-of-maps",
+			dict: map[string]interface{}{
+				"volumes": []interface{}{
+					map[string]interface{}{
+						"source": "${SOURCE_LOCATION}",
+						"target": "/location",
+						"type":   "volume",
+						"volume": map[string]interface{}{},
+					},
+				},
+			},
+			expected: map[string]Variable{
+				"SOURCE_LOCATION": {Name: "SOURCE_LOCATION"},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
