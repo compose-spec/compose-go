@@ -32,6 +32,7 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 
 	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v2/utils"
 )
 
 func buildConfigDetails(yaml string, env map[string]string) types.ConfigDetails {
@@ -3899,6 +3900,8 @@ models:
 			ModelVariable:    "MODEL",
 		},
 	})
+	assert.DeepEqual(t, p.ModelNames(), []string{"foo"})
+	assert.Check(t, utils.ArrayContains(p.ServicesWithModels(), []string{"test_array", "test_mapping"}), p.ServicesWithModels())
 }
 
 func TestAttestations(t *testing.T) {
