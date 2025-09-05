@@ -163,7 +163,7 @@ x-healthcheck: &healthcheck
     <<: *healthcheck
 `,
 			expectError: true,
-			errorMsg:    "cycle detected: node at path x-healthcheck.egress-service.egress-service references node at path x-healthcheck.egress-service",
+			errorMsg:    "failed to parse (inline): cycle detected: node at path x-healthcheck.egress-service.egress-service references node at path x-healthcheck.egress-service",
 		},
 	}
 
