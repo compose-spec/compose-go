@@ -991,7 +991,7 @@ func TestDecodeErrors(t *testing.T) {
 
 	configDetails := buildConfigDetails(dict, nil)
 	_, err := LoadWithContext(context.TODO(), configDetails)
-	assert.Error(t, err, "yaml: line 4: found a tab character that violates indentation")
+	assert.Error(t, err, "failed to parse filename0.yml: yaml: line 4: found a tab character that violates indentation")
 }
 
 func TestBuildProperties(t *testing.T) {
