@@ -3050,7 +3050,7 @@ services:
         # sync static content
         - path: ./webapp/html
           action: sync
-          x-initialSync: true
+          initial_sync: true
           target: /var/www
           ignore:
             - node_modules/
@@ -3082,13 +3082,11 @@ services:
 	assert.DeepEqual(t, *frontend.Develop, types.DevelopConfig{
 		Watch: []types.Trigger{
 			{
-				Path:   "./webapp/html",
-				Action: types.WatchActionSync,
-				Target: "/var/www",
-				Ignore: []string{"node_modules/"},
-				Extensions: types.Extensions{
-					"x-initialSync": true,
-				},
+				Path:        "./webapp/html",
+				Action:      types.WatchActionSync,
+				Target:      "/var/www",
+				Ignore:      []string{"node_modules/"},
+				InitialSync: true,
 			},
 		},
 	})
