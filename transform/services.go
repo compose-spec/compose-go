@@ -29,13 +29,15 @@ func transformService(data any, p tree.Path, ignoreParseError bool) (any, error)
 	}
 }
 
-func transformStringSliceToMap(data any, _ tree.Path, _ bool) (any, error) {
-	if slice, ok := data.([]any); ok {
-		mapping := make(map[string]any, len(slice))
-		for _, net := range slice {
-			mapping[net.(string)] = nil
+func transformStringSliceToMap(defaultValue any) func(data any, _ tree.Path, _ bool) (any, error) {
+	return func(data any, _ tree.Path, _ bool) (any, error) {
+		if slice, ok := data.([]any); ok {
+			mapping := make(map[string]any, len(slice))
+			for _, item := range slice {
+				mapping[item.(string)] = defaultValue
+			}
+			return mapping, nil
 		}
-		return mapping, nil
+		return data, nil
 	}
-	return data, nil
 }
