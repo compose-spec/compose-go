@@ -39,6 +39,7 @@ type merger func(any, any, tree.Path) (any, error)
 var mergeSpecials = map[tree.Path]merger{}
 
 func init() {
+	mergeSpecials["models.*.runtime_flags"] = override
 	mergeSpecials["networks.*.ipam.config"] = mergeIPAMConfig
 	mergeSpecials["networks.*.labels"] = mergeToSequence
 	mergeSpecials["volumes.*.labels"] = mergeToSequence
@@ -160,9 +161,51 @@ func mergeDependsOn(c any, o any, path tree.Path) (any, error) {
 }
 
 func mergeModels(c any, o any, path tree.Path) (any, error) {
+	// Check if both sides are string arrays for short syntax only
+	if rightArr, ok := c.([]any); ok {
+		if leftArr, ok := o.([]any); ok {
+			if isStringArray(rightArr) && isStringArray(leftArr) {
+				return mergeStringArrays(rightArr, leftArr), nil
+			}
+		}
+	}
+
+	// Otherwise, use map merge for long syntax or mixed syntax
 	right := convertIntoMapping(c, nil)
 	left := convertIntoMapping(o, nil)
 	return mergeMappings(right, left, path)
+}
+
+func isStringArray(arr []any) bool {
+	for _, item := range arr {
+		if _, ok := item.(string); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func mergeStringArrays(right, left []any) []any {
+	seen := make(map[string]bool)
+	var result []any
+
+	for _, item := range right {
+		str := item.(string)
+		if !seen[str] {
+			result = append(result, str)
+			seen[str] = true
+		}
+	}
+
+	for _, item := range left {
+		str := item.(string)
+		if !seen[str] {
+			result = append(result, str)
+			seen[str] = true
+		}
+	}
+
+	return result
 }
 
 func mergeNetworks(c any, o any, path tree.Path) (any, error) {
