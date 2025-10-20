@@ -3917,3 +3917,65 @@ services:
 	assert.Equal(t, build.Provenance, "mode=max")
 	assert.Equal(t, build.SBOM, "true")
 }
+
+func TestOverrideMiddle(t *testing.T) {
+	pwd := t.TempDir()
+	base := filepath.Join(pwd, "base.yaml")
+	err := os.WriteFile(base, []byte(`
+services:
+  base:
+    volumes:
+      - /foo:/foo
+`), 0o700)
+	assert.NilError(t, err)
+
+	override := filepath.Join(pwd, "override.yaml")
+	err = os.WriteFile(override, []byte(`
+services:
+  override:
+    extends:
+      file: ./base.yaml
+      service: base
+    volumes: !override
+      -  /bar:/bar
+`), 0o700)
+	assert.NilError(t, err)
+
+	compose := filepath.Join(pwd, "compose.yaml")
+	err = os.WriteFile(compose, []byte(`
+name: test
+services:
+  test:
+    image: test
+    extends:
+      file: ./override.yaml
+      service: override
+    volumes:
+      - /zot:/zot
+`), 0o700)
+	assert.NilError(t, err)
+
+	project, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: pwd,
+		ConfigFiles: []types.ConfigFile{
+			{Filename: compose},
+		},
+	})
+	assert.NilError(t, err)
+	test := project.Services["test"]
+	assert.Equal(t, len(test.Volumes), 2)
+	assert.DeepEqual(t, test.Volumes, []types.ServiceVolumeConfig{
+		{
+			Type:   "bind",
+			Source: "/bar",
+			Target: "/bar",
+			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+		},
+		{
+			Type:   "bind",
+			Source: "/zot",
+			Target: "/zot",
+			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+		},
+	})
+}
