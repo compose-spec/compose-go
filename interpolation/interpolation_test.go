@@ -27,9 +27,10 @@ import (
 )
 
 var defaults = map[string]string{
-	"USER":  "jenny",
-	"FOO":   "bar",
-	"count": "5",
+	"USER":     "jenny",
+	"FOO":      "bar",
+	"count":    "5",
+	"REQUIRED": "true",
 }
 
 func defaultMapping(name string) (string, bool) {
@@ -196,19 +197,27 @@ func TestInterpolateWithCast(t *testing.T) {
 	config := map[string]interface{}{
 		"foo": map[string]interface{}{
 			"replicas": "$count",
+			"required": "$REQUIRED",
 		},
 	}
 	toInt := func(value string) (interface{}, error) {
 		return strconv.Atoi(value)
 	}
+	toBoolean := func(value string) (interface{}, error) {
+		return strconv.ParseBool(value)
+	}
 	result, err := Interpolate(config, Options{
-		LookupValue:     defaultMapping,
-		TypeCastMapping: map[tree.Path]Cast{tree.NewPath(tree.PathMatchAll, "replicas"): toInt},
+		LookupValue: defaultMapping,
+		TypeCastMapping: map[tree.Path]Cast{
+			tree.NewPath(tree.PathMatchAll, "replicas"): toInt,
+			tree.NewPath(tree.PathMatchAll, "required"): toBoolean,
+		},
 	})
 	assert.NilError(t, err)
 	expected := map[string]interface{}{
 		"foo": map[string]interface{}{
 			"replicas": 5,
+			"required": true,
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, result))
