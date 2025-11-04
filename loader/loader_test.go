@@ -3917,3 +3917,21 @@ services:
 	assert.Equal(t, build.Provenance, "mode=max")
 	assert.Equal(t, build.SBOM, "true")
 }
+
+func TestNoCacheFilter(t *testing.T) {
+	p, err := loadYAML(`
+name: no-cache-filter
+services:
+  string:
+    build:
+      context: .
+      no_cache_filter: foo
+  list:
+    build:
+      context: .
+      no_cache_filter: [foo, bar]
+`)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["string"].Build.NoCacheFilter, types.StringList{"foo"})
+	assert.DeepEqual(t, p.Services["list"].Build.NoCacheFilter, types.StringList{"foo", "bar"})
+}
