@@ -18,6 +18,8 @@ package loader
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -196,4 +198,126 @@ services:
 	})
 	assert.NilError(t, err)
 	assert.Equal(t, len(p.Services["test"].Volumes), 1)
+}
+
+// see https://github.com/docker/compose/issues/13298
+func TestOverrideMiddle(t *testing.T) {
+	pwd := t.TempDir()
+	base := filepath.Join(pwd, "base.yaml")
+	err := os.WriteFile(base, []byte(`
+services:
+  base:
+    volumes:
+      - /foo:/foo
+    networks:
+      - foo
+`), 0o700)
+	assert.NilError(t, err)
+
+	override := filepath.Join(pwd, "override.yaml")
+	err = os.WriteFile(override, []byte(`
+services:
+  override:
+    extends:
+      file: ./base.yaml
+      service: base
+    volumes: !override
+      -  /bar:/bar
+    networks: !override
+      - bar
+`), 0o700)
+	assert.NilError(t, err)
+
+	compose := filepath.Join(pwd, "compose.yaml")
+	err = os.WriteFile(compose, []byte(`
+name: test
+services:
+  test:
+    image: test
+    extends:
+      file: ./override.yaml
+      service: override
+    volumes:
+      - /zot:/zot
+    networks: !override
+      - zot
+
+networks:
+  zot: {}
+`), 0o700)
+	assert.NilError(t, err)
+
+	project, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: pwd,
+		ConfigFiles: []types.ConfigFile{
+			{Filename: compose},
+		},
+	})
+	assert.NilError(t, err)
+	test := project.Services["test"]
+	assert.Equal(t, len(test.Volumes), 2)
+	assert.DeepEqual(t, test.Volumes, []types.ServiceVolumeConfig{
+		{
+			Type:   "bind",
+			Source: "/bar",
+			Target: "/bar",
+			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+		},
+		{
+			Type:   "bind",
+			Source: "/zot",
+			Target: "/zot",
+			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+		},
+	})
+	assert.DeepEqual(t, test.Networks, map[string]*types.ServiceNetworkConfig{
+		"zot": nil,
+	})
+}
+
+// https://github.com/docker/compose/issues/13346
+func TestOverrideSelfExtends(t *testing.T) {
+	yaml := `
+name: test-override-extends
+services:
+  depend_base:
+    image: nginx
+    ports:
+      - "8092:80"
+  depend_one:
+    image: nginx
+    ports:
+      - "8091:80"
+  depend_two:
+    extends:
+      service: depend_one
+  main_one:
+    image: nginx
+    depends_on:
+      - depend_one
+    ports:
+      - "8090:80"
+  main_two:
+    extends: main_one
+    depends_on: !override
+      - depend_two
+  main:
+    extends:
+      service: main_two
+    depends_on:
+      - depend_base
+`
+	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "-",
+				Content:  []byte(yaml),
+			},
+		},
+	})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["main"].DependsOn, types.DependsOnConfig{
+		"depend_base": {Condition: "service_started", Required: true},
+		"depend_two":  {Condition: "service_started", Required: true},
+	})
 }
