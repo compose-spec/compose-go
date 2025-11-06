@@ -81,12 +81,21 @@ include:
 services:
   bar:
     image: busybox
+    environment: !override
+      - ZOT=QIX
 `, map[string]string{"SOURCE": "override"})
-	_, err := LoadWithContext(context.TODO(), details, func(options *Options) {
+	p, err := LoadWithContext(context.TODO(), details, func(options *Options) {
 		options.SkipNormalization = true
 		options.ResolvePaths = true
 	})
-	assert.ErrorContains(t, err, "services.bar conflicts with imported resource", err)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, p.Services["bar"], types.ServiceConfig{
+		Name:  "bar",
+		Image: "busybox",
+		Environment: types.MappingWithEquals{
+			"ZOT": strPtr("QIX"),
+		},
+	})
 }
 
 func TestIncludeRelative(t *testing.T) {
