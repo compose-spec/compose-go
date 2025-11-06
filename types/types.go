@@ -564,10 +564,18 @@ const (
 type ServiceVolumeBind struct {
 	SELinux        string `yaml:"selinux,omitempty" json:"selinux,omitempty"`
 	Propagation    string `yaml:"propagation,omitempty" json:"propagation,omitempty"`
-	CreateHostPath bool   `yaml:"create_host_path,omitempty" json:"create_host_path,omitempty"`
+	CreateHostPath OptOut `yaml:"create_host_path,omitempty" json:"create_host_path,omitzero"`
 	Recursive      string `yaml:"recursive,omitempty" json:"recursive,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+// OptOut is a boolean which default value is 'true'
+type OptOut bool
+
+func (o OptOut) IsZero() bool {
+	// Attribute can be omitted if value is true
+	return bool(o)
 }
 
 // SELinux represents the SELinux re-labeling options.

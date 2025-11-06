@@ -380,3 +380,37 @@ func TestMappingValues(t *testing.T) {
 	})
 	assert.DeepEqual(t, mapping.Values(), values)
 }
+
+func TestMarhsall(t *testing.T) {
+	p := Project{
+		Services: Services{
+			"test": ServiceConfig{
+				Volumes: []ServiceVolumeConfig{
+					{
+						Type: "bind",
+						Bind: &ServiceVolumeBind{
+							CreateHostPath: true, // default
+						},
+					},
+					{
+						Type: "bind",
+						Bind: &ServiceVolumeBind{
+							CreateHostPath: false,
+						},
+					},
+				},
+			},
+		},
+	}
+	marshalYAML, err := p.MarshalYAML()
+	assert.NilError(t, err)
+	assert.Equal(t, string(marshalYAML), `services:
+  test:
+    volumes:
+      - type: bind
+        bind: {}
+      - type: bind
+        bind:
+          create_host_path: false
+`)
+}
