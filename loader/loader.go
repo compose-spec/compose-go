@@ -459,7 +459,7 @@ func loadYamlFile(ctx context.Context,
 
 		if !opts.SkipInclude {
 			included = append(included, file.Filename)
-			err = ApplyInclude(ctx, workingDir, environment, cfg, opts, included)
+			err = ApplyInclude(ctx, workingDir, environment, cfg, opts, included, processor)
 			if err != nil {
 				return err
 			}
