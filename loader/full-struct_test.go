@@ -755,7 +755,7 @@ services:
       FOO: foo_from_env_file
       QUX: qux_from_environment
     env_file:
-      - %s
+      - path: %s
       - path: %s
         required: false
     expose:
@@ -949,24 +949,20 @@ services:
       - type: bind
         source: /opt/data
         target: /var/lib/data
-        bind:
-          create_host_path: true
+        bind: {}
       - type: bind
         source: %s
         target: /code
-        bind:
-          create_host_path: true
+        bind: {}
       - type: bind
         source: %s
         target: /var/www/html
-        bind:
-          create_host_path: true
+        bind: {}
       - type: bind
         source: %s
         target: /etc/configs
         read_only: true
-        bind:
-          create_host_path: true
+        bind: {}
       - type: volume
         source: datavolume
         target: /var/lib/volume
@@ -1370,7 +1366,9 @@ func fullExampleJSON(workingDir, homeDir string) string {
         "QUX": "qux_from_environment"
       },
       "env_file": [
-        "%s",
+        {
+          "path": "%s"
+        },
         {
           "path": "%s",
           "required": false
@@ -1640,34 +1638,26 @@ func fullExampleJSON(workingDir, homeDir string) string {
           "type": "bind",
           "source": "/opt/data",
           "target": "/var/lib/data",
-          "bind": {
-            "create_host_path": true
-          }
+          "bind": {}
         },
         {
           "type": "bind",
           "source": "%s",
           "target": "/code",
-          "bind": {
-            "create_host_path": true
-          }
+          "bind": {}
         },
         {
           "type": "bind",
           "source": "%s",
           "target": "/var/www/html",
-          "bind": {
-            "create_host_path": true
-          }
+          "bind": {}
         },
         {
           "type": "bind",
           "source": "%s",
           "target": "/etc/configs",
           "read_only": true,
-          "bind": {
-            "create_host_path": true
-          }
+          "bind": {}
         },
         {
           "type": "volume",
