@@ -37,7 +37,7 @@ jobs:
         go-version: ${{ matrix.go-version }}
         check-latest: true
         cache: true
-    - uses: golangci/golangci-lint-action@v8
+    - uses: golangci/golangci-lint-action@v9
       with:
         version: v2.1.6
         args: --verbose
