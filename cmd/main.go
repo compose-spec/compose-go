@@ -24,7 +24,7 @@ import (
 	"os"
 
 	"github.com/compose-spec/compose-go/v2/cli"
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 )
 
 func main() {

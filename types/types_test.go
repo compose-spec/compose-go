@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"go.yaml.in/yaml/v3"
+	"go.yaml.in/yaml/v4"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
