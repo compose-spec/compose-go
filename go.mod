@@ -14,7 +14,7 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.8.4
 	github.com/xhit/go-str2duration/v2 v2.1.0
-	go.yaml.in/yaml/v3 v3.0.4
+	go.yaml.in/yaml/v4 v4.0.0-rc.3
 	golang.org/x/sync v0.3.0
 	golang.org/x/text v0.14.0
 	gotest.tools/v3 v3.4.0
