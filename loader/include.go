@@ -117,6 +117,9 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 		} else {
 			envFile := []string{}
 			for _, f := range r.EnvFile {
+				if f == "/dev/null" {
+					continue
+				}
 				if !filepath.IsAbs(f) {
 					f = filepath.Join(workingDir, f)
 					s, err := os.Stat(f)
