@@ -4,3 +4,5 @@ include:
 services:
   bar:
     image: bar
+    environment:
+      - FOO=BAR
