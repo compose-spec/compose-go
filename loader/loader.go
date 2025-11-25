@@ -293,16 +293,12 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 		}
 
 		for _, loader := range opts.ResourceLoaders {
-			_, isLocalResourceLoader := loader.(localResourceLoader)
 			if !loader.Accept(p) {
 				continue
 			}
 			local, err := loader.Load(ctx, p)
 			if err != nil {
 				return nil, err
-			}
-			if config.WorkingDir == "" && !isLocalResourceLoader {
-				config.WorkingDir = filepath.Dir(local)
 			}
 			abs, err := filepath.Abs(local)
 			if err != nil {

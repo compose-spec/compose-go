@@ -393,12 +393,11 @@ func (o *ProjectOptions) GetWorkingDir() (string, error) {
 	if o.WorkingDir != "" {
 		return filepath.Abs(o.WorkingDir)
 	}
-PATH:
 	for _, path := range o.ConfigPaths {
 		if path != "-" {
 			for _, l := range o.ResourceLoaders {
 				if l.Accept(path) {
-					break PATH
+					return l.Dir(path), nil
 				}
 			}
 			absPath, err := filepath.Abs(path)
