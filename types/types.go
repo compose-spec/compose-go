@@ -537,6 +537,9 @@ func (s ServiceVolumeConfig) String() string {
 	if s.Volume != nil && s.Volume.NoCopy {
 		options = append(options, "nocopy")
 	}
+	if s.Bind != nil && s.Bind.SELinux != "" {
+		options = append(options, s.Bind.SELinux)
+	}
 	return fmt.Sprintf("%s:%s:%s", s.Source, s.Target, strings.Join(options, ","))
 }
 
