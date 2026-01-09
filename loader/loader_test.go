@@ -3935,3 +3935,22 @@ services:
 	assert.DeepEqual(t, p.Services["string"].Build.NoCacheFilter, types.StringList{"foo"})
 	assert.DeepEqual(t, p.Services["list"].Build.NoCacheFilter, types.StringList{"foo", "bar"})
 }
+
+func TestCreateHostPathDefault(t *testing.T) {
+	p, err := loadYAML(`
+name: no-cache-filter
+services:
+  short:
+    volumes:
+      - /host:/container
+  long:
+    volumes:
+      - type: bind
+        source: /host
+        target: /container
+        bind: {}
+`)
+	assert.NilError(t, err)
+	assert.Check(t, p.Services["short"].Volumes[0].Bind.CreateHostPath == true)
+	assert.Check(t, p.Services["long"].Volumes[0].Bind.CreateHostPath == true)
+}
