@@ -18,9 +18,12 @@ package template
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -108,6 +111,42 @@ func TestNoValueWithDefault(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal("ok def", result))
 	}
+}
+
+func TestLazyDefaultDoesNotWarn(t *testing.T) {
+	hook, restore := captureWarnings(t)
+	defer restore()
+
+	result, err := Substitute("${A:+${A},}B", defaultMapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("B", result))
+	assert.Check(t, is.Len(hook.AllEntries(), 0))
+}
+
+func TestLazyDefaultWarnsWhenUsed(t *testing.T) {
+	hook, restore := captureWarnings(t)
+	defer restore()
+
+	result, err := Substitute("${A:-${B}}", defaultMapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("", result))
+	assert.Check(t, is.Len(hook.AllEntries(), 1))
+}
+
+func TestLazyRequiredMessageDoesNotWarn(t *testing.T) {
+	hook, restore := captureWarnings(t)
+	defer restore()
+
+	mapping := func(key string) (string, bool) {
+		if key == "A" {
+			return "value", true
+		}
+		return "", false
+	}
+	result, err := Substitute("${A?${B}}", mapping)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("value", result))
+	assert.Check(t, is.Len(hook.AllEntries(), 0))
 }
 
 func TestEmptyValueWithSoftDefault(t *testing.T) {
@@ -526,5 +565,23 @@ func TestValueWithCurlyBracesDefault(t *testing.T) {
 		result, err := Substitute(template, defaultMapping)
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(`ok {"json":2}`, result))
+	}
+}
+
+func captureWarnings(t *testing.T) (*logrustest.Hook, func()) {
+	t.Helper()
+	logger := logrus.StandardLogger()
+	oldLevel := logger.Level
+	oldOut := logger.Out
+	oldHooks := logger.ReplaceHooks(make(logrus.LevelHooks))
+
+	logger.SetLevel(logrus.WarnLevel)
+	logger.SetOutput(io.Discard)
+
+	hook := logrustest.NewGlobal()
+	return hook, func() {
+		logger.ReplaceHooks(oldHooks)
+		logger.SetOutput(oldOut)
+		logger.SetLevel(oldLevel)
 	}
 }
