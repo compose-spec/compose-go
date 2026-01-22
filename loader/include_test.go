@@ -231,6 +231,48 @@ services:
 	assert.Equal(t, p.Services["included"].Image, "alpine")
 }
 
+func TestIncludeEnvFileInterpolation(t *testing.T) {
+	fileName := "compose.yml"
+	tmpdir := t.TempDir()
+	// top-level include with env_file
+	yaml := `
+include:
+  - path: ./subproj/subcompose.yml
+    env_file:
+      - ./values.env
+`
+	createFile(t, tmpdir, yaml, fileName)
+
+	yaml = `
+services:
+  app:
+    env_file: subvalues.env
+    image: helloworld
+`
+	createFileSubDir(t, tmpdir, "subproj", yaml, "subcompose.yml")
+
+	// env file inside included project references VAR from top-level include env_file
+	createFileSubDir(t, tmpdir, "subproj", "MYVAR=${VAR?}", "subvalues.env")
+	createFile(t, tmpdir, "VAR=1", "values.env")
+
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: tmpdir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(tmpdir, fileName),
+		}},
+		Environment: nil,
+	}, func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.SetProjectName("project", true)
+	})
+	assert.NilError(t, err)
+	app := p.Services["app"]
+	// After resolution, MYVAR should be present and equal to 1
+	assert.Check(t, app.Environment["MYVAR"] != nil)
+	assert.Equal(t, *app.Environment["MYVAR"], "1")
+}
+
 func createFile(t *testing.T, rootDir, content, fileName string) string {
 	path := filepath.Join(rootDir, fileName)
 	assert.NilError(t, os.WriteFile(path, []byte(content), 0o600))

@@ -141,6 +141,16 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 			return err
 		}
 
+		// Make env vars from the include's env_file available to the parent
+		// environment so they are present later when service-level env_files
+		// are parsed during project resolution.
+		for k, v := range envFromFile {
+			if environment == nil {
+				environment = types.Mapping{}
+			}
+			environment[k] = v
+		}
+
 		config := types.ConfigDetails{
 			WorkingDir:  relworkingdir,
 			ConfigFiles: types.ToConfigFiles(r.Path),
