@@ -446,8 +446,10 @@ func loadYamlFile(ctx context.Context,
 
 		fixEmptyNotNull(cfg)
 
-		if !opts.SkipExtends {
-			err = ApplyExtends(ctx, cfg, opts, ct, processor)
+		// Process includes first so that extended services have all merged attributes
+		if !opts.SkipInclude {
+			included = append(included, file.Filename)
+			err = ApplyInclude(ctx, workingDir, environment, cfg, opts, included, processor)
 			if err != nil {
 				return err
 			}
@@ -457,12 +459,13 @@ func loadYamlFile(ctx context.Context,
 			return err
 		}
 
-		if !opts.SkipInclude {
-			included = append(included, file.Filename)
-			err = ApplyInclude(ctx, workingDir, environment, cfg, opts, included, processor)
+		// Process extends after includes so base services are fully merged
+		if !opts.SkipExtends {
+			err = ApplyExtends(ctx, cfg, opts, ct, processor)
 			if err != nil {
 				return err
 			}
+
 		}
 
 		dict, err = override.Merge(dict, cfg)
