@@ -19,7 +19,9 @@ package override
 import (
 	"fmt"
 	"slices"
+	"strings"
 
+	"github.com/compose-spec/compose-go/v2/format"
 	"github.com/compose-spec/compose-go/v2/tree"
 	"go.yaml.in/yaml/v4"
 )
@@ -130,6 +132,16 @@ func init() {
 
 // MergeNodes merges two yaml.Node trees following the same rules as MergeYaml.
 func MergeNodes(base, override *yaml.Node, path tree.Path) (*yaml.Node, error) {
+	// Handle !reset: delete the key from the merged result
+	if override != nil && override.Tag == "!reset" {
+		return nil, nil
+	}
+	// Handle !override: skip merge, use override as-is
+	if override != nil && override.Tag == "!override" {
+		override.Tag = ""
+		return override, nil
+	}
+
 	for pattern, merger := range mergeNodeSpecials {
 		if path.Matches(pattern) {
 			return merger(base, override, path)
@@ -139,6 +151,10 @@ func MergeNodes(base, override *yaml.Node, path tree.Path) (*yaml.Node, error) {
 		return base, nil
 	}
 	if base == nil {
+		return override, nil
+	}
+	// Treat !!null base as absent
+	if base.Tag == "!!null" {
 		return override, nil
 	}
 	switch {
@@ -172,6 +188,19 @@ func mergeNodeMappings(base, override *yaml.Node, path tree.Path) (*yaml.Node, e
 	for i := 0; i+1 < len(override.Content); i += 2 {
 		key := override.Content[i].Value
 		val := override.Content[i+1]
+
+		// !reset on a non-existing key: nothing to do
+		if val.Tag == "!reset" {
+			DeleteKey(result, key)
+			continue
+		}
+		// !override on a new or existing key: use as-is
+		if val.Tag == "!override" {
+			val.Tag = ""
+			SetKey(result, key, val)
+			continue
+		}
+
 		_, existing := FindKey(result, key)
 		if existing == nil {
 			result.Content = append(result.Content, override.Content[i], val)
@@ -181,6 +210,11 @@ func mergeNodeMappings(base, override *yaml.Node, path tree.Path) (*yaml.Node, e
 		merged, err := MergeNodes(existing, val, next)
 		if err != nil {
 			return nil, err
+		}
+		if merged == nil {
+			// !reset: remove the key from result
+			DeleteKey(result, key)
+			continue
 		}
 		SetKey(result, key, merged)
 	}
@@ -203,6 +237,9 @@ func convertNodeToSequence(node *yaml.Node) *yaml.Node {
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			k := node.Content[i].Value
 			v := node.Content[i+1]
+			if v.Tag == "!reset" {
+				continue // skip reset entries
+			}
 			if v.Tag == "!!null" || (v.Kind == yaml.ScalarNode && v.Value == "") && v.Tag == "" {
 				entries = append(entries, k)
 			} else if v.Kind == yaml.SequenceNode {
@@ -228,11 +265,34 @@ func convertNodeToSequence(node *yaml.Node) *yaml.Node {
 }
 
 func mergeToSequenceNode(base, override *yaml.Node, _ tree.Path) (*yaml.Node, error) {
+	// Handle !reset items: collect reset keys from override mapping and filter them
+	resetKeys := map[string]bool{}
+	if override != nil && override.Kind == yaml.MappingNode {
+		for i := 0; i+1 < len(override.Content); i += 2 {
+			if override.Content[i+1].Tag == "!reset" {
+				resetKeys[override.Content[i].Value] = true
+			}
+		}
+	}
+
 	right := convertNodeToSequence(base)
 	left := convertNodeToSequence(override)
+
 	result := NewSequence()
-	result.Content = append(result.Content, right.Content...)
-	result.Content = append(result.Content, left.Content...)
+	// Add base items, filtering out reset keys
+	for _, item := range right.Content {
+		key := strings.SplitN(item.Value, "=", 2)[0]
+		if !resetKeys[key] {
+			result.Content = append(result.Content, item)
+		}
+	}
+	// Add override items, filtering out reset entries
+	for _, item := range left.Content {
+		key := strings.SplitN(item.Value, "=", 2)[0]
+		if !resetKeys[key] {
+			result.Content = append(result.Content, item)
+		}
+	}
 	return result, nil
 }
 
@@ -408,4 +468,185 @@ func mergeIPAMConfigNode(base, override *yaml.Node, path tree.Path) (*yaml.Node,
 // using the same merge rules as ExtendService but operating on yaml.Node trees.
 func ExtendServiceNode(base, override *yaml.Node) (*yaml.Node, error) {
 	return MergeNodes(base, override, tree.NewPath("services.x"))
+}
+
+// nodeIndexer extracts a deduplication key from a yaml.Node sequence element.
+type nodeIndexer func(*yaml.Node) string
+
+var unicityNodePatterns map[tree.Path]nodeIndexer
+
+func init() {
+	kv := func(n *yaml.Node) string {
+		if n.Kind == yaml.ScalarNode {
+			key, _, found := strings.Cut(n.Value, "=")
+			if found {
+				return key
+			}
+			return n.Value
+		}
+		return ""
+	}
+	target := func(n *yaml.Node) string {
+		if n.Kind == yaml.ScalarNode {
+			return n.Value
+		}
+		if n.Kind == yaml.MappingNode {
+			_, t := FindKey(n, "target")
+			if t != nil {
+				return t.Value
+			}
+		}
+		return ""
+	}
+	volume := func(n *yaml.Node) string {
+		if n.Kind == yaml.ScalarNode {
+			v, err := format.ParseVolume(n.Value)
+			if err != nil {
+				return n.Value
+			}
+			return v.Target
+		}
+		if n.Kind == yaml.MappingNode {
+			_, t := FindKey(n, "target")
+			if t != nil {
+				return t.Value
+			}
+		}
+		return ""
+	}
+	port := func(n *yaml.Node) string {
+		if n.Kind == yaml.ScalarNode {
+			return n.Value
+		}
+		if n.Kind == yaml.MappingNode {
+			parts := []string{}
+			for _, key := range []string{"host_ip", "published", "target", "protocol"} {
+				_, v := FindKey(n, key)
+				if v != nil {
+					parts = append(parts, v.Value)
+				}
+			}
+			return strings.Join(parts, ":")
+		}
+		return ""
+	}
+	envFile := func(n *yaml.Node) string {
+		if n.Kind == yaml.ScalarNode {
+			return n.Value
+		}
+		if n.Kind == yaml.MappingNode {
+			_, p := FindKey(n, "path")
+			if p != nil {
+				return p.Value
+			}
+		}
+		return ""
+	}
+
+	unicityNodePatterns = map[tree.Path]nodeIndexer{
+		"networks.*.labels":                     kv,
+		"services.*.annotations":                kv,
+		"services.*.build.args":                 kv,
+		"services.*.build.additional_contexts":   kv,
+		"services.*.build.labels":               kv,
+		"services.*.build.tags":                 kv,
+		"services.*.cap_add":                    kv,
+		"services.*.cap_drop":                   kv,
+		"services.*.configs":                    target,
+		"services.*.deploy.labels":              kv,
+		"services.*.dns":                        kv,
+		"services.*.dns_opt":                    kv,
+		"services.*.dns_search":                 kv,
+		"services.*.environment":                kv,
+		"services.*.env_file":                   envFile,
+		"services.*.expose":                     kv,
+		"services.*.labels":                     kv,
+		"services.*.links":                      kv,
+		"services.*.networks.*.aliases":          kv,
+		"services.*.networks.*.link_local_ips":   kv,
+		"services.*.ports":                      port,
+		"services.*.profiles":                   kv,
+		"services.*.secrets":                    target,
+		"services.*.sysctls":                    kv,
+		"services.*.tmpfs":                      kv,
+		"services.*.volumes":                    volume,
+	}
+}
+
+// EnforceUnicityNode removes duplicate elements in sequences following the
+// same rules as EnforceUnicity but operating on yaml.Node trees.
+func EnforceUnicityNode(node *yaml.Node, path tree.Path) {
+	if node == nil {
+		return
+	}
+	switch node.Kind {
+	case yaml.DocumentNode:
+		for _, child := range node.Content {
+			EnforceUnicityNode(child, path)
+		}
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			EnforceUnicityNode(node.Content[i+1], path.Next(node.Content[i].Value))
+		}
+	case yaml.SequenceNode:
+		for pattern, indexer := range unicityNodePatterns {
+			if path.Matches(pattern) {
+				seen := map[string]int{}
+				var result []*yaml.Node
+				for _, item := range node.Content {
+					key := indexer(item)
+					if key == "" {
+						result = append(result, item)
+						continue
+					}
+					if j, ok := seen[key]; ok {
+						result[j] = item
+					} else {
+						result = append(result, item)
+						seen[key] = len(result) - 1
+					}
+				}
+				node.Content = result
+				return
+			}
+		}
+		for _, item := range node.Content {
+			EnforceUnicityNode(item, path.Next("[]"))
+		}
+	}
+}
+
+// StripResetTags removes any remaining !reset tagged nodes from a tree.
+// This is called after all merging is complete to clean up unprocessed reset markers.
+func StripResetTags(node *yaml.Node) {
+	if node == nil {
+		return
+	}
+	switch node.Kind {
+	case yaml.DocumentNode:
+		for _, child := range node.Content {
+			StripResetTags(child)
+		}
+	case yaml.MappingNode:
+		var content []*yaml.Node
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			val := node.Content[i+1]
+			if val.Tag == "!reset" {
+				continue
+			}
+			StripResetTags(val)
+			content = append(content, node.Content[i], val)
+		}
+		node.Content = content
+	case yaml.SequenceNode:
+		var content []*yaml.Node
+		for _, item := range node.Content {
+			if item.Tag == "!reset" {
+				continue
+			}
+			StripResetTags(item)
+			content = append(content, item)
+		}
+		node.Content = content
+	}
 }

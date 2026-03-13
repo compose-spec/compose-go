@@ -322,32 +322,30 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 
 // LoadWithContext reads a ConfigDetails and returns a fully loaded configuration as a compose-go Project
 func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
-	opts := ToOptions(&configDetails, options)
-	dict, err := loadModelWithContext(ctx, &configDetails, opts)
+	model, err := LoadLazyModel(ctx, configDetails, options...)
 	if err != nil {
 		return nil, err
 	}
-	return ModelToProject(dict, opts, configDetails)
+	return model.Resolve()
 }
 
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
 func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (map[string]any, error) {
-	opts := ToOptions(&configDetails, options)
-	return loadModelWithContext(ctx, &configDetails, opts)
-}
-
-// LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
-func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (map[string]any, error) {
-	if len(configDetails.ConfigFiles) < 1 {
-		return nil, errors.New("no compose file specified")
-	}
-
-	err := projectName(configDetails, opts)
+	project, err := LoadWithContext(ctx, configDetails, options...)
 	if err != nil {
 		return nil, err
 	}
-
-	return load(ctx, *configDetails, opts, nil)
+	// Marshal the typed project back to a yaml dictionary for backward compatibility
+	b, err := yaml.Marshal(project)
+	if err != nil {
+		return nil, err
+	}
+	var dict map[string]any
+	if err := yaml.Unmarshal(b, &dict); err != nil {
+		return nil, err
+	}
+	dict["name"] = project.Name
+	return dict, nil
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {

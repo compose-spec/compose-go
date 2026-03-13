@@ -29,7 +29,20 @@ func checkExternal(v map[string]any, p tree.Path) error {
 	if !ok {
 		return nil
 	}
-	if !b.(bool) {
+
+	// Handle legacy syntax: external: {name: foo}
+	if ext, ok := b.(map[string]any); ok {
+		if extName, extNamed := ext["name"]; extNamed {
+			name, named := v["name"]
+			if named && extName != name {
+				return fmt.Errorf("%s: name and external.name conflict; only use name", p)
+			}
+		}
+		// Treat as external: true for the remaining checks
+		b = true
+	}
+
+	if bVal, ok := b.(bool); ok && !bVal {
 		return nil
 	}
 

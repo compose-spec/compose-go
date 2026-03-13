@@ -336,8 +336,8 @@ func TestUnmarshalFileMode_Integer(t *testing.T) {
 	var m FileMode
 	err := yaml.Unmarshal([]byte("0755"), &m)
 	assert.NilError(t, err)
-	// yaml/v4 presents !!int 0755 as decimal 755, then UnmarshalYAML parses as decimal
-	assert.Equal(t, m, FileMode(755))
+	// yaml/v4 treats 0755 as octal (YAML 1.2 compat), decoding to 493
+	assert.Equal(t, m, FileMode(0o755))
 }
 
 // UlimitsConfig

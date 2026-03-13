@@ -29,6 +29,13 @@ func (n *NanoCPUs) UnmarshalYAML(value *yaml.Node) error {
 	node := resolveYAMLNode(value)
 	var f float64
 	if err := node.Decode(&f); err != nil {
+		if node.Kind == yaml.ScalarNode {
+			parsed, parseErr := strconv.ParseFloat(node.Value, 64)
+			if parseErr == nil {
+				*n = NanoCPUs(parsed)
+				return nil
+			}
+		}
 		return WrapNodeError(node, err)
 	}
 	*n = NanoCPUs(f)

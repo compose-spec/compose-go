@@ -29,7 +29,11 @@ func (l *StringList) UnmarshalYAML(value *yaml.Node) error {
 	node := resolveYAMLNode(value)
 	switch node.Kind {
 	case yaml.ScalarNode:
-		*l = []string{node.Value}
+		if node.Value == "" {
+			*l = nil
+		} else {
+			*l = []string{node.Value}
+		}
 	case yaml.SequenceNode:
 		list := make([]string, len(node.Content))
 		for i, item := range node.Content {

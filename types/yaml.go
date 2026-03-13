@@ -124,6 +124,19 @@ func hasKey(node *yaml.Node, key string) bool {
 	return false
 }
 
+// findYAMLKey finds a key in a MappingNode and returns (key node, value node).
+func findYAMLKey(node *yaml.Node, key string) (*yaml.Node, *yaml.Node) {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil, nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i], node.Content[i+1]
+		}
+	}
+	return nil, nil
+}
+
 // ParseVolumeFunc is a package-level hook for parsing volume short syntax.
 // It is set by the loader package to break the circular dependency between
 // types and format (format imports types, so types cannot import format).

@@ -105,9 +105,6 @@ func (m *MappingWithEquals) UnmarshalYAML(value *yaml.Node) error {
 		mapping := make(MappingWithEquals, len(node.Content))
 		for _, item := range node.Content {
 			k, e, ok := strings.Cut(item.Value, "=")
-			if k != "" && unicode.IsSpace(rune(k[len(k)-1])) {
-				return NodeErrorf(node, "environment variable %s is declared with a trailing space", k)
-			}
 			if !ok {
 				mapping[k] = nil
 			} else {

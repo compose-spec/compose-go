@@ -85,7 +85,7 @@ type ServiceConfig struct {
 	ExternalLinks   []string                         `yaml:"external_links,omitempty" json:"external_links,omitempty"`
 	ExtraHosts      HostsList                        `yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
 	GroupAdd        []string                         `yaml:"group_add,omitempty" json:"group_add,omitempty"`
-	Gpus            []DeviceRequest                  `yaml:"gpus,omitempty" json:"gpus,omitempty"`
+	Gpus            GpuDevices                       `yaml:"gpus,omitempty" json:"gpus,omitempty"`
 	Hostname        string                           `yaml:"hostname,omitempty" json:"hostname,omitempty"`
 	HealthCheck     *HealthCheckConfig               `yaml:"healthcheck,omitempty" json:"healthcheck,omitempty"`
 	Image           string                           `yaml:"image,omitempty" json:"image,omitempty"`
@@ -93,7 +93,7 @@ type ServiceConfig struct {
 	Ipc             string                           `yaml:"ipc,omitempty" json:"ipc,omitempty"`
 	Isolation       string                           `yaml:"isolation,omitempty" json:"isolation,omitempty"`
 	Labels          Labels                           `yaml:"labels,omitempty" json:"labels,omitempty"`
-	LabelFiles      []string                         `yaml:"label_file,omitempty" json:"label_file,omitempty"`
+	LabelFiles      StringList                       `yaml:"label_file,omitempty" json:"label_file,omitempty"`
 	CustomLabels    Labels                           `yaml:"-" json:"-"`
 	Links           []string                         `yaml:"links,omitempty" json:"links,omitempty"`
 	Logging         *LoggingConfig                   `yaml:"logging,omitempty" json:"logging,omitempty"`
@@ -104,16 +104,16 @@ type ServiceConfig struct {
 	MemSwapLimit    UnitBytes                        `yaml:"memswap_limit,omitempty" json:"memswap_limit,omitempty"`
 	MemSwappiness   UnitBytes                        `yaml:"mem_swappiness,omitempty" json:"mem_swappiness,omitempty"`
 	MacAddress      string                           `yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
-	Models          map[string]*ServiceModelConfig   `yaml:"models,omitempty" json:"models,omitempty"`
+	Models          ServiceModels                    `yaml:"models,omitempty" json:"models,omitempty"`
 	Net             string                           `yaml:"net,omitempty" json:"net,omitempty"`
 	NetworkMode     string                           `yaml:"network_mode,omitempty" json:"network_mode,omitempty"`
-	Networks        map[string]*ServiceNetworkConfig `yaml:"networks,omitempty" json:"networks,omitempty"`
+	Networks        ServiceNetworks                  `yaml:"networks,omitempty" json:"networks,omitempty"`
 	OomKillDisable  bool                             `yaml:"oom_kill_disable,omitempty" json:"oom_kill_disable,omitempty"`
 	OomScoreAdj     int64                            `yaml:"oom_score_adj,omitempty" json:"oom_score_adj,omitempty"`
 	Pid             string                           `yaml:"pid,omitempty" json:"pid,omitempty"`
 	PidsLimit       int64                            `yaml:"pids_limit,omitempty" json:"pids_limit,omitempty"`
 	Platform        string                           `yaml:"platform,omitempty" json:"platform,omitempty"`
-	Ports           []ServicePortConfig              `yaml:"ports,omitempty" json:"ports,omitempty"`
+	Ports           ServicePorts                     `yaml:"ports,omitempty" json:"ports,omitempty"`
 	Privileged      bool                             `yaml:"privileged,omitempty" json:"privileged,omitempty"`
 	PullPolicy      string                           `yaml:"pull_policy,omitempty" json:"pull_policy,omitempty"`
 	ReadOnly        bool                             `yaml:"read_only,omitempty" json:"read_only,omitempty"`
@@ -323,6 +323,33 @@ type DeviceMapping struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+func (d *DeviceMapping) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		// Short syntax: /dev/fuse or /dev/fuse:/dev/fuse or /dev/fuse:/dev/fuse:rwm
+		parts := strings.Split(node.Value, ":")
+		switch len(parts) {
+		case 3:
+			d.Source = parts[0]
+			d.Target = parts[1]
+			d.Permissions = parts[2]
+		case 2:
+			d.Source = parts[0]
+			d.Target = parts[1]
+			d.Permissions = "rwm"
+		case 1:
+			d.Source = parts[0]
+			d.Target = parts[0]
+			d.Permissions = "rwm"
+		default:
+			return NodeErrorf(node, "confusing device mapping, please use long syntax: %s", node.Value)
+		}
+		return nil
+	}
+	type plain DeviceMapping
+	return WrapNodeError(node, node.Decode((*plain)(d)))
+}
+
 // WeightDevice is a structure that holds device:weight pair
 type WeightDevice struct {
 	Path   string
@@ -443,6 +470,32 @@ type PlacementPreferences struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+// ServiceNetworks is a map of network names to service network configurations.
+// It supports both list syntax (networks: [front, back]) and map syntax.
+type ServiceNetworks map[string]*ServiceNetworkConfig
+
+func (n *ServiceNetworks) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.SequenceNode:
+		networks := make(ServiceNetworks, len(node.Content))
+		for _, item := range node.Content {
+			networks[item.Value] = nil
+		}
+		*n = networks
+	case yaml.MappingNode:
+		type plain ServiceNetworks
+		var m plain
+		if err := node.Decode(&m); err != nil {
+			return err
+		}
+		*n = ServiceNetworks(m)
+	default:
+		return fmt.Errorf("networks must be a mapping or sequence, got %v", node.Kind)
+	}
+	return nil
+}
+
 // ServiceNetworkConfig is the network configuration for a service
 type ServiceNetworkConfig struct {
 	Aliases         []string `yaml:"aliases,omitempty" json:"aliases,omitempty"`
@@ -521,7 +574,55 @@ func (p *ServicePortConfig) UnmarshalYAML(value *yaml.Node) error {
 		return NodeErrorf(node, "port range %q expands to multiple entries, use sequence form", node.Value)
 	}
 	type plain ServicePortConfig
-	return WrapNodeError(node, node.Decode((*plain)(p)))
+	if err := node.Decode((*plain)(p)); err != nil {
+		return WrapNodeError(node, err)
+	}
+	if p.Protocol == "" {
+		p.Protocol = "tcp"
+	}
+	if p.Mode == "" {
+		p.Mode = "ingress"
+	}
+	return nil
+}
+
+// ServicePorts is a sequence of ServicePortConfig that handles port range expansion
+// during YAML unmarshaling. Port ranges like "80-82:8080-8082" expand to
+// multiple ServicePortConfig entries.
+type ServicePorts []ServicePortConfig
+
+func (sp *ServicePorts) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind != yaml.SequenceNode {
+		return NodeErrorf(node, "ports must be a sequence")
+	}
+	var result []ServicePortConfig
+	for _, item := range node.Content {
+		itemNode := resolveYAMLNode(item)
+		if itemNode.Kind == yaml.ScalarNode {
+			// Could be a port range like "80-82:8080-8082"
+			configs, err := ParsePortConfig(itemNode.Value)
+			if err != nil {
+				return WrapNodeError(itemNode, err)
+			}
+			result = append(result, configs...)
+		} else {
+			var port ServicePortConfig
+			type plain ServicePortConfig
+			if err := itemNode.Decode((*plain)(&port)); err != nil {
+				return WrapNodeError(itemNode, err)
+			}
+			if port.Protocol == "" {
+				port.Protocol = "tcp"
+			}
+			if port.Mode == "" {
+				port.Mode = "ingress"
+			}
+			result = append(result, port)
+		}
+	}
+	*sp = result
+	return nil
 }
 
 // ServiceVolumeConfig are references to a volume used by a service
@@ -569,10 +670,24 @@ func (v *ServiceVolumeConfig) UnmarshalYAML(value *yaml.Node) error {
 			return WrapNodeError(node, err)
 		}
 		*v = parsed
-		return nil
+	} else {
+		type plain ServiceVolumeConfig
+		if err := node.Decode((*plain)(v)); err != nil {
+			return WrapNodeError(node, err)
+		}
+		// Default create_host_path=true for bind volumes when bind section
+		// exists but create_host_path is not explicitly set
+		if v.Bind != nil {
+			_, bindNode := findYAMLKey(node, "bind")
+			if bindNode != nil {
+				_, chpNode := findYAMLKey(bindNode, "create_host_path")
+				if chpNode == nil {
+					v.Bind.CreateHostPath = true
+				}
+			}
+		}
 	}
-	type plain ServiceVolumeConfig
-	return WrapNodeError(node, node.Decode((*plain)(v)))
+	return nil
 }
 
 const (
@@ -675,15 +790,15 @@ type FileReferenceConfig struct {
 
 func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
 	node := resolveYAMLNode(value)
-	switch {
-	case node.Tag == "!!int":
-		// YAML integer - parse as decimal, which is how yaml/v4 presents it
-		i, err := strconv.ParseInt(node.Value, 10, 64)
-		if err != nil {
+	if node.Tag == "!!int" {
+		// YAML integer - let yaml/v4 handle octal (0-prefix), hex (0x-prefix), etc.
+		var i int64
+		if err := node.Decode(&i); err != nil {
 			return WrapNodeError(node, err)
 		}
 		*f = FileMode(i)
-	default:
+	} else {
+		// String — parse as octal (e.g., "0440")
 		i, err := strconv.ParseInt(node.Value, 8, 64)
 		if err != nil {
 			return WrapNodeError(node, err)
@@ -755,10 +870,17 @@ func (s *ServiceSecretConfig) UnmarshalYAML(value *yaml.Node) error {
 	node := resolveYAMLNode(value)
 	if node.Kind == yaml.ScalarNode {
 		s.Source = node.Value
+		s.Target = fmt.Sprintf("/run/secrets/%s", s.Source)
 		return nil
 	}
 	type plain ServiceSecretConfig
-	return WrapNodeError(node, node.Decode((*plain)(s)))
+	if err := node.Decode((*plain)(s)); err != nil {
+		return WrapNodeError(node, err)
+	}
+	if s.Target == "" {
+		s.Target = fmt.Sprintf("/run/secrets/%s", s.Source)
+	}
+	return nil
 }
 
 // UlimitsConfig the ulimit configuration
@@ -880,6 +1002,22 @@ type VolumeConfig struct {
 // External identifies a Volume or Network as a reference to a resource that is
 // not managed, and should already exist.
 type External bool
+
+func (e *External) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.ScalarNode:
+		var b bool
+		if err := node.Decode(&b); err != nil {
+			return err
+		}
+		*e = External(b)
+	case yaml.MappingNode:
+		// Legacy syntax: external: {name: foo} — treat as external: true
+		*e = true
+	}
+	return nil
+}
 
 // CredentialSpecConfig for credential spec on Windows
 type CredentialSpecConfig struct {

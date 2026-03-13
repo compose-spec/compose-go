@@ -56,5 +56,14 @@ func (b *BuildConfig) UnmarshalYAML(value *yaml.Node) error {
 		return nil
 	}
 	type plain BuildConfig
-	return WrapNodeError(node, node.Decode((*plain)(b)))
+	if err := node.Decode((*plain)(b)); err != nil {
+		return WrapNodeError(node, err)
+	}
+	if b.Context == "" {
+		b.Context = "."
+	}
+	if b.Dockerfile == "" && b.DockerfileInline == "" {
+		b.Dockerfile = "Dockerfile"
+	}
+	return nil
 }
