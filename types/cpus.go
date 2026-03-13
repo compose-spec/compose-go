@@ -19,9 +19,21 @@ package types
 import (
 	"fmt"
 	"strconv"
+
+	"go.yaml.in/yaml/v4"
 )
 
 type NanoCPUs float32
+
+func (n *NanoCPUs) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	var f float64
+	if err := node.Decode(&f); err != nil {
+		return WrapNodeError(node, err)
+	}
+	*n = NanoCPUs(f)
+	return nil
+}
 
 func (n *NanoCPUs) DecodeMapstructure(a any) error {
 	switch v := a.(type) {

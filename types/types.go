@@ -26,6 +26,7 @@ import (
 
 	"github.com/docker/go-connections/nat"
 	"github.com/xhit/go-str2duration/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 // ServiceConfig is the configuration of one service
@@ -506,6 +507,23 @@ func convertPortToPortConfig(port nat.Port, portBindings map[nat.Port][]nat.Port
 	return portConfigs
 }
 
+func (p *ServicePortConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		configs, err := ParsePortConfig(node.Value)
+		if err != nil {
+			return WrapNodeError(node, err)
+		}
+		if len(configs) == 1 {
+			*p = configs[0]
+			return nil
+		}
+		return NodeErrorf(node, "port range %q expands to multiple entries, use sequence form", node.Value)
+	}
+	type plain ServicePortConfig
+	return WrapNodeError(node, node.Decode((*plain)(p)))
+}
+
 // ServiceVolumeConfig are references to a volume used by a service
 type ServiceVolumeConfig struct {
 	Type        string               `yaml:"type,omitempty" json:"type,omitempty"`
@@ -538,6 +556,23 @@ func (s ServiceVolumeConfig) String() string {
 		options = append(options, "nocopy")
 	}
 	return fmt.Sprintf("%s:%s:%s", s.Source, s.Target, strings.Join(options, ","))
+}
+
+func (v *ServiceVolumeConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		if ParseVolumeFunc == nil {
+			return NodeErrorf(node, "volume short syntax %q requires ParseVolume function", node.Value)
+		}
+		parsed, err := ParseVolumeFunc(node.Value)
+		if err != nil {
+			return WrapNodeError(node, err)
+		}
+		*v = parsed
+		return nil
+	}
+	type plain ServiceVolumeConfig
+	return WrapNodeError(node, node.Decode((*plain)(v)))
 }
 
 const (
@@ -638,6 +673,26 @@ type FileReferenceConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch {
+	case node.Tag == "!!int":
+		// YAML integer - parse as decimal, which is how yaml/v4 presents it
+		i, err := strconv.ParseInt(node.Value, 10, 64)
+		if err != nil {
+			return WrapNodeError(node, err)
+		}
+		*f = FileMode(i)
+	default:
+		i, err := strconv.ParseInt(node.Value, 8, 64)
+		if err != nil {
+			return WrapNodeError(node, err)
+		}
+		*f = FileMode(i)
+	}
+	return nil
+}
+
 func (f *FileMode) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {
 	case *FileMode:
@@ -670,11 +725,41 @@ func (f *FileMode) String() string {
 	return fmt.Sprintf("0%o", int64(*f))
 }
 
+func (f *FileReferenceConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		f.Source = node.Value
+		return nil
+	}
+	type plain FileReferenceConfig
+	return WrapNodeError(node, node.Decode((*plain)(f)))
+}
+
 // ServiceConfigObjConfig is the config obj configuration for a service
 type ServiceConfigObjConfig FileReferenceConfig
 
+func (s *ServiceConfigObjConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		s.Source = node.Value
+		return nil
+	}
+	type plain ServiceConfigObjConfig
+	return WrapNodeError(node, node.Decode((*plain)(s)))
+}
+
 // ServiceSecretConfig is the secret configuration for a service
 type ServiceSecretConfig FileReferenceConfig
+
+func (s *ServiceSecretConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		s.Source = node.Value
+		return nil
+	}
+	type plain ServiceSecretConfig
+	return WrapNodeError(node, node.Decode((*plain)(s)))
+}
 
 // UlimitsConfig the ulimit configuration
 type UlimitsConfig struct {
@@ -683,6 +768,22 @@ type UlimitsConfig struct {
 	Hard   int `yaml:"hard,omitempty" json:"hard,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+func (u *UlimitsConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		var v int
+		if err := node.Decode(&v); err != nil {
+			return WrapNodeError(node, err)
+		}
+		u.Single = v
+		u.Soft = 0
+		u.Hard = 0
+		return nil
+	}
+	type plain UlimitsConfig
+	return WrapNodeError(node, node.Decode((*plain)(u)))
 }
 
 func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {
@@ -817,6 +918,46 @@ const (
 
 type DependsOnConfig map[string]ServiceDependency
 
+func (d *DependsOnConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.SequenceNode:
+		config := make(DependsOnConfig, len(node.Content))
+		for _, item := range node.Content {
+			config[item.Value] = ServiceDependency{
+				Condition: ServiceConditionStarted,
+				Required:  true,
+			}
+		}
+		*d = config
+	case yaml.MappingNode:
+		type plain DependsOnConfig
+		var p plain
+		if err := node.Decode(&p); err != nil {
+			return WrapNodeError(node, err)
+		}
+		for k, v := range p {
+			if v.Condition == "" {
+				v.Condition = ServiceConditionStarted
+			}
+			p[k] = v
+		}
+		// Set required=true for entries that didn't explicitly set it
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key := node.Content[i].Value
+			dep := p[key]
+			if !hasKey(node.Content[i+1], "required") {
+				dep.Required = true
+			}
+			p[key] = dep
+		}
+		*d = DependsOnConfig(p)
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for depends_on", node.Kind)
+	}
+	return nil
+}
+
 type ServiceDependency struct {
 	Condition  string     `yaml:"condition,omitempty" json:"condition,omitempty"`
 	Restart    bool       `yaml:"restart,omitempty" json:"restart,omitempty"`
@@ -875,4 +1016,14 @@ type IncludeConfig struct {
 	Path             StringList `yaml:"path,omitempty" json:"path,omitempty"`
 	ProjectDirectory string     `yaml:"project_directory,omitempty" json:"project_directory,omitempty"`
 	EnvFile          StringList `yaml:"env_file,omitempty" json:"env_file,omitempty"`
+}
+
+func (ic *IncludeConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		ic.Path = StringList{node.Value}
+		return nil
+	}
+	type plain IncludeConfig
+	return WrapNodeError(node, node.Decode((*plain)(ic)))
 }

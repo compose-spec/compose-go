@@ -16,6 +16,8 @@
 
 package types
 
+import "go.yaml.in/yaml/v4"
+
 // BuildConfig is a type for build
 type BuildConfig struct {
 	Context            string                    `yaml:"context,omitempty" json:"context,omitempty"`
@@ -45,4 +47,14 @@ type BuildConfig struct {
 	Privileged         bool                      `yaml:"privileged,omitempty" json:"privileged,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+func (b *BuildConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		b.Context = node.Value
+		return nil
+	}
+	type plain BuildConfig
+	return WrapNodeError(node, node.Decode((*plain)(b)))
 }

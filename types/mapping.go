@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // MappingWithEquals is a mapping type that can be converted from a list of
@@ -81,6 +83,42 @@ func (m MappingWithEquals) ToMapping() Mapping {
 		}
 	}
 	return o
+}
+
+func (m *MappingWithEquals) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.MappingNode:
+		mapping := make(MappingWithEquals, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			if v.Tag == "!!null" {
+				mapping[k] = nil
+			} else {
+				s := v.Value
+				mapping[k] = &s
+			}
+		}
+		*m = mapping
+	case yaml.SequenceNode:
+		mapping := make(MappingWithEquals, len(node.Content))
+		for _, item := range node.Content {
+			k, e, ok := strings.Cut(item.Value, "=")
+			if k != "" && unicode.IsSpace(rune(k[len(k)-1])) {
+				return NodeErrorf(node, "environment variable %s is declared with a trailing space", k)
+			}
+			if !ok {
+				mapping[k] = nil
+			} else {
+				mapping[k] = &e
+			}
+		}
+		*m = mapping
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for mapping", node.Kind)
+	}
+	return nil
 }
 
 func (m *MappingWithEquals) DecodeMapstructure(value interface{}) error {
@@ -187,6 +225,38 @@ func (m Mapping) Merge(o Mapping) Mapping {
 		}
 	}
 	return m
+}
+
+func (m *Mapping) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.MappingNode:
+		mapping := make(Mapping, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			if v.Tag == "!!null" {
+				mapping[k] = ""
+			} else {
+				mapping[k] = v.Value
+			}
+		}
+		*m = mapping
+	case yaml.SequenceNode:
+		mapping := make(Mapping, len(node.Content))
+		for _, item := range node.Content {
+			parts := strings.SplitN(item.Value, "=", 2)
+			if len(parts) == 1 {
+				mapping[parts[0]] = ""
+			} else {
+				mapping[parts[0]] = parts[1]
+			}
+		}
+		*m = mapping
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for mapping", node.Kind)
+	}
+	return nil
 }
 
 func (m *Mapping) DecodeMapstructure(value interface{}) error {
