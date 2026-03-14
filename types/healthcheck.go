@@ -17,8 +17,6 @@
 package types
 
 import (
-	"fmt"
-
 	"go.yaml.in/yaml/v4"
 )
 
@@ -51,22 +49,6 @@ func (l *HealthCheckTest) UnmarshalYAML(value *yaml.Node) error {
 		*l = seq
 	default:
 		return NodeErrorf(node, "unexpected node kind %d for healthcheck.test", node.Kind)
-	}
-	return nil
-}
-
-func (l *HealthCheckTest) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		*l = []string{"CMD-SHELL", v}
-	case []interface{}:
-		seq := make([]string, len(v))
-		for i, e := range v {
-			seq[i] = e.(string)
-		}
-		*l = seq
-	default:
-		return fmt.Errorf("unexpected value type %T for healthcheck.test", value)
 	}
 	return nil
 }

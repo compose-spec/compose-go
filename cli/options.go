@@ -517,8 +517,9 @@ func (o *ProjectOptions) prepare(ctx context.Context) (*types.ConfigDetails, err
 	return configDetails, nil
 }
 
-// ProjectFromOptions load a compose project based on command line options
-// Deprecated: use ProjectOptions.LoadProject or ProjectOptions.LoadModel
+// ProjectFromOptions load a compose project based on command line options.
+//
+// Deprecated: use ProjectOptions.LoadProject or ProjectOptions.LoadModel.
 func ProjectFromOptions(ctx context.Context, options *ProjectOptions) (*types.Project, error) {
 	return options.LoadProject(ctx)
 }

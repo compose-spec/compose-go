@@ -35,7 +35,7 @@ services:
         device_ids: ["voodoo2"]
         capabilities: ["directX"]
 `)
-	assert.DeepEqual(t, p.Services["test"].Gpus, []types.DeviceRequest{
+	assert.DeepEqual(t, p.Services["test"].Gpus, types.GpuDevices{
 		{Driver: "nvidia", Count: -1},
 		{Capabilities: []string{"directX"}, Driver: "3dfx", IDs: []string{"voodoo2"}},
 	})

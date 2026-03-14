@@ -17,7 +17,6 @@
 package types
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -92,24 +91,4 @@ func (g *GpuDevices) UnmarshalYAML(value *yaml.Node) error {
 		return nil
 	}
 	return NodeErrorf(node, "gpus must be a string or sequence")
-}
-
-func (c *DeviceCount) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case int:
-		*c = DeviceCount(v)
-	case string:
-		if strings.ToLower(v) == "all" {
-			*c = -1
-			return nil
-		}
-		i, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid value %q, the only value allowed is 'all' or a number", v)
-		}
-		*c = DeviceCount(i)
-	default:
-		return fmt.Errorf("invalid type %T for device count", v)
-	}
-	return nil
 }

@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"sort"
@@ -43,10 +42,10 @@ func lazyLoad(t *testing.T, yaml string, env map[string]string, options ...func(
 		},
 		Environment: env,
 	}
-	model, err := LoadLazyModel(context.TODO(), configDetails, options...)
+	model, err := LoadLazyModel(t.Context(), configDetails, options...)
 	assert.NilError(t, err)
 
-	project, err := model.Resolve()
+	project, err := model.Resolve(t.Context())
 	assert.NilError(t, err)
 	return project
 }
@@ -182,13 +181,13 @@ networks:
 	}
 
 	// Load with existing pipeline
-	projectOld, err := LoadWithContext(context.TODO(), configDetails, sharedOpts)
+	projectOld, err := LoadWithContext(t.Context(), configDetails, sharedOpts)
 	assert.NilError(t, err)
 
 	// Load with new lazy pipeline
-	model, err := LoadLazyModel(context.TODO(), configDetails, sharedOpts)
+	model, err := LoadLazyModel(t.Context(), configDetails, sharedOpts)
 	assert.NilError(t, err)
-	projectNew, err := model.Resolve()
+	projectNew, err := model.Resolve(t.Context())
 	assert.NilError(t, err)
 
 	// Compare project names
@@ -264,12 +263,12 @@ services:
 		},
 		Environment: map[string]string{},
 	}
-	model, err := LoadLazyModel(context.TODO(), configDetails, func(o *Options) {
+	model, err := LoadLazyModel(t.Context(), configDetails, func(o *Options) {
 		o.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
 
-	_, err = model.Resolve()
+	_, err = model.Resolve(t.Context())
 	assert.Assert(t, err != nil, "expected an error for invalid mem_limit")
 
 	errMsg := err.Error()
@@ -303,12 +302,12 @@ services:
 		},
 		Environment: map[string]string{},
 	}
-	model, err := LoadLazyModel(context.TODO(), configDetails, func(o *Options) {
+	model, err := LoadLazyModel(t.Context(), configDetails, func(o *Options) {
 		o.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
 
-	_, err = model.Resolve()
+	_, err = model.Resolve(t.Context())
 	assert.Assert(t, err != nil, "expected an error for invalid duration")
 
 	errMsg := err.Error()
@@ -346,12 +345,12 @@ services:
 		},
 		Environment: map[string]string{},
 	}
-	model, err := LoadLazyModel(context.TODO(), configDetails, func(o *Options) {
+	model, err := LoadLazyModel(t.Context(), configDetails, func(o *Options) {
 		o.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
 
-	_, err = model.Resolve()
+	_, err = model.Resolve(t.Context())
 	assert.Assert(t, err != nil, "expected an error for invalid mem_limit in override")
 
 	errMsg := err.Error()
@@ -394,12 +393,12 @@ services:
 		},
 		Environment: map[string]string{},
 	}
-	model, err := LoadLazyModel(context.TODO(), configDetails, func(o *Options) {
+	model, err := LoadLazyModel(t.Context(), configDetails, func(o *Options) {
 		o.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
 
-	_, err = model.Resolve()
+	_, err = model.Resolve(t.Context())
 	assert.Assert(t, err != nil, "expected an error for invalid mem_limit from extended service")
 
 	errMsg := err.Error()
@@ -447,12 +446,12 @@ services:
 		},
 		Environment: map[string]string{},
 	}
-	model, err := LoadLazyModel(context.TODO(), configDetails, func(o *Options) {
+	model, err := LoadLazyModel(t.Context(), configDetails, func(o *Options) {
 		o.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
 
-	project, err := model.Resolve()
+	project, err := model.Resolve(t.Context())
 	assert.NilError(t, err)
 
 	// The main file's web service should be present
@@ -494,12 +493,12 @@ services:
 		},
 		Environment: map[string]string{},
 	}
-	model, err := LoadLazyModel(context.TODO(), configDetails, func(o *Options) {
+	model, err := LoadLazyModel(t.Context(), configDetails, func(o *Options) {
 		o.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
 
-	_, err = model.Resolve()
+	_, err = model.Resolve(t.Context())
 	assert.Assert(t, err != nil, "expected an error for invalid mem_limit in included file")
 
 	errMsg := err.Error()
@@ -549,12 +548,12 @@ services:
 		},
 		Environment: env,
 	}
-	model, err := LoadLazyModel(context.TODO(), configDetails, func(o *Options) {
+	model, err := LoadLazyModel(t.Context(), configDetails, func(o *Options) {
 		o.SkipConsistencyCheck = true
 	})
 	assert.NilError(t, err)
 
-	project, err := model.Resolve()
+	project, err := model.Resolve(t.Context())
 	assert.NilError(t, err)
 
 	app := project.Services["app"]

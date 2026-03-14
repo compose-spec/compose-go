@@ -17,8 +17,6 @@
 package types
 
 import (
-	"fmt"
-
 	"go.yaml.in/yaml/v4"
 )
 
@@ -44,26 +42,6 @@ func (d *Options) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (d *Options) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		m := make(map[string]string)
-		for key, e := range v {
-			if e == nil {
-				m[key] = ""
-			} else {
-				m[key] = fmt.Sprint(e)
-			}
-		}
-		*d = m
-	case map[string]string:
-		*d = v
-	default:
-		return fmt.Errorf("invalid type %T for options", value)
-	}
-	return nil
-}
-
 // MultiOptions allow option to be repeated
 type MultiOptions map[string][]string
 
@@ -86,26 +64,5 @@ func (d *MultiOptions) UnmarshalYAML(value *yaml.Node) error {
 		}
 	}
 	*d = m
-	return nil
-}
-
-func (d *MultiOptions) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		m := make(map[string][]string)
-		for key, e := range v {
-			switch e := e.(type) {
-			case []interface{}:
-				for _, v := range e {
-					m[key] = append(m[key], fmt.Sprint(v))
-				}
-			default:
-				m[key] = append(m[key], fmt.Sprint(e))
-			}
-		}
-		*d = m
-	default:
-		return fmt.Errorf("invalid type %T for options", value)
-	}
 	return nil
 }

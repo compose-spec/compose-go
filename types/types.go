@@ -76,71 +76,71 @@ type ServiceConfig struct {
 	// If set, overrides ENTRYPOINT from the image.
 	//
 	// Set to `[]` or an empty string to clear the entrypoint from the image.
-	Entrypoint      ShellCommand                     `yaml:"entrypoint,omitempty" json:"entrypoint"` // NOTE: we can NOT omitempty for JSON! see ShellCommand type for details.
-	Provider        *ServiceProviderConfig           `yaml:"provider,omitempty" json:"provider,omitempty"`
-	Environment     MappingWithEquals                `yaml:"environment,omitempty" json:"environment,omitempty"`
-	EnvFiles        []EnvFile                        `yaml:"env_file,omitempty" json:"env_file,omitempty"`
-	Expose          StringOrNumberList               `yaml:"expose,omitempty" json:"expose,omitempty"`
-	Extends         *ExtendsConfig                   `yaml:"extends,omitempty" json:"extends,omitempty"`
-	ExternalLinks   []string                         `yaml:"external_links,omitempty" json:"external_links,omitempty"`
-	ExtraHosts      HostsList                        `yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
-	GroupAdd        []string                         `yaml:"group_add,omitempty" json:"group_add,omitempty"`
-	Gpus            GpuDevices                       `yaml:"gpus,omitempty" json:"gpus,omitempty"`
-	Hostname        string                           `yaml:"hostname,omitempty" json:"hostname,omitempty"`
-	HealthCheck     *HealthCheckConfig               `yaml:"healthcheck,omitempty" json:"healthcheck,omitempty"`
-	Image           string                           `yaml:"image,omitempty" json:"image,omitempty"`
-	Init            *bool                            `yaml:"init,omitempty" json:"init,omitempty"`
-	Ipc             string                           `yaml:"ipc,omitempty" json:"ipc,omitempty"`
-	Isolation       string                           `yaml:"isolation,omitempty" json:"isolation,omitempty"`
-	Labels          Labels                           `yaml:"labels,omitempty" json:"labels,omitempty"`
-	LabelFiles      StringList                       `yaml:"label_file,omitempty" json:"label_file,omitempty"`
-	CustomLabels    Labels                           `yaml:"-" json:"-"`
-	Links           []string                         `yaml:"links,omitempty" json:"links,omitempty"`
-	Logging         *LoggingConfig                   `yaml:"logging,omitempty" json:"logging,omitempty"`
-	LogDriver       string                           `yaml:"log_driver,omitempty" json:"log_driver,omitempty"`
-	LogOpt          map[string]string                `yaml:"log_opt,omitempty" json:"log_opt,omitempty"`
-	MemLimit        UnitBytes                        `yaml:"mem_limit,omitempty" json:"mem_limit,omitempty"`
-	MemReservation  UnitBytes                        `yaml:"mem_reservation,omitempty" json:"mem_reservation,omitempty"`
-	MemSwapLimit    UnitBytes                        `yaml:"memswap_limit,omitempty" json:"memswap_limit,omitempty"`
-	MemSwappiness   UnitBytes                        `yaml:"mem_swappiness,omitempty" json:"mem_swappiness,omitempty"`
-	MacAddress      string                           `yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
-	Models          ServiceModels                    `yaml:"models,omitempty" json:"models,omitempty"`
-	Net             string                           `yaml:"net,omitempty" json:"net,omitempty"`
-	NetworkMode     string                           `yaml:"network_mode,omitempty" json:"network_mode,omitempty"`
-	Networks        ServiceNetworks                  `yaml:"networks,omitempty" json:"networks,omitempty"`
-	OomKillDisable  bool                             `yaml:"oom_kill_disable,omitempty" json:"oom_kill_disable,omitempty"`
-	OomScoreAdj     int64                            `yaml:"oom_score_adj,omitempty" json:"oom_score_adj,omitempty"`
-	Pid             string                           `yaml:"pid,omitempty" json:"pid,omitempty"`
-	PidsLimit       int64                            `yaml:"pids_limit,omitempty" json:"pids_limit,omitempty"`
-	Platform        string                           `yaml:"platform,omitempty" json:"platform,omitempty"`
-	Ports           ServicePorts                     `yaml:"ports,omitempty" json:"ports,omitempty"`
-	Privileged      bool                             `yaml:"privileged,omitempty" json:"privileged,omitempty"`
-	PullPolicy      string                           `yaml:"pull_policy,omitempty" json:"pull_policy,omitempty"`
-	ReadOnly        bool                             `yaml:"read_only,omitempty" json:"read_only,omitempty"`
-	Restart         string                           `yaml:"restart,omitempty" json:"restart,omitempty"`
-	Runtime         string                           `yaml:"runtime,omitempty" json:"runtime,omitempty"`
-	Scale           *int                             `yaml:"scale,omitempty" json:"scale,omitempty"`
-	Secrets         []ServiceSecretConfig            `yaml:"secrets,omitempty" json:"secrets,omitempty"`
-	SecurityOpt     []string                         `yaml:"security_opt,omitempty" json:"security_opt,omitempty"`
-	ShmSize         UnitBytes                        `yaml:"shm_size,omitempty" json:"shm_size,omitempty"`
-	StdinOpen       bool                             `yaml:"stdin_open,omitempty" json:"stdin_open,omitempty"`
-	StopGracePeriod *Duration                        `yaml:"stop_grace_period,omitempty" json:"stop_grace_period,omitempty"`
-	StopSignal      string                           `yaml:"stop_signal,omitempty" json:"stop_signal,omitempty"`
-	StorageOpt      map[string]string                `yaml:"storage_opt,omitempty" json:"storage_opt,omitempty"`
-	Sysctls         Mapping                          `yaml:"sysctls,omitempty" json:"sysctls,omitempty"`
-	Tmpfs           StringList                       `yaml:"tmpfs,omitempty" json:"tmpfs,omitempty"`
-	Tty             bool                             `yaml:"tty,omitempty" json:"tty,omitempty"`
-	Ulimits         map[string]*UlimitsConfig        `yaml:"ulimits,omitempty" json:"ulimits,omitempty"`
-	UseAPISocket    bool                             `yaml:"use_api_socket,omitempty" json:"use_api_socket,omitempty"`
-	User            string                           `yaml:"user,omitempty" json:"user,omitempty"`
-	UserNSMode      string                           `yaml:"userns_mode,omitempty" json:"userns_mode,omitempty"`
-	Uts             string                           `yaml:"uts,omitempty" json:"uts,omitempty"`
-	VolumeDriver    string                           `yaml:"volume_driver,omitempty" json:"volume_driver,omitempty"`
-	Volumes         []ServiceVolumeConfig            `yaml:"volumes,omitempty" json:"volumes,omitempty"`
-	VolumesFrom     []string                         `yaml:"volumes_from,omitempty" json:"volumes_from,omitempty"`
-	WorkingDir      string                           `yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
-	PostStart       []ServiceHook                    `yaml:"post_start,omitempty" json:"post_start,omitempty"`
-	PreStop         []ServiceHook                    `yaml:"pre_stop,omitempty" json:"pre_stop,omitempty"`
+	Entrypoint      ShellCommand              `yaml:"entrypoint,omitempty" json:"entrypoint"` // NOTE: we can NOT omitempty for JSON! see ShellCommand type for details.
+	Provider        *ServiceProviderConfig    `yaml:"provider,omitempty" json:"provider,omitempty"`
+	Environment     MappingWithEquals         `yaml:"environment,omitempty" json:"environment,omitempty"`
+	EnvFiles        []EnvFile                 `yaml:"env_file,omitempty" json:"env_file,omitempty"`
+	Expose          StringOrNumberList        `yaml:"expose,omitempty" json:"expose,omitempty"`
+	Extends         *ExtendsConfig            `yaml:"extends,omitempty" json:"extends,omitempty"`
+	ExternalLinks   []string                  `yaml:"external_links,omitempty" json:"external_links,omitempty"`
+	ExtraHosts      HostsList                 `yaml:"extra_hosts,omitempty" json:"extra_hosts,omitempty"`
+	GroupAdd        []string                  `yaml:"group_add,omitempty" json:"group_add,omitempty"`
+	Gpus            GpuDevices                `yaml:"gpus,omitempty" json:"gpus,omitempty"`
+	Hostname        string                    `yaml:"hostname,omitempty" json:"hostname,omitempty"`
+	HealthCheck     *HealthCheckConfig        `yaml:"healthcheck,omitempty" json:"healthcheck,omitempty"`
+	Image           string                    `yaml:"image,omitempty" json:"image,omitempty"`
+	Init            *bool                     `yaml:"init,omitempty" json:"init,omitempty"`
+	Ipc             string                    `yaml:"ipc,omitempty" json:"ipc,omitempty"`
+	Isolation       string                    `yaml:"isolation,omitempty" json:"isolation,omitempty"`
+	Labels          Labels                    `yaml:"labels,omitempty" json:"labels,omitempty"`
+	LabelFiles      StringList                `yaml:"label_file,omitempty" json:"label_file,omitempty"`
+	CustomLabels    Labels                    `yaml:"-" json:"-"`
+	Links           []string                  `yaml:"links,omitempty" json:"links,omitempty"`
+	Logging         *LoggingConfig            `yaml:"logging,omitempty" json:"logging,omitempty"`
+	LogDriver       string                    `yaml:"log_driver,omitempty" json:"log_driver,omitempty"`
+	LogOpt          map[string]string         `yaml:"log_opt,omitempty" json:"log_opt,omitempty"`
+	MemLimit        UnitBytes                 `yaml:"mem_limit,omitempty" json:"mem_limit,omitempty"`
+	MemReservation  UnitBytes                 `yaml:"mem_reservation,omitempty" json:"mem_reservation,omitempty"`
+	MemSwapLimit    UnitBytes                 `yaml:"memswap_limit,omitempty" json:"memswap_limit,omitempty"`
+	MemSwappiness   UnitBytes                 `yaml:"mem_swappiness,omitempty" json:"mem_swappiness,omitempty"`
+	MacAddress      string                    `yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
+	Models          ServiceModels             `yaml:"models,omitempty" json:"models,omitempty"`
+	Net             string                    `yaml:"net,omitempty" json:"net,omitempty"`
+	NetworkMode     string                    `yaml:"network_mode,omitempty" json:"network_mode,omitempty"`
+	Networks        ServiceNetworks           `yaml:"networks,omitempty" json:"networks,omitempty"`
+	OomKillDisable  bool                      `yaml:"oom_kill_disable,omitempty" json:"oom_kill_disable,omitempty"`
+	OomScoreAdj     int64                     `yaml:"oom_score_adj,omitempty" json:"oom_score_adj,omitempty"`
+	Pid             string                    `yaml:"pid,omitempty" json:"pid,omitempty"`
+	PidsLimit       int64                     `yaml:"pids_limit,omitempty" json:"pids_limit,omitempty"`
+	Platform        string                    `yaml:"platform,omitempty" json:"platform,omitempty"`
+	Ports           ServicePorts              `yaml:"ports,omitempty" json:"ports,omitempty"`
+	Privileged      bool                      `yaml:"privileged,omitempty" json:"privileged,omitempty"`
+	PullPolicy      string                    `yaml:"pull_policy,omitempty" json:"pull_policy,omitempty"`
+	ReadOnly        bool                      `yaml:"read_only,omitempty" json:"read_only,omitempty"`
+	Restart         string                    `yaml:"restart,omitempty" json:"restart,omitempty"`
+	Runtime         string                    `yaml:"runtime,omitempty" json:"runtime,omitempty"`
+	Scale           *int                      `yaml:"scale,omitempty" json:"scale,omitempty"`
+	Secrets         []ServiceSecretConfig     `yaml:"secrets,omitempty" json:"secrets,omitempty"`
+	SecurityOpt     []string                  `yaml:"security_opt,omitempty" json:"security_opt,omitempty"`
+	ShmSize         UnitBytes                 `yaml:"shm_size,omitempty" json:"shm_size,omitempty"`
+	StdinOpen       bool                      `yaml:"stdin_open,omitempty" json:"stdin_open,omitempty"`
+	StopGracePeriod *Duration                 `yaml:"stop_grace_period,omitempty" json:"stop_grace_period,omitempty"`
+	StopSignal      string                    `yaml:"stop_signal,omitempty" json:"stop_signal,omitempty"`
+	StorageOpt      map[string]string         `yaml:"storage_opt,omitempty" json:"storage_opt,omitempty"`
+	Sysctls         Mapping                   `yaml:"sysctls,omitempty" json:"sysctls,omitempty"`
+	Tmpfs           StringList                `yaml:"tmpfs,omitempty" json:"tmpfs,omitempty"`
+	Tty             bool                      `yaml:"tty,omitempty" json:"tty,omitempty"`
+	Ulimits         map[string]*UlimitsConfig `yaml:"ulimits,omitempty" json:"ulimits,omitempty"`
+	UseAPISocket    bool                      `yaml:"use_api_socket,omitempty" json:"use_api_socket,omitempty"`
+	User            string                    `yaml:"user,omitempty" json:"user,omitempty"`
+	UserNSMode      string                    `yaml:"userns_mode,omitempty" json:"userns_mode,omitempty"`
+	Uts             string                    `yaml:"uts,omitempty" json:"uts,omitempty"`
+	VolumeDriver    string                    `yaml:"volume_driver,omitempty" json:"volume_driver,omitempty"`
+	Volumes         []ServiceVolumeConfig     `yaml:"volumes,omitempty" json:"volumes,omitempty"`
+	VolumesFrom     []string                  `yaml:"volumes_from,omitempty" json:"volumes_from,omitempty"`
+	WorkingDir      string                    `yaml:"working_dir,omitempty" json:"working_dir,omitempty"`
+	PostStart       []ServiceHook             `yaml:"post_start,omitempty" json:"post_start,omitempty"`
+	PreStop         []ServiceHook             `yaml:"pre_stop,omitempty" json:"pre_stop,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
@@ -352,16 +352,16 @@ func (d *DeviceMapping) UnmarshalYAML(value *yaml.Node) error {
 
 // WeightDevice is a structure that holds device:weight pair
 type WeightDevice struct {
-	Path   string
-	Weight uint16
+	Path   string `yaml:"path,omitempty" json:"path,omitempty"`
+	Weight uint16 `yaml:"weight,omitempty" json:"weight,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ThrottleDevice is a structure that holds device:rate_per_second pair
 type ThrottleDevice struct {
-	Path string
-	Rate UnitBytes
+	Path string   `yaml:"path,omitempty" json:"path,omitempty"`
+	Rate UnitBytes `yaml:"rate,omitempty" json:"rate,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
@@ -659,7 +659,7 @@ func (s ServiceVolumeConfig) String() string {
 	return fmt.Sprintf("%s:%s:%s", s.Source, s.Target, strings.Join(options, ","))
 }
 
-func (v *ServiceVolumeConfig) UnmarshalYAML(value *yaml.Node) error {
+func (s *ServiceVolumeConfig) UnmarshalYAML(value *yaml.Node) error {
 	node := resolveYAMLNode(value)
 	if node.Kind == yaml.ScalarNode {
 		if ParseVolumeFunc == nil {
@@ -669,20 +669,19 @@ func (v *ServiceVolumeConfig) UnmarshalYAML(value *yaml.Node) error {
 		if err != nil {
 			return WrapNodeError(node, err)
 		}
-		*v = parsed
+		*s = parsed
 	} else {
 		type plain ServiceVolumeConfig
-		if err := node.Decode((*plain)(v)); err != nil {
+		if err := node.Decode((*plain)(s)); err != nil {
 			return WrapNodeError(node, err)
 		}
 		// Default create_host_path=true for bind volumes when bind section
 		// exists but create_host_path is not explicitly set
-		if v.Bind != nil {
-			_, bindNode := findYAMLKey(node, "bind")
-			if bindNode != nil {
-				_, chpNode := findYAMLKey(bindNode, "create_host_path")
+		if s.Bind != nil {
+			if bindNode := findYAMLKey(node, "bind"); bindNode != nil {
+				chpNode := findYAMLKey(bindNode, "create_host_path")
 				if chpNode == nil {
-					v.Bind.CreateHostPath = true
+					s.Bind.CreateHostPath = true
 				}
 			}
 		}
@@ -808,24 +807,6 @@ func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (f *FileMode) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case *FileMode:
-		return nil
-	case string:
-		i, err := strconv.ParseInt(v, 8, 64)
-		if err != nil {
-			return err
-		}
-		*f = FileMode(i)
-	case int:
-		*f = FileMode(v)
-	default:
-		return fmt.Errorf("unexpected value type %T for mode", value)
-	}
-	return nil
-}
-
 // MarshalYAML makes FileMode implement yaml.Marshaller
 func (f *FileMode) MarshalYAML() (interface{}, error) {
 	return f.String(), nil
@@ -906,31 +887,6 @@ func (u *UlimitsConfig) UnmarshalYAML(value *yaml.Node) error {
 	}
 	type plain UlimitsConfig
 	return WrapNodeError(node, node.Decode((*plain)(u)))
-}
-
-func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case *UlimitsConfig:
-		// this call to DecodeMapstructure is triggered after initial value conversion as we use a map[string]*UlimitsConfig
-		return nil
-	case int:
-		u.Single = v
-		u.Soft = 0
-		u.Hard = 0
-	case map[string]any:
-		u.Single = 0
-		soft, ok := v["soft"]
-		if ok {
-			u.Soft = soft.(int)
-		}
-		hard, ok := v["hard"]
-		if ok {
-			u.Hard = hard.(int)
-		}
-	default:
-		return fmt.Errorf("unexpected value type %T for ulimit", value)
-	}
-	return nil
 }
 
 // MarshalYAML makes UlimitsConfig implement yaml.Marshaller

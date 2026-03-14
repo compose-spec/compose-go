@@ -71,16 +71,7 @@ func WithSource(err error, source string) error {
 	if err == nil {
 		return nil
 	}
-	// Direct match
-	if ne, ok := err.(*NodeError); ok {
-		return &NodeError{
-			Line:   ne.Line,
-			Column: ne.Column,
-			Source: source,
-			Err:    ne.Err,
-		}
-	}
-	// Try to find NodeError via Unwrap
+	// Direct match or wrapped
 	var ne *NodeError
 	if errors.As(err, &ne) {
 		enriched := &NodeError{
@@ -124,17 +115,17 @@ func hasKey(node *yaml.Node, key string) bool {
 	return false
 }
 
-// findYAMLKey finds a key in a MappingNode and returns (key node, value node).
-func findYAMLKey(node *yaml.Node, key string) (*yaml.Node, *yaml.Node) {
+// findYAMLKey finds a key in a MappingNode and returns the value node.
+func findYAMLKey(node *yaml.Node, key string) *yaml.Node {
 	if node == nil || node.Kind != yaml.MappingNode {
-		return nil, nil
+		return nil
 	}
 	for i := 0; i+1 < len(node.Content); i += 2 {
 		if node.Content[i].Value == key {
-			return node.Content[i], node.Content[i+1]
+			return node.Content[i+1]
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 // ParseVolumeFunc is a package-level hook for parsing volume short syntax.

@@ -62,19 +62,6 @@ func (l Labels) ToMappingWithEquals() MappingWithEquals {
 	return mapping
 }
 
-// label value can be a string | number | boolean | null (empty)
-func labelValue(e interface{}) string {
-	if e == nil {
-		return ""
-	}
-	switch v := e.(type) {
-	case string:
-		return v
-	default:
-		return fmt.Sprint(v)
-	}
-}
-
 func (l *Labels) UnmarshalYAML(value *yaml.Node) error {
 	node := resolveYAMLNode(value)
 	switch node.Kind {
@@ -93,27 +80,6 @@ func (l *Labels) UnmarshalYAML(value *yaml.Node) error {
 		*l = labels
 	default:
 		return NodeErrorf(node, "unexpected node kind %d for labels", node.Kind)
-	}
-	return nil
-}
-
-func (l *Labels) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		labels := make(map[string]string, len(v))
-		for k, e := range v {
-			labels[k] = labelValue(e)
-		}
-		*l = labels
-	case []interface{}:
-		labels := make(map[string]string, len(v))
-		for _, s := range v {
-			k, e, _ := strings.Cut(fmt.Sprint(s), "=")
-			labels[k] = labelValue(e)
-		}
-		*l = labels
-	default:
-		return fmt.Errorf("unexpected value type %T for labels", value)
 	}
 	return nil
 }

@@ -54,15 +54,3 @@ func (u *UnitBytes) UnmarshalYAML(value *yaml.Node) error {
 	}
 	return nil
 }
-
-func (u *UnitBytes) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case int:
-		*u = UnitBytes(v)
-	case string:
-		b, err := units.RAMInBytes(fmt.Sprint(value))
-		*u = UnitBytes(b)
-		return err
-	}
-	return nil
-}

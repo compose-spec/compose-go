@@ -17,7 +17,6 @@
 package types
 
 import (
-	"fmt"
 	"strconv"
 
 	"go.yaml.in/yaml/v4"
@@ -39,26 +38,6 @@ func (n *NanoCPUs) UnmarshalYAML(value *yaml.Node) error {
 		return WrapNodeError(node, err)
 	}
 	*n = NanoCPUs(f)
-	return nil
-}
-
-func (n *NanoCPUs) DecodeMapstructure(a any) error {
-	switch v := a.(type) {
-	case string:
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return err
-		}
-		*n = NanoCPUs(f)
-	case int:
-		*n = NanoCPUs(v)
-	case float32:
-		*n = NanoCPUs(v)
-	case float64:
-		*n = NanoCPUs(v)
-	default:
-		return fmt.Errorf("unexpected value type %T for cpus", v)
-	}
 	return nil
 }
 

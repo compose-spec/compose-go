@@ -2540,7 +2540,7 @@ services:
 			customLoader{prefix: "remote"},
 		}
 	})
-	assert.ErrorContains(t, err, "Circular reference")
+	assert.ErrorContains(t, err, "circular reference")
 }
 
 func TestLoadMulmtiDocumentYaml(t *testing.T) {
@@ -3176,46 +3176,6 @@ services:
 	assert.DeepEqual(t, p.Services["test"].Networks["test"], &types.ServiceNetworkConfig{
 		InterfaceName: "eth0",
 	})
-}
-
-func TestModel(t *testing.T) {
-	p, err := loadYAML(`
-name: model
-services:
-  test_array:
-    models:
-      - foo
-
-  test_mapping:
-    models:
-      foo:
-        endpoint_var: MODEL_URL
-        model_var: MODEL
-
-models:
-  foo:
-    model: ai/model
-    context_size: 1024
-    runtime_flags: 
-      - "--some-flag"
-`)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Models["foo"], types.ModelConfig{
-		Model:        "ai/model",
-		ContextSize:  1024,
-		RuntimeFlags: []string{"--some-flag"},
-	})
-	assert.DeepEqual(t, p.Services["test_array"].Models, types.ServiceModels{
-		"foo": nil,
-	})
-	assert.DeepEqual(t, p.Services["test_mapping"].Models, types.ServiceModels{
-		"foo": {
-			EndpointVariable: "MODEL_URL",
-			ModelVariable:    "MODEL",
-		},
-	})
-	assert.DeepEqual(t, p.ModelNames(), []string{"foo"})
-	assert.Check(t, utils.ArrayContains(p.ServicesWithModels(), []string{"test_array", "test_mapping"}), p.ServicesWithModels())
 }
 
 func TestAttestations(t *testing.T) {

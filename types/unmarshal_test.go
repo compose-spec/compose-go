@@ -329,7 +329,7 @@ func TestUnmarshalFileMode_OctalString(t *testing.T) {
 	var m FileMode
 	err := yaml.Unmarshal([]byte(`"0755"`), &m)
 	assert.NilError(t, err)
-	assert.Equal(t, m, FileMode(0755))
+	assert.Equal(t, m, FileMode(0o755))
 }
 
 func TestUnmarshalFileMode_Integer(t *testing.T) {

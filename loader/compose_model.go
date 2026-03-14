@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"regexp"
@@ -31,7 +32,6 @@ import (
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
-	"github.com/sirupsen/logrus"
 	"github.com/compose-spec/compose-go/v2/format"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
 	"github.com/compose-spec/compose-go/v2/override"
@@ -40,6 +40,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/compose-spec/compose-go/v2/validation"
+	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -85,15 +86,13 @@ type ComposeModel struct {
 func init() {
 	// Wire up the volume-parsing hook so that types.ServiceVolumeConfig.UnmarshalYAML
 	// can parse short syntax without importing the format package directly.
-	types.ParseVolumeFunc = func(s string) (types.ServiceVolumeConfig, error) {
-		return format.ParseVolume(s)
-	}
+	types.ParseVolumeFunc = format.ParseVolume
 }
 
 // LoadLazyModel parses compose files into raw yaml.Node layers without
 // performing interpolation or normalization. The resulting ComposeModel
 // can later be materialized into a types.Project by calling Resolve().
-func LoadLazyModel(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*ComposeModel, error) {
+func LoadLazyModel(_ context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*ComposeModel, error) {
 	opts := ToOptions(&configDetails, options)
 
 	if len(configDetails.ConfigFiles) < 1 {
@@ -105,9 +104,9 @@ func LoadLazyModel(ctx context.Context, configDetails types.ConfigDetails, optio
 	}
 
 	model := &ComposeModel{
-		configDetails: configDetails,
-		opts:          opts,
-		nodeContexts:  make(map[*yaml.Node]*NodeContext),
+		configDetails:   configDetails,
+		opts:            opts,
+		nodeContexts:    make(map[*yaml.Node]*NodeContext),
 		serviceWorkDirs: make(map[string]string),
 	}
 
@@ -242,11 +241,11 @@ func checkDuplicateKeys(node *yaml.Node) error {
 // This is the point where all deferred processing happens:
 // extends resolution, includes loading, merging, interpolation,
 // type casting, and decoding into Go structs.
-func (m *ComposeModel) Resolve() (*types.Project, error) {
+func (m *ComposeModel) Resolve(ctx context.Context) (*types.Project, error) { //nolint:gocyclo
 	// 1. Process extends on raw nodes (before interpolation, same as existing pipeline)
 	if !m.opts.SkipExtends {
 		for _, layer := range m.layers {
-			if err := m.applyExtendsNode(layer); err != nil {
+			if err := m.applyExtendsNode(ctx, layer); err != nil {
 				return nil, err
 			}
 		}
@@ -254,7 +253,7 @@ func (m *ComposeModel) Resolve() (*types.Project, error) {
 
 	// 2. Process includes — loads referenced files as additional raw layers
 	if !m.opts.SkipInclude {
-		if err := m.applyIncludeNodes(); err != nil {
+		if err := m.applyIncludeNodes(ctx); err != nil {
 			return nil, err
 		}
 	}
@@ -326,9 +325,9 @@ func (m *ComposeModel) Resolve() (*types.Project, error) {
 			if _, ok := dict["version"]; ok {
 				m.opts.warnObsoleteVersion(mergedSource)
 			}
-		}
-		if err := validation.Validate(dict); err != nil {
-			return nil, err
+			if err := validation.Validate(dict); err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -372,9 +371,7 @@ func (m *ComposeModel) Resolve() (*types.Project, error) {
 
 	// 7. Normalization (default network, resource names, build defaults, etc.)
 	if !m.opts.SkipNormalization {
-		if err := normalizeProject(project, m.opts); err != nil {
-			return nil, err
-		}
+		normalizeProject(project)
 	}
 
 	// 7a. Always resolve environment references in secrets/configs
@@ -429,7 +426,7 @@ func (m *ComposeModel) Resolve() (*types.Project, error) {
 // interpolateTree walks the yaml.Node tree and interpolates scalar values
 // using per-node context from nodeContexts. Nodes not found in the map
 // inherit context from the nearest registered ancestor during the walk.
-func (m *ComposeModel) interpolateTree(node *yaml.Node, path tree.Path, inherited *NodeContext) error {
+func (m *ComposeModel) interpolateTree(node *yaml.Node, p tree.Path, inherited *NodeContext) error {
 	if node == nil {
 		return nil
 	}
@@ -443,7 +440,7 @@ func (m *ComposeModel) interpolateTree(node *yaml.Node, path tree.Path, inherite
 	switch node.Kind {
 	case yaml.DocumentNode:
 		for _, child := range node.Content {
-			if err := m.interpolateTree(child, path, ctx); err != nil {
+			if err := m.interpolateTree(child, p, ctx); err != nil {
 				return err
 			}
 		}
@@ -463,7 +460,7 @@ func (m *ComposeModel) interpolateTree(node *yaml.Node, path tree.Path, inherite
 				pairCtx = c
 			}
 
-			next := path.Next(keyNode.Value)
+			next := p.Next(keyNode.Value)
 			if err := m.interpolateTree(valNode, next, pairCtx); err != nil {
 				return err
 			}
@@ -471,20 +468,20 @@ func (m *ComposeModel) interpolateTree(node *yaml.Node, path tree.Path, inherite
 
 	case yaml.SequenceNode:
 		for _, child := range node.Content {
-			if err := m.interpolateTree(child, path.Next(tree.PathMatchList), ctx); err != nil {
+			if err := m.interpolateTree(child, p.Next(tree.PathMatchList), ctx); err != nil {
 				return err
 			}
 		}
 
 	case yaml.ScalarNode:
-		return m.interpolateScalar(node, path, ctx)
+		return m.interpolateScalar(node, p, ctx)
 	}
 
 	return nil
 }
 
 // interpolateScalar substitutes variables and applies type casting on a single scalar node.
-func (m *ComposeModel) interpolateScalar(node *yaml.Node, path tree.Path, ctx *NodeContext) error {
+func (m *ComposeModel) interpolateScalar(node *yaml.Node, p tree.Path, ctx *NodeContext) error {
 	if node.Tag != "!!str" && node.Tag != "" && !strings.Contains(node.Value, "$") {
 		return nil
 	}
@@ -505,7 +502,7 @@ func (m *ComposeModel) interpolateScalar(node *yaml.Node, path tree.Path, ctx *N
 	// Type casting based on tree path
 	var caster interp.Cast
 	for pattern, c := range interpolateTypeCastMapping {
-		if path.Matches(pattern) {
+		if p.Matches(pattern) {
 			caster = c
 			break
 		}
@@ -528,6 +525,8 @@ func (m *ComposeModel) interpolateScalar(node *yaml.Node, path tree.Path, ctx *N
 		node.Tag = "!!int"
 	case float64:
 		node.Tag = "!!float"
+	case string:
+		// Tag stays as-is (!!str or empty) — no update needed.
 	case nil:
 		node.Tag = "!!null"
 		node.Value = "null"
@@ -554,14 +553,20 @@ func (m *ComposeModel) enrichError(err error, fallbackSource string) error {
 	return types.WithSource(err, source)
 }
 
+// Precompiled regexes for parsing yaml/v4 error messages.
+// NOTE: If yaml/v4 changes its error format, findSourceForError will silently
+// fall back to the fallback source in enrichError. This is acceptable — error
+// enrichment is best-effort and never blocks parsing.
+var (
+	reLineColumn = regexp.MustCompile(`line (\d+), column (\d+)`)
+	reLineOnly   = regexp.MustCompile(`line (\d+)`)
+)
+
 // findSourceForError extracts line/column numbers from yaml error messages and
 // looks up which source file contains a node at that position.
 func (m *ComposeModel) findSourceForError(err error) string {
 	msg := err.Error()
-	// yaml/v4 errors look like: "line N, column M: ..."
-	// Try matching with both line and column first for precision
-	re := regexp.MustCompile(`line (\d+), column (\d+)`)
-	matches := re.FindStringSubmatch(msg)
+	matches := reLineColumn.FindStringSubmatch(msg)
 	if len(matches) >= 3 {
 		lineNum, _ := strconv.Atoi(matches[1])
 		colNum, _ := strconv.Atoi(matches[2])
@@ -572,7 +577,6 @@ func (m *ComposeModel) findSourceForError(err error) string {
 		}
 	}
 	// Fallback: match on line only
-	reLineOnly := regexp.MustCompile(`line (\d+)`)
 	lineMatches := reLineOnly.FindStringSubmatch(msg)
 	if len(lineMatches) < 2 {
 		return ""
@@ -590,7 +594,7 @@ func (m *ComposeModel) findSourceForError(err error) string {
 }
 
 // applyExtendsNode processes "extends" directives within a single layer's node tree.
-func (m *ComposeModel) applyExtendsNode(layer *Layer) error {
+func (m *ComposeModel) applyExtendsNode(ctx context.Context, layer *Layer) error {
 	node := resolveDocumentNode(layer.Node)
 	_, services := override.FindKey(node, "services")
 	if services == nil || services.Kind != yaml.MappingNode {
@@ -600,14 +604,14 @@ func (m *ComposeModel) applyExtendsNode(layer *Layer) error {
 	resolved := map[string]bool{}
 	for i := 0; i+1 < len(services.Content); i += 2 {
 		name := services.Content[i].Value
-		if err := m.resolveServiceExtends(layer, services, name, resolved, nil); err != nil {
+		if err := m.resolveServiceExtends(ctx, layer, services, name, resolved, nil); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (m *ComposeModel) resolveServiceExtends(layer *Layer, services *yaml.Node, name string, resolved map[string]bool, chain []string) error {
+func (m *ComposeModel) resolveServiceExtends(ctx context.Context, layer *Layer, services *yaml.Node, name string, resolved map[string]bool, chain []string) error {
 	if resolved[name] {
 		return nil
 	}
@@ -615,7 +619,7 @@ func (m *ComposeModel) resolveServiceExtends(layer *Layer, services *yaml.Node, 
 	// cycle detection using file:service identifiers
 	chainID := layer.Context.Source + ":" + name
 	if slices.Contains(chain, chainID) {
-		return fmt.Errorf("Circular reference with extends")
+		return fmt.Errorf("circular reference with extends")
 	}
 	chain = append(chain, chainID)
 
@@ -663,7 +667,7 @@ func (m *ComposeModel) resolveServiceExtends(layer *Layer, services *yaml.Node, 
 		filePath := refFile
 		for _, loader := range m.opts.RemoteResourceLoaders() {
 			if loader.Accept(refFile) {
-				resolved, loadErr := loader.Load(context.TODO(), refFile)
+				resolved, loadErr := loader.Load(ctx, refFile)
 				if loadErr != nil {
 					return loadErr
 				}
@@ -705,7 +709,7 @@ func (m *ComposeModel) resolveServiceExtends(layer *Layer, services *yaml.Node, 
 		// Recursively resolve extends in the base service's file
 		extResolved := map[string]bool{}
 		extLayer := &Layer{Node: extNode, Context: extCtx}
-		if err := m.resolveServiceExtends(extLayer, extServices, refService, extResolved, chain); err != nil {
+		if err := m.resolveServiceExtends(ctx, extLayer, extServices, refService, extResolved, chain); err != nil {
 			return err
 		}
 		// Re-fetch after resolution
@@ -720,7 +724,7 @@ func (m *ComposeModel) resolveServiceExtends(layer *Layer, services *yaml.Node, 
 		resolveServiceNodePaths(baseService, relWorkDir)
 	} else {
 		// Same file
-		if err := m.resolveServiceExtends(layer, services, refService, resolved, chain); err != nil {
+		if err := m.resolveServiceExtends(ctx, layer, services, refService, resolved, chain); err != nil {
 			return err
 		}
 		_, baseService = override.FindKey(services, refService)
@@ -785,7 +789,7 @@ func (m *ComposeModel) deepCloneNode(node *yaml.Node) *yaml.Node {
 // loading referenced files as additional raw layers with their own context.
 // Includes are inserted BEFORE their parent layer so the parent takes
 // precedence during merge (matching the old pipeline's behavior).
-func (m *ComposeModel) applyIncludeNodes() error {
+func (m *ComposeModel) applyIncludeNodes(ctx context.Context) error {
 	var newLayers []*Layer
 	for _, layer := range m.layers {
 		node := resolveDocumentNode(layer.Node)
@@ -799,7 +803,7 @@ func (m *ComposeModel) applyIncludeNodes() error {
 		}
 
 		for _, entry := range includeNode.Content {
-			includeLayers, err := m.loadIncludeEntry(layer, entry)
+			includeLayers, err := m.loadIncludeEntry(ctx, layer, entry)
 			if err != nil {
 				return err
 			}
@@ -812,7 +816,7 @@ func (m *ComposeModel) applyIncludeNodes() error {
 	return nil
 }
 
-func (m *ComposeModel) loadIncludeEntry(parent *Layer, entry *yaml.Node) ([]*Layer, error) {
+func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entry *yaml.Node) ([]*Layer, error) { //nolint:gocyclo
 	var paths []string
 	var projectDir string
 	var envFiles []string
@@ -859,15 +863,16 @@ func (m *ComposeModel) loadIncludeEntry(parent *Layer, entry *yaml.Node) ([]*Lay
 	for i, p := range paths {
 		resolved := false
 		for _, loader := range m.opts.RemoteResourceLoaders() {
-			if loader.Accept(p) {
-				absPath, loadErr := loader.Load(context.TODO(), p)
-				if loadErr != nil {
-					return nil, types.WrapNodeError(entry, fmt.Errorf("loading include %s: %w", p, loadErr))
-				}
-				paths[i] = absPath
-				resolved = true
-				break
+			if !loader.Accept(p) {
+				continue
 			}
+			absPath, loadErr := loader.Load(ctx, p)
+			if loadErr != nil {
+				return nil, types.WrapNodeError(entry, fmt.Errorf("loading include %s: %w", p, loadErr))
+			}
+			paths[i] = absPath
+			resolved = true
+			break
 		}
 		if !resolved && !filepath.IsAbs(p) {
 			paths[i] = filepath.Join(parent.Context.WorkingDir, p)
@@ -878,9 +883,10 @@ func (m *ComposeModel) loadIncludeEntry(parent *Layer, entry *yaml.Node) ([]*Lay
 	for _, p := range paths {
 		for _, loaded := range m.loadedFiles {
 			if loaded == p {
-				m.loadedFiles = append(m.loadedFiles, p)
-				return nil, fmt.Errorf("include cycle detected:\n%s\n include %s",
-					m.loadedFiles[0], strings.Join(m.loadedFiles[1:], "\n include "))
+				chain := slices.Concat(m.loadedFiles[1:], []string{p})
+				msg := fmt.Errorf("include cycle detected:\n%s\n include %s",
+					m.loadedFiles[0], strings.Join(chain, "\n include "))
+				return nil, msg
 			}
 		}
 	}
@@ -938,7 +944,7 @@ func (m *ComposeModel) loadIncludeEntry(parent *Layer, entry *yaml.Node) ([]*Lay
 
 		incLayer := &Layer{Node: node, Context: nodeCtx}
 		if !m.opts.SkipExtends {
-			if err := m.applyExtendsNode(incLayer); err != nil {
+			if err := m.applyExtendsNode(ctx, incLayer); err != nil {
 				return nil, fmt.Errorf("%s: %w", p, err)
 			}
 		}
@@ -984,17 +990,36 @@ func resolveLayerEnvironment(node *yaml.Node, env types.Mapping) {
 			continue
 		}
 		_, envNode := override.FindKey(svc, "environment")
-		if envNode == nil || envNode.Kind != yaml.SequenceNode {
+		if envNode == nil {
 			continue
 		}
-		for _, item := range envNode.Content {
-			if item.Kind != yaml.ScalarNode {
-				continue
+		switch envNode.Kind {
+		case yaml.SequenceNode:
+			for _, item := range envNode.Content {
+				if item.Kind != yaml.ScalarNode {
+					continue
+				}
+				// Only process bare variable names (no "=" sign)
+				if !strings.Contains(item.Value, "=") {
+					if val, ok := env[item.Value]; ok {
+						item.Value = fmt.Sprintf("%s=%s", item.Value, val)
+					}
+				}
 			}
-			// Only process bare variable names (no "=" sign)
-			if !strings.Contains(item.Value, "=") {
-				if val, ok := env[item.Value]; ok {
-					item.Value = fmt.Sprintf("%s=%s", item.Value, val)
+		case yaml.MappingNode:
+			for i := 0; i+1 < len(envNode.Content); i += 2 {
+				key := envNode.Content[i]
+				val := envNode.Content[i+1]
+				// Resolve bare references: mapping entries with null value.
+				// yaml/v4 sets Tag="!!null" for all null forms:
+				//   VAR_NAME:       → Tag="!!null" Value=""
+				//   VAR_NAME: null  → Tag="!!null" Value="null"
+				//   VAR_NAME: ~     → Tag="!!null" Value="~"
+				if key.Kind == yaml.ScalarNode && val.Tag == "!!null" {
+					if v, ok := env[key.Value]; ok {
+						val.Value = v
+						val.Tag = "!!str"
+					}
 				}
 			}
 		}
@@ -1022,13 +1047,13 @@ func addBuildContextDefault(svc *yaml.Node) {
 // resolveServiceNodePaths adjusts relative paths in a service yaml.Node to be
 // expressed relative to workDir. This is used for extends from external files
 // to make paths relative to the main project directory.
-func resolveServiceNodePaths(svc *yaml.Node, workDir string) {
+func resolveServiceNodePaths(svc *yaml.Node, workDir string) { //nolint:gocyclo
 	if svc == nil || svc.Kind != yaml.MappingNode || workDir == "." {
 		return
 	}
 
 	absNodePath := func(p string) string {
-		if filepath.IsAbs(p) || p == "" {
+		if filepath.IsAbs(p) || path.IsAbs(p) || p == "" {
 			return p
 		}
 		return filepath.Join(workDir, p)
@@ -1037,12 +1062,13 @@ func resolveServiceNodePaths(svc *yaml.Node, workDir string) {
 	// build.context
 	_, build := override.FindKey(svc, "build")
 	if build != nil {
-		if build.Kind == yaml.ScalarNode {
+		switch build.Kind {
+		case yaml.ScalarNode:
 			// short syntax: build: ./path
 			if !strings.Contains(build.Value, "://") {
 				build.Value = absNodePath(build.Value)
 			}
-		} else if build.Kind == yaml.MappingNode {
+		case yaml.MappingNode:
 			_, ctx := override.FindKey(build, "context")
 			if ctx != nil && ctx.Kind == yaml.ScalarNode && !strings.Contains(ctx.Value, "://") {
 				ctx.Value = absNodePath(ctx.Value)
@@ -1079,7 +1105,8 @@ func resolveServiceNodePaths(svc *yaml.Node, workDir string) {
 	_, volumes := override.FindKey(svc, "volumes")
 	if volumes != nil && volumes.Kind == yaml.SequenceNode {
 		for i, item := range volumes.Content {
-			if item.Kind == yaml.MappingNode {
+			switch item.Kind {
+			case yaml.MappingNode:
 				_, vtype := override.FindKey(item, "type")
 				if vtype != nil && vtype.Value == "bind" {
 					_, src := override.FindKey(item, "source")
@@ -1087,10 +1114,10 @@ func resolveServiceNodePaths(svc *yaml.Node, workDir string) {
 						src.Value = absNodePath(src.Value)
 					}
 				}
-			} else if item.Kind == yaml.ScalarNode {
+			case yaml.ScalarNode:
 				// Short syntax: parse, resolve source, convert to long syntax mapping
 				vol, err := format.ParseVolume(item.Value)
-				if err == nil && vol.Type == types.VolumeTypeBind && vol.Source != "" && !filepath.IsAbs(vol.Source) {
+				if err == nil && vol.Type == types.VolumeTypeBind && vol.Source != "" && !filepath.IsAbs(vol.Source) && !path.IsAbs(vol.Source) {
 					vol.Source = absNodePath(vol.Source)
 					// Convert to long syntax mapping node to preserve bind type
 					trueNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"}
@@ -1247,12 +1274,12 @@ func checkNonStringKeysNode(node *yaml.Node, keyPrefix string) error {
 // merging into the main project with a different working directory.
 func resolveLayerNodePaths(node *yaml.Node, workDir string) {
 	root := resolveDocumentNode(node)
-	if root == nil || root.Kind != yaml.MappingNode {
+	if root == nil || root.Kind != yaml.MappingNode || workDir == "." {
 		return
 	}
 
 	absPath := func(p string) string {
-		if filepath.IsAbs(p) || p == "" {
+		if filepath.IsAbs(p) || path.IsAbs(p) || p == "" {
 			return p
 		}
 		return filepath.Join(workDir, p)
@@ -1299,7 +1326,6 @@ func resolveLayerNodePaths(node *yaml.Node, workDir string) {
 }
 
 // processProjectExtensions converts raw extension values to registered Go types.
-// This mirrors the old processExtensions that operated on map[string]any.
 func processProjectExtensions(project *types.Project, known map[string]any) error {
 	convertExtensions := func(ext types.Extensions) error {
 		for name, val := range ext {
@@ -1307,8 +1333,13 @@ func processProjectExtensions(project *types.Project, known map[string]any) erro
 			if !ok {
 				continue
 			}
+			// Marshal the raw value to yaml, then unmarshal into the target type
+			b, err := yaml.Marshal(val)
+			if err != nil {
+				return fmt.Errorf("converting extension %s: %w", name, err)
+			}
 			target := reflect.New(reflect.TypeOf(typ)).Interface()
-			if err := Transform(val, target); err != nil {
+			if err := yaml.Unmarshal(b, target); err != nil {
 				return fmt.Errorf("converting extension %s: %w", name, err)
 			}
 			ext[name] = reflect.ValueOf(target).Elem().Interface()
