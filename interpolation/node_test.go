@@ -58,7 +58,7 @@ services:
   web:
     image: ${IMAGE:-default}
 `
-	lookup := func(key string) (string, bool) {
+	lookup := func(_ string) (string, bool) {
 		return "", false
 	}
 
@@ -83,7 +83,7 @@ services:
     ports:
       - "8080"
 `
-	lookup := func(key string) (string, bool) {
+	lookup := func(_ string) (string, bool) {
 		return "", false
 	}
 
@@ -198,7 +198,7 @@ services:
   web:
     image: ${IMAGE:?}
 `
-	lookup := func(key string) (string, bool) {
+	lookup := func(_ string) (string, bool) {
 		return "", false
 	}
 

@@ -17,8 +17,6 @@
 package types
 
 import (
-	"fmt"
-
 	"go.yaml.in/yaml/v4"
 )
 
@@ -49,26 +47,6 @@ func (l *StringList) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (l *StringList) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		*l = []string{v}
-	case []interface{}:
-		list := make([]string, len(v))
-		for i, e := range v {
-			val, ok := e.(string)
-			if !ok {
-				return fmt.Errorf("invalid type %T for string list", value)
-			}
-			list[i] = val
-		}
-		*l = list
-	default:
-		return fmt.Errorf("invalid type %T for string list", value)
-	}
-	return nil
-}
-
 // StringOrNumberList is a type for fields that can be a list of strings or numbers
 type StringOrNumberList []string
 
@@ -85,22 +63,6 @@ func (l *StringOrNumberList) UnmarshalYAML(value *yaml.Node) error {
 		*l = list
 	default:
 		return NodeErrorf(node, "invalid node kind %d for string list", node.Kind)
-	}
-	return nil
-}
-
-func (l *StringOrNumberList) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		*l = []string{v}
-	case []interface{}:
-		list := make([]string, len(v))
-		for i, e := range v {
-			list[i] = fmt.Sprint(e)
-		}
-		*l = list
-	default:
-		return fmt.Errorf("invalid type %T for string list", value)
 	}
 	return nil
 }

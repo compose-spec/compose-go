@@ -129,49 +129,6 @@ func (h *HostsList) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-func (h *HostsList) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		list := make(HostsList, len(v))
-		for i, e := range v {
-			if e == nil {
-				e = ""
-			}
-			switch t := e.(type) {
-			case string:
-				list[i] = []string{t}
-			case []any:
-				hosts := make([]string, len(t))
-				for j, h := range t {
-					hosts[j] = fmt.Sprint(h)
-				}
-				list[i] = hosts
-			default:
-				return fmt.Errorf("unexpected value type %T for extra_hosts entry", value)
-			}
-		}
-		err := list.cleanup()
-		if err != nil {
-			return err
-		}
-		*h = list
-		return nil
-	case []interface{}:
-		s := make([]string, len(v))
-		for i, e := range v {
-			s[i] = fmt.Sprint(e)
-		}
-		list, err := NewHostsList(s)
-		if err != nil {
-			return err
-		}
-		*h = list
-		return nil
-	default:
-		return fmt.Errorf("unexpected value type %T for extra_hosts", value)
-	}
-}
-
 func (h HostsList) cleanup() error {
 	for host, ips := range h {
 		// Check that there is a hostname and that it doesn't contain either

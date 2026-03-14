@@ -18,7 +18,6 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -38,15 +37,6 @@ func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
 	v, err := str2duration.ParseDuration(node.Value)
 	if err != nil {
 		return WrapNodeError(node, err)
-	}
-	*d = Duration(v)
-	return nil
-}
-
-func (d *Duration) DecodeMapstructure(value interface{}) error {
-	v, err := str2duration.ParseDuration(fmt.Sprint(value))
-	if err != nil {
-		return err
 	}
 	*d = Duration(v)
 	return nil

@@ -28,7 +28,7 @@ import (
 
 // normalizeProject applies post-decode normalization on a typed Project.
 // This replaces the old Normalize() that operated on map[string]any.
-func normalizeProject(project *types.Project, opts *Options) error {
+func normalizeProject(project *types.Project) {
 	// 1. Set service names from map keys
 	for name, svc := range project.Services {
 		svc.Name = name
@@ -64,7 +64,13 @@ func normalizeProject(project *types.Project, opts *Options) error {
 		for i, vol := range svc.Volumes {
 			svc.Volumes[i].Target = path.Clean(vol.Target)
 			if vol.Source != "" {
-				svc.Volumes[i].Source = filepath.Clean(vol.Source)
+				if path.IsAbs(vol.Source) {
+					// Preserve Unix-style absolute paths (e.g. /opt/data)
+					// which filepath.Clean would convert to \opt\data on Windows
+					svc.Volumes[i].Source = path.Clean(vol.Source)
+				} else {
+					svc.Volumes[i].Source = filepath.Clean(vol.Source)
+				}
 			}
 		}
 
@@ -116,8 +122,6 @@ func normalizeProject(project *types.Project, opts *Options) error {
 
 	// 12. Resolve secrets/configs environment references
 	resolveSecretConfigEnvironment(project)
-
-	return nil
 }
 
 func normalizeProjectNetworks(project *types.Project) {
@@ -253,7 +257,7 @@ func isRemoteContext(v string) bool {
 
 // resolveProjectPaths resolves relative paths in a typed Project.
 // This replaces the old paths.ResolveRelativePaths that operated on map[string]any.
-func resolveProjectPaths(project *types.Project, opts *Options) error {
+func resolveProjectPaths(project *types.Project, opts *Options) error { //nolint:gocyclo
 	workDir := project.WorkingDir
 
 	var remoteCheck []paths.RemoteResource
@@ -271,7 +275,7 @@ func resolveProjectPaths(project *types.Project, opts *Options) error {
 
 	absPath := func(p string) string {
 		p = paths.ExpandUser(p)
-		if filepath.IsAbs(p) || p == "" {
+		if filepath.IsAbs(p) || path.IsAbs(p) || p == "" {
 			return p
 		}
 		return filepath.Join(workDir, p)
@@ -314,7 +318,7 @@ func resolveProjectPaths(project *types.Project, opts *Options) error {
 					return fmt.Errorf(`invalid mount config for type "bind": field Source must not be empty`)
 				}
 				src := paths.ExpandUser(vol.Source)
-				if !filepath.IsAbs(src) && !paths.IsWindowsAbs(src) {
+				if !filepath.IsAbs(src) && !path.IsAbs(src) && !paths.IsWindowsAbs(src) {
 					svc.Volumes[i].Source = filepath.Join(workDir, src)
 				} else {
 					svc.Volumes[i].Source = src

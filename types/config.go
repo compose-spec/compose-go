@@ -21,7 +21,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/go-viper/mapstructure/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 // isCaseInsensitiveEnvVars is true on platforms where environment variable names are treated case-insensitively.
@@ -138,7 +138,11 @@ func (c Config) MarshalJSON() ([]byte, error) {
 
 func (e Extensions) Get(name string, target interface{}) (bool, error) {
 	if v, ok := e[name]; ok {
-		err := mapstructure.Decode(v, target)
+		b, err := yaml.Marshal(v)
+		if err != nil {
+			return true, err
+		}
+		err = yaml.Unmarshal(b, target)
 		return true, err
 	}
 	return false, nil

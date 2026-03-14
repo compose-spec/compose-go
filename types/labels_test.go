@@ -19,15 +19,17 @@ package types
 import (
 	"testing"
 
+	"go.yaml.in/yaml/v4"
 	"gotest.tools/v3/assert"
 )
 
 func TestDecodeLabel(t *testing.T) {
-	l := Labels{}
-	err := l.DecodeMapstructure([]any{
-		"a=b",
-		"c",
-	})
+	input := `
+- a=b
+- c
+`
+	var l Labels
+	err := yaml.Unmarshal([]byte(input), &l)
 	assert.NilError(t, err)
 	assert.Equal(t, l["a"], "b")
 	assert.Equal(t, l["c"], "")

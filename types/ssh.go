@@ -87,22 +87,3 @@ func (s *SSHConfig) UnmarshalYAML(value *yaml.Node) error {
 	}
 	return nil
 }
-
-func (s *SSHConfig) DecodeMapstructure(value interface{}) error {
-	v, ok := value.(map[string]any)
-	if !ok {
-		return fmt.Errorf("invalid ssh config type %T", value)
-	}
-	result := make(SSHConfig, len(v))
-	i := 0
-	for id, path := range v {
-		key := SSHKey{ID: id}
-		if path != nil {
-			key.Path = fmt.Sprint(path)
-		}
-		result[i] = key
-		i++
-	}
-	*s = result
-	return nil
-}

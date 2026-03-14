@@ -98,35 +98,35 @@ var mergeNodeSpecials map[tree.Path]nodeMerger
 
 func init() {
 	mergeNodeSpecials = map[tree.Path]nodeMerger{
-		"networks.*.ipam.config":                mergeIPAMConfigNode,
-		"networks.*.labels":                     mergeToSequenceNode,
-		"volumes.*.labels":                      mergeToSequenceNode,
-		"services.*.annotations":                mergeToSequenceNode,
-		"services.*.build":                      mergeBuildNode,
-		"services.*.build.args":                 mergeToSequenceNode,
-		"services.*.build.additional_contexts":   mergeToSequenceNode,
-		"services.*.build.extra_hosts":           mergeExtraHostsNode,
-		"services.*.build.labels":               mergeToSequenceNode,
-		"services.*.command":                    overrideNode,
-		"services.*.depends_on":                 mergeDependsOnNode,
-		"services.*.deploy.labels":              mergeToSequenceNode,
-		"services.*.dns":                        mergeToSequenceNode,
-		"services.*.dns_opt":                    mergeToSequenceNode,
-		"services.*.dns_search":                 mergeToSequenceNode,
-		"services.*.entrypoint":                 overrideNode,
-		"services.*.env_file":                   mergeToSequenceNode,
-		"services.*.label_file":                 mergeToSequenceNode,
-		"services.*.environment":                mergeToSequenceNode,
-		"services.*.extra_hosts":                mergeExtraHostsNode,
-		"services.*.healthcheck.test":           overrideNode,
-		"services.*.labels":                     mergeToSequenceNode,
-		"services.*.volumes.*.volume.labels":    mergeToSequenceNode,
-		"services.*.logging":                    mergeLoggingNode,
-		"services.*.models":                     mergeModelsNode,
-		"services.*.networks":                   mergeNetworksNode,
-		"services.*.sysctls":                    mergeToSequenceNode,
-		"services.*.tmpfs":                      mergeToSequenceNode,
-		"services.*.ulimits.*":                  mergeUlimitNode,
+		"networks.*.ipam.config":               mergeIPAMConfigNode,
+		"networks.*.labels":                    mergeToSequenceNode,
+		"volumes.*.labels":                     mergeToSequenceNode,
+		"services.*.annotations":               mergeToSequenceNode,
+		"services.*.build":                     mergeBuildNode,
+		"services.*.build.args":                mergeToSequenceNode,
+		"services.*.build.additional_contexts": mergeToSequenceNode,
+		"services.*.build.extra_hosts":         mergeExtraHostsNode,
+		"services.*.build.labels":              mergeToSequenceNode,
+		"services.*.command":                   overrideNode,
+		"services.*.depends_on":                mergeDependsOnNode,
+		"services.*.deploy.labels":             mergeToSequenceNode,
+		"services.*.dns":                       mergeToSequenceNode,
+		"services.*.dns_opt":                   mergeToSequenceNode,
+		"services.*.dns_search":                mergeToSequenceNode,
+		"services.*.entrypoint":                overrideNode,
+		"services.*.env_file":                  mergeToSequenceNode,
+		"services.*.label_file":                mergeToSequenceNode,
+		"services.*.environment":               mergeToSequenceNode,
+		"services.*.extra_hosts":               mergeExtraHostsNode,
+		"services.*.healthcheck.test":          overrideNode,
+		"services.*.labels":                    mergeToSequenceNode,
+		"services.*.volumes.*.volume.labels":   mergeToSequenceNode,
+		"services.*.logging":                   mergeLoggingNode,
+		"services.*.models":                    mergeModelsNode,
+		"services.*.networks":                  mergeNetworksNode,
+		"services.*.sysctls":                   mergeToSequenceNode,
+		"services.*.tmpfs":                     mergeToSequenceNode,
+		"services.*.ulimits.*":                 mergeUlimitNode,
 	}
 }
 
@@ -240,13 +240,14 @@ func convertNodeToSequence(node *yaml.Node) *yaml.Node {
 			if v.Tag == "!reset" {
 				continue // skip reset entries
 			}
-			if v.Tag == "!!null" || (v.Kind == yaml.ScalarNode && v.Value == "") && v.Tag == "" {
+			switch {
+			case v.Tag == "!!null" || (v.Kind == yaml.ScalarNode && v.Value == "") && v.Tag == "":
 				entries = append(entries, k)
-			} else if v.Kind == yaml.SequenceNode {
+			case v.Kind == yaml.SequenceNode:
 				for _, item := range v.Content {
 					entries = append(entries, fmt.Sprintf("%s=%s", k, item.Value))
 				}
-			} else {
+			default:
 				entries = append(entries, fmt.Sprintf("%s=%s", k, v.Value))
 			}
 		}
@@ -407,10 +408,10 @@ func mergeUlimitNode(base, override *yaml.Node, path tree.Path) (*yaml.Node, err
 
 func mergeIPAMConfigNode(base, override *yaml.Node, path tree.Path) (*yaml.Node, error) {
 	if base == nil || base.Kind != yaml.SequenceNode {
-		return override, fmt.Errorf("%s: unexpected node kind", path)
+		return nil, fmt.Errorf("%s: unexpected node kind", path)
 	}
 	if override == nil || override.Kind != yaml.SequenceNode {
-		return override, fmt.Errorf("%s: unexpected node kind", path)
+		return nil, fmt.Errorf("%s: unexpected node kind", path)
 	}
 
 	var ipamConfigs []*yaml.Node
@@ -544,32 +545,32 @@ func init() {
 	}
 
 	unicityNodePatterns = map[tree.Path]nodeIndexer{
-		"networks.*.labels":                     kv,
-		"services.*.annotations":                kv,
-		"services.*.build.args":                 kv,
-		"services.*.build.additional_contexts":   kv,
-		"services.*.build.labels":               kv,
-		"services.*.build.tags":                 kv,
-		"services.*.cap_add":                    kv,
-		"services.*.cap_drop":                   kv,
-		"services.*.configs":                    target,
-		"services.*.deploy.labels":              kv,
-		"services.*.dns":                        kv,
-		"services.*.dns_opt":                    kv,
-		"services.*.dns_search":                 kv,
-		"services.*.environment":                kv,
-		"services.*.env_file":                   envFile,
-		"services.*.expose":                     kv,
-		"services.*.labels":                     kv,
-		"services.*.links":                      kv,
-		"services.*.networks.*.aliases":          kv,
-		"services.*.networks.*.link_local_ips":   kv,
-		"services.*.ports":                      port,
-		"services.*.profiles":                   kv,
-		"services.*.secrets":                    target,
-		"services.*.sysctls":                    kv,
-		"services.*.tmpfs":                      kv,
-		"services.*.volumes":                    volume,
+		"networks.*.labels":                    kv,
+		"services.*.annotations":               kv,
+		"services.*.build.args":                kv,
+		"services.*.build.additional_contexts": kv,
+		"services.*.build.labels":              kv,
+		"services.*.build.tags":                kv,
+		"services.*.cap_add":                   kv,
+		"services.*.cap_drop":                  kv,
+		"services.*.configs":                   target,
+		"services.*.deploy.labels":             kv,
+		"services.*.dns":                       kv,
+		"services.*.dns_opt":                   kv,
+		"services.*.dns_search":                kv,
+		"services.*.environment":               kv,
+		"services.*.env_file":                  envFile,
+		"services.*.expose":                    kv,
+		"services.*.labels":                    kv,
+		"services.*.links":                     kv,
+		"services.*.networks.*.aliases":        kv,
+		"services.*.networks.*.link_local_ips": kv,
+		"services.*.ports":                     port,
+		"services.*.profiles":                  kv,
+		"services.*.secrets":                   target,
+		"services.*.sysctls":                   kv,
+		"services.*.tmpfs":                     kv,
+		"services.*.volumes":                   volume,
 	}
 }
 
@@ -590,25 +591,26 @@ func EnforceUnicityNode(node *yaml.Node, path tree.Path) {
 		}
 	case yaml.SequenceNode:
 		for pattern, indexer := range unicityNodePatterns {
-			if path.Matches(pattern) {
-				seen := map[string]int{}
-				var result []*yaml.Node
-				for _, item := range node.Content {
-					key := indexer(item)
-					if key == "" {
-						result = append(result, item)
-						continue
-					}
-					if j, ok := seen[key]; ok {
-						result[j] = item
-					} else {
-						result = append(result, item)
-						seen[key] = len(result) - 1
-					}
-				}
-				node.Content = result
-				return
+			if !path.Matches(pattern) {
+				continue
 			}
+			seen := map[string]int{}
+			var result []*yaml.Node
+			for _, item := range node.Content {
+				key := indexer(item)
+				if key == "" {
+					result = append(result, item)
+					continue
+				}
+				if j, ok := seen[key]; ok {
+					result[j] = item
+				} else {
+					result = append(result, item)
+					seen[key] = len(result) - 1
+				}
+			}
+			node.Content = result
+			return
 		}
 		for _, item := range node.Content {
 			EnforceUnicityNode(item, path.Next("[]"))
