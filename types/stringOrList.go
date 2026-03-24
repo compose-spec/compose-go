@@ -16,27 +16,33 @@
 
 package types
 
-import "fmt"
+import (
+	"go.yaml.in/yaml/v4"
+)
 
 // StringList is a type for fields that can be a string or list of strings
 type StringList []string
 
-func (l *StringList) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		*l = []string{v}
-	case []interface{}:
-		list := make([]string, len(v))
-		for i, e := range v {
-			val, ok := e.(string)
-			if !ok {
-				return fmt.Errorf("invalid type %T for string list", value)
+func (l *StringList) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.ScalarNode:
+		if node.Value == "" {
+			*l = nil
+		} else {
+			*l = []string{node.Value}
+		}
+	case yaml.SequenceNode:
+		list := make([]string, len(node.Content))
+		for i, item := range node.Content {
+			if item.Kind != yaml.ScalarNode {
+				return NodeErrorf(item, "invalid type for string list")
 			}
-			list[i] = val
+			list[i] = item.Value
 		}
 		*l = list
 	default:
-		return fmt.Errorf("invalid type %T for string list", value)
+		return NodeErrorf(node, "invalid node kind %d for string list", node.Kind)
 	}
 	return nil
 }
@@ -44,18 +50,19 @@ func (l *StringList) DecodeMapstructure(value interface{}) error {
 // StringOrNumberList is a type for fields that can be a list of strings or numbers
 type StringOrNumberList []string
 
-func (l *StringOrNumberList) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		*l = []string{v}
-	case []interface{}:
-		list := make([]string, len(v))
-		for i, e := range v {
-			list[i] = fmt.Sprint(e)
+func (l *StringOrNumberList) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.ScalarNode:
+		*l = []string{node.Value}
+	case yaml.SequenceNode:
+		list := make([]string, len(node.Content))
+		for i, item := range node.Content {
+			list[i] = item.Value
 		}
 		*l = list
 	default:
-		return fmt.Errorf("invalid type %T for string list", value)
+		return NodeErrorf(node, "invalid node kind %d for string list", node.Kind)
 	}
 	return nil
 }

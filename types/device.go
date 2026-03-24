@@ -17,9 +17,10 @@
 package types
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
+
+	"go.yaml.in/yaml/v4"
 )
 
 type DeviceRequest struct {
@@ -30,24 +31,64 @@ type DeviceRequest struct {
 	Options      Mapping     `yaml:"options,omitempty" json:"options,omitempty"`
 }
 
-type DeviceCount int64
-
-func (c *DeviceCount) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case int:
-		*c = DeviceCount(v)
-	case string:
-		if strings.ToLower(v) == "all" {
-			*c = -1
-			return nil
-		}
-		i, err := strconv.ParseInt(v, 10, 64)
-		if err != nil {
-			return fmt.Errorf("invalid value %q, the only value allowed is 'all' or a number", v)
-		}
-		*c = DeviceCount(i)
-	default:
-		return fmt.Errorf("invalid type %T for device count", v)
+func (d *DeviceRequest) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	type plain DeviceRequest
+	if err := node.Decode((*plain)(d)); err != nil {
+		return WrapNodeError(node, err)
+	}
+	if d.Count == 0 && len(d.IDs) == 0 {
+		d.Count = -1
 	}
 	return nil
+}
+
+type DeviceCount int64
+
+func (c *DeviceCount) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode && strings.ToLower(node.Value) == "all" {
+		*c = -1
+		return nil
+	}
+	var i int64
+	if err := node.Decode(&i); err != nil {
+		// Try parsing as string (e.g., count: "1")
+		if node.Kind == yaml.ScalarNode {
+			parsed, parseErr := strconv.ParseInt(node.Value, 10, 64)
+			if parseErr == nil {
+				*c = DeviceCount(parsed)
+				return nil
+			}
+		}
+		return NodeErrorf(node, "invalid value %q, the only value allowed is 'all' or a number", node.Value)
+	}
+	*c = DeviceCount(i)
+	return nil
+}
+
+// GpuDevices is a slice of DeviceRequest that handles the short syntax
+// `gpus: all` which expands to `[{count: -1}]`.
+type GpuDevices []DeviceRequest
+
+func (g *GpuDevices) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		// Short syntax: gpus: all
+		*g = []DeviceRequest{{Count: -1}}
+		return nil
+	}
+	if node.Kind == yaml.SequenceNode {
+		var result []DeviceRequest
+		for _, item := range node.Content {
+			var d DeviceRequest
+			if err := item.Decode(&d); err != nil {
+				return WrapNodeError(item, err)
+			}
+			result = append(result, d)
+		}
+		*g = result
+		return nil
+	}
+	return NodeErrorf(node, "gpus must be a string or sequence")
 }

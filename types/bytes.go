@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/docker/go-units"
+	"go.yaml.in/yaml/v4"
 )
 
 // UnitBytes is the bytes type
@@ -35,14 +36,21 @@ func (u UnitBytes) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%d"`, u)), nil
 }
 
-func (u *UnitBytes) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case int:
-		*u = UnitBytes(v)
-	case string:
-		b, err := units.RAMInBytes(fmt.Sprint(value))
+func (u *UnitBytes) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Tag {
+	case "!!int":
+		var i int64
+		if err := node.Decode(&i); err != nil {
+			return WrapNodeError(node, err)
+		}
+		*u = UnitBytes(i)
+	default:
+		b, err := units.RAMInBytes(node.Value)
+		if err != nil {
+			return WrapNodeError(node, err)
+		}
 		*u = UnitBytes(b)
-		return err
 	}
 	return nil
 }

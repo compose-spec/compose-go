@@ -20,7 +20,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"unicode"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // MappingWithEquals is a mapping type that can be converted from a list of
@@ -83,46 +84,37 @@ func (m MappingWithEquals) ToMapping() Mapping {
 	return o
 }
 
-func (m *MappingWithEquals) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		mapping := make(MappingWithEquals, len(v))
-		for k, e := range v {
-			mapping[k] = mappingValue(e)
+func (m *MappingWithEquals) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.MappingNode:
+		mapping := make(MappingWithEquals, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			if v.Tag == "!!null" {
+				mapping[k] = nil
+			} else {
+				s := v.Value
+				mapping[k] = &s
+			}
 		}
 		*m = mapping
-	case []interface{}:
-		mapping := make(MappingWithEquals, len(v))
-		for _, s := range v {
-			k, e, ok := strings.Cut(fmt.Sprint(s), "=")
-			if k != "" && unicode.IsSpace(rune(k[len(k)-1])) {
-				return fmt.Errorf("environment variable %s is declared with a trailing space", k)
-			}
+	case yaml.SequenceNode:
+		mapping := make(MappingWithEquals, len(node.Content))
+		for _, item := range node.Content {
+			k, e, ok := strings.Cut(item.Value, "=")
 			if !ok {
 				mapping[k] = nil
 			} else {
-				mapping[k] = mappingValue(e)
+				mapping[k] = &e
 			}
 		}
 		*m = mapping
 	default:
-		return fmt.Errorf("unexpected value type %T for mapping", value)
+		return NodeErrorf(node, "unexpected node kind %d for mapping", node.Kind)
 	}
 	return nil
-}
-
-// label value can be a string | number | boolean | null
-func mappingValue(e interface{}) *string {
-	if e == nil {
-		return nil
-	}
-	switch v := e.(type) {
-	case string:
-		return &v
-	default:
-		s := fmt.Sprint(v)
-		return &s
-	}
 }
 
 // Mapping is a mapping type that can be converted from a list of
@@ -189,42 +181,34 @@ func (m Mapping) Merge(o Mapping) Mapping {
 	return m
 }
 
-func (m *Mapping) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		mapping := make(Mapping, len(v))
-		for k, e := range v {
-			if e == nil {
-				e = ""
+func (m *Mapping) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.MappingNode:
+		mapping := make(Mapping, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			if v.Tag == "!!null" {
+				mapping[k] = ""
+			} else {
+				mapping[k] = v.Value
 			}
-			mapping[k] = fmt.Sprint(e)
 		}
 		*m = mapping
-	case []interface{}:
-		*m = decodeMapping(v, "=")
-	default:
-		return fmt.Errorf("unexpected value type %T for mapping", value)
-	}
-	return nil
-}
-
-// Generate a mapping by splitting strings at any of seps, which will be tried
-// in-order for each input string. (For example, to allow the preferred 'host=ip'
-// in 'extra_hosts', as well as 'host:ip' for backwards compatibility.)
-func decodeMapping(v []interface{}, seps ...string) map[string]string {
-	mapping := make(Mapping, len(v))
-	for _, s := range v {
-		for i, sep := range seps {
-			k, e, ok := strings.Cut(fmt.Sprint(s), sep)
-			if ok {
-				// Mapping found with this separator, stop here.
-				mapping[k] = e
-				break
-			} else if i == len(seps)-1 {
-				// No more separators to try, map to empty string.
-				mapping[k] = ""
+	case yaml.SequenceNode:
+		mapping := make(Mapping, len(node.Content))
+		for _, item := range node.Content {
+			parts := strings.SplitN(item.Value, "=", 2)
+			if len(parts) == 1 {
+				mapping[parts[0]] = ""
+			} else {
+				mapping[parts[0]] = parts[1]
 			}
 		}
+		*m = mapping
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for mapping", node.Kind)
 	}
-	return mapping
+	return nil
 }

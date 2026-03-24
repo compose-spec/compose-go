@@ -16,51 +16,53 @@
 
 package types
 
-import "fmt"
+import (
+	"go.yaml.in/yaml/v4"
+)
 
 // Options is a mapping type for options we pass as-is to container runtime
 type Options map[string]string
 
-func (d *Options) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		m := make(map[string]string)
-		for key, e := range v {
-			if e == nil {
-				m[key] = ""
-			} else {
-				m[key] = fmt.Sprint(e)
-			}
-		}
-		*d = m
-	case map[string]string:
-		*d = v
-	default:
-		return fmt.Errorf("invalid type %T for options", value)
+func (d *Options) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind != yaml.MappingNode {
+		return NodeErrorf(node, "invalid node kind %d for options", node.Kind)
 	}
+	m := make(map[string]string, len(node.Content)/2)
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		k := node.Content[i].Value
+		v := node.Content[i+1]
+		if v.Tag == "!!null" {
+			m[k] = ""
+		} else {
+			m[k] = v.Value
+		}
+	}
+	*d = m
 	return nil
 }
 
 // MultiOptions allow option to be repeated
 type MultiOptions map[string][]string
 
-func (d *MultiOptions) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		m := make(map[string][]string)
-		for key, e := range v {
-			switch e := e.(type) {
-			case []interface{}:
-				for _, v := range e {
-					m[key] = append(m[key], fmt.Sprint(v))
-				}
-			default:
-				m[key] = append(m[key], fmt.Sprint(e))
-			}
-		}
-		*d = m
-	default:
-		return fmt.Errorf("invalid type %T for options", value)
+func (d *MultiOptions) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind != yaml.MappingNode {
+		return NodeErrorf(node, "invalid node kind %d for options", node.Kind)
 	}
+	m := make(map[string][]string, len(node.Content)/2)
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		k := node.Content[i].Value
+		v := node.Content[i+1]
+		switch v.Kind {
+		case yaml.SequenceNode:
+			for _, item := range v.Content {
+				m[k] = append(m[k], item.Value)
+			}
+		default:
+			m[k] = append(m[k], v.Value)
+		}
+	}
+	*d = m
 	return nil
 }

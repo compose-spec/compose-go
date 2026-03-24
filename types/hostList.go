@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // HostsList is a list of colon-separated host-ip mappings
@@ -81,47 +83,50 @@ func (h HostsList) MarshalJSON() ([]byte, error) {
 
 var hostListSerapators = []string{"=", ":"}
 
-func (h *HostsList) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		list := make(HostsList, len(v))
-		for i, e := range v {
-			if e == nil {
-				e = ""
-			}
-			switch t := e.(type) {
-			case string:
-				list[i] = []string{t}
-			case []any:
-				hosts := make([]string, len(t))
-				for j, h := range t {
-					hosts[j] = fmt.Sprint(h)
+func (h *HostsList) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.MappingNode:
+		list := make(HostsList, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			switch v.Kind {
+			case yaml.ScalarNode:
+				if v.Tag == "!!null" || v.Value == "" {
+					list[k] = []string{""}
+				} else {
+					list[k] = []string{v.Value}
 				}
-				list[i] = hosts
+			case yaml.SequenceNode:
+				hosts := make([]string, len(v.Content))
+				for j, item := range v.Content {
+					hosts[j] = item.Value
+				}
+				list[k] = hosts
 			default:
-				return fmt.Errorf("unexpected value type %T for extra_hosts entry", value)
+				return NodeErrorf(v, "unexpected value type for extra_hosts entry")
 			}
 		}
 		err := list.cleanup()
 		if err != nil {
-			return err
+			return WrapNodeError(node, err)
 		}
 		*h = list
-		return nil
-	case []interface{}:
-		s := make([]string, len(v))
-		for i, e := range v {
-			s[i] = fmt.Sprint(e)
+	case yaml.SequenceNode:
+		s := make([]string, len(node.Content))
+		for i, item := range node.Content {
+			s[i] = item.Value
 		}
-		list, err := NewHostsList(s)
+		l, err := NewHostsList(s)
 		if err != nil {
-			return err
+			return WrapNodeError(node, err)
 		}
-		*h = list
-		return nil
+		*h = l
 	default:
-		return fmt.Errorf("unexpected value type %T for extra_hosts", value)
+		return NodeErrorf(node, "unexpected node kind %d for extra_hosts", node.Kind)
 	}
+	return nil
 }
 
 func (h HostsList) cleanup() error {

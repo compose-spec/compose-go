@@ -17,7 +17,7 @@
 package types
 
 import (
-	"fmt"
+	"go.yaml.in/yaml/v4"
 )
 
 // HealthCheckConfig the healthcheck configuration for a service
@@ -36,18 +36,19 @@ type HealthCheckConfig struct {
 // HealthCheckTest is the command run to test the health of a service
 type HealthCheckTest []string
 
-func (l *HealthCheckTest) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		*l = []string{"CMD-SHELL", v}
-	case []interface{}:
-		seq := make([]string, len(v))
-		for i, e := range v {
-			seq[i] = e.(string)
+func (l *HealthCheckTest) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.ScalarNode:
+		*l = []string{"CMD-SHELL", node.Value}
+	case yaml.SequenceNode:
+		seq := make([]string, len(node.Content))
+		for i, item := range node.Content {
+			seq[i] = item.Value
 		}
 		*l = seq
 	default:
-		return fmt.Errorf("unexpected value type %T for healthcheck.test", value)
+		return NodeErrorf(node, "unexpected node kind %d for healthcheck.test", node.Kind)
 	}
 	return nil
 }

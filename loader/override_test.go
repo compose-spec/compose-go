@@ -270,7 +270,7 @@ networks:
 			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
 		},
 	})
-	assert.DeepEqual(t, test.Networks, map[string]*types.ServiceNetworkConfig{
+	assert.DeepEqual(t, test.Networks, types.ServiceNetworks{
 		"zot": nil,
 	})
 }

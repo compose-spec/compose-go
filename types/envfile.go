@@ -16,8 +16,28 @@
 
 package types
 
+import "go.yaml.in/yaml/v4"
+
 type EnvFile struct {
 	Path     string `yaml:"path,omitempty" json:"path,omitempty"`
 	Required OptOut `yaml:"required,omitempty" json:"required,omitzero"`
 	Format   string `yaml:"format,omitempty" json:"format,omitempty"`
+}
+
+func (e *EnvFile) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		e.Path = node.Value
+		e.Required = true
+		return nil
+	}
+	type plain EnvFile
+	if err := node.Decode((*plain)(e)); err != nil {
+		return WrapNodeError(node, err)
+	}
+	// Default required to true if not explicitly set
+	if node.Kind == yaml.MappingNode && !hasKey(node, "required") {
+		e.Required = true
+	}
+	return nil
 }

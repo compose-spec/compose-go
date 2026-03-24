@@ -21,7 +21,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/go-viper/mapstructure/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 func transformPorts(data any, p tree.Path, ignoreParseError bool) (any, error) {
@@ -76,15 +76,12 @@ func transformPorts(data any, p tree.Path, ignoreParseError bool) (any, error) {
 }
 
 func encode(v any) (map[string]any, error) {
-	m := map[string]any{}
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Result:  &m,
-		TagName: "yaml",
-	})
+	b, err := yaml.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
-	err = decoder.Decode(v)
+	var m map[string]any
+	err = yaml.Unmarshal(b, &m)
 	return m, err
 }
 

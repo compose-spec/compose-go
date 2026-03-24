@@ -18,6 +18,9 @@ package types
 
 import (
 	"fmt"
+	"strings"
+
+	"go.yaml.in/yaml/v4"
 )
 
 type SSHKey struct {
@@ -53,21 +56,34 @@ func (s SSHKey) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`%q: %s`, s.ID, s.Path)), nil
 }
 
-func (s *SSHConfig) DecodeMapstructure(value interface{}) error {
-	v, ok := value.(map[string]any)
-	if !ok {
-		return fmt.Errorf("invalid ssh config type %T", value)
-	}
-	result := make(SSHConfig, len(v))
-	i := 0
-	for id, path := range v {
-		key := SSHKey{ID: id}
-		if path != nil {
-			key.Path = fmt.Sprint(path)
+func (s *SSHConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.MappingNode:
+		result := make(SSHConfig, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			key := SSHKey{ID: k}
+			if v.Tag != "!!null" && v.Value != "" {
+				key.Path = v.Value
+			}
+			result[i/2] = key
 		}
-		result[i] = key
-		i++
+		*s = result
+	case yaml.SequenceNode:
+		result := make(SSHConfig, len(node.Content))
+		for i, item := range node.Content {
+			id, path, ok := strings.Cut(item.Value, "=")
+			key := SSHKey{ID: id}
+			if ok {
+				key.Path = path
+			}
+			result[i] = key
+		}
+		*s = result
+	default:
+		return NodeErrorf(node, "invalid node kind %d for ssh config", node.Kind)
 	}
-	*s = result
 	return nil
 }
