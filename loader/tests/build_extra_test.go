@@ -144,3 +144,48 @@ services:
 	expect(yamlP)
 	expect(jsonP)
 }
+
+func TestBuildEntitlements(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  foo:
+    build:
+      context: .
+      entitlements:
+        - network.host
+        - security.insecure
+`)
+	assert.DeepEqual(t, p.Services["foo"].Build.Entitlements, []string{"network.host", "security.insecure"})
+}
+
+func TestBuildAttestations(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  foo:
+    build:
+      context: .
+      provenance: mode=max
+      sbom: true
+`)
+	assert.Equal(t, p.Services["foo"].Build.Provenance, "mode=max")
+	assert.Equal(t, p.Services["foo"].Build.SBOM, "true")
+}
+
+func TestBuildNoCacheFilter(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  string:
+    build:
+      context: .
+      no_cache_filter: foo
+  list:
+    build:
+      context: .
+      no_cache_filter: [foo, bar]
+`)
+	assert.DeepEqual(t, p.Services["string"].Build.NoCacheFilter, types.StringList{"foo"})
+	assert.DeepEqual(t, p.Services["list"].Build.NoCacheFilter, types.StringList{"foo", "bar"})
+}

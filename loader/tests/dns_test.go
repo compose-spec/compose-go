@@ -72,3 +72,14 @@ services:
 	expect(yamlP)
 	expect(jsonP)
 }
+
+func TestDNSOmitEmpty(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    dns: ${UNSET_VAR}
+`)
+	assert.Equal(t, len(p.Services["foo"].DNS), 0)
+}

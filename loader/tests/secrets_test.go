@@ -92,3 +92,53 @@ secrets:
 	})
 	assert.Equal(t, p.Secrets["secret5"].File, "/abs/secret_data")
 }
+
+func TestSecretEnvironmentResolution(t *testing.T) {
+	p := loadWithEnv(t, `
+name: test
+services:
+  foo:
+    image: alpine
+configs:
+  config:
+    environment: GA
+secrets:
+  secret:
+    environment: MEU
+`, map[string]string{"GA": "BU", "MEU": "Shadoks"})
+
+	assert.Equal(t, p.Configs["config"].Environment, "GA")
+	assert.Equal(t, p.Configs["config"].Content, "BU")
+	assert.Equal(t, p.Secrets["secret"].Environment, "MEU")
+	assert.Equal(t, p.Secrets["secret"].Content, "Shadoks")
+}
+
+func TestSecretFileModeNumber(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    secrets:
+      - source: server-certificate
+        target: server.cert
+        mode: 0o440
+`)
+	assert.Equal(t, len(p.Services["foo"].Secrets), 1)
+	assert.Equal(t, *p.Services["foo"].Secrets[0].Mode, types.FileMode(0o440))
+}
+
+func TestSecretFileModeString(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    secrets:
+      - source: server-certificate
+        target: server.cert
+        mode: "0440"
+`)
+	assert.Equal(t, len(p.Services["foo"].Secrets), 1)
+	assert.Equal(t, *p.Services["foo"].Secrets[0].Mode, types.FileMode(0o440))
+}

@@ -96,3 +96,23 @@ volumes:
 	expect(yamlP)
 	expect(jsonP)
 }
+
+func TestVolumeBindCreateHostPathDefault(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  short:
+    image: alpine
+    volumes:
+      - /host:/container
+  long:
+    image: alpine
+    volumes:
+      - type: bind
+        source: /host
+        target: /container
+        bind: {}
+`)
+	assert.Check(t, p.Services["short"].Volumes[0].Bind.CreateHostPath == true)
+	assert.Check(t, p.Services["long"].Volumes[0].Bind.CreateHostPath == true)
+}
