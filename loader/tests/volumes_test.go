@@ -87,3 +87,40 @@ volumes:
 	expect(yamlP)
 	expect(jsonP)
 }
+
+func TestImageVolume(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: image
+        source: app/image
+        target: /mnt/image
+        image:
+          subpath: /foo
+`)
+	vol := p.Services["foo"].Volumes[0]
+	assert.Equal(t, vol.Type, "image")
+	assert.Equal(t, vol.Source, "app/image")
+	assert.Equal(t, vol.Target, "/mnt/image")
+	assert.Equal(t, vol.Image.SubPath, "/foo")
+}
+
+func TestNpipeVolume(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: npipe
+        source: \\.\pipe\docker_engine
+        target: \\.\pipe\docker_engine
+`)
+	vol := p.Services["foo"].Volumes[0]
+	assert.Equal(t, vol.Type, "npipe")
+	assert.Equal(t, vol.Source, "\\\\.\\pipe\\docker_engine")
+	assert.Equal(t, vol.Target, "\\\\.\\pipe\\docker_engine")
+}
