@@ -17,6 +17,7 @@
 package interpolation
 
 import (
+	"sort"
 	"errors"
 	"fmt"
 	"os"
@@ -58,7 +59,13 @@ func Interpolate(config map[string]interface{}, opts Options) (map[string]interf
 
 	out := map[string]interface{}{}
 
-	for key, value := range config {
+	keys := make([]string, 0, len(config))
+	for key := range config {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		value := config[key]
 		interpolatedValue, err := recursiveInterpolate(value, tree.NewPath(key), opts)
 		if err != nil {
 			return out, err
@@ -88,7 +95,13 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 
 	case map[string]interface{}:
 		out := map[string]interface{}{}
-		for key, elem := range value {
+		keys := make([]string, 0, len(value))
+		for key := range value {
+			keys = append(keys, key)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			elem := value[key]
 			interpolatedElem, err := recursiveInterpolate(elem, path.Next(key), opts)
 			if err != nil {
 				return nil, err
