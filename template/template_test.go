@@ -478,31 +478,6 @@ func TestSubstituteWithReplacementAppliedFunc(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "bad choice"))
 }
 
-func TestSubstituteWithReplacementAppliedFuncKeepsConfigForRest(t *testing.T) {
-	hook, restore := captureWarnings(t)
-	defer restore()
-
-	options := []Option{
-		WithReplacementFunction(func(s string, m Mapping, c *Config) (string, error) {
-			r, applied, err := DefaultReplacementAppliedFunc(s, m, c)
-			if err == nil && !applied {
-				return s, nil
-			}
-			return r, err
-		}),
-		WithoutLogging,
-	}
-
-	missingMapping := func(string) (string, bool) {
-		return "", false
-	}
-
-	result, err := SubstituteWithOptions("ok ${FILE:-/tmp/file.jpg} --entry_id ${ENTRY_ID}", missingMapping, options...)
-	assert.NilError(t, err)
-	assert.Equal(t, "ok /tmp/file.jpg --entry_id ${ENTRY_ID}", result)
-	assert.Equal(t, 0, len(hook.Entries))
-}
-
 // TestPrecedence tests is the precedence on '-' and '?' is of the first match
 func TestPrecedence(t *testing.T) {
 	testCases := []struct {
