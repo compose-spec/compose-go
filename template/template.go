@@ -196,7 +196,19 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 			return "", false, err
 		}
 		if applied {
-			interpolatedNested, err := SubstituteWith(rest, mapping, pattern)
+			nestedOptions := []Option{
+				WithPattern(pattern),
+			}
+			if cfg.replacementFunc != nil {
+				nestedOptions = append(nestedOptions, WithReplacementFunction(cfg.replacementFunc))
+			}
+			if cfg.substituteFunc != nil {
+				nestedOptions = append(nestedOptions, WithSubstitutionFunction(cfg.substituteFunc))
+			}
+			if !cfg.logging {
+				nestedOptions = append(nestedOptions, WithoutLogging)
+			}
+			interpolatedNested, err := SubstituteWithOptions(rest, mapping, nestedOptions...)
 			if err != nil {
 				return "", false, err
 			}
