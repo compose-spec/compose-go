@@ -32,11 +32,18 @@ services:
     security_opt:
       - label=level:s0:c100,c200
       - label=type:svirt_apache_t
+jobs:
+  foo:
+    image: alpine
+    security_opt:
+      - label=level:s0:c100,c200
+      - label=type:svirt_apache_t
 `)
 
 	expect := func(p *types.Project) {
 		expected := []string{"label=level:s0:c100,c200", "label=type:svirt_apache_t"}
 		assert.DeepEqual(t, p.Services["foo"].SecurityOpt, expected)
+		assert.DeepEqual(t, p.Jobs["foo"].SecurityOpt, expected)
 	}
 	expect(p)
 

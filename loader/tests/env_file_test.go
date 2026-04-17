@@ -32,9 +32,16 @@ services:
     env_file:
       - path: .env
         required: false
+jobs:
+  foo:
+    image: alpine
+    env_file:
+      - path: .env
+        required: false
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, len(p.Services["foo"].EnvFiles), 1)
+		assert.Equal(t, len(p.Jobs["foo"].EnvFiles), 1)
 	}
 	expect(p)
 
@@ -54,9 +61,18 @@ services:
         required: false
       - path: .env.local
         required: false
+jobs:
+  foo:
+    image: alpine
+    env_file:
+      - path: .env
+        required: false
+      - path: .env.local
+        required: false
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, len(p.Services["foo"].EnvFiles), 2)
+		assert.Equal(t, len(p.Jobs["foo"].EnvFiles), 2)
 	}
 	expect(p)
 
@@ -75,11 +91,22 @@ services:
       - path: .env
         required: false
         format: raw
+jobs:
+  foo:
+    image: alpine
+    env_file:
+      - path: .env
+        required: false
+        format: raw
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, len(p.Services["foo"].EnvFiles), 1)
 		assert.Equal(t, p.Services["foo"].EnvFiles[0].Format, "raw")
 		assert.Equal(t, bool(p.Services["foo"].EnvFiles[0].Required), false)
+
+		assert.Equal(t, len(p.Jobs["foo"].EnvFiles), 1)
+		assert.Equal(t, p.Jobs["foo"].EnvFiles[0].Format, "raw")
+		assert.Equal(t, bool(p.Jobs["foo"].EnvFiles[0].Required), false)
 	}
 	expect(p)
 

@@ -36,6 +36,16 @@ services:
     image: postgres
   redis:
     image: redis
+jobs:
+  web:
+    image: alpine
+    depends_on:
+      - db
+      - redis
+  db:
+    image: postgres
+  redis:
+    image: redis
 `)
 	expect := func(p *types.Project) {
 		deps := p.Services["web"].DependsOn
@@ -43,6 +53,12 @@ services:
 		assert.Equal(t, deps["db"].Condition, types.ServiceConditionStarted)
 		assert.Equal(t, deps["db"].Required, true)
 		assert.Equal(t, deps["redis"].Condition, types.ServiceConditionStarted)
+
+		jdeps := p.Jobs["web"].DependsOn
+		assert.Equal(t, len(jdeps), 2)
+		assert.Equal(t, jdeps["db"].Condition, types.ServiceConditionStarted)
+		assert.Equal(t, jdeps["db"].Required, true)
+		assert.Equal(t, jdeps["redis"].Condition, types.ServiceConditionStarted)
 	}
 	expect(p)
 
@@ -67,12 +83,30 @@ services:
     image: postgres
   redis:
     image: redis
+jobs:
+  web:
+    image: alpine
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+      redis:
+        condition: service_started
+  db:
+    image: postgres
+  redis:
+    image: redis
 `)
 	expect := func(p *types.Project) {
 		deps := p.Services["web"].DependsOn
 		assert.Equal(t, deps["db"].Condition, "service_healthy")
 		assert.Equal(t, deps["db"].Restart, true)
 		assert.Equal(t, deps["redis"].Condition, types.ServiceConditionStarted)
+
+		jdeps := p.Jobs["web"].DependsOn
+		assert.Equal(t, jdeps["db"].Condition, "service_healthy")
+		assert.Equal(t, jdeps["db"].Restart, true)
+		assert.Equal(t, jdeps["redis"].Condition, types.ServiceConditionStarted)
 	}
 	expect(p)
 
@@ -91,9 +125,22 @@ services:
       - x-foo
   x-foo:
     image: foo
+jobs:
+  test:
+    image: test
+    depends_on:
+      - foo
+  foo:
+    image: foo
 `)
 	assert.DeepEqual(t, p.Services["test"].DependsOn, types.DependsOnConfig{
 		"x-foo": types.ServiceDependency{
+			Condition: types.ServiceConditionStarted,
+			Required:  true,
+		},
+	})
+	assert.DeepEqual(t, p.Jobs["test"].DependsOn, types.DependsOnConfig{
+		"foo": types.ServiceDependency{
 			Condition: types.ServiceConditionStarted,
 			Required:  true,
 		},

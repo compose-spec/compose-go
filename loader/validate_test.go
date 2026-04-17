@@ -93,7 +93,7 @@ func TestValidateNetworkMode(t *testing.T) {
 		project := &types.Project{
 			Services: types.Services{
 				"myservice1": {
-					Name:            "myservice1",
+					Name:          "myservice1",
 					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 				},
 				"myservice2": {
@@ -113,7 +113,7 @@ func TestValidateNetworkMode(t *testing.T) {
 		project := &types.Project{
 			Services: types.Services{
 				"myservice1": {
-					Name:            "myservice1",
+					Name:          "myservice1",
 					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 				},
 				"myservice2": {

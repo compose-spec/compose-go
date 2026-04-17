@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     network_mode: "container:0cfeab0f748b"
+jobs:
+  foo:
+    image: alpine
+    network_mode: "container:0cfeab0f748b"
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].NetworkMode, "container:0cfeab0f748b")
+		assert.Equal(t, p.Jobs["foo"].NetworkMode, "container:0cfeab0f748b")
 	}
 	expect(p)
 

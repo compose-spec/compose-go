@@ -35,12 +35,24 @@ services:
     attach: false
   default:
     image: alpine
+jobs:
+  attached:
+    image: alpine
+    attach: true
+  detached:
+    image: alpine
+    attach: false
+  default:
+    image: alpine
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, *p.Services["attached"].Attach, true)
 		assert.Equal(t, *p.Services["detached"].Attach, false)
 		assert.Assert(t, p.Services["default"].Attach == nil)
+		assert.Equal(t, *p.Jobs["attached"].Attach, true)
+		assert.Equal(t, *p.Jobs["detached"].Attach, false)
+		assert.Assert(t, p.Jobs["default"].Attach == nil)
 	}
 	expect(p)
 

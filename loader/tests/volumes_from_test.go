@@ -34,10 +34,19 @@ services:
       - bar:ro
   bar:
     image: alpine
+jobs:
+  foo:
+    image: alpine
+    volumes_from:
+      - bar
+      - bar:ro
+  bar:
+    image: alpine
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].VolumesFrom, []string{"bar", "bar:ro"})
+		assert.DeepEqual(t, p.Jobs["foo"].VolumesFrom, []string{"bar", "bar:ro"})
 	}
 	expect(p)
 

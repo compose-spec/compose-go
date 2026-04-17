@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     working_dir: /code
+jobs:
+  foo:
+    image: alpine
+    working_dir: /code
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].WorkingDir, "/code")
+		assert.Equal(t, p.Jobs["foo"].WorkingDir, "/code")
 	}
 	expect(p)
 

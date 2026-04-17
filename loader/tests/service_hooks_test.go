@@ -42,6 +42,22 @@ services:
         working_dir: /
         environment:
           FOO: BAR
+jobs:
+  test:
+    image: alpine
+    post_start:
+      - command: echo start
+        user: root
+        privileged: true
+        working_dir: /
+        environment:
+          - FOO=BAR
+    pre_stop:
+      - command: echo stop
+        user: root
+        working_dir: /
+        environment:
+          FOO: BAR
 `)
 	assert.DeepEqual(t, p.Services["test"].PostStart, []types.ServiceHook{
 		{
@@ -55,6 +71,27 @@ services:
 		},
 	})
 	assert.DeepEqual(t, p.Services["test"].PreStop, []types.ServiceHook{
+		{
+			Command:    types.ShellCommand{"echo", "stop"},
+			User:       "root",
+			WorkingDir: "/",
+			Environment: types.MappingWithEquals{
+				"FOO": ptr("BAR"),
+			},
+		},
+	})
+	assert.DeepEqual(t, p.Jobs["test"].PostStart, []types.ServiceHook{
+		{
+			Command:    types.ShellCommand{"echo", "start"},
+			User:       "root",
+			Privileged: true,
+			WorkingDir: "/",
+			Environment: types.MappingWithEquals{
+				"FOO": ptr("BAR"),
+			},
+		},
+	})
+	assert.DeepEqual(t, p.Jobs["test"].PreStop, []types.ServiceHook{
 		{
 			Command:    types.ShellCommand{"echo", "stop"},
 			User:       "root",

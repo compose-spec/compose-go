@@ -29,13 +29,17 @@ import (
 func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 	normalizeNetworks(dict)
 
-	if d, ok := dict["services"]; ok {
-		services := d.(map[string]any)
-		for name, s := range services {
-			service := s.(map[string]any)
+	for _, key := range []string{"services", "jobs"} {
+		d, ok := dict[key]
+		if !ok {
+			continue
+		}
+		containers := d.(map[string]any)
+		for name, s := range containers {
+			container := s.(map[string]any)
 
-			if service["pull_policy"] == types.PullPolicyIfNotPresent {
-				service["pull_policy"] = types.PullPolicyMissing
+			if container["pull_policy"] == types.PullPolicyIfNotPresent {
+				container["pull_policy"] = types.PullPolicyMissing
 			}
 
 			fn := func(s string) (string, bool) {
@@ -43,7 +47,7 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 				return v, ok
 			}
 
-			if b, ok := service["build"]; ok {
+			if b, ok := container["build"]; ok {
 				build := b.(map[string]any)
 				if build["context"] == nil {
 					build["context"] = "."
@@ -56,20 +60,20 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 					build["args"], _ = resolve(a, fn, false)
 				}
 
-				service["build"] = build
+				container["build"] = build
 			}
 
-			if e, ok := service["environment"]; ok {
-				service["environment"], _ = resolve(e, fn, true)
+			if e, ok := container["environment"]; ok {
+				container["environment"], _ = resolve(e, fn, true)
 			}
 
 			var dependsOn map[string]any
-			if d, ok := service["depends_on"]; ok {
+			if d, ok := container["depends_on"]; ok {
 				dependsOn = d.(map[string]any)
 			} else {
 				dependsOn = map[string]any{}
 			}
-			if l, ok := service["links"]; ok {
+			if l, ok := container["links"]; ok {
 				links := l.([]any)
 				for _, e := range links {
 					link := e.(string)
@@ -88,7 +92,7 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 			}
 
 			for _, namespace := range []string{"network_mode", "ipc", "pid", "uts", "cgroup"} {
-				if n, ok := service[namespace]; ok {
+				if n, ok := container[namespace]; ok {
 					ref := n.(string)
 					if strings.HasPrefix(ref, types.ServicePrefix) {
 						shared := ref[len(types.ServicePrefix):]
@@ -103,7 +107,7 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 				}
 			}
 
-			if v, ok := service["volumes"]; ok {
+			if v, ok := container["volumes"]; ok {
 				volumes := v.([]any)
 				for i, volume := range volumes {
 					vol := volume.(map[string]any)
@@ -111,10 +115,10 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 					vol["target"] = path.Clean(target)
 					volumes[i] = vol
 				}
-				service["volumes"] = volumes
+				container["volumes"] = volumes
 			}
 
-			if n, ok := service["volumes_from"]; ok {
+			if n, ok := container["volumes_from"]; ok {
 				volumesFrom := n.([]any)
 				for _, v := range volumesFrom {
 					vol := v.(string)
@@ -131,12 +135,12 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 				}
 			}
 			if len(dependsOn) > 0 {
-				service["depends_on"] = dependsOn
+				container["depends_on"] = dependsOn
 			}
-			services[name] = service
+			containers[name] = container
 		}
 
-		dict["services"] = services
+		dict[key] = containers
 	}
 	setNameFromKey(dict)
 
@@ -154,33 +158,37 @@ func normalizeNetworks(dict map[string]any) {
 	// implicit `default` network must be introduced only if actually used by some service
 	usesDefaultNetwork := false
 
-	if s, ok := dict["services"]; ok {
-		services := s.(map[string]any)
-		for name, se := range services {
-			service := se.(map[string]any)
-			if _, ok := service["provider"]; ok {
+	for _, key := range []string{"services", "jobs"} {
+		s, ok := dict[key]
+		if !ok {
+			continue
+		}
+		containers := s.(map[string]any)
+		for name, se := range containers {
+			container := se.(map[string]any)
+			if _, ok := container["provider"]; ok {
 				continue
 			}
-			if _, ok := service["network_mode"]; ok {
+			if _, ok := container["network_mode"]; ok {
 				continue
 			}
-			if n, ok := service["networks"]; !ok {
-				// If none explicitly declared, service is connected to default network
-				service["networks"] = map[string]any{"default": nil}
+			if n, ok := container["networks"]; !ok {
+				// If none explicitly declared, container is connected to default network
+				container["networks"] = map[string]any{"default": nil}
 				usesDefaultNetwork = true
 			} else {
 				net := n.(map[string]any)
 				if len(net) == 0 {
 					// networks section declared but empty (corner case)
-					service["networks"] = map[string]any{"default": nil}
+					container["networks"] = map[string]any{"default": nil}
 					usesDefaultNetwork = true
 				} else if _, ok := net["default"]; ok {
 					usesDefaultNetwork = true
 				}
 			}
-			services[name] = service
+			containers[name] = container
 		}
-		dict["services"] = services
+		dict[key] = containers
 	}
 
 	if _, ok := networks["default"]; !ok && usesDefaultNetwork {

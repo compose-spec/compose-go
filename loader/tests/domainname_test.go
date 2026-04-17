@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     domainname: foo.com
+jobs:
+  foo:
+    image: alpine
+    domainname: foo.com
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].DomainName, "foo.com")
+		assert.Equal(t, p.Jobs["foo"].DomainName, "foo.com")
 	}
 	expect(p)
 

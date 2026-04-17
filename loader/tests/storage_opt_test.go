@@ -31,10 +31,16 @@ services:
     image: alpine
     storage_opt:
       size: "20G"
+jobs:
+  foo:
+    image: alpine
+    storage_opt:
+      size: "20G"
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].StorageOpt, map[string]string{"size": "20G"})
+		assert.DeepEqual(t, p.Jobs["foo"].StorageOpt, map[string]string{"size": "20G"})
 	}
 	expect(p)
 

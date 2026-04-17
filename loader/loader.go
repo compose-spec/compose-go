@@ -787,9 +787,9 @@ func Transform(source interface{}, target interface{}) error {
 	return decoder.Decode(source)
 }
 
-// nameServices create implicit `name` key for convenience accessing service
+// nameServices create implicit `name` key for convenience accessing service or job
 func nameServices(from reflect.Value, to reflect.Value) (interface{}, error) {
-	if to.Type() == reflect.TypeOf(types.Services{}) {
+	if to.Type() == reflect.TypeOf(types.Services{}) || to.Type() == reflect.TypeOf(types.Jobs{}) {
 		nameK := reflect.ValueOf("name")
 		iter := from.MapRange()
 		for iter.Next() {

@@ -46,6 +46,26 @@ services:
       device_write_iops:
         - path: /dev/sda
           rate: 200
+jobs:
+  foo:
+    image: busybox
+    blkio_config:
+      weight: 300
+      weight_device:
+        - path: /dev/sda
+          weight: 400
+      device_read_bps:
+        - path: /dev/sda
+          rate: 1024k
+      device_write_bps:
+        - path: /dev/sda
+          rate: 1024
+      device_read_iops:
+        - path: /dev/sda
+          rate: 100
+      device_write_iops:
+        - path: /dev/sda
+          rate: 200
 `)
 	expect := func(p *types.Project) {
 		bc := p.Services["foo"].BlkioConfig
@@ -57,6 +77,15 @@ services:
 		assert.Equal(t, bc.DeviceWriteBps[0].Rate, types.UnitBytes(1024))
 		assert.Equal(t, bc.DeviceReadIOps[0].Rate, types.UnitBytes(100))
 		assert.Equal(t, bc.DeviceWriteIOps[0].Rate, types.UnitBytes(200))
+		jbc := p.Jobs["foo"].BlkioConfig
+		assert.Equal(t, jbc.Weight, uint16(300))
+		assert.Equal(t, jbc.WeightDevice[0].Path, "/dev/sda")
+		assert.Equal(t, jbc.WeightDevice[0].Weight, uint16(400))
+		assert.Equal(t, jbc.DeviceReadBps[0].Path, "/dev/sda")
+		assert.Equal(t, jbc.DeviceReadBps[0].Rate, types.UnitBytes(1024*1024))
+		assert.Equal(t, jbc.DeviceWriteBps[0].Rate, types.UnitBytes(1024))
+		assert.Equal(t, jbc.DeviceReadIOps[0].Rate, types.UnitBytes(100))
+		assert.Equal(t, jbc.DeviceWriteIOps[0].Rate, types.UnitBytes(200))
 	}
 	expect(p)
 

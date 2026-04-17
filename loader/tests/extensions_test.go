@@ -57,10 +57,17 @@ services:
     image: alpine
     x-bar: baz
     x-foo: bar
+jobs:
+  foo:
+    image: alpine
+    x-bar: baz
+    x-foo: bar
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Extensions["x-bar"], "baz")
 		assert.Equal(t, p.Services["foo"].Extensions["x-foo"], "bar")
+		assert.Equal(t, p.Jobs["foo"].Extensions["x-bar"], "baz")
+		assert.Equal(t, p.Jobs["foo"].Extensions["x-foo"], "bar")
 	}
 	expect(p)
 

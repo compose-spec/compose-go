@@ -32,10 +32,17 @@ services:
     group_add:
       - mail
       - "0"
+jobs:
+  foo:
+    image: alpine
+    group_add:
+      - mail
+      - "0"
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].GroupAdd, []string{"mail", "0"})
+		assert.DeepEqual(t, p.Jobs["foo"].GroupAdd, []string{"mail", "0"})
 	}
 	expect(p)
 

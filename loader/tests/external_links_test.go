@@ -33,11 +33,19 @@ services:
       - redis_1
       - project_db_1:mysql
       - project_db_1:postgresql
+jobs:
+  foo:
+    image: alpine
+    external_links:
+      - redis_1
+      - project_db_1:mysql
+      - project_db_1:postgresql
 `)
 
 	expect := func(p *types.Project) {
 		expected := []string{"redis_1", "project_db_1:mysql", "project_db_1:postgresql"}
 		assert.DeepEqual(t, p.Services["foo"].ExternalLinks, expected)
+		assert.DeepEqual(t, p.Jobs["foo"].ExternalLinks, expected)
 	}
 	expect(p)
 

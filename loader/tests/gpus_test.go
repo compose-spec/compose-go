@@ -34,8 +34,20 @@ services:
       - driver: 3dfx
         device_ids: ["voodoo2"]
         capabilities: ["directX"]
+jobs:
+  test:
+    image: alpine
+    gpus:
+      - driver: nvidia
+      - driver: 3dfx
+        device_ids: ["voodoo2"]
+        capabilities: ["directX"]
 `)
 	assert.DeepEqual(t, p.Services["test"].Gpus, []types.DeviceRequest{
+		{Driver: "nvidia", Count: -1},
+		{Capabilities: []string{"directX"}, Driver: "3dfx", IDs: []string{"voodoo2"}},
+	})
+	assert.DeepEqual(t, p.Jobs["test"].Gpus, []types.DeviceRequest{
 		{Driver: "nvidia", Count: -1},
 		{Capabilities: []string{"directX"}, Driver: "3dfx", IDs: []string{"voodoo2"}},
 	})
@@ -48,7 +60,13 @@ services:
   test:
     image: alpine
     gpus: all
+jobs:
+  test:
+    image: alpine
+    gpus: all
 `)
 	assert.Equal(t, len(p.Services["test"].Gpus), 1)
 	assert.Equal(t, p.Services["test"].Gpus[0].Count, types.DeviceCount(-1))
+	assert.Equal(t, len(p.Jobs["test"].Gpus), 1)
+	assert.Equal(t, p.Jobs["test"].Gpus[0].Count, types.DeviceCount(-1))
 }

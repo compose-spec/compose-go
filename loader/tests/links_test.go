@@ -37,10 +37,22 @@ services:
     image: postgres
   redis:
     image: redis
+jobs:
+  foo:
+    image: alpine
+    links:
+      - db
+      - db:database
+      - redis
+  db:
+    image: postgres
+  redis:
+    image: redis
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Links, []string{"db", "db:database", "redis"})
+		assert.DeepEqual(t, p.Jobs["foo"].Links, []string{"db", "db:database", "redis"})
 	}
 	expect(p)
 

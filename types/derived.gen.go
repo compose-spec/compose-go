@@ -12,6 +12,14 @@ func deriveDeepCopyProject(dst, src *Project) {
 	} else {
 		dst.Services = nil
 	}
+	if src.Jobs != nil {
+		dst.Jobs = make(map[string]JobConfig, len(src.Jobs))
+		for k, v := range src.Jobs {
+			dst.Jobs[k] = v
+		}
+	} else {
+		dst.Jobs = nil
+	}
 	if src.Networks != nil {
 		dst.Networks = make(map[string]NetworkConfig, len(src.Networks))
 		deriveDeepCopy_(dst.Networks, src.Networks)
