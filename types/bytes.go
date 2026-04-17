@@ -38,18 +38,17 @@ func (u UnitBytes) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`"%d"`, u)), nil
 }
 
-// parseBytes parses a UnitBytes value from a string, supporting plain
+// parseString parses a string into a UnitBytes value, supporting plain
 // integers, negative values (e.g., "-1"), and human-readable byte units
 // (e.g., "1g", "512m").
-func parseBytes(s string) (UnitBytes, error) {
+func (u *UnitBytes) parseString(s string) error {
 	if n, err := strconv.ParseInt(s, 10, 64); err == nil {
-		return UnitBytes(n), nil
+		*u = UnitBytes(n)
+		return nil
 	}
 	b, err := units.RAMInBytes(s)
-	if err != nil {
-		return 0, err
-	}
-	return UnitBytes(b), nil
+	*u = UnitBytes(b)
+	return err
 }
 
 // UnmarshalJSON makes UnitBytes implement json.Unmarshaler
@@ -63,12 +62,7 @@ func (u *UnitBytes) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
-	b, err := parseBytes(s)
-	if err != nil {
-		return err
-	}
-	*u = b
-	return nil
+	return u.parseString(s)
 }
 
 // UnmarshalYAML makes UnitBytes implement yaml.Unmarshaler
@@ -82,12 +76,7 @@ func (u *UnitBytes) UnmarshalYAML(value *yaml.Node) error {
 	if err := value.Decode(&s); err != nil {
 		return err
 	}
-	b, err := parseBytes(s)
-	if err != nil {
-		return err
-	}
-	*u = b
-	return nil
+	return u.parseString(s)
 }
 
 func (u *UnitBytes) DecodeMapstructure(value interface{}) error {
@@ -95,9 +84,7 @@ func (u *UnitBytes) DecodeMapstructure(value interface{}) error {
 	case int:
 		*u = UnitBytes(v)
 	case string:
-		b, err := units.RAMInBytes(fmt.Sprint(value))
-		*u = UnitBytes(b)
-		return err
+		return u.parseString(v)
 	}
 	return nil
 }
