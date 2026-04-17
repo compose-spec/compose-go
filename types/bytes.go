@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/docker/go-units"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v4"
 )
 
 // UnitBytes is the bytes type
