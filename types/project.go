@@ -550,6 +550,31 @@ func (p *Project) WithSelectedServices(names []string, options ...DependencyOpti
 	return newProject, nil
 }
 
+// WithSelectedJob returns a new Project containing only the services required
+// by the named job's DependsOn. The job itself is NOT added to Services.
+func (p *Project) WithSelectedJob(name string, options ...DependencyOption) (*Project, error) {
+	job, ok := p.Jobs[name]
+	if !ok {
+		return nil, fmt.Errorf("no such job: %s", name)
+	}
+
+	var deps []string
+	for dep := range job.DependsOn {
+		deps = append(deps, dep)
+	}
+
+	if len(deps) == 0 {
+		// Job has no service dependencies: return project with all services disabled
+		newProject := p.deepCopy()
+		for name := range newProject.Services {
+			newProject = newProject.WithServicesDisabled(name)
+		}
+		return newProject, nil
+	}
+
+	return p.WithSelectedServices(deps, options...)
+}
+
 // WithServicesDisabled removes from the project model the given services and their references in all dependencies
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithServicesDisabled(names ...string) *Project {

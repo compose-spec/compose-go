@@ -166,7 +166,7 @@ func (s ServiceConfig) MarshalYAML() (interface{}, error) {
 }
 
 // NetworksByPriority return the service networks IDs sorted according to Priority
-func (s *ServiceConfig) NetworksByPriority() []string {
+func (s *ContainerSpec) NetworksByPriority() []string {
 	type key struct {
 		name     string
 		priority int
