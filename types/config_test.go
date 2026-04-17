@@ -27,10 +27,12 @@ func Test_WithServices(t *testing.T) {
 		Services: Services{
 			"service_1": ServiceConfig{
 				Name: "service_1",
-				DependsOn: map[string]ServiceDependency{
-					"service_3": {
-						Condition: ServiceConditionStarted,
-						Required:  true,
+				ContainerSpec: ContainerSpec{
+					DependsOn: map[string]ServiceDependency{
+						"service_3": {
+							Condition: ServiceConditionStarted,
+							Required:  true,
+						},
 					},
 				},
 			},
@@ -39,10 +41,12 @@ func Test_WithServices(t *testing.T) {
 			},
 			"service_3": ServiceConfig{
 				Name: "service_3",
-				DependsOn: map[string]ServiceDependency{
-					"service_2": {
-						Condition: ServiceConditionStarted,
-						Required:  true,
+				ContainerSpec: ContainerSpec{
+					DependsOn: map[string]ServiceDependency{
+						"service_2": {
+							Condition: ServiceConditionStarted,
+							Required:  true,
+						},
 					},
 				},
 			},

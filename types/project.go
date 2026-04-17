@@ -43,6 +43,7 @@ type Project struct {
 	Name       string     `yaml:"name,omitempty" json:"name,omitempty"`
 	WorkingDir string     `yaml:"-" json:"-"`
 	Services   Services   `yaml:"services" json:"services"`
+	Jobs       Jobs       `yaml:"jobs,omitempty" json:"jobs,omitempty"`
 	Networks   Networks   `yaml:"networks,omitempty" json:"networks,omitempty"`
 	Volumes    Volumes    `yaml:"volumes,omitempty" json:"volumes,omitempty"`
 	Secrets    Secrets    `yaml:"secrets,omitempty" json:"secrets,omitempty"`

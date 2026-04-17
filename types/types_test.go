@@ -253,16 +253,18 @@ func TestNewMapping(t *testing.T) {
 
 func TestNetworksByPriority(t *testing.T) {
 	s := ServiceConfig{
-		Networks: map[string]*ServiceNetworkConfig{
-			"foo": nil,
-			"bar": {
-				Priority: 10,
-			},
-			"zot": {
-				Priority: 100,
-			},
-			"qix": {
-				Priority: 1000,
+		ContainerSpec: ContainerSpec{
+			Networks: map[string]*ServiceNetworkConfig{
+				"foo": nil,
+				"bar": {
+					Priority: 10,
+				},
+				"zot": {
+					Priority: 100,
+				},
+				"qix": {
+					Priority: 1000,
+				},
 			},
 		},
 	}
@@ -271,11 +273,13 @@ func TestNetworksByPriority(t *testing.T) {
 
 func TestNetworksByPriorityWithEqualPriorities(t *testing.T) {
 	s := ServiceConfig{
-		Networks: map[string]*ServiceNetworkConfig{
-			"foo": nil,
-			"bar": nil,
-			"zot": nil,
-			"qix": nil,
+		ContainerSpec: ContainerSpec{
+			Networks: map[string]*ServiceNetworkConfig{
+				"foo": nil,
+				"bar": nil,
+				"zot": nil,
+				"qix": nil,
+			},
 		},
 	}
 	assert.DeepEqual(t, s.NetworksByPriority(), []string{"bar", "foo", "qix", "zot"})
@@ -321,7 +325,7 @@ func TestMarshalServiceEntrypoint(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := ServiceConfig{Entrypoint: tc.entrypoint}
+			s := ServiceConfig{ContainerSpec: ContainerSpec{Entrypoint: tc.entrypoint}}
 			actualYAML, err := yaml.Marshal(s)
 			assert.NilError(t, err, "YAML marshal failed")
 			assertEqual(t, actualYAML, tc.expectedYAML)
@@ -385,17 +389,19 @@ func TestMarhsall(t *testing.T) {
 	p := Project{
 		Services: Services{
 			"test": ServiceConfig{
-				Volumes: []ServiceVolumeConfig{
-					{
-						Type: "bind",
-						Bind: &ServiceVolumeBind{
-							CreateHostPath: true, // default
+				ContainerSpec: ContainerSpec{
+					Volumes: []ServiceVolumeConfig{
+						{
+							Type: "bind",
+							Bind: &ServiceVolumeBind{
+								CreateHostPath: true, // default
+							},
 						},
-					},
-					{
-						Type: "bind",
-						Bind: &ServiceVolumeBind{
-							CreateHostPath: false,
+						{
+							Type: "bind",
+							Bind: &ServiceVolumeBind{
+								CreateHostPath: false,
+							},
 						},
 					},
 				},

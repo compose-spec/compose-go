@@ -28,15 +28,12 @@ import (
 	"github.com/xhit/go-str2duration/v2"
 )
 
-// ServiceConfig is the configuration of one service
-type ServiceConfig struct {
-	Name     string   `yaml:"name,omitempty" json:"-"`
-	Profiles []string `yaml:"profiles,omitempty" json:"profiles,omitempty"`
-
+// ContainerSpec defines the runtime configuration for a container.
+// It is the common set of attributes shared by services, jobs, and other container-based elements.
+type ContainerSpec struct {
 	Annotations  Mapping        `yaml:"annotations,omitempty" json:"annotations,omitempty"`
 	Attach       *bool          `yaml:"attach,omitempty" json:"attach,omitempty"`
 	Build        *BuildConfig   `yaml:"build,omitempty" json:"build,omitempty"`
-	Develop      *DevelopConfig `yaml:"develop,omitempty" json:"develop,omitempty"`
 	BlkioConfig  *BlkioConfig   `yaml:"blkio_config,omitempty" json:"blkio_config,omitempty"`
 	CapAdd       []string       `yaml:"cap_add,omitempty" json:"cap_add,omitempty"`
 	CapDrop      []string       `yaml:"cap_drop,omitempty" json:"cap_drop,omitempty"`
@@ -62,7 +59,6 @@ type ServiceConfig struct {
 	ContainerName     string                   `yaml:"container_name,omitempty" json:"container_name,omitempty"`
 	CredentialSpec    *CredentialSpecConfig    `yaml:"credential_spec,omitempty" json:"credential_spec,omitempty"`
 	DependsOn         DependsOnConfig          `yaml:"depends_on,omitempty" json:"depends_on,omitempty"`
-	Deploy            *DeployConfig            `yaml:"deploy,omitempty" json:"deploy,omitempty"`
 	DeviceCgroupRules []string                 `yaml:"device_cgroup_rules,omitempty" json:"device_cgroup_rules,omitempty"`
 	Devices           []DeviceMapping          `yaml:"devices,omitempty" json:"devices,omitempty"`
 	DNS               StringList               `yaml:"dns,omitempty" json:"dns,omitempty"`
@@ -115,10 +111,10 @@ type ServiceConfig struct {
 	Ports           []ServicePortConfig              `yaml:"ports,omitempty" json:"ports,omitempty"`
 	Privileged      bool                             `yaml:"privileged,omitempty" json:"privileged,omitempty"`
 	PullPolicy      string                           `yaml:"pull_policy,omitempty" json:"pull_policy,omitempty"`
+	PullRefreshAfter string                          `yaml:"pull_refresh_after,omitempty" json:"pull_refresh_after,omitempty"`
 	ReadOnly        bool                             `yaml:"read_only,omitempty" json:"read_only,omitempty"`
 	Restart         string                           `yaml:"restart,omitempty" json:"restart,omitempty"`
 	Runtime         string                           `yaml:"runtime,omitempty" json:"runtime,omitempty"`
-	Scale           *int                             `yaml:"scale,omitempty" json:"scale,omitempty"`
 	Secrets         []ServiceSecretConfig            `yaml:"secrets,omitempty" json:"secrets,omitempty"`
 	SecurityOpt     []string                         `yaml:"security_opt,omitempty" json:"security_opt,omitempty"`
 	ShmSize         UnitBytes                        `yaml:"shm_size,omitempty" json:"shm_size,omitempty"`
@@ -141,8 +137,21 @@ type ServiceConfig struct {
 	PostStart       []ServiceHook                    `yaml:"post_start,omitempty" json:"post_start,omitempty"`
 	PreStop         []ServiceHook                    `yaml:"pre_stop,omitempty" json:"pre_stop,omitempty"`
 
+}
+
+// ServiceConfig is the configuration of one service
+type ServiceConfig struct {
+	Name     string         `yaml:"name,omitempty" json:"-"`
+	Profiles []string       `yaml:"profiles,omitempty" json:"profiles,omitempty"`
+	Deploy   *DeployConfig  `yaml:"deploy,omitempty" json:"deploy,omitempty"`
+	Develop  *DevelopConfig `yaml:"develop,omitempty" json:"develop,omitempty"`
+	Scale    *int           `yaml:"scale,omitempty" json:"scale,omitempty"`
+
+	ContainerSpec `yaml:",inline" mapstructure:",squash"`
+
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
+
 
 type ServiceProviderConfig struct {
 	Type       string       `yaml:"type,omitempty" json:"type,omitempty"`

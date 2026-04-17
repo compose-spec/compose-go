@@ -98,7 +98,7 @@
         }
       },
       "additionalProperties": false,
-      "description": "Jobs are containers that run to completion, triggered manually or on a schedule."
+      "description": "Jobs are containers that run to completion."
     }
   },
 
@@ -950,10 +950,6 @@
           "type": "object",
           "description": "Trigger conditions for the job.",
           "properties": {
-            "manual": {
-              "type": "boolean",
-              "description": "Whether the job can be triggered manually via docker compose run."
-            },
             "schedule": {
               "type": "string",
               "description": "Crontab expression to schedule the job (e.g. '0 * * * *' for every hour)."
