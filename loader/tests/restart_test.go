@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     restart: always
+jobs:
+  foo:
+    image: alpine
+    restart: always
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Restart, "always")
+		assert.Equal(t, p.Jobs["foo"].Restart, "always")
 	}
 	expect(p)
 

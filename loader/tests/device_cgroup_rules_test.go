@@ -32,10 +32,17 @@ services:
     device_cgroup_rules:
       - "c 1:3 mr"
       - "a 7:* rmw"
+jobs:
+  foo:
+    image: alpine
+    device_cgroup_rules:
+      - "c 1:3 mr"
+      - "a 7:* rmw"
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].DeviceCgroupRules, []string{"c 1:3 mr", "a 7:* rmw"})
+		assert.DeepEqual(t, p.Jobs["foo"].DeviceCgroupRules, []string{"c 1:3 mr", "a 7:* rmw"})
 	}
 	expect(p)
 

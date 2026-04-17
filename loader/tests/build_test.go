@@ -47,6 +47,27 @@ services:
       platforms:
         - linux/amd64
         - linux/arm64
+jobs:
+  foo:
+    build:
+      context: ./dir
+      dockerfile: Dockerfile
+      args:
+        foo: bar
+      target: foo
+      network: foo
+      cache_from:
+        - foo
+        - bar
+      labels: [FOO=BAR]
+      additional_contexts:
+        foo: ./bar
+      tags:
+        - foo:v1.0.0
+        - docker.io/username/foo:my-other-tag
+      platforms:
+        - linux/amd64
+        - linux/arm64
 `)
 
 	expect := func(p *types.Project) {
@@ -59,6 +80,16 @@ services:
 		assert.DeepEqual(t, b.Labels, types.Labels{"FOO": "BAR"})
 		assert.DeepEqual(t, b.Tags, types.StringList{"foo:v1.0.0", "docker.io/username/foo:my-other-tag"})
 		assert.DeepEqual(t, b.Platforms, types.StringList{"linux/amd64", "linux/arm64"})
+
+		jb := p.Jobs["foo"].Build
+		assert.Equal(t, jb.Dockerfile, "Dockerfile")
+		assert.DeepEqual(t, jb.Args, types.MappingWithEquals{"foo": ptr("bar")})
+		assert.Equal(t, jb.Target, "foo")
+		assert.Equal(t, jb.Network, "foo")
+		assert.DeepEqual(t, jb.CacheFrom, types.StringList{"foo", "bar"})
+		assert.DeepEqual(t, jb.Labels, types.Labels{"FOO": "BAR"})
+		assert.DeepEqual(t, jb.Tags, types.StringList{"foo:v1.0.0", "docker.io/username/foo:my-other-tag"})
+		assert.DeepEqual(t, jb.Platforms, types.StringList{"linux/amd64", "linux/arm64"})
 	}
 	expect(p)
 
@@ -76,10 +107,17 @@ services:
       dockerfile_inline: |
         FROM alpine
         RUN echo "hello" > /world.txt
+jobs:
+  bar:
+    build:
+      dockerfile_inline: |
+        FROM alpine
+        RUN echo "hello" > /world.txt
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["bar"].Build.DockerfileInline, "FROM alpine\nRUN echo \"hello\" > /world.txt\n")
+		assert.Equal(t, p.Jobs["bar"].Build.DockerfileInline, "FROM alpine\nRUN echo \"hello\" > /world.txt\n")
 	}
 	expect(p)
 
@@ -97,10 +135,17 @@ services:
       context: .
       ssh:
         - default
+jobs:
+  foo:
+    build:
+      context: .
+      ssh:
+        - default
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Build.SSH, types.SSHConfig{{ID: "default", Path: ""}})
+		assert.DeepEqual(t, p.Jobs["foo"].Build.SSH, types.SSHConfig{{ID: "default", Path: ""}})
 	}
 	expect(p)
 
@@ -124,6 +169,18 @@ services:
           uid: '103'
           gid: '103'
           mode: 0440
+jobs:
+  foo:
+    build:
+      context: .
+      secrets:
+        - source: secret1
+          target: /run/secrets/secret1
+        - source: secret2
+          target: my_secret
+          uid: '103'
+          gid: '103'
+          mode: 0440
 secrets:
   secret1:
     file: ./secret_data
@@ -135,4 +192,10 @@ secrets:
 	assert.Equal(t, secrets[0].Source, "secret1")
 	assert.Equal(t, secrets[1].UID, "103")
 	assert.Equal(t, *secrets[1].Mode, types.FileMode(0o440))
+
+	jobSecrets := p.Jobs["foo"].Build.Secrets
+	assert.Equal(t, len(jobSecrets), 2)
+	assert.Equal(t, jobSecrets[0].Source, "secret1")
+	assert.Equal(t, jobSecrets[1].UID, "103")
+	assert.Equal(t, *jobSecrets[1].Mode, types.FileMode(0o440))
 }

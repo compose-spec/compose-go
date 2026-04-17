@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     cgroup_parent: m-executor-abcd
+jobs:
+  foo:
+    image: alpine
+    cgroup_parent: m-executor-abcd
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].CgroupParent, "m-executor-abcd")
+		assert.Equal(t, p.Jobs["foo"].CgroupParent, "m-executor-abcd")
 	}
 	expect(p)
 

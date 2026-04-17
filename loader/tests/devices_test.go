@@ -32,10 +32,20 @@ services:
     devices:
       - /dev/source:/dev/target:permissions
       - /dev/single
+jobs:
+  test:
+    image: alpine
+    devices:
+      - /dev/source:/dev/target:permissions
+      - /dev/single
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["test"].Devices, []types.DeviceMapping{
+			{Source: "/dev/source", Target: "/dev/target", Permissions: "permissions"},
+			{Source: "/dev/single", Target: "/dev/single", Permissions: "rwm"},
+		})
+		assert.DeepEqual(t, p.Jobs["test"].Devices, []types.DeviceMapping{
 			{Source: "/dev/source", Target: "/dev/target", Permissions: "permissions"},
 			{Source: "/dev/single", Target: "/dev/single", Permissions: "rwm"},
 		})
@@ -57,8 +67,18 @@ services:
       - source: /dev/source
         target: /dev/target
         permissions: permissions
+jobs:
+  test:
+    image: alpine
+    devices:
+      - source: /dev/source
+        target: /dev/target
+        permissions: permissions
 `)
 	assert.DeepEqual(t, p.Services["test"].Devices, []types.DeviceMapping{
+		{Source: "/dev/source", Target: "/dev/target", Permissions: "permissions"},
+	})
+	assert.DeepEqual(t, p.Jobs["test"].Devices, []types.DeviceMapping{
 		{Source: "/dev/source", Target: "/dev/target", Permissions: "permissions"},
 	})
 }
@@ -85,4 +105,5 @@ services:
 	assert.DeepEqual(t, devs[0].Capabilities, []string{"gpu"})
 	assert.Equal(t, devs[0].Count, types.DeviceCount(-1))
 	assert.Equal(t, devs[0].Options["q_bits"], "42")
+	// Note: deploy is not part of ContainerSpec/JobConfig, so no jobs assertion here
 }

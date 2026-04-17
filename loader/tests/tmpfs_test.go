@@ -35,11 +35,22 @@ services:
   string:
     image: alpine
     tmpfs: /run
+jobs:
+  list:
+    image: alpine
+    tmpfs:
+      - /run
+      - /tmp
+  string:
+    image: alpine
+    tmpfs: /run
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["list"].Tmpfs, types.StringList{"/run", "/tmp"})
 		assert.DeepEqual(t, p.Services["string"].Tmpfs, types.StringList{"/run"})
+		assert.DeepEqual(t, p.Jobs["list"].Tmpfs, types.StringList{"/run", "/tmp"})
+		assert.DeepEqual(t, p.Jobs["string"].Tmpfs, types.StringList{"/run"})
 	}
 	expect(p)
 

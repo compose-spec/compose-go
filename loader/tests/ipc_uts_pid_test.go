@@ -32,12 +32,21 @@ services:
     ipc: host
     uts: host
     pid: host
+jobs:
+  foo:
+    image: alpine
+    ipc: host
+    uts: host
+    pid: host
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Ipc, "host")
 		assert.Equal(t, p.Services["foo"].Uts, "host")
 		assert.Equal(t, p.Services["foo"].Pid, "host")
+		assert.Equal(t, p.Jobs["foo"].Ipc, "host")
+		assert.Equal(t, p.Jobs["foo"].Uts, "host")
+		assert.Equal(t, p.Jobs["foo"].Pid, "host")
 	}
 	expect(p)
 

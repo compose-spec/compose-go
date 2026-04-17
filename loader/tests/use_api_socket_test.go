@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     use_api_socket: true
+jobs:
+  foo:
+    image: alpine
+    use_api_socket: true
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].UseAPISocket, true)
+		assert.Equal(t, p.Jobs["foo"].UseAPISocket, true)
 	}
 	expect(p)
 

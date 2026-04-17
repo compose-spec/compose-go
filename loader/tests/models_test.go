@@ -35,6 +35,15 @@ services:
       foo:
         endpoint_var: MODEL_URL
         model_var: MODEL
+jobs:
+  test_array:
+    models:
+      - foo
+  test_mapping:
+    models:
+      foo:
+        endpoint_var: MODEL_URL
+        model_var: MODEL
 models:
   foo:
     model: ai/model
@@ -50,4 +59,8 @@ models:
 	assert.Assert(t, p.Services["test_array"].Models["foo"] == nil)
 	assert.Equal(t, p.Services["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
 	assert.Equal(t, p.Services["test_mapping"].Models["foo"].ModelVariable, "MODEL")
+
+	assert.Assert(t, p.Jobs["test_array"].Models["foo"] == nil)
+	assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
+	assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].ModelVariable, "MODEL")
 }

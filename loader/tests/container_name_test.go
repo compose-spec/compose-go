@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     container_name: my-web-container
+jobs:
+  foo:
+    image: alpine
+    container_name: my-web-container
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].ContainerName, "my-web-container")
+		assert.Equal(t, p.Jobs["foo"].ContainerName, "my-web-container")
 	}
 	expect(p)
 

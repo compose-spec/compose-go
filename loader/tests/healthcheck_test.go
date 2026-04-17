@@ -37,6 +37,16 @@ services:
       retries: 5
       start_period: 15s
       start_interval: 5s
+jobs:
+  foo:
+    image: alpine
+    healthcheck:
+      test: echo "hello world"
+      interval: 10s
+      timeout: 1s
+      retries: 5
+      start_period: 15s
+      start_interval: 5s
 `)
 	expect := func(p *types.Project) {
 		hc := p.Services["foo"].HealthCheck
@@ -46,6 +56,13 @@ services:
 		assert.Equal(t, *hc.Retries, uint64(5))
 		assert.Equal(t, *hc.StartPeriod, types.Duration(15*time.Second))
 		assert.Equal(t, *hc.StartInterval, types.Duration(5*time.Second))
+		jhc := p.Jobs["foo"].HealthCheck
+		assert.DeepEqual(t, jhc.Test, types.HealthCheckTest{"CMD-SHELL", `echo "hello world"`})
+		assert.Equal(t, *jhc.Interval, types.Duration(10*time.Second))
+		assert.Equal(t, *jhc.Timeout, types.Duration(1*time.Second))
+		assert.Equal(t, *jhc.Retries, uint64(5))
+		assert.Equal(t, *jhc.StartPeriod, types.Duration(15*time.Second))
+		assert.Equal(t, *jhc.StartInterval, types.Duration(5*time.Second))
 	}
 	expect(p)
 

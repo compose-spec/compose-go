@@ -38,6 +38,18 @@ services:
     cpu_rt_runtime: 950000
     cpus: 1.5
     cpuset: "0,1"
+jobs:
+  foo:
+    image: alpine
+    cpu_count: 4
+    cpu_percent: 50
+    cpu_shares: 1024
+    cpu_quota: 50000
+    cpu_period: 100000
+    cpu_rt_period: 1000000
+    cpu_rt_runtime: 950000
+    cpus: 1.5
+    cpuset: "0,1"
 `)
 	expect := func(p *types.Project) {
 		s := p.Services["foo"]
@@ -50,6 +62,16 @@ services:
 		assert.Equal(t, s.CPURTRuntime, int64(950000))
 		assert.Equal(t, s.CPUS, float32(1.5))
 		assert.Equal(t, s.CPUSet, "0,1")
+		j := p.Jobs["foo"]
+		assert.Equal(t, j.CPUCount, int64(4))
+		assert.Equal(t, j.CPUPercent, float32(50))
+		assert.Equal(t, j.CPUShares, int64(1024))
+		assert.Equal(t, j.CPUQuota, int64(50000))
+		assert.Equal(t, j.CPUPeriod, int64(100000))
+		assert.Equal(t, j.CPURTPeriod, int64(1000000))
+		assert.Equal(t, j.CPURTRuntime, int64(950000))
+		assert.Equal(t, j.CPUS, float32(1.5))
+		assert.Equal(t, j.CPUSet, "0,1")
 	}
 	expect(p)
 
@@ -69,6 +91,14 @@ services:
     mem_swappiness: 60
     memswap_limit: 1g
     shm_size: 64m
+jobs:
+  foo:
+    image: alpine
+    mem_limit: 512m
+    mem_reservation: 256m
+    mem_swappiness: 60
+    memswap_limit: 1g
+    shm_size: 64m
 `)
 	expect := func(p *types.Project) {
 		s := p.Services["foo"]
@@ -77,6 +107,12 @@ services:
 		assert.Equal(t, s.MemSwappiness, types.UnitBytes(60))
 		assert.Equal(t, s.MemSwapLimit, types.UnitBytes(1024*1024*1024))
 		assert.Equal(t, s.ShmSize, types.UnitBytes(64*1024*1024))
+		j := p.Jobs["foo"]
+		assert.Equal(t, j.MemLimit, types.UnitBytes(512*1024*1024))
+		assert.Equal(t, j.MemReservation, types.UnitBytes(256*1024*1024))
+		assert.Equal(t, j.MemSwappiness, types.UnitBytes(60))
+		assert.Equal(t, j.MemSwapLimit, types.UnitBytes(1024*1024*1024))
+		assert.Equal(t, j.ShmSize, types.UnitBytes(64*1024*1024))
 	}
 	expect(p)
 

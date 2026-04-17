@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     mac_address: "02:42:ac:11:65:43"
+jobs:
+  foo:
+    image: alpine
+    mac_address: "02:42:ac:11:65:43"
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].MacAddress, "02:42:ac:11:65:43")
+		assert.Equal(t, p.Jobs["foo"].MacAddress, "02:42:ac:11:65:43")
 	}
 	expect(p)
 

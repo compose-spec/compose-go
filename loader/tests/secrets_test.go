@@ -37,6 +37,17 @@ services:
         uid: '103'
         gid: '103'
         mode: 0440
+jobs:
+  foo:
+    image: alpine
+    secrets:
+      - source: secret1
+        target: /run/secrets/secret1
+      - source: secret2
+        target: my_secret
+        uid: '103'
+        gid: '103'
+        mode: 0440
 secrets:
   secret1:
     file: ./secret_data
@@ -52,6 +63,16 @@ secrets:
 	assert.Equal(t, secrets[1].UID, "103")
 	assert.Equal(t, secrets[1].GID, "103")
 	assert.Equal(t, *secrets[1].Mode, types.FileMode(0o440))
+
+	jobSecrets := p.Jobs["foo"].Secrets
+	assert.Equal(t, len(jobSecrets), 2)
+	assert.Equal(t, jobSecrets[0].Source, "secret1")
+	assert.Equal(t, jobSecrets[0].Target, "/run/secrets/secret1")
+	assert.Equal(t, jobSecrets[1].Source, "secret2")
+	assert.Equal(t, jobSecrets[1].Target, "my_secret")
+	assert.Equal(t, jobSecrets[1].UID, "103")
+	assert.Equal(t, jobSecrets[1].GID, "103")
+	assert.Equal(t, *jobSecrets[1].Mode, types.FileMode(0o440))
 }
 
 func TestTopLevelSecrets(t *testing.T) {
@@ -123,9 +144,18 @@ services:
       - source: server-certificate
         target: server.cert
         mode: 0o440
+jobs:
+  foo:
+    image: alpine
+    secrets:
+      - source: server-certificate
+        target: server.cert
+        mode: 0o440
 `)
 	assert.Equal(t, len(p.Services["foo"].Secrets), 1)
 	assert.Equal(t, *p.Services["foo"].Secrets[0].Mode, types.FileMode(0o440))
+	assert.Equal(t, len(p.Jobs["foo"].Secrets), 1)
+	assert.Equal(t, *p.Jobs["foo"].Secrets[0].Mode, types.FileMode(0o440))
 }
 
 func TestSecretFileModeString(t *testing.T) {
@@ -138,7 +168,16 @@ services:
       - source: server-certificate
         target: server.cert
         mode: "0440"
+jobs:
+  foo:
+    image: alpine
+    secrets:
+      - source: server-certificate
+        target: server.cert
+        mode: "0440"
 `)
 	assert.Equal(t, len(p.Services["foo"].Secrets), 1)
 	assert.Equal(t, *p.Services["foo"].Secrets[0].Mode, types.FileMode(0o440))
+	assert.Equal(t, len(p.Jobs["foo"].Secrets), 1)
+	assert.Equal(t, *p.Jobs["foo"].Secrets[0].Mode, types.FileMode(0o440))
 }

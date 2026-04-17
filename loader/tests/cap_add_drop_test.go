@@ -34,11 +34,21 @@ services:
     cap_drop:
       - NET_ADMIN
       - SYS_ADMIN
+jobs:
+  foo:
+    image: alpine
+    cap_add:
+      - ALL
+    cap_drop:
+      - NET_ADMIN
+      - SYS_ADMIN
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].CapAdd, []string{"ALL"})
 		assert.DeepEqual(t, p.Services["foo"].CapDrop, []string{"NET_ADMIN", "SYS_ADMIN"})
+		assert.DeepEqual(t, p.Jobs["foo"].CapAdd, []string{"ALL"})
+		assert.DeepEqual(t, p.Jobs["foo"].CapDrop, []string{"NET_ADMIN", "SYS_ADMIN"})
 	}
 	expect(p)
 

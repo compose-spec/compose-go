@@ -31,11 +31,18 @@ services:
     image: alpine
     privileged: true
     read_only: true
+jobs:
+  foo:
+    image: alpine
+    privileged: true
+    read_only: true
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Privileged, true)
 		assert.Equal(t, p.Services["foo"].ReadOnly, true)
+		assert.Equal(t, p.Jobs["foo"].Privileged, true)
+		assert.Equal(t, p.Jobs["foo"].ReadOnly, true)
 	}
 	expect(p)
 

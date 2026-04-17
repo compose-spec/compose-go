@@ -35,12 +35,24 @@ services:
     init: false
   default:
     image: alpine
+jobs:
+  with-init:
+    image: alpine
+    init: true
+  without-init:
+    image: alpine
+    init: false
+  default:
+    image: alpine
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, *p.Services["with-init"].Init, true)
 		assert.Equal(t, *p.Services["without-init"].Init, false)
 		assert.Assert(t, p.Services["default"].Init == nil)
+		assert.Equal(t, *p.Jobs["with-init"].Init, true)
+		assert.Equal(t, *p.Jobs["without-init"].Init, false)
+		assert.Assert(t, p.Jobs["default"].Init == nil)
 	}
 	expect(p)
 

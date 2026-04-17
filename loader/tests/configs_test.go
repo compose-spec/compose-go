@@ -36,6 +36,16 @@ services:
         uid: '103'
         gid: '103'
         mode: 0440
+jobs:
+  foo:
+    image: alpine
+    configs:
+      - config1
+      - source: config2
+        target: /my_config
+        uid: '103'
+        gid: '103'
+        mode: 0440
 configs:
   config1:
     file: ./config_data
@@ -50,12 +60,24 @@ configs:
 	assert.Equal(t, configs[1].UID, "103")
 	assert.Equal(t, configs[1].GID, "103")
 	assert.Equal(t, *configs[1].Mode, types.FileMode(0o440))
+
+	jobConfigs := p.Jobs["foo"].Configs
+	assert.Equal(t, len(jobConfigs), 2)
+	assert.Equal(t, jobConfigs[0].Source, "config1")
+	assert.Equal(t, jobConfigs[1].Source, "config2")
+	assert.Equal(t, jobConfigs[1].Target, "/my_config")
+	assert.Equal(t, jobConfigs[1].UID, "103")
+	assert.Equal(t, jobConfigs[1].GID, "103")
+	assert.Equal(t, *jobConfigs[1].Mode, types.FileMode(0o440))
 }
 
 func TestTopLevelConfigs(t *testing.T) {
 	p := load(t, `
 name: test
 services:
+  foo:
+    image: alpine
+jobs:
   foo:
     image: alpine
 configs:

@@ -137,27 +137,35 @@ func makeProject() *Project {
 				Name: "service_1",
 			},
 			"service_2": ServiceConfig{
-				Name:      "service_2",
-				Profiles:  []string{"foo"},
-				DependsOn: map[string]ServiceDependency{"service_1": {Required: true}},
+				Name:     "service_2",
+				Profiles: []string{"foo"},
+				ContainerSpec: ContainerSpec{
+					DependsOn: map[string]ServiceDependency{"service_1": {Required: true}},
+				},
 			},
 			"service_3": ServiceConfig{
-				Name:      "service_3",
-				Profiles:  []string{"bar"},
-				DependsOn: map[string]ServiceDependency{"service_2": {Required: true}},
+				Name:     "service_3",
+				Profiles: []string{"bar"},
+				ContainerSpec: ContainerSpec{
+					DependsOn: map[string]ServiceDependency{"service_2": {Required: true}},
+				},
 			},
 			"service_4": ServiceConfig{
-				Name:      "service_4",
-				Profiles:  []string{"zot"},
-				DependsOn: map[string]ServiceDependency{"service_2": {Required: false}},
+				Name:     "service_4",
+				Profiles: []string{"zot"},
+				ContainerSpec: ContainerSpec{
+					DependsOn: map[string]ServiceDependency{"service_2": {Required: false}},
+				},
 			},
 			"service_5": ServiceConfig{
 				Name:     "service_5",
 				Profiles: []string{"zot"},
 			},
 			"service_6": ServiceConfig{
-				Name:  "service_6",
-				Links: []string{"service_1"},
+				Name: "service_6",
+				ContainerSpec: ContainerSpec{
+					Links: []string{"service_1"},
+				},
 			},
 		},
 		Networks: Networks{},
@@ -219,7 +227,9 @@ func Test_ResolveImages_concurrent(t *testing.T) {
 	}
 	for i := 0; i < 1000; i++ {
 		p.Services[fmt.Sprintf("service_%d", i)] = ServiceConfig{
-			Image: fmt.Sprintf("image_%d", i),
+			ContainerSpec: ContainerSpec{
+				Image: fmt.Sprintf("image_%d", i),
+			},
 		}
 	}
 	p, err := p.WithImagesResolved(resolver)
@@ -239,7 +249,9 @@ func Test_ResolveImages_concurrent_interrupted(t *testing.T) {
 	}
 	for i := 0; i < 10; i++ {
 		p.Services[fmt.Sprintf("service_%d", i)] = ServiceConfig{
-			Image: fmt.Sprintf("image_%d", i),
+			ContainerSpec: ContainerSpec{
+				Image: fmt.Sprintf("image_%d", i),
+			},
 		}
 	}
 	_, err := p.WithImagesResolved(resolver)
@@ -450,22 +462,26 @@ func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
 	p := &Project{
 		Services: Services{
 			"base": ServiceConfig{
-				Environment: MappingWithEquals{
-					"FOO": ptr("foo_from_environment"),
-					"BAR": ptr("bar_from_environment"),
-					"QIX": nil,
-				},
-				EnvFiles: []EnvFile{
-					{Path: "fixtures/base.env"},
+				ContainerSpec: ContainerSpec{
+					Environment: MappingWithEquals{
+						"FOO": ptr("foo_from_environment"),
+						"BAR": ptr("bar_from_environment"),
+						"QIX": nil,
+					},
+					EnvFiles: []EnvFile{
+						{Path: "fixtures/base.env"},
+					},
 				},
 			},
 			"override": ServiceConfig{
-				Environment: MappingWithEquals{
-					"FOO": ptr("foo_from_environment"),
-				},
-				EnvFiles: []EnvFile{
-					{Path: "fixtures/base.env"},
-					{Path: "fixtures/override.env"},
+				ContainerSpec: ContainerSpec{
+					Environment: MappingWithEquals{
+						"FOO": ptr("foo_from_environment"),
+					},
+					EnvFiles: []EnvFile{
+						{Path: "fixtures/base.env"},
+						{Path: "fixtures/override.env"},
+					},
 				},
 			},
 		},
@@ -503,6 +519,75 @@ func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
 		"INTERPOLATED_BAR": ptr("bar_from_override.env"),
 		// interpolation uses the value previously set in env file
 		"INTERPOLATED_ZOT": ptr("zot_from_base.env"),
+	})
+}
+
+func TestWithSelectedJob(t *testing.T) {
+	project := &Project{
+		Services: Services{
+			"db": {
+				Name: "db",
+				ContainerSpec: ContainerSpec{
+					Image: "postgres",
+				},
+			},
+			"redis": {
+				Name: "redis",
+				ContainerSpec: ContainerSpec{
+					Image: "redis",
+				},
+			},
+			"web": {
+				Name: "web",
+				ContainerSpec: ContainerSpec{
+					Image: "myapp",
+					DependsOn: DependsOnConfig{
+						"db": {Condition: "service_healthy"},
+					},
+				},
+			},
+		},
+		Jobs: Jobs{
+			"migrate": {
+				Name: "migrate",
+				ContainerSpec: ContainerSpec{
+					Image:   "myapp",
+					Command: ShellCommand{"migrate"},
+					DependsOn: DependsOnConfig{
+						"db": {Condition: "service_healthy"},
+					},
+				},
+			},
+			"seed": {
+				Name: "seed",
+				ContainerSpec: ContainerSpec{
+					Image: "myapp",
+				},
+			},
+		},
+	}
+
+	t.Run("job with dependencies includes only required services", func(t *testing.T) {
+		result, err := project.WithSelectedJob("migrate")
+		assert.NilError(t, err)
+		assert.Equal(t, len(result.Services), 1)
+		_, hasDB := result.Services["db"]
+		assert.Assert(t, hasDB)
+		_, hasRedis := result.Services["redis"]
+		assert.Assert(t, !hasRedis)
+		_, hasWeb := result.Services["web"]
+		assert.Assert(t, !hasWeb)
+	})
+
+	t.Run("job without dependencies returns empty services", func(t *testing.T) {
+		result, err := project.WithSelectedJob("seed")
+		assert.NilError(t, err)
+		assert.Equal(t, len(result.Services), 0)
+	})
+
+	t.Run("unknown job returns error", func(t *testing.T) {
+		_, err := project.WithSelectedJob("nonexistent")
+		assert.ErrorContains(t, err, "no such job: nonexistent")
 	})
 }
 

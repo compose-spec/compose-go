@@ -39,6 +39,19 @@ services:
         ipv6_address: "2001:3984:3989::10"
         mac_address: "02:42:72:98:65:08"
       other-other-network:
+jobs:
+  foo:
+    image: alpine
+    networks:
+      some-network:
+        aliases:
+          - alias1
+          - alias3
+      other-network:
+        ipv4_address: 172.16.238.10
+        ipv6_address: "2001:3984:3989::10"
+        mac_address: "02:42:72:98:65:08"
+      other-other-network:
 networks:
   some-network:
   other-network:
@@ -50,6 +63,13 @@ networks:
 	assert.Equal(t, nets["other-network"].Ipv6Address, "2001:3984:3989::10")
 	assert.Equal(t, nets["other-network"].MacAddress, "02:42:72:98:65:08")
 	assert.Assert(t, nets["other-other-network"] == nil)
+
+	jobNets := p.Jobs["foo"].Networks
+	assert.DeepEqual(t, jobNets["some-network"].Aliases, []string{"alias1", "alias3"})
+	assert.Equal(t, jobNets["other-network"].Ipv4Address, "172.16.238.10")
+	assert.Equal(t, jobNets["other-network"].Ipv6Address, "2001:3984:3989::10")
+	assert.Equal(t, jobNets["other-network"].MacAddress, "02:42:72:98:65:08")
+	assert.Assert(t, jobNets["other-other-network"] == nil)
 }
 
 func TestTopLevelNetworks(t *testing.T) {

@@ -32,9 +32,19 @@ services:
     extra_hosts:
       alpha: "50.31.209.229"
       zulu: "162.242.195.82"
+jobs:
+  foo:
+    image: alpine
+    extra_hosts:
+      alpha: "50.31.209.229"
+      zulu: "162.242.195.82"
 `)
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
+			"alpha": []string{"50.31.209.229"},
+			"zulu":  []string{"162.242.195.82"},
+		})
+		assert.DeepEqual(t, p.Jobs["foo"].ExtraHosts, types.HostsList{
 			"alpha": []string{"50.31.209.229"},
 			"zulu":  []string{"162.242.195.82"},
 		})
@@ -56,8 +66,19 @@ services:
       - "alpha:50.31.209.229"
       - "zulu:127.0.0.2"
       - "zulu:ff02::1"
+jobs:
+  foo:
+    image: alpine
+    extra_hosts:
+      - "alpha:50.31.209.229"
+      - "zulu:127.0.0.2"
+      - "zulu:ff02::1"
 `)
 	assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
+		"alpha": []string{"50.31.209.229"},
+		"zulu":  []string{"127.0.0.2", "ff02::1"},
+	})
+	assert.DeepEqual(t, p.Jobs["foo"].ExtraHosts, types.HostsList{
 		"alpha": []string{"50.31.209.229"},
 		"zulu":  []string{"127.0.0.2", "ff02::1"},
 	})
@@ -71,8 +92,16 @@ services:
     image: alpine
     extra_hosts:
       - "myhost=0.0.0.1,0.0.0.2"
+jobs:
+  foo:
+    image: alpine
+    extra_hosts:
+      - "myhost=0.0.0.1,0.0.0.2"
 `)
 	assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
+		"myhost": []string{"0.0.0.1", "0.0.0.2"},
+	})
+	assert.DeepEqual(t, p.Jobs["foo"].ExtraHosts, types.HostsList{
 		"myhost": []string{"0.0.0.1", "0.0.0.2"},
 	})
 }
@@ -87,8 +116,18 @@ services:
       myhost:
         - "0.0.0.1"
         - "0.0.0.2"
+jobs:
+  foo:
+    image: alpine
+    extra_hosts:
+      myhost:
+        - "0.0.0.1"
+        - "0.0.0.2"
 `)
 	assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
+		"myhost": []string{"0.0.0.1", "0.0.0.2"},
+	})
+	assert.DeepEqual(t, p.Jobs["foo"].ExtraHosts, types.HostsList{
 		"myhost": []string{"0.0.0.1", "0.0.0.2"},
 	})
 }

@@ -35,25 +35,27 @@ func withVersionServices() types.Services {
 	return types.Services{
 		"web": {
 			Name: "web",
-
-			Build: &types.BuildConfig{
-				Context: buildCtx,
+			ContainerSpec: types.ContainerSpec{
+				Build: &types.BuildConfig{
+					Context: buildCtx,
+				},
+				Environment: types.MappingWithEquals{},
+				Networks: map[string]*types.ServiceNetworkConfig{
+					"front":   nil,
+					"default": nil,
+				},
+				VolumesFrom: []string{"other"},
 			},
-			Environment: types.MappingWithEquals{},
-			Networks: map[string]*types.ServiceNetworkConfig{
-				"front":   nil,
-				"default": nil,
-			},
-			VolumesFrom: []string{"other"},
 		},
 		"other": {
 			Name: "other",
-
-			Image:       "busybox:1.31.0-uclibc",
-			Command:     []string{"top"},
-			Environment: types.MappingWithEquals{},
-			Volumes: []types.ServiceVolumeConfig{
-				{Target: "/data", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
+			ContainerSpec: types.ContainerSpec{
+				Image:       "busybox:1.31.0-uclibc",
+				Command:     []string{"top"},
+				Environment: types.MappingWithEquals{},
+				Volumes: []types.ServiceVolumeConfig{
+					{Target: "/data", Type: "volume", Volume: &types.ServiceVolumeVolume{}},
+				},
 			},
 		},
 	}

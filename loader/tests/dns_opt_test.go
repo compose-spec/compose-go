@@ -32,10 +32,17 @@ services:
     dns_opt:
       - use-vc
       - no-tld-query
+jobs:
+  foo:
+    image: alpine
+    dns_opt:
+      - use-vc
+      - no-tld-query
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].DNSOpts, []string{"use-vc", "no-tld-query"})
+		assert.DeepEqual(t, p.Jobs["foo"].DNSOpts, []string{"use-vc", "no-tld-query"})
 	}
 	expect(p)
 

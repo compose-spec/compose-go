@@ -31,9 +31,14 @@ services:
   foo:
     image: alpine
     stop_grace_period: 20s
+jobs:
+  foo:
+    image: alpine
+    stop_grace_period: 20s
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, *p.Services["foo"].StopGracePeriod, types.Duration(20*time.Second))
+		assert.Equal(t, *p.Jobs["foo"].StopGracePeriod, types.Duration(20*time.Second))
 	}
 	expect(p)
 
@@ -49,9 +54,14 @@ services:
   foo:
     image: alpine
     stop_signal: SIGUSR1
+jobs:
+  foo:
+    image: alpine
+    stop_signal: SIGUSR1
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].StopSignal, "SIGUSR1")
+		assert.Equal(t, p.Jobs["foo"].StopSignal, "SIGUSR1")
 	}
 	expect(p)
 

@@ -31,11 +31,18 @@ services:
     image: alpine
     stdin_open: true
     tty: true
+jobs:
+  foo:
+    image: alpine
+    stdin_open: true
+    tty: true
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].StdinOpen, true)
 		assert.Equal(t, p.Services["foo"].Tty, true)
+		assert.Equal(t, p.Jobs["foo"].StdinOpen, true)
+		assert.Equal(t, p.Jobs["foo"].Tty, true)
 	}
 	expect(p)
 

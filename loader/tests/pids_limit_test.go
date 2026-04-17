@@ -30,10 +30,15 @@ services:
   foo:
     image: alpine
     pids_limit: 100
+jobs:
+  foo:
+    image: alpine
+    pids_limit: 100
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].PidsLimit, int64(100))
+		assert.Equal(t, p.Jobs["foo"].PidsLimit, int64(100))
 	}
 	expect(p)
 

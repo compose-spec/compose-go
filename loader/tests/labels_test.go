@@ -33,6 +33,13 @@ services:
       com.example.description: "Accounting webapp"
       com.example.number: 42
       com.example.empty-label:
+jobs:
+  foo:
+    image: alpine
+    labels:
+      com.example.description: "Accounting webapp"
+      com.example.number: 42
+      com.example.empty-label:
 `)
 	expect := func(p *types.Project) {
 		expected := types.Labels{
@@ -41,6 +48,7 @@ services:
 			"com.example.empty-label": "",
 		}
 		assert.DeepEqual(t, p.Services["foo"].Labels, expected)
+		assert.DeepEqual(t, p.Jobs["foo"].Labels, expected)
 	}
 	expect(p)
 
@@ -59,6 +67,13 @@ services:
       - "com.example.description=Accounting webapp"
       - "com.example.number=42"
       - "com.example.empty-label"
+jobs:
+  foo:
+    image: alpine
+    labels:
+      - "com.example.description=Accounting webapp"
+      - "com.example.number=42"
+      - "com.example.empty-label"
 `)
 	expected := types.Labels{
 		"com.example.description": "Accounting webapp",
@@ -66,4 +81,5 @@ services:
 		"com.example.empty-label": "",
 	}
 	assert.DeepEqual(t, p.Services["foo"].Labels, expected)
+	assert.DeepEqual(t, p.Jobs["foo"].Labels, expected)
 }

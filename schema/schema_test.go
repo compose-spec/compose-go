@@ -256,7 +256,7 @@ func TestSchema(t *testing.T) {
 	assert.NilError(t, err)
 	err = compiler.AddResource("compose-spec.json", json)
 	assert.NilError(t, err)
-	compiler.DefaultDraft(jsonschema.Draft7)
+	compiler.DefaultDraft(jsonschema.Draft2020)
 	_, err = compiler.Compile("compose-spec.json")
 	assert.NilError(t, err)
 }

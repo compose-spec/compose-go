@@ -90,10 +90,12 @@ services:
 	})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services["bar"], types.ServiceConfig{
-		Name:  "bar",
-		Image: "busybox",
-		Environment: types.MappingWithEquals{
-			"ZOT": strPtr("QIX"),
+		Name: "bar",
+		ContainerSpec: types.ContainerSpec{
+			Image: "busybox",
+			Environment: types.MappingWithEquals{
+				"ZOT": strPtr("QIX"),
+			},
 		},
 	})
 }

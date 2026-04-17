@@ -32,10 +32,17 @@ services:
     expose:
       - "3000"
       - 8000
+jobs:
+  foo:
+    image: alpine
+    expose:
+      - "3000"
+      - 8000
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Expose, types.StringOrNumberList{"3000", "8000"})
+		assert.DeepEqual(t, p.Jobs["foo"].Expose, types.StringOrNumberList{"3000", "8000"})
 	}
 	expect(p)
 
