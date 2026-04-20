@@ -84,6 +84,9 @@ type Options struct {
 	KnownExtensions map[string]any
 	// Metada for telemetry
 	Listeners []Listener
+	// MaxNodeVisits caps total YAML node visits during reset/override resolution.
+	// Zero means use the default. Useful for very large compose files that exceed the default cap.
+	MaxNodeVisits int
 }
 
 var versionWarning []string
@@ -506,7 +509,7 @@ func loadYamlFile(ctx context.Context,
 		decoder := yaml.NewDecoder(r)
 		for {
 			var raw interface{}
-			reset := &ResetProcessor{target: &raw}
+			reset := &ResetProcessor{target: &raw, maxNodeVisits: opts.MaxNodeVisits}
 			err := decoder.Decode(reset)
 			if err != nil && errors.Is(err, io.EOF) {
 				break
