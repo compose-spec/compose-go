@@ -67,6 +67,8 @@ networks:
       baz: 1
     ipam:
       driver: overlay
+      options:
+        foo: bar
       config:
         - subnet: 172.28.0.0/16
           ip_range: 172.28.5.0/24
@@ -97,6 +99,7 @@ networks:
 		assert.Equal(t, other.Driver, "overlay")
 		assert.DeepEqual(t, other.DriverOpts, types.Options{"foo": "bar", "baz": "1"})
 		assert.Equal(t, other.Ipam.Driver, "overlay")
+		assert.DeepEqual(t, other.Ipam.Options, types.Mapping{"foo": "bar"})
 		assert.Equal(t, len(other.Ipam.Config), 2)
 		assert.Equal(t, other.Ipam.Config[0].Subnet, "172.28.0.0/16")
 		assert.Equal(t, other.Ipam.Config[0].IPRange, "172.28.5.0/24")
