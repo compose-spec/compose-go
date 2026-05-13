@@ -19,11 +19,10 @@ package template
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"sort"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -206,7 +205,7 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 
 	value, ok := mapping(substitution)
 	if !ok && cfg.logging {
-		logrus.Warnf("The %q variable is not set. Defaulting to a blank string.", substitution)
+		slog.Warn(fmt.Sprintf("The %q variable is not set. Defaulting to a blank string.", substitution))
 	}
 
 	return value, ok, nil

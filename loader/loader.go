@@ -42,7 +42,8 @@ import (
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/go-viper/mapstructure/v2"
-	"github.com/sirupsen/logrus"
+	"log/slog"
+
 	"go.yaml.in/yaml/v4"
 )
 
@@ -90,7 +91,7 @@ var versionWarning []string
 
 func (o *Options) warnObsoleteVersion(file string) {
 	if !slices.Contains(versionWarning, file) {
-		logrus.Warning(fmt.Sprintf("%s: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion", file))
+		slog.Warn(fmt.Sprintf("%s: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion", file))
 	}
 	versionWarning = append(versionWarning, file)
 }
@@ -120,7 +121,7 @@ func (o Options) RemoteResourceLoaders() []ResourceLoader {
 	for i, loader := range o.ResourceLoaders {
 		if _, ok := loader.(localResourceLoader); ok {
 			if i != len(o.ResourceLoaders)-1 {
-				logrus.Warning("misconfiguration of ResourceLoaders: localResourceLoader should be last")
+				slog.Warn("misconfiguration of ResourceLoaders: localResourceLoader should be last")
 			}
 			continue
 		}

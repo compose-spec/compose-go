@@ -17,13 +17,13 @@
 package template
 
 import (
+	"context"
 	"fmt"
-	"io"
+	"log/slog"
 	"reflect"
+	"sync"
 	"testing"
 
-	"github.com/sirupsen/logrus"
-	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -568,20 +568,30 @@ func TestValueWithCurlyBracesDefault(t *testing.T) {
 	}
 }
 
-func captureWarnings(t *testing.T) (*logrustest.Hook, func()) {
+type logCapture struct {
+	mu      sync.Mutex
+	entries []slog.Record
+}
+
+func (c *logCapture) Enabled(_ context.Context, _ slog.Level) bool { return true }
+func (c *logCapture) Handle(_ context.Context, r slog.Record) error {
+	c.mu.Lock()
+	c.entries = append(c.entries, r)
+	c.mu.Unlock()
+	return nil
+}
+func (c *logCapture) WithAttrs(_ []slog.Attr) slog.Handler { return c }
+func (c *logCapture) WithGroup(_ string) slog.Handler      { return c }
+func (c *logCapture) AllEntries() []slog.Record {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.entries
+}
+
+func captureWarnings(t *testing.T) (*logCapture, func()) {
 	t.Helper()
-	logger := logrus.StandardLogger()
-	oldLevel := logger.Level
-	oldOut := logger.Out
-	oldHooks := logger.ReplaceHooks(make(logrus.LevelHooks))
-
-	logger.SetLevel(logrus.WarnLevel)
-	logger.SetOutput(io.Discard)
-
-	hook := logrustest.NewGlobal()
-	return hook, func() {
-		logger.ReplaceHooks(oldHooks)
-		logger.SetOutput(oldOut)
-		logger.SetLevel(oldLevel)
-	}
+	capture := &logCapture{}
+	old := slog.Default()
+	slog.SetDefault(slog.New(capture))
+	return capture, func() { slog.SetDefault(old) }
 }
