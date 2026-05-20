@@ -36,6 +36,47 @@ import (
 func (m *ComposeModel) resolveBareEnvironmentRefs() {
 	for _, layer := range m.layers {
 		resolveBareEnvLayer(layer.Root, layer.Context)
+		resolveSecretsConfigsEnvLayer(layer.Root, layer.Context)
+	}
+}
+
+// resolveSecretsConfigsEnvLayer mirrors loader.resolveSecretsEnvironment and
+// resolveConfigsEnvironment but operates on a yaml.Node tree, per layer,
+// so the lookup uses the layer's NodeContext.Env. Without this, a secret
+// or config declared in an included file with `environment: VAR` and a
+// VAR provided by include.env_file would not be resolved (the main
+// configDetails.Environment knows nothing about VAR).
+//
+// For each matching entry, the layer's value is recorded under the
+// loader-private key types.SecretConfigXValue ("x-#value"), which is the
+// transport the legacy ResolveEnvironment uses to forward the value to
+// the runtime.
+func resolveSecretsConfigsEnvLayer(root *yaml.Node, ctx *types.NodeContext) {
+	if ctx == nil || len(ctx.Env) == 0 {
+		return
+	}
+	doc := unwrapDocument(root)
+	if doc == nil || doc.Kind != yaml.MappingNode {
+		return
+	}
+	for _, section := range []string{"secrets", "configs"} {
+		_, sectionNode := override.FindKey(doc, section)
+		if sectionNode == nil || sectionNode.Kind != yaml.MappingNode {
+			continue
+		}
+		for i := 0; i+1 < len(sectionNode.Content); i += 2 {
+			entry := sectionNode.Content[i+1]
+			if entry == nil || entry.Kind != yaml.MappingNode {
+				continue
+			}
+			_, envKey := override.FindKey(entry, "environment")
+			if envKey == nil || envKey.Kind != yaml.ScalarNode {
+				continue
+			}
+			if v, ok := ctx.Env[envKey.Value]; ok {
+				override.SetKey(entry, types.SecretConfigXValue, override.NewScalar(v))
+			}
+		}
 	}
 }
 

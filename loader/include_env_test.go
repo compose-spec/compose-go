@@ -73,3 +73,52 @@ include:
 	// include's env_file and resolved against the included file's dir.
 	assert.Equal(t, secret.File, filepath.Join(subdir, "mysecret.txt"))
 }
+
+// TestInclude_EnvFile_ResolvesEnvironmentBackedSecret reproduces the exact
+// docker/compose TestSecretFromInclude scenario: an included file declares
+// a secret using `environment: VAR` where VAR is only provided by
+// include.env_file. The loader must materialise the secret's value in the
+// project so the runtime can mount it without re-reading the parent env.
+func TestInclude_EnvFile_ResolvesEnvironmentBackedSecret(t *testing.T) {
+	tmpdir := t.TempDir()
+	childdir := filepath.Join(tmpdir, "child")
+	assert.NilError(t, os.MkdirAll(childdir, 0o755))
+
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "secret.env"), []byte("MY_SECRET=this-is-secret\n"), 0o644))
+
+	childYaml := `
+services:
+  included:
+    image: alpine
+    secrets:
+      - my-secret
+    command: cat /run/secrets/my-secret
+secrets:
+  my-secret:
+    environment: MY_SECRET
+`
+	assert.NilError(t, os.WriteFile(filepath.Join(childdir, "compose.yaml"), []byte(childYaml), 0o644))
+
+	topYaml := `
+include:
+  - path: child/compose.yaml
+    env_file:
+      - secret.env
+`
+	topPath := filepath.Join(tmpdir, "compose.yaml")
+	assert.NilError(t, os.WriteFile(topPath, []byte(topYaml), 0o644))
+
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir:  tmpdir,
+		ConfigFiles: []types.ConfigFile{{Filename: topPath}},
+		Environment: map[string]string{},
+	}, withProjectName("test-include-env-secret", true))
+	assert.NilError(t, err)
+
+	secret, ok := p.Secrets["my-secret"]
+	assert.Assert(t, ok, "secret 'my-secret' missing from project")
+	assert.Equal(t, secret.Environment, "MY_SECRET")
+	// The loader must have captured MY_SECRET=this-is-secret from the
+	// include.env_file so the runtime can mount the secret.
+	assert.Equal(t, secret.Content, "this-is-secret")
+}
