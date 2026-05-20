@@ -51,7 +51,9 @@ services:
 	_, app := override.FindKey(services, "app")
 	_, build := override.FindKey(app, "build")
 	_, ctx := override.FindKey(build, "context")
-	assert.Equal(t, ctx.Value, filepath.Join(tmpdir, "image"))
+	// pathRewriter expresses the resolved path relative to the main
+	// working directory; here tmpdir == mainWD so the result is "image".
+	assert.Equal(t, ctx.Value, "image")
 }
 
 func TestResolvePathsPass_PreservesAbsolutePath(t *testing.T) {
@@ -106,7 +108,7 @@ services:
 	assert.Equal(t, ctx.Value, "https://github.com/example/repo.git")
 }
 
-func TestResolvePathsPass_EnvFileNotResolvedAtThisPass(t *testing.T) {
+func TestResolvePathsPass_EnvFileResolvedRelativeToContext(t *testing.T) {
 	tmpdir := t.TempDir()
 	p := filepath.Join(tmpdir, "compose.yaml")
 	src := `
@@ -120,7 +122,7 @@ services:
 	m := newComposeModel(types.ConfigDetails{
 		WorkingDir:  tmpdir,
 		ConfigFiles: []types.ConfigFile{{Filename: p}},
-	}, &Options{})
+	}, &Options{ResolvePaths: true})
 	assert.NilError(t, m.parseLayers(m.configDetails))
 	m.resolvePathsPass(m.layers[0].Root)
 
@@ -128,9 +130,9 @@ services:
 	_, services := override.FindKey(root, "services")
 	_, app := override.FindKey(services, "app")
 	_, envFile := override.FindKey(app, "env_file")
-	// env_file.path must remain relative — it is resolved on demand by
-	// WithServicesEnvironmentResolved using EnvFile.Context.
-	assert.Equal(t, envFile.Content[0].Value, "./vars.env")
+	// env_file is rewritten by the path pass; with tmpdir == mainWD the
+	// result is "vars.env" relative to the project root.
+	assert.Equal(t, envFile.Content[0].Value, "vars.env")
 }
 
 func TestResolvePathsPass_BuildContextOfIncludedService(t *testing.T) {
@@ -167,25 +169,30 @@ include:
 	_, build := override.FindKey(included, "build")
 	_, ctx := override.FindKey(build, "context")
 	// The included build.context is resolved against the included file's
-	// directory (sub), NOT against the top-level working directory.
-	assert.Equal(t, ctx.Value, filepath.Join(subdir, "local"))
+	// directory (sub) and then expressed relative to the main working
+	// directory (tmpdir), so the result is "sub/local".
+	assert.Equal(t, ctx.Value, filepath.Join("sub", "local"))
 }
 
-func TestResolveShortVolume_RewritesBindSource(t *testing.T) {
-	tmpdir := t.TempDir()
+func TestConvertShortVolume_ProducesLongSyntax(t *testing.T) {
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "./data:/var/data", Tag: "!!str"}
-	rewrite := func(value string, ctx *types.NodeContext) string {
-		return filepath.Join(ctx.WorkingDir, value)
-	}
-	resolveShortVolume(node, &types.NodeContext{WorkingDir: tmpdir}, rewrite)
-	assert.Equal(t, node.Value, filepath.Join(tmpdir, "data")+":/var/data")
+	got := convertShortVolume(node, &types.NodeContext{WorkingDir: "/tmp"}, nil)
+	assert.Assert(t, got != nil, "expected a long-syntax replacement node")
+	_, typ := override.FindKey(got, "type")
+	assert.Equal(t, typ.Value, types.VolumeTypeBind)
+	_, src := override.FindKey(got, "source")
+	// Source is left relative; resolveLongVolume rewrites it during the
+	// path resolution walk so it is rewritten only once.
+	assert.Equal(t, src.Value, "./data")
+	_, tgt := override.FindKey(got, "target")
+	assert.Equal(t, tgt.Value, "/var/data")
 }
 
-func TestResolveShortVolume_LeavesNamedVolumeAlone(t *testing.T) {
+func TestConvertShortVolume_LeavesNamedVolumeAlone(t *testing.T) {
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "mydata:/var/data", Tag: "!!str"}
 	rewrite := func(value string, ctx *types.NodeContext) string {
 		return filepath.Join(ctx.WorkingDir, value)
 	}
-	resolveShortVolume(node, &types.NodeContext{WorkingDir: "/wd"}, rewrite)
-	assert.Equal(t, node.Value, "mydata:/var/data")
+	got := convertShortVolume(node, &types.NodeContext{WorkingDir: "/wd"}, rewrite)
+	assert.Assert(t, got == nil, "named volumes should not be converted")
 }

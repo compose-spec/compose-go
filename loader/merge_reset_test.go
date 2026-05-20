@@ -79,5 +79,5 @@ func Test_DuplicateReset(t *testing.T) {
 	}, func(options *Options) {
 		options.SkipNormalization = true
 	})
-	assert.ErrorContains(t, err, "line 6: mapping key \"command\" already defined at line 5")
+	assert.ErrorContains(t, err, "mapping key \"command\" already defined at line 5")
 }

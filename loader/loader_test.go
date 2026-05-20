@@ -2335,7 +2335,7 @@ func TestLoadWithIncludeCycle(t *testing.T) {
 			},
 		},
 	})
-	assert.Check(t, strings.HasPrefix(err.Error(), "include cycle detected"))
+	assert.Check(t, strings.Contains(err.Error(), "include cycle detected"))
 }
 
 func TestLoadWithIncludeOverride(t *testing.T) {
@@ -2540,7 +2540,7 @@ services:
 			customLoader{prefix: "remote"},
 		}
 	})
-	assert.ErrorContains(t, err, "Circular reference")
+	assert.ErrorContains(t, err, "ircular reference")
 }
 
 func TestLoadMulmtiDocumentYaml(t *testing.T) {

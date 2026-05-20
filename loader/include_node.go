@@ -145,6 +145,12 @@ func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entr
 				return nil, err
 			}
 		}
+		// Pre-inject build.context defaults on the included tree so they are
+		// resolved against the included file's working directory rather than
+		// the main project directory. The legacy loader does this implicitly
+		// because it runs transform.SetDefaultValues + ResolveRelativePaths on
+		// the included dict before merging it into the main one.
+		injectBuildContextDefault(node)
 		layers = append(layers, layer)
 	}
 	return layers, nil

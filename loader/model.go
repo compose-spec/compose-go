@@ -67,22 +67,22 @@ func newComposeModel(configDetails types.ConfigDetails, opts *Options) *ComposeM
 // Calling registerNodes on a tree that already has entries is a no-op for
 // nodes that already carry a context (more specific contexts win).
 func (m *ComposeModel) registerNodes(node *yaml.Node, ctx *types.NodeContext) {
-	m.registerNodesVisited(node, ctx, map[*yaml.Node]bool{})
+	m.registerNodesVisited(node, ctx, false, map[*yaml.Node]bool{})
 }
 
-func (m *ComposeModel) registerNodesVisited(node *yaml.Node, ctx *types.NodeContext, visited map[*yaml.Node]bool) {
+func (m *ComposeModel) registerNodesVisited(node *yaml.Node, ctx *types.NodeContext, force bool, visited map[*yaml.Node]bool) {
 	if node == nil || visited[node] {
 		return
 	}
 	visited[node] = true
-	if _, set := m.contexts[node]; !set {
+	if _, set := m.contexts[node]; force || !set {
 		m.contexts[node] = ctx
 	}
 	for _, child := range node.Content {
-		m.registerNodesVisited(child, ctx, visited)
+		m.registerNodesVisited(child, ctx, force, visited)
 	}
 	if node.Alias != nil {
-		m.registerNodesVisited(node.Alias, ctx, visited)
+		m.registerNodesVisited(node.Alias, ctx, force, visited)
 	}
 }
 

@@ -78,6 +78,21 @@ func (m *ComposeModel) Resolve(ctx context.Context) (*yaml.Node, map[string]any,
 	override.StripResetTags(merged)
 	override.EnforceUnicityNode(merged, tree.NewPath())
 
+	// yaml/v4 leaves merge keys (`<<: *anchor`) in the Node tree; the
+	// schema would reject them as "additional properties". Inline them
+	// before validation.
+	if err := resolveMergeKeys(merged); err != nil {
+		return nil, nil, err
+	}
+
+	// Inject `build.context: .` default for services that still have a
+	// build mapping without an explicit context after the merge. The new
+	// scalar is anchored to the main NodeContext so path resolution treats
+	// it as a main-project relative path (mirrors the legacy behaviour
+	// where transform.SetDefaultValues + paths.ResolveRelativePaths anchor
+	// the default at the project working directory).
+	m.injectMissingBuildContext(merged)
+
 	if !m.opts.SkipInterpolation && len(m.layers) > 0 {
 		if err := m.interpolateTree(merged, tree.NewPath(), m.layers[0].Context); err != nil {
 			return nil, nil, err
@@ -93,7 +108,11 @@ func (m *ComposeModel) Resolve(ctx context.Context) (*yaml.Node, map[string]any,
 
 	if !m.opts.SkipValidation {
 		if err := schema.ValidateNode(merged); err != nil {
-			return nil, nil, fmt.Errorf("validating compose model: %w", err)
+			source := firstSource(m.layers)
+			if source == "" {
+				source = "compose model"
+			}
+			return nil, nil, fmt.Errorf("validating %s: %w", source, err)
 		}
 	}
 
@@ -139,6 +158,77 @@ func (m *ComposeModel) mergeLayers() (*yaml.Node, error) {
 		return nil, err
 	}
 	return root, nil
+}
+
+// injectMissingBuildContext adds `context: .` to every `build:` mapping
+// that has no `context` key in the merged tree. The inserted scalar is
+// registered with the main project context so the path resolution pass
+// anchors it at configDetails.WorkingDir, matching the legacy semantics
+// where transform.SetDefaultValues + paths.ResolveRelativePaths add and
+// resolve the default at the project root.
+func (m *ComposeModel) injectMissingBuildContext(root *yaml.Node) {
+	if len(m.layers) == 0 {
+		return
+	}
+	mainCtx := m.layers[len(m.layers)-1].Context
+	doc := unwrapDocument(root)
+	if doc == nil || doc.Kind != yaml.MappingNode {
+		return
+	}
+	_, services := override.FindKey(doc, "services")
+	if services == nil || services.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(services.Content); i += 2 {
+		svc := services.Content[i+1]
+		if svc == nil || svc.Kind != yaml.MappingNode {
+			continue
+		}
+		_, build := override.FindKey(svc, "build")
+		if build == nil || build.Kind != yaml.MappingNode {
+			continue
+		}
+		if _, ctx := override.FindKey(build, "context"); ctx != nil {
+			continue
+		}
+		ctxNode := override.NewScalar(".")
+		m.contexts[ctxNode] = mainCtx
+		override.SetKey(build, "context", ctxNode)
+	}
+}
+
+// injectBuildContextDefault adds `context: .` to every `build:` mapping that
+// has no `context` key so the path resolution pass can rewrite it against
+// the build node's own NodeContext.WorkingDir. Mirrors what
+// transform.defaultBuildContext does in the legacy post-merge pipeline.
+//
+// Used by applyIncludeNodes on a freshly loaded included tree to ensure the
+// default context is anchored at the included file's working directory
+// (not the main project directory) — matching the legacy behaviour where
+// SetDefaultValues runs on the included dict before it is merged into the
+// main one.
+func injectBuildContextDefault(root *yaml.Node) {
+	doc := unwrapDocument(root)
+	if doc == nil || doc.Kind != yaml.MappingNode {
+		return
+	}
+	_, services := override.FindKey(doc, "services")
+	if services == nil || services.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(services.Content); i += 2 {
+		svc := services.Content[i+1]
+		if svc == nil || svc.Kind != yaml.MappingNode {
+			continue
+		}
+		_, build := override.FindKey(svc, "build")
+		if build == nil || build.Kind != yaml.MappingNode {
+			continue
+		}
+		if _, ctx := override.FindKey(build, "context"); ctx == nil {
+			override.SetKey(build, "context", override.NewScalar("."))
+		}
+	}
 }
 
 func firstSource(layers []*Layer) string {

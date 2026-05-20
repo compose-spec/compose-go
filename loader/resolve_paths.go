@@ -44,6 +44,9 @@ var resolvablePathPatterns = []tree.Path{
 	"services.*.label_file",   // scalar shorthand: `label_file: ./foo.label`
 	"services.*.label_file.*", // sequence of scalars
 	"services.*.label_file.*.path",
+	"services.*.env_file",   // scalar shorthand: `env_file: ./foo.env`
+	"services.*.env_file.*", // sequence of scalars
+	"services.*.env_file.*.path",
 	"services.*.extends.file",
 	"services.*.develop.watch.*.path",
 	"configs.*.file",
@@ -69,6 +72,17 @@ func (m *ComposeModel) resolvePathsPass(root *yaml.Node) {
 
 // pathRewriter returns the function used to rewrite a scalar path value
 // given the NodeContext attached to its node.
+//
+// The output is always expressed relative to the main project working
+// directory: that way, when the post-merge legacy pass calls
+// paths.ResolveRelativePaths with the same main working directory, the
+// rewrite is either a no-op (path already absolute) or a Join+Clean of a
+// relative path against the project root, exactly as the legacy loader
+// produced it.
+//
+// When ResolvePaths is false we don't touch paths that originate in the
+// main layer (NodeContext.Parent == nil) so callers asking for "no path
+// resolution" keep their main paths verbatim, matching legacy behaviour.
 func (m *ComposeModel) pathRewriter() func(value string, ctx *types.NodeContext) string {
 	mainWD := m.configDetails.WorkingDir
 	return func(value string, ctx *types.NodeContext) string {
@@ -85,9 +99,6 @@ func (m *ComposeModel) pathRewriter() func(value string, ctx *types.NodeContext)
 			return value
 		}
 		abs := filepath.Join(ctx.WorkingDir, value)
-		if m.opts.ResolvePaths {
-			return abs
-		}
 		rel, err := filepath.Rel(mainWD, abs)
 		if err != nil {
 			return abs
@@ -127,7 +138,7 @@ func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited 
 		}
 	case yaml.SequenceNode:
 		if p.Matches("services.*.volumes") {
-			for _, item := range node.Content {
+			for i, item := range node.Content {
 				if item.Kind != yaml.ScalarNode {
 					continue
 				}
@@ -135,7 +146,9 @@ func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited 
 				if c, ok := m.contexts[item]; ok {
 					itemCtx = c
 				}
-				resolveShortVolume(item, itemCtx, rewrite)
+				if replacement := convertShortVolume(item, itemCtx, rewrite); replacement != nil {
+					node.Content[i] = replacement
+				}
 			}
 		}
 		for _, child := range node.Content {
@@ -152,27 +165,44 @@ func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited 
 	}
 }
 
-// resolveShortVolume rewrites the source part of a short-syntax volume
-// scalar ("./local:/app:ro"). Anonymous and named volumes are left alone.
-func resolveShortVolume(node *yaml.Node, ctx *types.NodeContext, rewrite func(string, *types.NodeContext) string) {
+// convertShortVolume turns a short-syntax bind volume scalar
+// ("./local:/app:ro") into its long-syntax mapping equivalent while
+// preserving the relative source path. The conversion is needed because
+// the downstream transform.Canonical pass would otherwise invoke
+// format.ParseVolume after the source has been rewritten to a project-
+// relative path that isFilePath might no longer recognise as bind, and
+// the volume would end up classified as a named volume.
+//
+// The source path is left as-is. The caller's resolveLongVolume pass
+// rewrites it exactly once, using the NodeContext attached to the new
+// source scalar (which we register here to mirror the original).
+//
+// Returns nil when the scalar is not a bind path (named volume, anonymous
+// volume, parse error, source already absolute), so the caller leaves the
+// node in place.
+func convertShortVolume(node *yaml.Node, ctx *types.NodeContext, _ func(string, *types.NodeContext) string) *yaml.Node {
 	if ctx == nil || node.Value == "" {
-		return
+		return nil
 	}
 	vol, err := format.ParseVolume(node.Value)
 	if err != nil {
-		return
+		return nil
 	}
 	if vol.Type != types.VolumeTypeBind || vol.Source == "" {
-		return
+		return nil
 	}
-	if filepath.IsAbs(vol.Source) || path.IsAbs(vol.Source) {
-		return
+	pairs := []override.KeyValue{
+		{Key: "type", Value: override.NewScalar(types.VolumeTypeBind)},
+		{Key: "source", Value: override.NewScalar(vol.Source)},
+		{Key: "target", Value: override.NewScalar(vol.Target)},
+		{Key: "bind", Value: override.NewMapping(override.KeyValue{
+			Key: "create_host_path", Value: &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"},
+		})},
 	}
-	rewritten := rewrite(vol.Source, ctx)
-	if rewritten == vol.Source {
-		return
+	if vol.ReadOnly {
+		pairs = append(pairs, override.KeyValue{Key: "read_only", Value: &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!bool", Value: "true"}})
 	}
-	node.Value = strings.Replace(node.Value, vol.Source, rewritten, 1)
+	return override.NewMapping(pairs...)
 }
 
 // resolveLongVolume rewrites the source key of a long-syntax bind volume

@@ -76,20 +76,29 @@ func unwrapDocument(node *yaml.Node) *yaml.Node {
 // mappings become map[string]any, sequences become []any, scalars become
 // typed primitives (string, int, float64, bool, nil).
 func nodeToInterface(node *yaml.Node) (any, error) {
+	return nodeToInterfaceVisited(node, map[*yaml.Node]bool{})
+}
+
+func nodeToInterfaceVisited(node *yaml.Node, visited map[*yaml.Node]bool) (any, error) {
 	if node == nil {
 		return nil, nil
+	}
+	if visited[node] {
+		return nil, fmt.Errorf("cycle detected at line %d column %d", node.Line, node.Column)
 	}
 	switch node.Kind {
 	case yaml.DocumentNode:
 		if len(node.Content) == 0 {
 			return nil, nil
 		}
-		return nodeToInterface(node.Content[0])
+		return nodeToInterfaceVisited(node.Content[0], visited)
 	case yaml.MappingNode:
+		visited[node] = true
+		defer delete(visited, node)
 		m := make(map[string]any, len(node.Content)/2)
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key := node.Content[i].Value
-			val, err := nodeToInterface(node.Content[i+1])
+			val, err := nodeToInterfaceVisited(node.Content[i+1], visited)
 			if err != nil {
 				return nil, err
 			}
@@ -97,9 +106,11 @@ func nodeToInterface(node *yaml.Node) (any, error) {
 		}
 		return m, nil
 	case yaml.SequenceNode:
+		visited[node] = true
+		defer delete(visited, node)
 		out := make([]any, 0, len(node.Content))
 		for _, c := range node.Content {
-			v, err := nodeToInterface(c)
+			v, err := nodeToInterfaceVisited(c, visited)
 			if err != nil {
 				return nil, err
 			}
@@ -110,7 +121,7 @@ func nodeToInterface(node *yaml.Node) (any, error) {
 		return scalarValue(node), nil
 	case yaml.AliasNode:
 		if node.Alias != nil {
-			return nodeToInterface(node.Alias)
+			return nodeToInterfaceVisited(node.Alias, visited)
 		}
 		return nil, nil
 	}

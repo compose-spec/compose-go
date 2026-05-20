@@ -323,34 +323,35 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 // LoadWithContext reads a ConfigDetails and returns a fully loaded
 // configuration as a compose-go Project.
 //
-// The Project is produced by the legacy map-based pipeline (loadYamlModel
-// + ModelToProject) so existing Compose semantics are preserved bit for
-// bit. In parallel, the v3 yaml.Node based pipeline runs to build a
-// per-node loading context: that context is then attached to each
-// EnvFile.Context so WithServicesEnvironmentResolved can honour the
-// include hierarchy when resolving env_file paths and interpolating their
-// content.
+// It runs the v3 yaml.Node based pipeline (parse, extends, include, merge,
+// interpolate, paths, schema validation), bridges to the legacy map-based
+// post-merge suite for SetDefaultValues, Canonical, OmitEmpty,
+// EnforceUnicity, validation and Normalize, then decodes via
+// ModelToProject. EnvFile.Context entries are attached after decoding so
+// WithServicesEnvironmentResolved can honour the include hierarchy.
 func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	opts := ToOptions(&configDetails, options)
+	model, merged, dict, err := loadV3(ctx, &configDetails, opts)
+	if err != nil {
+		return nil, err
+	}
+	dict, err = postMergeLegacy(ctx, dict, configDetails, opts)
+	if err != nil {
+		return nil, err
+	}
 
 	// Defer WithServicesEnvironmentResolved so we can attach EnvFile.Context
 	// entries first; the resolver depends on them to find env files declared
 	// inside included services.
 	resolveEnv := !opts.SkipResolveEnvironment
 	opts.SkipResolveEnvironment = true
-	dict, err := loadModelWithContext(ctx, &configDetails, opts)
-	if err != nil {
-		return nil, err
-	}
 	project, err := ModelToProject(dict, opts, configDetails)
 	opts.SkipResolveEnvironment = !resolveEnv
 	if err != nil {
 		return nil, err
 	}
 
-	if model, merged, mErr := buildContextModel(ctx, configDetails, options); mErr == nil && model != nil {
-		model.attachEnvFileContexts(merged, project)
-	}
+	model.attachEnvFileContexts(merged, project)
 
 	if resolveEnv {
 		project, err = project.WithServicesEnvironmentResolved(opts.discardEnvFiles)
@@ -361,46 +362,14 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	return project, nil
 }
 
-// buildContextModel runs the v3 yaml.Node pipeline solely to produce the
-// per-node NodeContext map. It is best-effort: any error is swallowed by
-// the caller (LoadWithContext) because the legacy pipeline has already
-// produced a valid Project; the worst case is that EnvFile.Context entries
-// stay nil and WithServicesEnvironmentResolved falls back to its pre-v3
-// behaviour.
-func buildContextModel(ctx context.Context, configDetails types.ConfigDetails, options []func(*Options)) (*ComposeModel, *yaml.Node, error) {
-	cdCopy := configDetails
-	cdCopy.ConfigFiles = append([]types.ConfigFile(nil), configDetails.ConfigFiles...)
-	opts := ToOptions(&cdCopy, options)
-	opts.SkipValidation = true
-	opts.SkipNormalization = true
-	opts.SkipConsistencyCheck = true
-	// The legacy pipeline already notified user-supplied listeners
-	// (extends, include, …). The context-only run must stay silent so they
-	// are not invoked twice.
-	opts.Listeners = nil
-	model, merged, _, err := loadV3(ctx, &cdCopy, opts)
-	if err != nil {
-		return nil, nil, err
-	}
-	return model, merged, nil
-}
-
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
 func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (map[string]any, error) {
 	opts := ToOptions(&configDetails, options)
-	return loadModelWithContext(ctx, &configDetails, opts)
-}
-
-// loadModelWithContext is the legacy map[string]any loader entry point used
-// by both LoadWithContext (for the actual Project) and LoadModelWithContext.
-func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (map[string]any, error) {
-	if len(configDetails.ConfigFiles) < 1 {
-		return nil, errors.New("no compose file specified")
-	}
-	if err := projectName(configDetails, opts); err != nil {
+	_, _, dict, err := loadV3(ctx, &configDetails, opts)
+	if err != nil {
 		return nil, err
 	}
-	return load(ctx, *configDetails, opts, nil)
+	return postMergeLegacy(ctx, dict, configDetails, opts)
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
@@ -578,39 +547,6 @@ func loadYamlFile(ctx context.Context,
 		}
 	}
 	return dict, processor, nil
-}
-
-func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options, loaded []string) (map[string]interface{}, error) {
-	mainFile := configDetails.ConfigFiles[0].Filename
-	for _, f := range loaded {
-		if f == mainFile {
-			loaded = append(loaded, mainFile)
-			return nil, fmt.Errorf("include cycle detected:\n%s\n include %s", loaded[0], strings.Join(loaded[1:], "\n include "))
-		}
-	}
-
-	dict, err := loadYamlModel(ctx, configDetails, opts, &cycleTracker{}, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(dict) == 0 {
-		return nil, errors.New("empty compose file")
-	}
-
-	if !opts.SkipValidation && opts.projectName == "" {
-		return nil, errors.New("project name must not be empty")
-	}
-
-	if !opts.SkipNormalization {
-		dict["name"] = opts.projectName
-		dict, err = Normalize(dict, configDetails.Environment)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return dict, nil
 }
 
 // ModelToProject binds a canonical yaml dict into compose-go structs
