@@ -1,0 +1,6 @@
+include:
+  - path: sub/compose.yaml
+    env_file: sub/local.env
+services:
+  app:
+    env_file: override.env

@@ -579,6 +579,11 @@ func (o OptOut) IsZero() bool {
 	return bool(o)
 }
 
+// IsTrue returns the effective boolean value carried by the OptOut.
+func (o OptOut) IsTrue() bool {
+	return bool(o)
+}
+
 // SELinux represents the SELinux re-labeling options.
 const (
 	// SELinuxShared option indicates that the bind mount content is shared among multiple containers
