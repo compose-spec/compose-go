@@ -27,26 +27,31 @@ import (
 	"go.yaml.in/yaml/v4"
 )
 
-// parseLayers reads every ConfigFile in details and turns it into a Layer
-// attached to a per-file NodeContext (Source = filename, WorkingDir = the
-// project working dir, Env = the project environment). Each node of each
-// parsed tree is registered in the model's contexts map.
+// parseLayers reads every ConfigFile in details and turns it into one or
+// more Layers attached to a per-file NodeContext (Source = filename,
+// WorkingDir = the project working dir, Env = the project environment).
+// A single ConfigFile that contains multiple yaml documents (separated by
+// `---`) is expanded into one Layer per document, in declaration order, so
+// each later document overrides the previous one through the merge pass.
+// Each node of each parsed tree is registered in the model's contexts map.
 func (m *ComposeModel) parseLayers(details types.ConfigDetails) error {
 	for _, file := range details.ConfigFiles {
-		node, err := loadYamlFileNode(file)
+		docs, err := loadYamlFileNodes(file)
 		if err != nil {
 			return err
 		}
-		if node == nil {
+		if len(docs) == 0 {
 			continue
 		}
-		ctx := &types.NodeContext{
-			Source:     file.Filename,
-			WorkingDir: details.WorkingDir,
-			Env:        details.Environment,
+		for _, node := range docs {
+			ctx := &types.NodeContext{
+				Source:     file.Filename,
+				WorkingDir: details.WorkingDir,
+				Env:        details.Environment,
+			}
+			m.layers = append(m.layers, &Layer{Root: node, Context: ctx})
+			m.registerNodes(node, ctx)
 		}
-		m.layers = append(m.layers, &Layer{Root: node, Context: ctx})
-		m.registerNodes(node, ctx)
 		if file.Filename != "" {
 			m.loadedFiles = append(m.loadedFiles, file.Filename)
 		}
@@ -55,12 +60,29 @@ func (m *ComposeModel) parseLayers(details types.ConfigDetails) error {
 }
 
 // loadYamlFileNode reads a ConfigFile and parses it into a *yaml.Node tree.
-// The returned node is a DocumentNode wrapping the top-level mapping. Returns
-// (nil, nil) for an empty file.
+// The returned node is a DocumentNode wrapping the top-level mapping. For
+// multi-document streams this helper returns only the last document; use
+// loadYamlFileNodes when every document must be processed.
 //
 // !reset and !override tags are preserved in the tree; they are handled by
 // the merger and the post-merge cleanup pass.
 func loadYamlFileNode(file types.ConfigFile) (*yaml.Node, error) {
+	docs, err := loadYamlFileNodes(file)
+	if err != nil {
+		return nil, err
+	}
+	if len(docs) == 0 {
+		return nil, nil
+	}
+	return docs[len(docs)-1], nil
+}
+
+// loadYamlFileNodes reads a ConfigFile and parses every yaml document it
+// contains. A multi-document stream (typical of compose files produced by
+// `compose publish` to an OCI artifact, which packs the main file and every
+// override into a single multi-document layer) yields one *yaml.Node per
+// document. Returns nil/empty for an empty file.
+func loadYamlFileNodes(file types.ConfigFile) ([]*yaml.Node, error) {
 	content := file.Content
 	if content == nil && file.Config == nil {
 		if file.Filename == "" {
@@ -81,7 +103,7 @@ func loadYamlFileNode(file types.ConfigFile) (*yaml.Node, error) {
 	}
 
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
-	var result *yaml.Node
+	var docs []*yaml.Node
 	for {
 		var doc yaml.Node
 		if err := decoder.Decode(&doc); err != nil {
@@ -90,15 +112,41 @@ func loadYamlFileNode(file types.ConfigFile) (*yaml.Node, error) {
 			}
 			return nil, fmt.Errorf("failed to parse %s: %w", file.Filename, err)
 		}
-		result = &doc
+		// Skip empty documents (e.g. trailing `---` yields a DocumentNode
+		// whose only child is a null scalar).
+		if isEmptyDocument(&doc) {
+			continue
+		}
+		clone := doc
+		if err := checkDuplicateKeys(file.Filename, &clone); err != nil {
+			return nil, err
+		}
+		docs = append(docs, &clone)
 	}
-	if result == nil {
-		return nil, nil
+	return docs, nil
+}
+
+// isEmptyDocument reports whether a parsed DocumentNode has no usable
+// content, either because it has no children or because its sole child is
+// a null scalar. yaml/v4 emits such a document for a stream containing
+// only `---` separators with no payload between them.
+func isEmptyDocument(node *yaml.Node) bool {
+	if node == nil || node.Kind != yaml.DocumentNode {
+		return false
 	}
-	if err := checkDuplicateKeys(file.Filename, result); err != nil {
-		return nil, err
+	if len(node.Content) == 0 {
+		return true
 	}
-	return result, nil
+	for _, c := range node.Content {
+		if c == nil {
+			continue
+		}
+		if c.Kind == yaml.ScalarNode && (c.Tag == "!!null" || c.Value == "") {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // checkDuplicateKeys recursively walks a yaml tree and returns an error if
