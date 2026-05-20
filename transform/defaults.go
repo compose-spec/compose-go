@@ -17,7 +17,7 @@
 package transform
 
 import (
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 // DefaultValues contains the default value transformers for compose fields

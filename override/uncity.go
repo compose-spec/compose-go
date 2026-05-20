@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/compose-spec/compose-go/v2/format"
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/format"
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 type indexer func(any, tree.Path) (string, error)

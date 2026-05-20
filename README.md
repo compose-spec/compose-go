@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/compose-spec/compose-go/v2/cli"
+	"github.com/compose-spec/compose-go/v3/cli"
 )
 
 func main() {

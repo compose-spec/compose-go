@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 func transformSSH(data any, p tree.Path, _ bool) (any, error) {

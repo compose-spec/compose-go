@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/compose-spec/compose-go/v2/cli"
+	"github.com/compose-spec/compose-go/v3/cli"
 	"go.yaml.in/yaml/v4"
 )
 

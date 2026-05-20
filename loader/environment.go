@@ -19,7 +19,7 @@ package loader
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/types"
 )
 
 // ResolveEnvironment update the environment variables for the format {- VAR} (without interpolation)

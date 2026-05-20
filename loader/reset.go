@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/tree"
 	"go.yaml.in/yaml/v4"
 )
 

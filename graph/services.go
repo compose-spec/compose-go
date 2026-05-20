@@ -20,7 +20,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/types"
 )
 
 // InDependencyOrder walk the service graph an invoke VisitorFn in respect to dependency order
