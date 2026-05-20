@@ -35,7 +35,7 @@ Validates a compose file conforms to the Compose Specification
 Usage: compose-spec [OPTIONS] COMPOSE_FILE [COMPOSE_OVERRIDE_FILE]`)
 	}
 
-	var skipInterpolation, skipResolvePaths, skipNormalization, skipConsistencyCheck bool
+	var skipInterpolation, skipResolvePaths, skipNormalization, skipConsistencyCheck, debug bool
 	var format string
 
 	flag.BoolVar(&skipInterpolation, "no-interpolation", false, "Don't interpolate environment variables.")
@@ -43,6 +43,7 @@ Usage: compose-spec [OPTIONS] COMPOSE_FILE [COMPOSE_OVERRIDE_FILE]`)
 	flag.BoolVar(&skipNormalization, "no-normalization", false, "Don't normalize compose model.")
 	flag.BoolVar(&skipConsistencyCheck, "no-consistency", false, "Don't check model consistency.")
 	flag.StringVar(&format, "format", "yaml", "Output format (yaml|json).")
+	flag.BoolVar(&debug, "debug", false, "Annotate the YAML output with `source:line` comments for every leaf that did not come from the main config file.")
 	flag.Parse()
 
 	wd, err := os.Getwd()
@@ -63,6 +64,18 @@ Usage: compose-spec [OPTIONS] COMPOSE_FILE [COMPOSE_OVERRIDE_FILE]`)
 	)
 	if err != nil {
 		exitError("failed to configure project options", err)
+	}
+
+	if debug {
+		if format != "yaml" {
+			exitError("--debug requires --format=yaml", fmt.Errorf("got --format=%s", format))
+		}
+		raw, err := options.LoadAnnotatedYaml(context.Background())
+		if err != nil {
+			exitError("failed to load project", err)
+		}
+		fmt.Println(string(raw))
+		return
 	}
 
 	model, err := options.LoadModel(context.Background())

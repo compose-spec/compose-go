@@ -478,6 +478,17 @@ func (o *ProjectOptions) LoadModel(ctx context.Context) (map[string]any, error) 
 	return loader.LoadModelWithContext(ctx, *configDetails, o.loadOptions...)
 }
 
+// LoadAnnotatedYaml loads compose files and returns the merged yaml tree
+// serialized with provenance comments on every leaf that did not come from
+// the main config file. Intended for diagnostic / debugging output.
+func (o *ProjectOptions) LoadAnnotatedYaml(ctx context.Context) ([]byte, error) {
+	configDetails, err := o.prepare(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return loader.LoadAnnotatedYaml(ctx, *configDetails, o.loadOptions...)
+}
+
 // prepare converts ProjectOptions into loader's types.ConfigDetails and configures default load options
 func (o *ProjectOptions) prepare(ctx context.Context) (*types.ConfigDetails, error) {
 	defaultDir, err := o.GetWorkingDir()
