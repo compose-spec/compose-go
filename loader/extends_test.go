@@ -208,7 +208,7 @@ services:
 		options.ResolvePaths = false
 		options.SkipValidation = true
 	})
-	assert.Error(t, err, "extends.test.service is required")
+	assert.ErrorContains(t, err, "extends.test.service is required")
 }
 
 func TestIncludeWithExtends(t *testing.T) {

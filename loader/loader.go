@@ -320,14 +320,69 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 	return config, nil
 }
 
-// LoadWithContext reads a ConfigDetails and returns a fully loaded configuration as a compose-go Project
+// LoadWithContext reads a ConfigDetails and returns a fully loaded
+// configuration as a compose-go Project.
+//
+// The Project is produced by the legacy map-based pipeline (loadYamlModel
+// + ModelToProject) so existing Compose semantics are preserved bit for
+// bit. In parallel, the v3 yaml.Node based pipeline runs to build a
+// per-node loading context: that context is then attached to each
+// EnvFile.Context so WithServicesEnvironmentResolved can honour the
+// include hierarchy when resolving env_file paths and interpolating their
+// content.
 func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	opts := ToOptions(&configDetails, options)
+
+	// Defer WithServicesEnvironmentResolved so we can attach EnvFile.Context
+	// entries first; the resolver depends on them to find env files declared
+	// inside included services.
+	resolveEnv := !opts.SkipResolveEnvironment
+	opts.SkipResolveEnvironment = true
 	dict, err := loadModelWithContext(ctx, &configDetails, opts)
 	if err != nil {
 		return nil, err
 	}
-	return ModelToProject(dict, opts, configDetails)
+	project, err := ModelToProject(dict, opts, configDetails)
+	opts.SkipResolveEnvironment = !resolveEnv
+	if err != nil {
+		return nil, err
+	}
+
+	if model, merged, mErr := buildContextModel(ctx, configDetails, options); mErr == nil && model != nil {
+		model.attachEnvFileContexts(merged, project)
+	}
+
+	if resolveEnv {
+		project, err = project.WithServicesEnvironmentResolved(opts.discardEnvFiles)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return project, nil
+}
+
+// buildContextModel runs the v3 yaml.Node pipeline solely to produce the
+// per-node NodeContext map. It is best-effort: any error is swallowed by
+// the caller (LoadWithContext) because the legacy pipeline has already
+// produced a valid Project; the worst case is that EnvFile.Context entries
+// stay nil and WithServicesEnvironmentResolved falls back to its pre-v3
+// behaviour.
+func buildContextModel(ctx context.Context, configDetails types.ConfigDetails, options []func(*Options)) (*ComposeModel, *yaml.Node, error) {
+	cdCopy := configDetails
+	cdCopy.ConfigFiles = append([]types.ConfigFile(nil), configDetails.ConfigFiles...)
+	opts := ToOptions(&cdCopy, options)
+	opts.SkipValidation = true
+	opts.SkipNormalization = true
+	opts.SkipConsistencyCheck = true
+	// The legacy pipeline already notified user-supplied listeners
+	// (extends, include, …). The context-only run must stay silent so they
+	// are not invoked twice.
+	opts.Listeners = nil
+	model, merged, _, err := loadV3(ctx, &cdCopy, opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	return model, merged, nil
 }
 
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
@@ -336,17 +391,15 @@ func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails
 	return loadModelWithContext(ctx, &configDetails, opts)
 }
 
-// LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
+// loadModelWithContext is the legacy map[string]any loader entry point used
+// by both LoadWithContext (for the actual Project) and LoadModelWithContext.
 func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (map[string]any, error) {
 	if len(configDetails.ConfigFiles) < 1 {
 		return nil, errors.New("no compose file specified")
 	}
-
-	err := projectName(configDetails, opts)
-	if err != nil {
+	if err := projectName(configDetails, opts); err != nil {
 		return nil, err
 	}
-
 	return load(ctx, *configDetails, opts, nil)
 }
 

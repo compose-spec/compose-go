@@ -37,9 +37,12 @@ import (
 // per-EnvFile loading context (including variables provided by an enclosing
 // include.env_file) for both their path and their content interpolation.
 var resolvablePathPatterns = []tree.Path{
-	"services.*.build.context",
+	"services.*.build",         // short syntax: `build: ./local`
+	"services.*.build.context", // long syntax
 	"services.*.build.additional_contexts.*",
-	"services.*.label_file",
+	"services.*.build.ssh.*",
+	"services.*.label_file",   // scalar shorthand: `label_file: ./foo.label`
+	"services.*.label_file.*", // sequence of scalars
 	"services.*.label_file.*.path",
 	"services.*.extends.file",
 	"services.*.develop.watch.*.path",
@@ -48,14 +51,52 @@ var resolvablePathPatterns = []tree.Path{
 }
 
 // resolvePathsPass walks the given tree and rewrites every relative path
-// found at a resolvable location into an absolute one. Volume sources
-// (short and long syntax) are handled separately because they are not plain
-// scalar paths.
+// found at a resolvable location. Volume sources (short and long syntax)
+// are handled separately because they are not plain scalar paths.
+//
+// Behaviour matches the legacy loader:
+//   - when the loader option ResolvePaths is true (the default), every
+//     resolvable path is rewritten to an absolute path against the per-node
+//     WorkingDir;
+//   - when ResolvePaths is false, paths that come from an included or
+//     extends file (their NodeContext has a Parent) are still rewritten,
+//     but expressed relative to the main working directory so the result
+//     matches what the legacy loader produced.
 func (m *ComposeModel) resolvePathsPass(root *yaml.Node) {
-	m.resolvePathsWalk(root, tree.NewPath(), m.contextFor(root))
+	rewrite := m.pathRewriter()
+	m.resolvePathsWalk(root, tree.NewPath(), m.contextFor(root), rewrite)
 }
 
-func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited *types.NodeContext) {
+// pathRewriter returns the function used to rewrite a scalar path value
+// given the NodeContext attached to its node.
+func (m *ComposeModel) pathRewriter() func(value string, ctx *types.NodeContext) string {
+	mainWD := m.configDetails.WorkingDir
+	return func(value string, ctx *types.NodeContext) string {
+		if ctx == nil || value == "" {
+			return value
+		}
+		if strings.Contains(value, "://") {
+			return value
+		}
+		if filepath.IsAbs(value) || path.IsAbs(value) {
+			return value
+		}
+		if !m.opts.ResolvePaths && ctx.Parent == nil {
+			return value
+		}
+		abs := filepath.Join(ctx.WorkingDir, value)
+		if m.opts.ResolvePaths {
+			return abs
+		}
+		rel, err := filepath.Rel(mainWD, abs)
+		if err != nil {
+			return abs
+		}
+		return rel
+	}
+}
+
+func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited *types.NodeContext, rewrite func(string, *types.NodeContext) string) {
 	if node == nil {
 		return
 	}
@@ -67,11 +108,11 @@ func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited 
 	switch node.Kind {
 	case yaml.DocumentNode:
 		for _, child := range node.Content {
-			m.resolvePathsWalk(child, p, ctx)
+			m.resolvePathsWalk(child, p, ctx, rewrite)
 		}
 	case yaml.MappingNode:
 		if p.Matches("services.*.volumes.*") {
-			resolveLongVolume(node, ctx)
+			resolveLongVolume(node, ctx, rewrite)
 		}
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key := node.Content[i]
@@ -82,7 +123,7 @@ func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited 
 			} else if c, ok := m.contexts[key]; ok {
 				childCtx = c
 			}
-			m.resolvePathsWalk(val, p.Next(key.Value), childCtx)
+			m.resolvePathsWalk(val, p.Next(key.Value), childCtx, rewrite)
 		}
 	case yaml.SequenceNode:
 		if p.Matches("services.*.volumes") {
@@ -94,43 +135,26 @@ func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited 
 				if c, ok := m.contexts[item]; ok {
 					itemCtx = c
 				}
-				resolveShortVolume(item, itemCtx)
+				resolveShortVolume(item, itemCtx, rewrite)
 			}
 		}
 		for _, child := range node.Content {
-			m.resolvePathsWalk(child, p.Next(tree.PathMatchList), ctx)
+			m.resolvePathsWalk(child, p.Next(tree.PathMatchList), ctx, rewrite)
 		}
 	case yaml.ScalarNode:
 		for _, pattern := range resolvablePathPatterns {
 			if !p.Matches(pattern) {
 				continue
 			}
-			rewriteScalarPath(node, ctx)
+			node.Value = rewrite(node.Value, ctx)
 			return
 		}
 	}
 }
 
-// rewriteScalarPath turns a relative path scalar into an absolute one using
-// ctx.WorkingDir. Empty values, remote URLs (containing "://") and values
-// already absolute on Posix or Windows-style filesystems are left alone.
-func rewriteScalarPath(node *yaml.Node, ctx *types.NodeContext) {
-	if ctx == nil || node.Value == "" {
-		return
-	}
-	if strings.Contains(node.Value, "://") {
-		return
-	}
-	if filepath.IsAbs(node.Value) || path.IsAbs(node.Value) {
-		return
-	}
-	node.Value = filepath.Join(ctx.WorkingDir, node.Value)
-}
-
 // resolveShortVolume rewrites the source part of a short-syntax volume
-// scalar ("./local:/app:ro") if it is a relative bind path. Anonymous and
-// named volumes are left alone.
-func resolveShortVolume(node *yaml.Node, ctx *types.NodeContext) {
+// scalar ("./local:/app:ro"). Anonymous and named volumes are left alone.
+func resolveShortVolume(node *yaml.Node, ctx *types.NodeContext, rewrite func(string, *types.NodeContext) string) {
 	if ctx == nil || node.Value == "" {
 		return
 	}
@@ -144,13 +168,16 @@ func resolveShortVolume(node *yaml.Node, ctx *types.NodeContext) {
 	if filepath.IsAbs(vol.Source) || path.IsAbs(vol.Source) {
 		return
 	}
-	abs := filepath.Join(ctx.WorkingDir, vol.Source)
-	node.Value = strings.Replace(node.Value, vol.Source, abs, 1)
+	rewritten := rewrite(vol.Source, ctx)
+	if rewritten == vol.Source {
+		return
+	}
+	node.Value = strings.Replace(node.Value, vol.Source, rewritten, 1)
 }
 
 // resolveLongVolume rewrites the source key of a long-syntax bind volume
-// mapping when it holds a relative path. Other volume types are left alone.
-func resolveLongVolume(node *yaml.Node, ctx *types.NodeContext) {
+// mapping. Other volume types are left alone.
+func resolveLongVolume(node *yaml.Node, ctx *types.NodeContext, rewrite func(string, *types.NodeContext) string) {
 	if ctx == nil || node.Kind != yaml.MappingNode {
 		return
 	}
@@ -162,8 +189,5 @@ func resolveLongVolume(node *yaml.Node, ctx *types.NodeContext) {
 	if src == nil || src.Kind != yaml.ScalarNode || src.Value == "" {
 		return
 	}
-	if filepath.IsAbs(src.Value) || path.IsAbs(src.Value) {
-		return
-	}
-	src.Value = filepath.Join(ctx.WorkingDir, src.Value)
+	src.Value = rewrite(src.Value, ctx)
 }

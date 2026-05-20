@@ -687,11 +687,11 @@ func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project
 
 		environment := service.Environment.ToMapping()
 		for _, envFile := range service.EnvFiles {
-			ef := envFile
-			if ef.Context != nil && !filepath.IsAbs(ef.Path) {
-				ef.Path = filepath.Join(ef.Context.WorkingDir, ef.Path)
-			}
-			err := loadEnvFile(ef, environment, func(k string) (string, bool) {
+			// EnvFile.Path is already resolved by the loader's path pass.
+			// Context is used here only to enrich the interpolation lookup
+			// with variables provided by an enclosing include.env_file
+			// which the project-level environment does not see.
+			err := loadEnvFile(envFile, environment, func(k string) (string, bool) {
 				// project.env has precedence doing interpolation
 				if resolve, ok := p.Environment.Resolve(k); ok {
 					return resolve, true

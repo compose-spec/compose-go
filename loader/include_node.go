@@ -40,7 +40,8 @@ import (
 func (m *ComposeModel) applyIncludeNodes(ctx context.Context) error {
 	var expanded []*Layer
 	for _, layer := range m.layers {
-		out, err := m.expandIncludesOf(ctx, layer)
+		chain := []string{layer.Context.Source}
+		out, err := m.expandIncludesOf(ctx, layer, chain)
 		if err != nil {
 			return err
 		}
@@ -53,7 +54,12 @@ func (m *ComposeModel) applyIncludeNodes(ctx context.Context) error {
 // expandIncludesOf processes the include directive of a single layer,
 // recursively expanding any include declared inside an included file. The
 // returned slice is ordered from deepest include to layer itself.
-func (m *ComposeModel) expandIncludesOf(ctx context.Context, layer *Layer) ([]*Layer, error) {
+//
+// chain is the running list of file paths currently being expanded along
+// the include nesting branch. It is used to detect a true cycle (a file
+// that includes itself, possibly through intermediates) without flagging a
+// file that legitimately appears twice in two unrelated include branches.
+func (m *ComposeModel) expandIncludesOf(ctx context.Context, layer *Layer, chain []string) ([]*Layer, error) {
 	root := unwrapDocument(layer.Root)
 	_, includeNode := override.FindKey(root, "include")
 	if includeNode == nil {
@@ -64,12 +70,12 @@ func (m *ComposeModel) expandIncludesOf(ctx context.Context, layer *Layer) ([]*L
 	}
 	var out []*Layer
 	for _, entry := range includeNode.Content {
-		incLayers, err := m.loadIncludeEntry(ctx, layer, entry)
+		incLayers, err := m.loadIncludeEntry(ctx, layer, entry, chain)
 		if err != nil {
 			return nil, err
 		}
 		for _, incLayer := range incLayers {
-			nested, err := m.expandIncludesOf(ctx, incLayer)
+			nested, err := m.expandIncludesOf(ctx, incLayer, append(chain, incLayer.Context.Source))
 			if err != nil {
 				return nil, err
 			}
@@ -84,7 +90,7 @@ func (m *ComposeModel) expandIncludesOf(ctx context.Context, layer *Layer) ([]*L
 // loadIncludeEntry parses a single include entry and returns the new Layers.
 // An entry may be a scalar (a single path) or a mapping (path / paths,
 // project_directory, env_file).
-func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entry *yaml.Node) ([]*Layer, error) {
+func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entry *yaml.Node, chain []string) ([]*Layer, error) {
 	paths, projectDir, envFiles, err := readIncludeEntry(entry)
 	if err != nil {
 		return nil, wrapNodeErr(parent.Context, entry, err)
@@ -98,7 +104,7 @@ func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entr
 		paths[i] = resolved
 	}
 
-	if err := m.detectIncludeCycle(paths); err != nil {
+	if err := detectIncludeCycle(chain, paths); err != nil {
 		return nil, wrapNodeErr(parent.Context, entry, err)
 	}
 
@@ -206,19 +212,20 @@ func (m *ComposeModel) resolveIncludePath(ctx context.Context, parent *Layer, p 
 	return p, nil
 }
 
-func (m *ComposeModel) detectIncludeCycle(paths []string) error {
+// detectIncludeCycle returns a non-nil error when one of paths already
+// appears in the current expansion chain — i.e. an include is about to load
+// a file that is an ancestor of the current include site. A file legitimately
+// reused across two unrelated include branches is not a cycle.
+func detectIncludeCycle(chain, paths []string) error {
 	for _, p := range paths {
-		for _, loaded := range m.loadedFiles {
-			if loaded != p {
+		for _, in := range chain {
+			if in != p {
 				continue
 			}
-			chain := append([]string{}, m.loadedFiles[1:]...)
-			chain = append(chain, p)
-			start := ""
-			if len(m.loadedFiles) > 0 {
-				start = m.loadedFiles[0]
-			}
-			return fmt.Errorf("include cycle detected:\n%s\n include %s", start, strings.Join(chain, "\n include "))
+			full := append([]string{}, chain...)
+			full = append(full, p)
+			return fmt.Errorf("include cycle detected:\n%s\n include %s",
+				full[0], strings.Join(full[1:], "\n include "))
 		}
 	}
 	return nil

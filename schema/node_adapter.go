@@ -19,10 +19,28 @@ package schema
 import (
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 
 	"go.yaml.in/yaml/v4"
 )
+
+const (
+	maxInt = int64(math.MaxInt)
+	minInt = int64(math.MinInt)
+)
+
+// NodeToInterface converts a yaml.Node tree into the same untyped Go
+// representation that json.Unmarshal into interface{} would produce:
+// mappings become map[string]any, sequences become []any, scalars become
+// typed primitives (string, int, float64, bool, nil).
+//
+// Exposed so the loader can bridge between its yaml.Node based pipeline
+// (which preserves per-node context) and code paths that still operate on
+// map[string]any (transform.Canonical, Normalize, mapstructure decode).
+func NodeToInterface(node *yaml.Node) (any, error) {
+	return nodeToInterface(node)
+}
 
 // ValidateNode validates a yaml.Node tree against the Compose JSON Schema.
 // It is the yaml.Node based counterpart of Validate, intended for the v3
@@ -113,7 +131,14 @@ func scalarValue(node *yaml.Node) any {
 		}
 		return node.Value
 	case "!!int":
+		// Match what yaml.Unmarshal into interface{} produces: an int when
+		// the value fits, otherwise int64. Many downstream consumers
+		// (transform.Canonical helpers, mapstructure decoders) switch on
+		// int rather than int64.
 		if n, err := strconv.ParseInt(node.Value, 0, 64); err == nil {
+			if n >= minInt && n <= maxInt {
+				return int(n)
+			}
 			return n
 		}
 		return node.Value

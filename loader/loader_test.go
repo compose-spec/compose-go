@@ -966,7 +966,8 @@ services:
 		options.ResolvePaths = false
 	})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, configWithEnvFiles.Services["web"].EnvFiles, []types.EnvFile{
+	gotEnvFiles := stripEnvFileContexts(configWithEnvFiles.Services["web"].EnvFiles)
+	assert.DeepEqual(t, gotEnvFiles, []types.EnvFile{
 		{
 			Path:     "example1.env",
 			Required: true,
@@ -1613,7 +1614,32 @@ networks:
 }
 
 func assertEqual(t *testing.T, config *types.Project, expected *types.Project) {
-	assert.DeepEqual(t, config, expected, cmpopts.EquateEmpty(), cmpopts.IgnoreUnexported(types.SecretConfig{}), cmpopts.IgnoreUnexported(types.ConfigObjConfig{}))
+	assert.DeepEqual(t, config, expected,
+		cmpopts.EquateEmpty(),
+		cmpopts.IgnoreUnexported(types.SecretConfig{}),
+		cmpopts.IgnoreUnexported(types.ConfigObjConfig{}),
+		cmpopts.IgnoreFields(types.EnvFile{}, "Context"),
+	)
+}
+
+// stripEnvFileContexts returns a copy of envFiles with each Context cleared,
+// for tests that compare EnvFile values element by element. The Context is
+// populated by the v3 loader pipeline and is irrelevant to most assertions.
+func stripEnvFileContexts(envFiles []types.EnvFile) []types.EnvFile {
+	out := make([]types.EnvFile, len(envFiles))
+	for i, ef := range envFiles {
+		ef.Context = nil
+		out[i] = ef
+	}
+	return out
+}
+
+// assertServicesEqual is a DeepEqual helper that ignores EnvFile.Context, a
+// loader-populated diagnostic field irrelevant to most assertions on the
+// shape of the resulting Services map.
+func assertServicesEqual(t *testing.T, got, want types.Services) {
+	t.Helper()
+	assert.DeepEqual(t, got, want, cmpopts.IgnoreFields(types.EnvFile{}, "Context"))
 }
 
 func TestComposeFileWithVersion(t *testing.T) {
@@ -1675,7 +1701,7 @@ func TestLoadWithExtends(t *testing.T) {
 			}},
 		},
 	}
-	assert.Check(t, is.DeepEqual(expServices, actual.Services))
+	assert.Check(t, is.DeepEqual(expServices, actual.Services, cmpopts.IgnoreFields(types.EnvFile{}, "Context")))
 }
 
 func TestLoadWithExtendsWithContextUrl(t *testing.T) {
@@ -2166,7 +2192,7 @@ volumes:
   '0': {}
 `)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Services, types.Services{
+	assertServicesEqual(t, p.Services, types.Services{
 		"foo": {
 			Name:        "foo",
 			Image:       "busybox",
@@ -2236,7 +2262,7 @@ services:
 		options.ResolvePaths = true
 	})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Services, types.Services{
+	assertServicesEqual(t, p.Services, types.Services{
 		"foo": {
 			Name:        "foo",
 			Image:       "busybox",
@@ -2377,7 +2403,7 @@ services:
         required: true
 `)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Services, types.Services{
+	assertServicesEqual(t, p.Services, types.Services{
 		"foo": {
 			Name:        "foo",
 			Image:       "nginx",
@@ -2435,7 +2461,7 @@ services:
 		}
 	})
 	assert.NilError(t, err)
-	assert.DeepEqual(t, p.Services, types.Services{
+	assertServicesEqual(t, p.Services, types.Services{
 		"foo": {
 			Name:        "foo",
 			Image:       "foo",

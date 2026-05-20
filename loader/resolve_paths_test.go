@@ -42,7 +42,7 @@ services:
 	m := newComposeModel(types.ConfigDetails{
 		WorkingDir:  tmpdir,
 		ConfigFiles: []types.ConfigFile{{Filename: path}},
-	}, &Options{})
+	}, &Options{ResolvePaths: true})
 	assert.NilError(t, m.parseLayers(m.configDetails))
 	m.resolvePathsPass(m.layers[0].Root)
 
@@ -156,7 +156,7 @@ include:
 	m := newComposeModel(types.ConfigDetails{
 		WorkingDir:  tmpdir,
 		ConfigFiles: []types.ConfigFile{{Filename: topPath}},
-	}, &Options{SkipExtends: true})
+	}, &Options{SkipExtends: true, ResolvePaths: true})
 	assert.NilError(t, m.parseLayers(m.configDetails))
 	assert.NilError(t, m.applyIncludeNodes(context.TODO()))
 	m.resolvePathsPass(m.layers[0].Root)
@@ -174,12 +174,18 @@ include:
 func TestResolveShortVolume_RewritesBindSource(t *testing.T) {
 	tmpdir := t.TempDir()
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "./data:/var/data", Tag: "!!str"}
-	resolveShortVolume(node, &types.NodeContext{WorkingDir: tmpdir})
+	rewrite := func(value string, ctx *types.NodeContext) string {
+		return filepath.Join(ctx.WorkingDir, value)
+	}
+	resolveShortVolume(node, &types.NodeContext{WorkingDir: tmpdir}, rewrite)
 	assert.Equal(t, node.Value, filepath.Join(tmpdir, "data")+":/var/data")
 }
 
 func TestResolveShortVolume_LeavesNamedVolumeAlone(t *testing.T) {
 	node := &yaml.Node{Kind: yaml.ScalarNode, Value: "mydata:/var/data", Tag: "!!str"}
-	resolveShortVolume(node, &types.NodeContext{WorkingDir: "/wd"})
+	rewrite := func(value string, ctx *types.NodeContext) string {
+		return filepath.Join(ctx.WorkingDir, value)
+	}
+	resolveShortVolume(node, &types.NodeContext{WorkingDir: "/wd"}, rewrite)
 	assert.Equal(t, node.Value, "mydata:/var/data")
 }
