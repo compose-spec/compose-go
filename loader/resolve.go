@@ -70,6 +70,20 @@ func (m *ComposeModel) Resolve(ctx context.Context) (*yaml.Node, map[string]any,
 	// NodeContext.Env, including variables provided by include.env_file.
 	m.resolveBareEnvironmentRefs()
 
+	// Interpolate each layer separately before merging so that variable
+	// references declared in an included or extends layer are resolved
+	// against that layer's own NodeContext.Env. Doing it after merge would
+	// risk losing the per-include environment for nodes whose ancestor was
+	// reshaped by a specialized merger (e.g. mergeBuildNode wrapping a
+	// scalar in a {context: …} mapping with a freshly created parent).
+	if !m.opts.SkipInterpolation {
+		for _, layer := range m.layers {
+			if err := m.interpolateTree(layer.Root, tree.NewPath(), layer.Context); err != nil {
+				return nil, nil, err
+			}
+		}
+	}
+
 	merged, err := m.mergeLayers()
 	if err != nil {
 		return nil, nil, err
@@ -92,12 +106,6 @@ func (m *ComposeModel) Resolve(ctx context.Context) (*yaml.Node, map[string]any,
 	// where transform.SetDefaultValues + paths.ResolveRelativePaths anchor
 	// the default at the project working directory).
 	m.injectMissingBuildContext(merged)
-
-	if !m.opts.SkipInterpolation && len(m.layers) > 0 {
-		if err := m.interpolateTree(merged, tree.NewPath(), m.layers[0].Context); err != nil {
-			return nil, nil, err
-		}
-	}
 
 	// Always invoke the path pass. Even when ResolvePaths is false the pass
 	// still rewrites paths that came from an included or extends file so they

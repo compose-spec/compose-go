@@ -116,6 +116,15 @@ func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entr
 		workDir = filepath.Join(parent.Context.WorkingDir, workDir)
 	}
 
+	// Notify user-supplied listeners that an include is being processed.
+	// The legacy loader emits this event for each include entry; some
+	// consumers (e.g. docker compose publish) rely on it to refuse
+	// publishing when local includes are present.
+	m.opts.ProcessEvent("include", map[string]any{
+		"path":       paths,
+		"workingdir": workDir,
+	})
+
 	env, err := m.computeIncludeEnv(parent, envFiles)
 	if err != nil {
 		return nil, wrapNodeErr(parent.Context, entry, err)
