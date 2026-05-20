@@ -95,6 +95,12 @@ func (m *ComposeModel) pathRewriter() func(value string, ctx *types.NodeContext)
 		if filepath.IsAbs(value) || path.IsAbs(value) {
 			return value
 		}
+		// Build contexts and additional_contexts accept references to
+		// remote sources (git URLs, github.com/, docker-image://, ...).
+		// Leave those unchanged.
+		if isRemoteContextRef(value) {
+			return value
+		}
 		if !m.opts.ResolvePaths && ctx.Parent == nil {
 			return value
 		}
@@ -105,6 +111,17 @@ func (m *ComposeModel) pathRewriter() func(value string, ctx *types.NodeContext)
 		}
 		return rel
 	}
+}
+
+// isRemoteContextRef mirrors paths.isRemoteContext: any of the buildkit-
+// recognised remote prefixes should be passed through untouched.
+func isRemoteContextRef(v string) bool {
+	for _, prefix := range []string{"https://", "http://", "git://", "ssh://", "github.com/", "git@"} {
+		if strings.HasPrefix(v, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func (m *ComposeModel) resolvePathsWalk(node *yaml.Node, p tree.Path, inherited *types.NodeContext, rewrite func(string, *types.NodeContext) string) {
