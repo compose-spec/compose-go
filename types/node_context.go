@@ -16,6 +16,12 @@
 
 package types
 
+import (
+	"fmt"
+
+	"go.yaml.in/yaml/v4"
+)
+
 // NodeContext captures the loading context of a yaml node parsed from a
 // Compose file. It records where the node came from, which directory should
 // be used to resolve its relative paths, and which environment variables
@@ -44,7 +50,8 @@ type NodeContext struct {
 
 // Origin pairs a NodeContext with a position inside the source file. It is
 // returned by diagnostic APIs (Project.OriginOf, Project.Origins) to point
-// back to the location where a value was defined.
+// back to the location where a value was defined and is the building block
+// for source-aware error messages.
 type Origin struct {
 	// Source is the yaml file path.
 	Source string
@@ -52,4 +59,37 @@ type Origin struct {
 	Line int
 	// Column is the 1-based column number in Source.
 	Column int
+}
+
+// String renders the Origin as "<source>:<line>:<column>". Empty positions
+// are omitted: an Origin with no Source returns "" and one with no Line
+// returns just the source path.
+func (o Origin) String() string {
+	switch {
+	case o.Source == "":
+		return ""
+	case o.Line <= 0:
+		return o.Source
+	case o.Column <= 0:
+		return fmt.Sprintf("%s:%d", o.Source, o.Line)
+	default:
+		return fmt.Sprintf("%s:%d:%d", o.Source, o.Line, o.Column)
+	}
+}
+
+// OriginAt combines this context with the position of the given yaml.Node and
+// returns the resulting Origin. A nil context yields an Origin without source.
+func (c *NodeContext) OriginAt(node *yaml.Node) Origin {
+	if c == nil {
+		if node == nil {
+			return Origin{}
+		}
+		return Origin{Line: node.Line, Column: node.Column}
+	}
+	o := Origin{Source: c.Source}
+	if node != nil {
+		o.Line = node.Line
+		o.Column = node.Column
+	}
+	return o
 }

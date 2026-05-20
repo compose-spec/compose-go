@@ -98,7 +98,7 @@ func (m *ComposeModel) interpolateScalar(node *yaml.Node, p tree.Path, ctx *type
 
 	substituted, err := template.Substitute(node.Value, template.Mapping(lookup))
 	if err != nil {
-		return err
+		return wrapNodeErr(ctx, node, err)
 	}
 
 	for pattern, caster := range interpolateTypeCastMapping {
@@ -107,7 +107,7 @@ func (m *ComposeModel) interpolateScalar(node *yaml.Node, p tree.Path, ctx *type
 		}
 		casted, castErr := caster(substituted)
 		if castErr != nil {
-			return fmt.Errorf("%s: failed to cast %q: %w", p, substituted, castErr)
+			return nodeErrf(ctx, node, "%s: failed to cast %q: %v", p, substituted, castErr)
 		}
 		switch casted.(type) {
 		case bool:

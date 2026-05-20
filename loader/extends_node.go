@@ -66,7 +66,7 @@ func (m *ComposeModel) resolveServiceExtends(ctx context.Context, layer *Layer, 
 	}
 	chain = append(chain, chainID)
 
-	_, svcNode := override.FindKey(services, name)
+	keyNode, svcNode := override.FindKey(services, name)
 	if svcNode == nil {
 		return nil
 	}
@@ -78,14 +78,14 @@ func (m *ComposeModel) resolveServiceExtends(ctx context.Context, layer *Layer, 
 
 	refService, refFile, err := readExtendsRef(extendsNode, name)
 	if err != nil {
-		return err
+		return wrapNodeErr(layer.Context, extendsNode, err)
 	}
 	m.opts.ProcessEvent("extends", extendsEventMetadata(refService, refFile))
 
 	var baseService *yaml.Node
 
 	if refFile != "" {
-		baseService, err = m.loadExtendsBaseFromFile(ctx, layer, refFile, refService, chain)
+		baseService, err = m.loadExtendsBaseFromFile(ctx, layer, extendsNode, refFile, refService, chain)
 		if err != nil {
 			return err
 		}
@@ -95,14 +95,14 @@ func (m *ComposeModel) resolveServiceExtends(ctx context.Context, layer *Layer, 
 		}
 		_, baseService = override.FindKey(services, refService)
 		if baseService == nil {
-			return fmt.Errorf("service %q not found in extends", refService)
+			return nodeErrf(layer.Context, extendsNode, "service %q not found in extends", refService)
 		}
 	}
 
 	baseClone := m.deepCloneNode(baseService)
 	merged, err := override.ExtendServiceNode(baseClone, svcNode)
 	if err != nil {
-		return fmt.Errorf("extending service %s: %w", name, err)
+		return nodeErrf(layer.Context, keyNode, "extending service %s: %v", name, err)
 	}
 	override.DeleteKey(merged, "extends")
 	override.SetKey(services, name, merged)
@@ -142,7 +142,9 @@ func extendsEventMetadata(service, file string) map[string]any {
 // loadExtendsBaseFromFile loads refFile, registers its nodes with their own
 // NodeContext (WorkingDir = dir(refFile)), recursively resolves the base
 // service's own extends, and returns the resolved base service node.
-func (m *ComposeModel) loadExtendsBaseFromFile(ctx context.Context, layer *Layer, refFile, refService string, chain []string) (*yaml.Node, error) {
+// origin is the extends node in the calling layer; it is used to anchor error
+// messages to the location that triggered the load.
+func (m *ComposeModel) loadExtendsBaseFromFile(ctx context.Context, layer *Layer, origin *yaml.Node, refFile, refService string, chain []string) (*yaml.Node, error) {
 	filePath := refFile
 	for _, loader := range m.opts.RemoteResourceLoaders() {
 		if loader.Accept(refFile) {
@@ -160,10 +162,10 @@ func (m *ComposeModel) loadExtendsBaseFromFile(ctx context.Context, layer *Layer
 
 	extNode, err := loadYamlFileNode(types.ConfigFile{Filename: filePath})
 	if err != nil {
-		return nil, fmt.Errorf("loading extends file %s: %w", refFile, err)
+		return nil, nodeErrf(layer.Context, origin, "loading extends file %s: %v", refFile, err)
 	}
 	if extNode == nil {
-		return nil, fmt.Errorf("extends file %s is empty", refFile)
+		return nil, nodeErrf(layer.Context, origin, "extends file %s is empty", refFile)
 	}
 
 	extCtx := &types.NodeContext{
@@ -177,11 +179,11 @@ func (m *ComposeModel) loadExtendsBaseFromFile(ctx context.Context, layer *Layer
 	extRoot := unwrapDocument(extNode)
 	_, extServices := override.FindKey(extRoot, "services")
 	if extServices == nil {
-		return nil, fmt.Errorf("extends file %s has no services", refFile)
+		return nil, nodeErrf(layer.Context, origin, "extends file %s has no services", refFile)
 	}
 	_, baseService := override.FindKey(extServices, refService)
 	if baseService == nil {
-		return nil, fmt.Errorf("service %q not found in %s", refService, refFile)
+		return nil, nodeErrf(layer.Context, origin, "service %q not found in %s", refService, refFile)
 	}
 
 	extLayer := &Layer{Root: extNode, Context: extCtx}

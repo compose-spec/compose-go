@@ -60,7 +60,7 @@ func (m *ComposeModel) expandIncludesOf(ctx context.Context, layer *Layer) ([]*L
 		return []*Layer{layer}, nil
 	}
 	if includeNode.Kind != yaml.SequenceNode {
-		return nil, fmt.Errorf("%s: include must be a sequence", layer.Context.Source)
+		return nil, nodeErrf(layer.Context, includeNode, "include must be a sequence")
 	}
 	var out []*Layer
 	for _, entry := range includeNode.Content {
@@ -87,19 +87,19 @@ func (m *ComposeModel) expandIncludesOf(ctx context.Context, layer *Layer) ([]*L
 func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entry *yaml.Node) ([]*Layer, error) {
 	paths, projectDir, envFiles, err := readIncludeEntry(entry)
 	if err != nil {
-		return nil, err
+		return nil, wrapNodeErr(parent.Context, entry, err)
 	}
 
 	for i, p := range paths {
 		resolved, err := m.resolveIncludePath(ctx, parent, p)
 		if err != nil {
-			return nil, err
+			return nil, wrapNodeErr(parent.Context, entry, err)
 		}
 		paths[i] = resolved
 	}
 
 	if err := m.detectIncludeCycle(paths); err != nil {
-		return nil, err
+		return nil, wrapNodeErr(parent.Context, entry, err)
 	}
 
 	workDir := projectDir
@@ -112,7 +112,7 @@ func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entr
 
 	env, err := m.computeIncludeEnv(parent, envFiles)
 	if err != nil {
-		return nil, err
+		return nil, wrapNodeErr(parent.Context, entry, err)
 	}
 
 	var layers []*Layer
@@ -120,7 +120,7 @@ func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entr
 		m.loadedFiles = append(m.loadedFiles, p)
 		node, err := loadYamlFileNode(types.ConfigFile{Filename: p})
 		if err != nil {
-			return nil, fmt.Errorf("loading include %s: %w", p, err)
+			return nil, nodeErrf(parent.Context, entry, "loading include %s: %v", p, err)
 		}
 		if node == nil {
 			continue
@@ -136,7 +136,7 @@ func (m *ComposeModel) loadIncludeEntry(ctx context.Context, parent *Layer, entr
 
 		if !m.opts.SkipExtends {
 			if err := m.applyExtendsNode(ctx, layer); err != nil {
-				return nil, fmt.Errorf("%s: %w", p, err)
+				return nil, err
 			}
 		}
 		layers = append(layers, layer)

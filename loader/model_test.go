@@ -145,7 +145,7 @@ func TestCheckNonStringKeys_Rejects(t *testing.T) {
 			{Kind: yaml.ScalarNode, Value: "x", Tag: "!!str"},
 		}},
 	}}
-	err := checkNonStringKeys(doc, "")
+	err := checkNonStringKeys("test.yaml", doc, "")
 	assert.ErrorContains(t, err, "non-string key")
 }
 
@@ -159,5 +159,5 @@ func TestCheckNonStringKeys_AcceptsTopLevelStringKeys(t *testing.T) {
 			}},
 		}},
 	}}
-	assert.NilError(t, checkNonStringKeys(doc, ""))
+	assert.NilError(t, checkNonStringKeys("test.yaml", doc, ""))
 }

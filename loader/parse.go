@@ -95,23 +95,25 @@ func loadYamlFileNode(file types.ConfigFile) (*yaml.Node, error) {
 	if result == nil {
 		return nil, nil
 	}
-	if err := checkDuplicateKeys(result); err != nil {
-		return nil, fmt.Errorf("%s: %w", file.Filename, err)
+	if err := checkDuplicateKeys(file.Filename, result); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
 
 // checkDuplicateKeys recursively walks a yaml tree and returns an error if
 // any MappingNode contains duplicate keys. yaml/v4 is permissive about this
-// (last value wins) but Compose forbids it.
-func checkDuplicateKeys(node *yaml.Node) error {
+// (last value wins) but Compose forbids it. The source filename is included
+// in error messages as "<source>:<line>:<column>: …" so users can jump to
+// the offending location.
+func checkDuplicateKeys(source string, node *yaml.Node) error {
 	if node == nil {
 		return nil
 	}
 	switch node.Kind {
 	case yaml.DocumentNode, yaml.SequenceNode:
 		for _, child := range node.Content {
-			if err := checkDuplicateKeys(child); err != nil {
+			if err := checkDuplicateKeys(source, child); err != nil {
 				return err
 			}
 		}
@@ -120,10 +122,11 @@ func checkDuplicateKeys(node *yaml.Node) error {
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key := node.Content[i]
 			if line, dup := seen[key.Value]; dup {
-				return fmt.Errorf("line %d: mapping key %q already defined at line %d", key.Line, key.Value, line)
+				origin := (&types.NodeContext{Source: source}).OriginAt(key)
+				return fmt.Errorf("%s: mapping key %q already defined at line %d", origin, key.Value, line)
 			}
 			seen[key.Value] = key.Line
-			if err := checkDuplicateKeys(node.Content[i+1]); err != nil {
+			if err := checkDuplicateKeys(source, node.Content[i+1]); err != nil {
 				return err
 			}
 		}
@@ -132,16 +135,18 @@ func checkDuplicateKeys(node *yaml.Node) error {
 }
 
 // checkNonStringKeys walks a yaml tree and returns an error if any mapping
-// key is not a string (e.g. an integer key like `123: value`). prefix is used
-// to build a human-readable location in error messages; pass "" at the root.
-func checkNonStringKeys(node *yaml.Node, prefix string) error {
+// key is not a string (e.g. an integer key like `123: value`). source is the
+// yaml file path used to anchor errors to "<source>:<line>:<column>".
+// prefix is used to build a human-readable location in error messages; pass
+// "" at the root.
+func checkNonStringKeys(source string, node *yaml.Node, prefix string) error {
 	if node == nil {
 		return nil
 	}
 	switch node.Kind {
 	case yaml.DocumentNode:
 		for _, child := range node.Content {
-			if err := checkNonStringKeys(child, prefix); err != nil {
+			if err := checkNonStringKeys(source, child, prefix); err != nil {
 				return err
 			}
 		}
@@ -154,20 +159,21 @@ func checkNonStringKeys(node *yaml.Node, prefix string) error {
 				if prefix != "" {
 					location = fmt.Sprintf("in %s", prefix)
 				}
-				return fmt.Errorf("non-string key %s: %s", location, key.Value)
+				origin := (&types.NodeContext{Source: source}).OriginAt(key)
+				return fmt.Errorf("%s: non-string key %s: %s", origin, location, key.Value)
 			}
 			childPrefix := key.Value
 			if prefix != "" {
 				childPrefix = prefix + "." + key.Value
 			}
-			if err := checkNonStringKeys(val, childPrefix); err != nil {
+			if err := checkNonStringKeys(source, val, childPrefix); err != nil {
 				return err
 			}
 		}
 	case yaml.SequenceNode:
 		for i, item := range node.Content {
 			childPrefix := fmt.Sprintf("%s[%d]", prefix, i)
-			if err := checkNonStringKeys(item, childPrefix); err != nil {
+			if err := checkNonStringKeys(source, item, childPrefix); err != nil {
 				return err
 			}
 		}
