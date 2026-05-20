@@ -672,7 +672,14 @@ func (p *Project) MarshalJSON(options ...func(*marshallOptions)) ([]byte, error)
 }
 
 // WithServicesEnvironmentResolved parses env_files set for services to resolve the actual environment map for services
-// It returns a new Project instance with the changes and keep the original Project unchanged
+// It returns a new Project instance with the changes and keep the original Project unchanged.
+//
+// When EnvFile entries carry a loading Context (populated by the loader when
+// running through the yaml.Node based pipeline), the path is resolved against
+// Context.WorkingDir and the file content can be interpolated using
+// Context.Env in addition to project and service environment. This lets an
+// env_file declared in a service of an included file pick up variables that
+// the parent include.env_file provided.
 func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project, error) {
 	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
@@ -680,7 +687,11 @@ func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project
 
 		environment := service.Environment.ToMapping()
 		for _, envFile := range service.EnvFiles {
-			err := loadEnvFile(envFile, environment, func(k string) (string, bool) {
+			ef := envFile
+			if ef.Context != nil && !filepath.IsAbs(ef.Path) {
+				ef.Path = filepath.Join(ef.Context.WorkingDir, ef.Path)
+			}
+			err := loadEnvFile(ef, environment, func(k string) (string, bool) {
 				// project.env has precedence doing interpolation
 				if resolve, ok := p.Environment.Resolve(k); ok {
 					return resolve, true
@@ -688,6 +699,12 @@ func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project
 				// then service.environment
 				if s, ok := service.Environment[k]; ok && s != nil {
 					return *s, true
+				}
+				// finally, variables provided by an enclosing include.env_file
+				if envFile.Context != nil {
+					if v, ok := envFile.Context.Env.Resolve(k); ok {
+						return v, true
+					}
 				}
 				return "", false
 			})

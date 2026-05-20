@@ -20,4 +20,15 @@ type EnvFile struct {
 	Path     string `yaml:"path,omitempty" json:"path,omitempty"`
 	Required OptOut `yaml:"required,omitempty" json:"required,omitzero"`
 	Format   string `yaml:"format,omitempty" json:"format,omitempty"`
+
+	// Context preserves the yaml loading context for this entry:
+	//   - WorkingDir: base directory to resolve Path
+	//   - Env:        variables available to interpolate the file content,
+	//                 including variables provided by an enclosing
+	//                 include.env_file
+	//   - Source:     yaml file where this env_file entry was declared
+	//
+	// Populated by the loader when running through the yaml.Node based
+	// pipeline. Excluded from YAML and JSON serialization.
+	Context *NodeContext `yaml:"-" json:"-"`
 }
