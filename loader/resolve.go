@@ -98,6 +98,15 @@ func (m *ComposeModel) Resolve(ctx context.Context) error {
 		return err
 	}
 
+	// Drop the obsolete `version` key (warn about it on the source file
+	// that introduced it). Mirrors what the legacy loadYamlFile did in
+	// the map-based pipeline; we run it on the merged tree to cover the
+	// case where only one of several layers carries the key.
+	if _, v := override.FindKey(merged, "version"); v != nil {
+		m.opts.warnObsoleteVersion(firstSource(m.layers))
+		override.DeleteKey(merged, "version")
+	}
+
 	// Inject `build.context: .` default for services that still have a
 	// build mapping without an explicit context after the merge. The new
 	// scalar is anchored to the main NodeContext so path resolution treats

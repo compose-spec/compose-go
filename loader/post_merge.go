@@ -63,11 +63,6 @@ func postMergeLegacy(_ context.Context, dict map[string]any, configDetails types
 		}
 	}
 
-	if _, ok := dict["version"]; ok {
-		opts.warnObsoleteVersion(firstFilename(configDetails))
-		delete(dict, "version")
-	}
-
 	// Resolve relative paths declared at the main project level. Paths that
 	// came from an included or extends file have already been rewritten by
 	// the v3 resolvePathsPass against their own NodeContext.WorkingDir; the
@@ -104,11 +99,4 @@ func postMergeLegacy(_ context.Context, dict map[string]any, configDetails types
 	}
 
 	return dict, nil
-}
-
-func firstFilename(c types.ConfigDetails) string {
-	if len(c.ConfigFiles) == 0 {
-		return ""
-	}
-	return c.ConfigFiles[0].Filename
 }
