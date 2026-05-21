@@ -2882,3 +2882,148 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, p.Name, "test-with-empty-file")
 }
+
+func TestWithSelectedServicesOption(t *testing.T) {
+	yaml := `
+name: test
+services:
+  web:
+    image: nginx
+  api:
+    image: alpine
+  worker:
+    image: busybox
+`
+	t.Run("empty list keeps all services", func(t *testing.T) {
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices(nil),
+		)
+		assert.NilError(t, err)
+		_, hasWeb := p.Services["web"]
+		_, hasAPI := p.Services["api"]
+		_, hasWorker := p.Services["worker"]
+		assert.Assert(t, hasWeb && hasAPI && hasWorker, "all services should remain when selection is empty")
+	})
+
+	t.Run("restricts project to selected services", func(t *testing.T) {
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		_, hasWeb := p.Services["web"]
+		_, hasAPI := p.Services["api"]
+		_, hasWorker := p.Services["worker"]
+		assert.Assert(t, hasWeb, "web should be selected")
+		assert.Assert(t, !hasAPI, "api should have been filtered out")
+		assert.Assert(t, !hasWorker, "worker should have been filtered out")
+	})
+
+	t.Run("includes dependencies of selected services", func(t *testing.T) {
+		yamlWithDeps := `
+name: test
+services:
+  web:
+    image: nginx
+    depends_on:
+      - api
+  api:
+    image: alpine
+  worker:
+    image: busybox
+`
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yamlWithDeps, nil),
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		_, hasWeb := p.Services["web"]
+		_, hasAPI := p.Services["api"]
+		_, hasWorker := p.Services["worker"]
+		assert.Assert(t, hasWeb, "web should be selected")
+		assert.Assert(t, hasAPI, "api dependency should be kept")
+		assert.Assert(t, !hasWorker, "worker should have been filtered out")
+	})
+}
+
+// TestWithSelectedServicesOption_SkipsMissingEnvFile ensures that a `env_file`
+// required entry referencing a missing file on a service that is NOT in the
+// selection does not cause the load to fail: the loader must apply service
+// selection before resolving environment.
+func TestWithSelectedServicesOption_SkipsMissingEnvFile(t *testing.T) {
+	yaml := `
+name: test
+services:
+  web:
+    image: nginx
+  other:
+    image: alpine
+    env_file:
+      - path: this-file-does-not-exist.env
+        required: true
+`
+	t.Run("loading without selection fails on missing env_file", func(t *testing.T) {
+		_, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil))
+		assert.ErrorContains(t, err, "this-file-does-not-exist.env")
+	})
+
+	t.Run("loading with selection ignores env_file of unselected services", func(t *testing.T) {
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		_, hasWeb := p.Services["web"]
+		_, hasOther := p.Services["other"]
+		assert.Assert(t, hasWeb)
+		assert.Assert(t, !hasOther)
+	})
+}
+
+func TestWithoutUnnecessaryResourcesOption(t *testing.T) {
+	yaml := `
+name: test
+services:
+  web:
+    image: nginx
+    networks:
+      - frontnet
+    volumes:
+      - data:/data
+  worker:
+    image: busybox
+    networks:
+      - backnet
+    volumes:
+      - tmp:/tmp
+networks:
+  frontnet:
+  backnet:
+volumes:
+  data:
+  tmp:
+`
+	t.Run("keeps all resources without pruning", func(t *testing.T) {
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		_, hasBackNet := p.Networks["backnet"]
+		_, hasTmpVol := p.Volumes["tmp"]
+		assert.Assert(t, hasBackNet, "backnet should be kept without WithoutUnnecessaryResources")
+		assert.Assert(t, hasTmpVol, "tmp volume should be kept without WithoutUnnecessaryResources")
+	})
+
+	t.Run("drops resources unreferenced by selected services", func(t *testing.T) {
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"web"}),
+			WithoutUnnecessaryResources,
+		)
+		assert.NilError(t, err)
+		_, hasFrontNet := p.Networks["frontnet"]
+		_, hasBackNet := p.Networks["backnet"]
+		_, hasDataVol := p.Volumes["data"]
+		_, hasTmpVol := p.Volumes["tmp"]
+		assert.Assert(t, hasFrontNet, "frontnet referenced by web should remain")
+		assert.Assert(t, !hasBackNet, "backnet referenced only by worker should be pruned")
+		assert.Assert(t, hasDataVol, "data volume referenced by web should remain")
+		assert.Assert(t, !hasTmpVol, "tmp volume referenced only by worker should be pruned")
+	})
+}
