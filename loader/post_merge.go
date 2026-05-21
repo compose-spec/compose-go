@@ -24,7 +24,6 @@ import (
 	"github.com/compose-spec/compose-go/v3/paths"
 	"github.com/compose-spec/compose-go/v3/transform"
 	"github.com/compose-spec/compose-go/v3/types"
-	"github.com/compose-spec/compose-go/v3/validation"
 )
 
 // postMergeLegacy applies the post-merge map-based pipeline on top of the
@@ -51,12 +50,6 @@ func postMergeLegacy(_ context.Context, dict map[string]any, configDetails types
 	if !opts.SkipDefaultValues {
 		dict, err = transform.SetDefaultValues(dict)
 		if err != nil {
-			return nil, err
-		}
-	}
-
-	if !opts.SkipValidation {
-		if err := validation.Validate(dict); err != nil {
 			return nil, err
 		}
 	}

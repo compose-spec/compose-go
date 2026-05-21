@@ -25,6 +25,7 @@ import (
 	"github.com/compose-spec/compose-go/v3/schema"
 	"github.com/compose-spec/compose-go/v3/tree"
 	"github.com/compose-spec/compose-go/v3/types"
+	"github.com/compose-spec/compose-go/v3/validation"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -134,6 +135,9 @@ func (m *ComposeModel) Resolve(ctx context.Context) error {
 				source = "compose model"
 			}
 			return fmt.Errorf("validating %s: %w", source, err)
+		}
+		if err := validation.ValidateSemantics(merged); err != nil {
+			return err
 		}
 	}
 
