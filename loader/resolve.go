@@ -115,6 +115,11 @@ func (m *ComposeModel) Resolve(ctx context.Context) error {
 	// the default at the project working directory).
 	m.injectMissingBuildContext(merged)
 
+	// Drop empty children for paths listed in omitEmptyNodePatterns
+	// (currently only services.*.dns). Replaces the legacy map-based
+	// OmitEmpty step from postMergeLegacy.
+	omitEmptyNodes(merged)
+
 	// Always invoke the path pass. Even when ResolvePaths is false the pass
 	// still rewrites paths that came from an included or extends file so they
 	// become relative to the main working directory, matching the legacy

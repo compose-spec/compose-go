@@ -43,8 +43,6 @@ func postMergeLegacy(_ context.Context, dict map[string]any, configDetails types
 		return nil, err
 	}
 
-	dict = OmitEmpty(dict)
-
 	dict, err = override.EnforceUnicity(dict)
 	if err != nil {
 		return nil, err
