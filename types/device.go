@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	"go.yaml.in/yaml/v4"
 )
 
 type DeviceRequest struct {
@@ -31,6 +33,33 @@ type DeviceRequest struct {
 }
 
 type DeviceCount int64
+
+// UnmarshalYAML decodes either an integer scalar or the string "all"
+// (case-insensitive) into a DeviceCount. Mirrors DecodeMapstructure.
+func (c *DeviceCount) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind != yaml.ScalarNode {
+		return NodeErrorf(node, "invalid node kind %d for device count", node.Kind)
+	}
+	if node.Tag == "!!int" {
+		var i int64
+		if err := node.Decode(&i); err != nil {
+			return WrapNodeError(node, err)
+		}
+		*c = DeviceCount(i)
+		return nil
+	}
+	if strings.ToLower(node.Value) == "all" {
+		*c = -1
+		return nil
+	}
+	i, err := strconv.ParseInt(node.Value, 10, 64)
+	if err != nil {
+		return NodeErrorf(node, "invalid value %q, the only value allowed is 'all' or a number", node.Value)
+	}
+	*c = DeviceCount(i)
+	return nil
+}
 
 func (c *DeviceCount) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {

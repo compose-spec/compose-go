@@ -26,6 +26,7 @@ import (
 
 	"github.com/docker/go-connections/nat"
 	"github.com/xhit/go-str2duration/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 // ServiceConfig is the configuration of one service
@@ -643,6 +644,29 @@ type FileReferenceConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+// UnmarshalYAML decodes a FileMode either as an octal string or as a numeric
+// scalar. Mirrors DecodeMapstructure.
+func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind != yaml.ScalarNode {
+		return NodeErrorf(node, "unexpected node kind %d for mode", node.Kind)
+	}
+	if node.Tag == "!!int" {
+		var i int64
+		if err := node.Decode(&i); err != nil {
+			return WrapNodeError(node, err)
+		}
+		*f = FileMode(i)
+		return nil
+	}
+	i, err := strconv.ParseInt(node.Value, 8, 64)
+	if err != nil {
+		return WrapNodeError(node, err)
+	}
+	*f = FileMode(i)
+	return nil
+}
+
 func (f *FileMode) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {
 	case *FileMode:
@@ -688,6 +712,41 @@ type UlimitsConfig struct {
 	Hard   int `yaml:"hard,omitempty" json:"hard,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+// UnmarshalYAML decodes a UlimitsConfig either as a single int (Single) or a
+// mapping with soft/hard keys.
+func (u *UlimitsConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.ScalarNode:
+		var i int
+		if err := node.Decode(&i); err != nil {
+			return WrapNodeError(node, err)
+		}
+		u.Single = i
+		u.Soft = 0
+		u.Hard = 0
+	case yaml.MappingNode:
+		u.Single = 0
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			var iv int
+			if err := v.Decode(&iv); err != nil {
+				return WrapNodeError(v, err)
+			}
+			switch k {
+			case "soft":
+				u.Soft = iv
+			case "hard":
+				u.Hard = iv
+			}
+		}
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for ulimit", node.Kind)
+	}
+	return nil
 }
 
 func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {
