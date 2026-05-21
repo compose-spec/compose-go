@@ -468,14 +468,17 @@ func (o *ProjectOptions) LoadProject(ctx context.Context) (*types.Project, error
 	return project, nil
 }
 
-// LoadModel loads compose file according to options and returns a raw (yaml tree) model
-func (o *ProjectOptions) LoadModel(ctx context.Context) (map[string]any, error) {
+// LoadModel loads compose file according to options and returns the
+// resolved ComposeModel. Use the returned model's Dict() accessor to get
+// the legacy map[string]any projection, or pass it through
+// loader.ModelToProject for the typed *types.Project.
+func (o *ProjectOptions) LoadModel(ctx context.Context) (*loader.ComposeModel, error) {
 	configDetails, err := o.prepare(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return loader.LoadModelWithContext(ctx, *configDetails, o.loadOptions...)
+	return loader.LoadModel(ctx, *configDetails, o.loadOptions...)
 }
 
 // LoadAnnotatedYaml loads compose files and returns the merged yaml tree

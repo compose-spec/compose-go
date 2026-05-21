@@ -34,7 +34,7 @@ import (
 // by LoadWithContext.
 func LoadAnnotatedYaml(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) ([]byte, error) {
 	opts := ToOptions(&configDetails, options)
-	model, merged, _, err := loadV3(ctx, &configDetails, opts)
+	model, err := load(ctx, &configDetails, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -43,9 +43,9 @@ func LoadAnnotatedYaml(ctx context.Context, configDetails types.ConfigDetails, o
 	if len(configDetails.ConfigFiles) > 0 {
 		mainSource = configDetails.ConfigFiles[0].Filename
 	}
-	annotateNonMainScalars(merged, model.contexts, mainSource, map[*yaml.Node]bool{})
+	annotateNonMainScalars(model.Merged(), model.contexts, mainSource, map[*yaml.Node]bool{})
 
-	return yaml.Marshal(merged)
+	return yaml.Marshal(model.Merged())
 }
 
 // annotateNonMainScalars walks the yaml tree and sets a LineComment on

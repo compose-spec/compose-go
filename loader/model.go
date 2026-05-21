@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"github.com/compose-spec/compose-go/v3/schema"
 	"github.com/compose-spec/compose-go/v3/types"
 	"go.yaml.in/yaml/v4"
 )
@@ -52,6 +53,40 @@ type ComposeModel struct {
 	// loadedFiles tracks absolute file paths processed so far, for cycle
 	// detection on include.
 	loadedFiles []string
+	// merged holds the result of mergeLayers + post-merge passes once
+	// Resolve has run. Nil before Resolve.
+	merged *yaml.Node
+	// dict caches the schema.NodeToInterface projection of merged. Filled
+	// lazily on first Dict() call.
+	dict map[string]any
+}
+
+// Merged returns the merged yaml.Node tree produced by Resolve. The result
+// is non-nil once Resolve has succeeded; otherwise nil.
+func (m *ComposeModel) Merged() *yaml.Node {
+	return m.merged
+}
+
+// Dict returns the merged tree as an untyped map[string]any, computed
+// lazily via schema.NodeToInterface on first call. Subsequent calls return
+// the cached value. Mutating the returned map is undefined behaviour.
+func (m *ComposeModel) Dict() map[string]any {
+	if m.dict != nil {
+		return m.dict
+	}
+	if m.merged == nil {
+		return nil
+	}
+	v, err := schema.NodeToInterface(unwrapDocument(m.merged))
+	if err != nil {
+		return nil
+	}
+	d, ok := v.(map[string]any)
+	if !ok {
+		return nil
+	}
+	m.dict = d
+	return d
 }
 
 // newComposeModel creates an empty model.

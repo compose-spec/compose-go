@@ -321,55 +321,25 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 }
 
 // LoadWithContext reads a ConfigDetails and returns a fully loaded
-// configuration as a compose-go Project.
-//
-// It runs the v3 yaml.Node based pipeline (parse, extends, include, merge,
-// interpolate, paths, schema validation), bridges to the legacy map-based
-// post-merge suite for SetDefaultValues, Canonical, OmitEmpty,
-// EnforceUnicity, validation and Normalize, then decodes via
-// ModelToProject. EnvFile.Context entries are attached after decoding so
-// WithServicesEnvironmentResolved can honour the include hierarchy.
+// configuration as a compose-go Project. It runs the v3 yaml.Node based
+// pipeline through load() then decodes the resolved ComposeModel via
+// ModelToProject.
 func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	opts := ToOptions(&configDetails, options)
-	model, merged, dict, err := loadV3(ctx, &configDetails, opts)
+	model, err := load(ctx, &configDetails, opts)
 	if err != nil {
 		return nil, err
 	}
-	dict, err = postMergeLegacy(ctx, dict, configDetails, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	// Defer WithServicesEnvironmentResolved so we can attach EnvFile.Context
-	// entries first; the resolver depends on them to find env files declared
-	// inside included services.
-	resolveEnv := !opts.SkipResolveEnvironment
-	opts.SkipResolveEnvironment = true
-	project, err := ModelToProject(dict, opts, configDetails)
-	opts.SkipResolveEnvironment = !resolveEnv
-	if err != nil {
-		return nil, err
-	}
-
-	model.attachEnvFileContexts(merged, project)
-
-	if resolveEnv {
-		project, err = project.WithServicesEnvironmentResolved(opts.discardEnvFiles)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return project, nil
+	return ModelToProject(model)
 }
 
-// LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
-func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (map[string]any, error) {
+// LoadModel reads a ConfigDetails and returns the resolved ComposeModel,
+// keeping the merged yaml.Node tree alive so callers can inspect it.
+// Use ModelToProject(model) to decode into a *types.Project, or
+// model.Dict() to obtain the untyped map projection.
+func LoadModel(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*ComposeModel, error) {
 	opts := ToOptions(&configDetails, options)
-	_, _, dict, err := loadV3(ctx, &configDetails, opts)
-	if err != nil {
-		return nil, err
-	}
-	return postMergeLegacy(ctx, dict, configDetails, opts)
+	return load(ctx, &configDetails, opts)
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
@@ -549,8 +519,24 @@ func loadYamlFile(ctx context.Context,
 	return dict, processor, nil
 }
 
-// ModelToProject binds a canonical yaml dict into compose-go structs
-func ModelToProject(dict map[string]interface{}, opts *Options, configDetails types.ConfigDetails) (*types.Project, error) {
+// ModelToProject builds a *types.Project from a resolved ComposeModel.
+// The model carries the merged yaml.Node tree, the lazy dict projection
+// and the loader options/configDetails. EnvFile.Context entries are
+// attached from the model so WithServicesEnvironmentResolved can honour
+// the include hierarchy.
+//
+// During Phase A of the refactor the map-based postMergeLegacy is still
+// applied on top of model.Dict() to keep the suite green. Phase B will
+// progressively move every postMergeLegacy step to yaml.Node, and
+// Phase E will switch the decode itself to direct yaml.Node.
+func ModelToProject(model *ComposeModel) (*types.Project, error) {
+	opts := model.opts
+	configDetails := model.configDetails
+	dict, err := postMergeLegacy(context.Background(), model.Dict(), configDetails, opts)
+	if err != nil {
+		return nil, err
+	}
+
 	project := &types.Project{
 		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
@@ -558,7 +544,6 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	}
 	delete(dict, "name") // project name set by yaml must be identified by caller as opts.projectName
 
-	var err error
 	dict, err = processExtensions(dict, tree.NewPath(), opts.KnownExtensions)
 	if err != nil {
 		return nil, err
@@ -583,11 +568,12 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	}
 
 	if !opts.SkipConsistencyCheck {
-		err := checkConsistency(project)
-		if err != nil {
+		if err := checkConsistency(project); err != nil {
 			return nil, err
 		}
 	}
+
+	model.attachEnvFileContexts(model.Merged(), project)
 
 	if !opts.SkipResolveEnvironment {
 		project, err = project.WithServicesEnvironmentResolved(opts.discardEnvFiles)

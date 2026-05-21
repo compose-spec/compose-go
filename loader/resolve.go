@@ -47,21 +47,20 @@ import (
 //     WithServicesEnvironmentResolved using EnvFile.Context)
 //  7. validate:  Compose JSON Schema validation directly on the yaml tree
 //
-// The returned dict is produced from the merged tree via NodeToInterface
-// for callers that still need a map[string]any representation (legacy
-// transform / normalize / mapstructure decode path).
-func (m *ComposeModel) Resolve(ctx context.Context) (*yaml.Node, map[string]any, error) {
+// Once Resolve returns, the merged tree is also stored on the model and
+// available through ComposeModel.Merged() and ComposeModel.Dict().
+func (m *ComposeModel) Resolve(ctx context.Context) error {
 	if !m.opts.SkipExtends {
 		for _, layer := range m.layers {
 			if err := m.applyExtendsNode(ctx, layer); err != nil {
-				return nil, nil, err
+				return err
 			}
 		}
 	}
 
 	if !m.opts.SkipInclude {
 		if err := m.applyIncludeNodes(ctx); err != nil {
-			return nil, nil, err
+			return err
 		}
 	}
 
@@ -79,14 +78,14 @@ func (m *ComposeModel) Resolve(ctx context.Context) (*yaml.Node, map[string]any,
 	if !m.opts.SkipInterpolation {
 		for _, layer := range m.layers {
 			if err := m.interpolateTree(layer.Root, tree.NewPath(), layer.Context); err != nil {
-				return nil, nil, err
+				return err
 			}
 		}
 	}
 
 	merged, err := m.mergeLayers()
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	override.StripResetTags(merged)
@@ -96,7 +95,7 @@ func (m *ComposeModel) Resolve(ctx context.Context) (*yaml.Node, map[string]any,
 	// schema would reject them as "additional properties". Inline them
 	// before validation.
 	if err := resolveMergeKeys(merged); err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	// Inject `build.context: .` default for services that still have a
@@ -120,19 +119,12 @@ func (m *ComposeModel) Resolve(ctx context.Context) (*yaml.Node, map[string]any,
 			if source == "" {
 				source = "compose model"
 			}
-			return nil, nil, fmt.Errorf("validating %s: %w", source, err)
+			return fmt.Errorf("validating %s: %w", source, err)
 		}
 	}
 
-	dictAny, err := schema.NodeToInterface(unwrapDocument(merged))
-	if err != nil {
-		return nil, nil, err
-	}
-	dict, ok := dictAny.(map[string]any)
-	if !ok {
-		return nil, nil, errors.New("top-level object must be a mapping")
-	}
-	return merged, dict, nil
+	m.merged = merged
+	return nil
 }
 
 // mergeLayers folds every Layer into a single yaml.Node mapping by applying
@@ -246,29 +238,27 @@ func firstSource(layers []*Layer) string {
 	return layers[0].Context.Source
 }
 
-// loadV3 builds the ComposeModel, runs the v3 pipeline through Resolve, and
-// returns the merged yaml.Node together with its untyped map representation.
-// Used by LoadWithContext to feed the legacy decode/normalize suite while
-// keeping the merged tree alive for the post-decode context attachment.
-func loadV3(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (*ComposeModel, *yaml.Node, map[string]any, error) {
+// load builds the ComposeModel and runs the v3 pipeline through Resolve.
+// The merged yaml.Node tree and its untyped map projection are accessible
+// on the returned model through Merged() and Dict().
+func load(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (*ComposeModel, error) {
 	if len(configDetails.ConfigFiles) < 1 {
-		return nil, nil, nil, errors.New("no compose file specified")
+		return nil, errors.New("no compose file specified")
 	}
 	if err := projectName(configDetails, opts); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	model := newComposeModel(*configDetails, opts)
 	if err := model.parseLayers(*configDetails); err != nil {
-		return nil, nil, nil, err
+		return nil, err
 	}
 	if len(model.layers) == 0 {
-		return nil, nil, nil, errors.New("empty compose file")
+		return nil, errors.New("empty compose file")
 	}
 
-	merged, dict, err := model.Resolve(ctx)
-	if err != nil {
-		return nil, nil, nil, err
+	if err := model.Resolve(ctx); err != nil {
+		return nil, err
 	}
-	return model, merged, dict, nil
+	return model, nil
 }
