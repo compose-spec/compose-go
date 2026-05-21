@@ -121,6 +121,13 @@ func (m *ComposeModel) Resolve(ctx context.Context) error {
 	// OmitEmpty step from postMergeLegacy.
 	omitEmptyNodes(merged)
 
+	// Inject the structural defaults (port protocol/mode, secret target,
+	// volume bind.create_host_path, device-request count). Replaces the
+	// transform.SetDefaultValues step in postMergeLegacy.
+	if !m.opts.SkipDefaultValues {
+		setDefaultValuesNode(merged)
+	}
+
 	// Always invoke the path pass. Even when ResolvePaths is false the pass
 	// still rewrites paths that came from an included or extends file so they
 	// become relative to the main working directory, matching the legacy
