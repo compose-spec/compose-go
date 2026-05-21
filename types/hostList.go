@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // HostsList is a list of colon-separated host-ip mappings
@@ -80,6 +82,55 @@ func (h HostsList) MarshalJSON() ([]byte, error) {
 }
 
 var hostListSerapators = []string{"=", ":"}
+
+// UnmarshalYAML decodes either a mapping (host -> ip|[ip...]) or a sequence
+// of "host=ip"/"host:ip" strings into a HostsList. Mirrors
+// DecodeMapstructure.
+func (h *HostsList) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.MappingNode:
+		list := make(HostsList, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			switch v.Kind {
+			case yaml.ScalarNode:
+				val := v.Value
+				if v.Tag == "!!null" {
+					val = ""
+				}
+				list[k] = []string{val}
+			case yaml.SequenceNode:
+				hosts := make([]string, len(v.Content))
+				for j, item := range v.Content {
+					hosts[j] = item.Value
+				}
+				list[k] = hosts
+			default:
+				return NodeErrorf(v, "unexpected node kind %d for extra_hosts entry", v.Kind)
+			}
+		}
+		if err := list.cleanup(); err != nil {
+			return WrapNodeError(node, err)
+		}
+		*h = list
+		return nil
+	case yaml.SequenceNode:
+		s := make([]string, len(node.Content))
+		for i, item := range node.Content {
+			s[i] = item.Value
+		}
+		list, err := NewHostsList(s)
+		if err != nil {
+			return WrapNodeError(node, err)
+		}
+		*h = list
+		return nil
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for extra_hosts", node.Kind)
+	}
+}
 
 func (h *HostsList) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {

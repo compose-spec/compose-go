@@ -19,6 +19,8 @@ package types
 import (
 	"fmt"
 	"strings"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // Labels is a mapping type for labels
@@ -71,6 +73,36 @@ func labelValue(e interface{}) string {
 	default:
 		return fmt.Sprint(v)
 	}
+}
+
+// UnmarshalYAML decodes a mapping or a sequence of KEY=VALUE entries into a
+// Labels value. Null values become "".
+func (l *Labels) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.MappingNode:
+		labels := make(map[string]string, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			k := node.Content[i].Value
+			v := node.Content[i+1]
+			if v.Tag == "!!null" {
+				labels[k] = ""
+			} else {
+				labels[k] = v.Value
+			}
+		}
+		*l = labels
+	case yaml.SequenceNode:
+		labels := make(map[string]string, len(node.Content))
+		for _, item := range node.Content {
+			k, e, _ := strings.Cut(item.Value, "=")
+			labels[k] = e
+		}
+		*l = labels
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for labels", node.Kind)
+	}
+	return nil
 }
 
 func (l *Labels) DecodeMapstructure(value interface{}) error {
