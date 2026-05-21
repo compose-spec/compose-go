@@ -96,3 +96,35 @@ func resolveYAMLNode(node *yaml.Node) *yaml.Node {
 	}
 	return node
 }
+
+// hasKey reports whether a MappingNode contains the given key.
+func hasKey(node *yaml.Node, key string) bool {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return false
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return true
+		}
+	}
+	return false
+}
+
+// findYAMLKey returns the value node for a key in a MappingNode, or nil if
+// the key is absent.
+func findYAMLKey(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+// ParseVolumeFunc is the volume short-syntax parser. It is set by the format
+// package at init time so the types package can decode `services.*.volumes`
+// short syntax without taking a dependency on format.
+var ParseVolumeFunc func(string) (ServiceVolumeConfig, error)

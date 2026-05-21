@@ -323,6 +323,34 @@ type DeviceMapping struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+// UnmarshalYAML expands the short syntax (host:container[:perms]) into a
+// structured DeviceMapping or delegates to the default decoder for mappings.
+func (d *DeviceMapping) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		parts := strings.Split(node.Value, ":")
+		switch len(parts) {
+		case 3:
+			d.Source = parts[0]
+			d.Target = parts[1]
+			d.Permissions = parts[2]
+		case 2:
+			d.Source = parts[0]
+			d.Target = parts[1]
+			d.Permissions = "rwm"
+		case 1:
+			d.Source = parts[0]
+			d.Target = parts[0]
+			d.Permissions = "rwm"
+		default:
+			return NodeErrorf(node, "confusing device mapping, please use long syntax: %s", node.Value)
+		}
+		return nil
+	}
+	type plain DeviceMapping
+	return WrapNodeError(node, node.Decode((*plain)(d)))
+}
+
 // WeightDevice is a structure that holds device:weight pair
 type WeightDevice struct {
 	Path   string
@@ -471,6 +499,35 @@ type ServicePortConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+// UnmarshalYAML accepts a scalar (port short syntax) that expands to a
+// single ServicePortConfig, otherwise decodes the full mapping form and
+// fills the canonical mode/protocol defaults.
+func (p *ServicePortConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		configs, err := ParsePortConfig(node.Value)
+		if err != nil {
+			return WrapNodeError(node, err)
+		}
+		if len(configs) == 1 {
+			*p = configs[0]
+			return nil
+		}
+		return NodeErrorf(node, "port range %q expands to multiple entries, use sequence form", node.Value)
+	}
+	type plain ServicePortConfig
+	if err := node.Decode((*plain)(p)); err != nil {
+		return WrapNodeError(node, err)
+	}
+	if p.Protocol == "" {
+		p.Protocol = "tcp"
+	}
+	if p.Mode == "" {
+		p.Mode = "ingress"
+	}
+	return nil
+}
+
 // ParsePortConfig parse short syntax for service port configuration
 func ParsePortConfig(value string) ([]ServicePortConfig, error) {
 	var portConfigs []ServicePortConfig
@@ -520,6 +577,38 @@ type ServiceVolumeConfig struct {
 	Image       *ServiceVolumeImage  `yaml:"image,omitempty" json:"image,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+// UnmarshalYAML accepts the volume short-syntax scalar (delegated to the
+// package-level ParseVolumeFunc set by format.init) or the full mapping
+// form. When `bind:` is present but `create_host_path` is not explicitly
+// set, the canonical default `true` is applied here so it lands even when
+// the caller bypasses setDefaultValuesNode.
+func (s *ServiceVolumeConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		if ParseVolumeFunc == nil {
+			return NodeErrorf(node, "volume short syntax %q requires ParseVolume function", node.Value)
+		}
+		parsed, err := ParseVolumeFunc(node.Value)
+		if err != nil {
+			return WrapNodeError(node, err)
+		}
+		*s = parsed
+		return nil
+	}
+	type plain ServiceVolumeConfig
+	if err := node.Decode((*plain)(s)); err != nil {
+		return WrapNodeError(node, err)
+	}
+	if s.Bind != nil {
+		if bindNode := findYAMLKey(node, "bind"); bindNode != nil {
+			if findYAMLKey(bindNode, "create_host_path") == nil {
+				s.Bind.CreateHostPath = true
+			}
+		}
+	}
+	return nil
 }
 
 // String render ServiceVolumeConfig as a volume string, one can parse back using loader.ParseVolume
@@ -644,6 +733,19 @@ type FileReferenceConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+// UnmarshalYAML accepts a bare name (used by secrets/configs short syntax)
+// as a shorthand for `{source: <name>}`, otherwise decodes the full mapping
+// form.
+func (f *FileReferenceConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		f.Source = node.Value
+		return nil
+	}
+	type plain FileReferenceConfig
+	return WrapNodeError(node, node.Decode((*plain)(f)))
+}
+
 // UnmarshalYAML decodes a FileMode either as an octal string or as a numeric
 // scalar. Mirrors DecodeMapstructure.
 func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
@@ -702,8 +804,42 @@ func (f *FileMode) String() string {
 // ServiceConfigObjConfig is the config obj configuration for a service
 type ServiceConfigObjConfig FileReferenceConfig
 
+// UnmarshalYAML accepts a bare name as a shorthand for `{source: <name>}`,
+// otherwise decodes the full mapping form.
+func (s *ServiceConfigObjConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		s.Source = node.Value
+		return nil
+	}
+	type plain ServiceConfigObjConfig
+	return WrapNodeError(node, node.Decode((*plain)(s)))
+}
+
 // ServiceSecretConfig is the secret configuration for a service
 type ServiceSecretConfig FileReferenceConfig
+
+// UnmarshalYAML accepts a bare name as a shorthand for
+// `{source: <name>, target: /run/secrets/<name>}`, otherwise decodes the
+// full mapping form. When the mapping form omits `target`, the canonical
+// `/run/secrets/<source>` default is applied here so it also lands when the
+// caller bypasses setDefaultValuesNode.
+func (s *ServiceSecretConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		s.Source = node.Value
+		s.Target = fmt.Sprintf("/run/secrets/%s", s.Source)
+		return nil
+	}
+	type plain ServiceSecretConfig
+	if err := node.Decode((*plain)(s)); err != nil {
+		return WrapNodeError(node, err)
+	}
+	if s.Target == "" {
+		s.Target = fmt.Sprintf("/run/secrets/%s", s.Source)
+	}
+	return nil
+}
 
 // UlimitsConfig the ulimit configuration
 type UlimitsConfig struct {
@@ -844,6 +980,25 @@ type VolumeConfig struct {
 // not managed, and should already exist.
 type External bool
 
+// UnmarshalYAML accepts a boolean scalar or the legacy mapping syntax
+// (`external: {name: foo}`), which is normalised to `external: true`.
+func (e *External) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.ScalarNode:
+		var b bool
+		if err := node.Decode(&b); err != nil {
+			return WrapNodeError(node, err)
+		}
+		*e = External(b)
+	case yaml.MappingNode:
+		*e = true
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for external", node.Kind)
+	}
+	return nil
+}
+
 // CredentialSpecConfig for credential spec on Windows
 type CredentialSpecConfig struct {
 	Config     string     `yaml:"config,omitempty" json:"config,omitempty"` // Config was added in API v1.40
@@ -881,6 +1036,48 @@ const (
 
 type DependsOnConfig map[string]ServiceDependency
 
+// UnmarshalYAML accepts a sequence of service names (shorthand) or the full
+// mapping syntax. Each entry not explicitly setting `required` defaults to
+// required=true; entries without `condition` default to service_started.
+func (d *DependsOnConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	switch node.Kind {
+	case yaml.SequenceNode:
+		config := make(DependsOnConfig, len(node.Content))
+		for _, item := range node.Content {
+			config[item.Value] = ServiceDependency{
+				Condition: ServiceConditionStarted,
+				Required:  true,
+			}
+		}
+		*d = config
+	case yaml.MappingNode:
+		type plain DependsOnConfig
+		var p plain
+		if err := node.Decode(&p); err != nil {
+			return WrapNodeError(node, err)
+		}
+		for k, v := range p {
+			if v.Condition == "" {
+				v.Condition = ServiceConditionStarted
+			}
+			p[k] = v
+		}
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key := node.Content[i].Value
+			dep := p[key]
+			if !hasKey(node.Content[i+1], "required") {
+				dep.Required = true
+			}
+			p[key] = dep
+		}
+		*d = DependsOnConfig(p)
+	default:
+		return NodeErrorf(node, "unexpected node kind %d for depends_on", node.Kind)
+	}
+	return nil
+}
+
 type ServiceDependency struct {
 	Condition  string     `yaml:"condition,omitempty" json:"condition,omitempty"`
 	Restart    bool       `yaml:"restart,omitempty" json:"restart,omitempty"`
@@ -891,6 +1088,18 @@ type ServiceDependency struct {
 type ExtendsConfig struct {
 	File    string `yaml:"file,omitempty" json:"file,omitempty"`
 	Service string `yaml:"service,omitempty" json:"service,omitempty"`
+}
+
+// UnmarshalYAML accepts a bare service name (`extends: name`) as a shorthand
+// for `extends: {service: name}`, otherwise decodes the full mapping form.
+func (e *ExtendsConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		e.Service = node.Value
+		return nil
+	}
+	type plain ExtendsConfig
+	return WrapNodeError(node, node.Decode((*plain)(e)))
 }
 
 // SecretConfig for a secret
@@ -939,4 +1148,17 @@ type IncludeConfig struct {
 	Path             StringList `yaml:"path,omitempty" json:"path,omitempty"`
 	ProjectDirectory string     `yaml:"project_directory,omitempty" json:"project_directory,omitempty"`
 	EnvFile          StringList `yaml:"env_file,omitempty" json:"env_file,omitempty"`
+}
+
+// UnmarshalYAML accepts a bare path (`include: ./other.yml`) as a shorthand
+// for `include: {path: ./other.yml}`, otherwise decodes the full mapping
+// form.
+func (ic *IncludeConfig) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		ic.Path = StringList{node.Value}
+		return nil
+	}
+	type plain IncludeConfig
+	return WrapNodeError(node, node.Decode((*plain)(ic)))
 }

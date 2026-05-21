@@ -16,6 +16,8 @@
 
 package types
 
+import "go.yaml.in/yaml/v4"
+
 type EnvFile struct {
 	Path     string `yaml:"path,omitempty" json:"path,omitempty"`
 	Required OptOut `yaml:"required,omitempty" json:"required,omitzero"`
@@ -31,4 +33,17 @@ type EnvFile struct {
 	// Populated by the loader when running through the yaml.Node based
 	// pipeline. Excluded from YAML and JSON serialization.
 	Context *NodeContext `yaml:"-" json:"-"`
+}
+
+// UnmarshalYAML accepts a scalar path (short syntax) or the full mapping
+// form. The Context field is not set by yaml decoding — the loader fills it
+// in afterwards from the yaml.Node loading context.
+func (e *EnvFile) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	if node.Kind == yaml.ScalarNode {
+		e.Path = node.Value
+		return nil
+	}
+	type plain EnvFile
+	return WrapNodeError(node, node.Decode((*plain)(e)))
 }

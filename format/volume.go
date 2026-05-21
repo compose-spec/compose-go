@@ -28,6 +28,13 @@ import (
 
 const endOfSpec = rune(0)
 
+func init() {
+	// Register ParseVolume as the volume short-syntax parser so the types
+	// package (e.g. ServiceVolumeConfig.UnmarshalYAML) can decode it without
+	// importing format (which would create a cycle).
+	types.ParseVolumeFunc = ParseVolume
+}
+
 // ParseVolume parses a volume spec without any knowledge of the target platform
 func ParseVolume(spec string) (types.ServiceVolumeConfig, error) {
 	volume := types.ServiceVolumeConfig{}
