@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/xhit/go-str2duration/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 // Duration is a thin wrapper around time.Duration with improved JSON marshalling
@@ -36,6 +37,20 @@ func (d *Duration) DecodeMapstructure(value interface{}) error {
 	v, err := str2duration.ParseDuration(fmt.Sprint(value))
 	if err != nil {
 		return err
+	}
+	*d = Duration(v)
+	return nil
+}
+
+// UnmarshalYAML makes Duration implement yaml.Unmarshaler so the v3 loader
+// can decode a yaml.Node directly into a Duration without going through
+// mapstructure. Mirrors the behaviour of DecodeMapstructure on the node's
+// scalar value.
+func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
+	node := resolveYAMLNode(value)
+	v, err := str2duration.ParseDuration(node.Value)
+	if err != nil {
+		return WrapNodeError(node, err)
 	}
 	*d = Duration(v)
 	return nil
