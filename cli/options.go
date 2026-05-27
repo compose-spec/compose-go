@@ -18,13 +18,14 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v4"
 
 	"github.com/compose-spec/compose-go/v2/consts"
@@ -165,16 +166,16 @@ func WithDefaultConfigPath(o *ProjectOptions) error {
 		if len(candidates) > 0 {
 			winner := candidates[0]
 			if len(candidates) > 1 {
-				logrus.Warnf("Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
-				logrus.Warnf("Using %s", winner)
+				slog.Warn(fmt.Sprintf("Found multiple config files with supported names: %s", strings.Join(candidates, ", ")))
+				slog.Warn(fmt.Sprintf("Using %s", winner))
 			}
 			o.ConfigPaths = append(o.ConfigPaths, winner)
 
 			overrides := findFiles(DefaultOverrideFileNames, pwd)
 			if len(overrides) > 0 {
 				if len(overrides) > 1 {
-					logrus.Warnf("Found multiple override files with supported names: %s", strings.Join(overrides, ", "))
-					logrus.Warnf("Using %s", overrides[0])
+					slog.Warn(fmt.Sprintf("Found multiple override files with supported names: %s", strings.Join(overrides, ", ")))
+					slog.Warn(fmt.Sprintf("Using %s", overrides[0]))
 				}
 				o.ConfigPaths = append(o.ConfigPaths, overrides[0])
 			}
@@ -551,7 +552,7 @@ func withNamePrecedenceLoad(absWorkingDir string, namedInYaml bool, options *Pro
 			dirname := filepath.Base(absWorkingDir)
 			symlink, err := filepath.EvalSymlinks(absWorkingDir)
 			if err == nil && filepath.Base(symlink) != dirname {
-				logrus.Warnf("project has been loaded without an explicit name from a symlink. Using name %q", dirname)
+				slog.Warn(fmt.Sprintf("project has been loaded without an explicit name from a symlink. Using name %q", dirname))
 			}
 			opts.SetProjectName(
 				loader.NormalizeProjectName(dirname),

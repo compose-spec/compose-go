@@ -17,18 +17,17 @@
 package paths
 
 import (
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 func ExpandUser(p string) string {
 	if strings.HasPrefix(p, "~") {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			logrus.Warn("cannot expand '~', because the environment lacks HOME")
+			slog.Warn("cannot expand '~', because the environment lacks HOME")
 			return p
 		}
 		return filepath.Join(home, p[1:])

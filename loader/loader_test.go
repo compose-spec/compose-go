@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,7 +28,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/sirupsen/logrus"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 
@@ -1453,7 +1453,7 @@ services:
 }
 
 func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
-	buf, cleanup := patchLogrus()
+	buf, cleanup := patchSlog()
 	defer cleanup()
 
 	project, err := loadYAML(`
@@ -1474,11 +1474,12 @@ volumes:
 	assert.Check(t, is.Contains(buf.String(), "volumes.foo: external.name is deprecated. Please set name and external: true"))
 }
 
-func patchLogrus() (*bytes.Buffer, func()) {
+func patchSlog() (*bytes.Buffer, func()) {
 	buf := new(bytes.Buffer)
-	out := logrus.StandardLogger().Out
-	logrus.SetOutput(buf)
-	return buf, func() { logrus.SetOutput(out) }
+	handler := slog.NewTextHandler(buf, &slog.HandlerOptions{Level: slog.LevelWarn})
+	old := slog.Default()
+	slog.SetDefault(slog.New(handler))
+	return buf, func() { slog.SetDefault(old) }
 }
 
 func TestLoadInvalidIsolation(t *testing.T) {
@@ -1512,7 +1513,7 @@ secrets:
 }
 
 func TestLoadSecretsWarnOnDeprecatedExternalName(t *testing.T) {
-	buf, cleanup := patchLogrus()
+	buf, cleanup := patchSlog()
 	defer cleanup()
 
 	project, err := loadYAML(`
@@ -1534,7 +1535,7 @@ secrets:
 }
 
 func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
-	buf, cleanup := patchLogrus()
+	buf, cleanup := patchSlog()
 	defer cleanup()
 
 	project, err := loadYAML(`

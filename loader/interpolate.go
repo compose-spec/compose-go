@@ -18,12 +18,12 @@ package loader
 
 import (
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/sirupsen/logrus"
 )
 
 var interpolateTypeCastMapping = map[tree.Path]interp.Cast{
@@ -107,10 +107,10 @@ func toBoolean(value string) (interface{}, error) {
 	case "false":
 		return false, nil
 	case "y", "yes", "on":
-		logrus.Warnf("%q for boolean is not supported by YAML 1.2, please use `true`", value)
+		slog.Warn(fmt.Sprintf("%q for boolean is not supported by YAML 1.2, please use `true`", value))
 		return true, nil
 	case "n", "no", "off":
-		logrus.Warnf("%q for boolean is not supported by YAML 1.2, please use `false`", value)
+		slog.Warn(fmt.Sprintf("%q for boolean is not supported by YAML 1.2, please use `false`", value))
 		return false, nil
 	default:
 		return nil, fmt.Errorf("invalid boolean: %s", value)
