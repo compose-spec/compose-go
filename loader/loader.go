@@ -630,6 +630,9 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	}
 
 	if len(opts.SelectedServices) > 0 {
+		// WithServicesEnabled must precede WithSelectedServices: the latter walks
+		// only active services, so any selected service currently sitting in
+		// DisabledServices (e.g. gated by a profile) would otherwise be invisible.
 		project, err = project.WithServicesEnabled(opts.SelectedServices...)
 		if err != nil {
 			return nil, err

@@ -2947,6 +2947,31 @@ services:
 		assert.Assert(t, hasAPI, "api dependency should be kept")
 		assert.Assert(t, !hasWorker, "worker should have been filtered out")
 	})
+
+	t.Run("re-activates a profile-disabled service when selected", func(t *testing.T) {
+		// Without any profile active, "debug" lands in DisabledServices after
+		// WithProfiles. WithSelectedServices alone would never see it because
+		// it walks only active services; the loader's WithServicesEnabled step
+		// is what brings the service back before the filter applies.
+		yamlWithProfile := `
+name: test
+services:
+  web:
+    image: nginx
+  debug:
+    image: alpine
+    profiles:
+      - debug
+`
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yamlWithProfile, nil),
+			WithSelectedServices([]string{"debug"}),
+		)
+		assert.NilError(t, err)
+		_, hasDebug := p.Services["debug"]
+		_, hasWeb := p.Services["web"]
+		assert.Assert(t, hasDebug, "debug should be re-activated via selection")
+		assert.Assert(t, !hasWeb, "web should have been filtered out")
+	})
 }
 
 // TestWithSelectedServicesOption_SkipsMissingEnvFile ensures that a `env_file`
@@ -3031,4 +3056,94 @@ volumes:
 		assert.Assert(t, hasDataVol, "data volume referenced by web should remain")
 		assert.Assert(t, !hasTmpVol, "tmp volume referenced only by worker should be pruned")
 	})
+}
+
+// TestWithoutUnnecessaryResourcesOption_AllResourceKinds covers the secret,
+// config and model resource kinds that WithoutUnnecessaryResources also prunes
+// but that TestWithoutUnnecessaryResourcesOption does not exercise.
+func TestWithoutUnnecessaryResourcesOption_AllResourceKinds(t *testing.T) {
+	yaml := `
+name: test
+services:
+  web:
+    image: nginx
+    secrets:
+      - used_secret
+    configs:
+      - used_config
+    models:
+      - used_model
+  worker:
+    image: busybox
+    secrets:
+      - unused_secret
+    configs:
+      - unused_config
+    models:
+      - unused_model
+secrets:
+  used_secret:
+    external: true
+  unused_secret:
+    external: true
+configs:
+  used_config:
+    external: true
+  unused_config:
+    external: true
+models:
+  used_model:
+    model: ai/used-model
+  unused_model:
+    model: ai/unused-model
+`
+	p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		WithSelectedServices([]string{"web"}),
+		WithoutUnnecessaryResources,
+	)
+	assert.NilError(t, err)
+
+	_, hasUsedSecret := p.Secrets["used_secret"]
+	_, hasUnusedSecret := p.Secrets["unused_secret"]
+	assert.Assert(t, hasUsedSecret, "secret referenced by web should remain")
+	assert.Assert(t, !hasUnusedSecret, "secret referenced only by worker should be pruned")
+
+	_, hasUsedConfig := p.Configs["used_config"]
+	_, hasUnusedConfig := p.Configs["unused_config"]
+	assert.Assert(t, hasUsedConfig, "config referenced by web should remain")
+	assert.Assert(t, !hasUnusedConfig, "config referenced only by worker should be pruned")
+
+	_, hasUsedModel := p.Models["used_model"]
+	_, hasUnusedModel := p.Models["unused_model"]
+	assert.Assert(t, hasUsedModel, "model referenced by web should remain")
+	assert.Assert(t, !hasUnusedModel, "model referenced only by worker should be pruned")
+}
+
+// TestWithoutUnnecessaryResourcesOption_NoSelection verifies that the option
+// also prunes resources unreferenced by any service when used standalone
+// (without WithSelectedServices).
+func TestWithoutUnnecessaryResourcesOption_NoSelection(t *testing.T) {
+	yaml := `
+name: test
+services:
+  web:
+    image: nginx
+    networks:
+      - frontnet
+networks:
+  frontnet:
+  orphan_net:
+volumes:
+  orphan_vol:
+`
+	p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		WithoutUnnecessaryResources,
+	)
+	assert.NilError(t, err)
+	_, hasFrontNet := p.Networks["frontnet"]
+	_, hasOrphanNet := p.Networks["orphan_net"]
+	_, hasOrphanVol := p.Volumes["orphan_vol"]
+	assert.Assert(t, hasFrontNet, "network referenced by web should remain")
+	assert.Assert(t, !hasOrphanNet, "unreferenced network should be pruned")
+	assert.Assert(t, !hasOrphanVol, "unreferenced volume should be pruned")
 }
