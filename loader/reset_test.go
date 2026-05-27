@@ -417,3 +417,84 @@ services:
 	assert.Check(t, len(p.Services["svc1"].Ports) == 0, "svc1 ports should be reset")
 	assert.Check(t, len(p.Services["svc2"].Ports) == 0, "svc2 ports should be reset")
 }
+
+// TestMergeKeyAliasTargets verifies that a `<<:` merge key accepts alias values
+// regardless of whether the anchored target is a mapping or a sequence of mappings.
+// Regression for docker/compose#13812: alias-to-sequence used to fail with
+// "map merge requires map or sequence of maps as the value" because the YAML
+// library only accepts AliasNode→MappingNode at merge sites.
+func TestMergeKeyAliasTargets(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+	}{
+		{
+			name: "alias_to_mapping",
+			config: `
+name: test
+x-base: &base
+  image: nginx
+  restart: unless-stopped
+services:
+  s1:
+    <<: *base
+`,
+		},
+		{
+			name: "alias_to_sequence_of_mappings",
+			config: `
+name: test
+x-list: &alist
+  - image: nginx
+services:
+  s1:
+    <<: *alist
+`,
+		},
+		{
+			name: "alias_to_sequence_shared_across_services",
+			config: `
+name: test
+x-list: &alist
+  - image: nginx
+    restart: unless-stopped
+services:
+  s1:
+    <<: *alist
+  s2:
+    <<: *alist
+`,
+		},
+		{
+			name: "inline_sequence_of_mappings",
+			config: `
+name: test
+x-base: &base
+  image: nginx
+services:
+  s1:
+    <<: [*base, {restart: unless-stopped}]
+`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := loadResetYAML(context.TODO(), tt.config)
+			assert.NilError(t, err)
+		})
+	}
+}
+
+// TestMergeKeyAliasToScalarRejected verifies that a `<<:` merge key value that
+// resolves to a scalar (neither mapping nor sequence of mappings) is still
+// rejected. Guards against the fix making the parser too permissive.
+func TestMergeKeyAliasToScalarRejected(t *testing.T) {
+	_, err := loadResetYAML(context.TODO(), `
+name: test
+x-scalar: &s "not-a-map"
+services:
+  s1:
+    <<: *s
+`)
+	assert.ErrorContains(t, err, "map merge requires map")
+}
