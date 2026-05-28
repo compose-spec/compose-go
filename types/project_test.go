@@ -517,8 +517,8 @@ func TestWithServicesTransform_concurrent(t *testing.T) {
 		p.Services[fmt.Sprintf("svc_%d", i)] = ServiceConfig{Image: fmt.Sprintf("img_%d", i)}
 	}
 
-	got, err := p.WithServicesTransform(func(name string, s ServiceConfig) (ServiceConfig, error) {
-		s.Image = s.Image + "-transformed"
+	got, err := p.WithServicesTransform(func(_ string, s ServiceConfig) (ServiceConfig, error) {
+		s.Image += "-transformed"
 		return s, nil
 	})
 	assert.NilError(t, err)
