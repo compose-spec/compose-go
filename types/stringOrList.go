@@ -16,7 +16,11 @@
 
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	"go.yaml.in/yaml/v4"
+)
 
 // StringList is a type for fields that can be a string or list of strings
 type StringList []string
@@ -41,6 +45,25 @@ func (l *StringList) DecodeMapstructure(value interface{}) error {
 	return nil
 }
 
+// UnmarshalYAML accepts a string or a sequence of strings and stores the
+// values in l. Mirrors DecodeMapstructure for yaml.v4 native decoding.
+func (l *StringList) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.ScalarNode:
+		*l = []string{value.Value}
+	case yaml.SequenceNode:
+		var list []string
+		if err := value.Decode(&list); err != nil {
+			return err
+		}
+		*l = list
+	default:
+		return fmt.Errorf("invalid yaml kind %d for string list", value.Kind)
+	}
+	return nil
+}
+
 // StringOrNumberList is a type for fields that can be a list of strings or numbers
 type StringOrNumberList []string
 
@@ -56,6 +79,29 @@ func (l *StringOrNumberList) DecodeMapstructure(value interface{}) error {
 		*l = list
 	default:
 		return fmt.Errorf("invalid type %T for string list", value)
+	}
+	return nil
+}
+
+// UnmarshalYAML accepts a string or a sequence of scalar entries (string or
+// number, coerced to their stringified form) and stores the values in l.
+// Mirrors DecodeMapstructure for yaml.v4 native decoding.
+func (l *StringOrNumberList) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.ScalarNode:
+		*l = []string{value.Value}
+	case yaml.SequenceNode:
+		list := make([]string, 0, len(value.Content))
+		for _, item := range value.Content {
+			if item.Kind != yaml.ScalarNode {
+				return fmt.Errorf("string-or-number list expects scalar entries")
+			}
+			list = append(list, item.Value)
+		}
+		*l = list
+	default:
+		return fmt.Errorf("invalid yaml kind %d for string-or-number list", value.Kind)
 	}
 	return nil
 }

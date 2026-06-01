@@ -121,10 +121,8 @@ func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node
 
 // readIncludeEntry normalizes a single include sequence entry. A bare
 // scalar is promoted to a single-path long form; a mapping is decoded
-// field-by-field with short-form (single string) support for path /
-// env_file. The manual decode is used because types.IncludeConfig still
-// relies on the v2 mapstructure decoder for short-form lists — Phase D
-// (UnmarshalYAML on types) replaces it with native yaml.v4 decoding.
+// natively into IncludeConfig via yaml.v4 (StringList now implements
+// UnmarshalYAML so short-form path / env_file values are accepted).
 func readIncludeEntry(entry *yaml.Node) (types.IncludeConfig, error) {
 	if entry == nil {
 		return types.IncludeConfig{}, fmt.Errorf("empty include entry")
@@ -133,60 +131,13 @@ func readIncludeEntry(entry *yaml.Node) (types.IncludeConfig, error) {
 	case yaml.ScalarNode:
 		return types.IncludeConfig{Path: types.StringList{entry.Value}}, nil
 	case yaml.MappingNode:
-		return decodeIncludeMapping(entry)
+		var cfg types.IncludeConfig
+		if err := entry.Decode(&cfg); err != nil {
+			return types.IncludeConfig{}, fmt.Errorf("invalid include entry: %w", err)
+		}
+		return cfg, nil
 	}
 	return types.IncludeConfig{}, fmt.Errorf("include entry must be a string or a mapping, got %s", kindName(entry.Kind))
-}
-
-func decodeIncludeMapping(entry *yaml.Node) (types.IncludeConfig, error) {
-	var cfg types.IncludeConfig
-	for i := 0; i+1 < len(entry.Content); i += 2 {
-		key := entry.Content[i].Value
-		value := entry.Content[i+1]
-		switch key {
-		case "path":
-			list, err := decodeStringOrList(value)
-			if err != nil {
-				return cfg, fmt.Errorf("include.path: %w", err)
-			}
-			cfg.Path = list
-		case "project_directory":
-			if value.Kind != yaml.ScalarNode {
-				return cfg, fmt.Errorf("include.project_directory must be a string")
-			}
-			cfg.ProjectDirectory = value.Value
-		case "env_file":
-			list, err := decodeStringOrList(value)
-			if err != nil {
-				return cfg, fmt.Errorf("include.env_file: %w", err)
-			}
-			cfg.EnvFile = list
-		}
-	}
-	return cfg, nil
-}
-
-// decodeStringOrList accepts a scalar or a sequence-of-scalars yaml.Node
-// and returns its values as a StringList. Mirrors StringList.Decode
-// Mapstructure but operates on yaml.Node so it can run before Phase D.
-func decodeStringOrList(n *yaml.Node) (types.StringList, error) {
-	if n == nil {
-		return nil, nil
-	}
-	switch n.Kind {
-	case yaml.ScalarNode:
-		return types.StringList{n.Value}, nil
-	case yaml.SequenceNode:
-		list := make(types.StringList, 0, len(n.Content))
-		for _, item := range n.Content {
-			if item.Kind != yaml.ScalarNode {
-				return nil, fmt.Errorf("expected string, got %s", kindName(item.Kind))
-			}
-			list = append(list, item.Value)
-		}
-		return list, nil
-	}
-	return nil, fmt.Errorf("expected string or list of strings, got %s", kindName(n.Kind))
 }
 
 // resolveIncludePaths walks each entry in cfg.Path through the configured

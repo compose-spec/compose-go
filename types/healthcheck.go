@@ -18,6 +18,8 @@ package types
 
 import (
 	"fmt"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // HealthCheckConfig the healthcheck configuration for a service
@@ -48,6 +50,26 @@ func (l *HealthCheckTest) DecodeMapstructure(value interface{}) error {
 		*l = seq
 	default:
 		return fmt.Errorf("unexpected value type %T for healthcheck.test", value)
+	}
+	return nil
+}
+
+// UnmarshalYAML accepts either a CMD-SHELL string (shorthand: prefixed with
+// "CMD-SHELL" at runtime) or a sequence of explicit argv entries. Mirrors
+// DecodeMapstructure for yaml.v4 native decoding.
+func (l *HealthCheckTest) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.ScalarNode:
+		*l = []string{"CMD-SHELL", value.Value}
+	case yaml.SequenceNode:
+		var seq []string
+		if err := value.Decode(&seq); err != nil {
+			return err
+		}
+		*l = seq
+	default:
+		return fmt.Errorf("unexpected yaml kind %d for healthcheck.test", value.Kind)
 	}
 	return nil
 }
