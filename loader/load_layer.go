@@ -107,6 +107,12 @@ func processLayer(doc *yaml.Node, sc *node.SourceContext, maxVisits int) ([]*nod
 	if resolved == nil {
 		return nil, nil
 	}
+	// Reject documents whose top-level is not a mapping so the v2-compatible
+	// error message surfaces before the downstream pipeline tries to decode
+	// the tree into a map[string]any and panics with a generic yaml error.
+	if resolved.Kind != yaml.MappingNode {
+		return nil, errors.New("top-level object must be a mapping")
+	}
 	if err := node.NormalizeAliases(resolved); err != nil {
 		return nil, err
 	}

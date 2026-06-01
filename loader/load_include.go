@@ -226,6 +226,24 @@ func resolveResourcePath(ctx context.Context, opts *Options, p string) (string, 
 	return "", fmt.Errorf("no ResourceLoader accepted %q", p)
 }
 
+// resolveResourceWithLoader is the variant of resolveResourcePath that also
+// returns the ResourceLoader that handled p, so callers can ask it for a
+// project-relative dir (loader.Dir) — required by extends to mirror v2
+// getExtendsBaseFromFile semantics.
+func resolveResourceWithLoader(ctx context.Context, opts *Options, p string) (ResourceLoader, string, error) {
+	for _, loader := range opts.ResourceLoaders {
+		if !loader.Accept(p) {
+			continue
+		}
+		full, err := loader.Load(ctx, p)
+		if err != nil {
+			return nil, "", err
+		}
+		return loader, full, nil
+	}
+	return nil, "", fmt.Errorf("no ResourceLoader accepted %q", p)
+}
+
 // interpolateIncludeBlock runs InterpolateNode on the include sub-tree with
 // the parent SourceContext. This is the one place in the v3 pipeline where
 // interpolation is eager: the include path / project_directory / env_file

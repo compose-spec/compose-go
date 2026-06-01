@@ -85,6 +85,46 @@ func TestDifferentialV2V3(t *testing.T) {
 			name:  "extends-with-context-url-imported",
 			files: []string{"testdata/compose-test-extends-with-context-url-imported.yaml"},
 		},
+		{
+			name:  "combined-extends-include",
+			files: []string{"testdata/combined/compose.yaml"},
+		},
+		{
+			name:  "extends-base",
+			files: []string{"testdata/extends/base.yaml"},
+		},
+		{
+			name:  "extends-depends-on",
+			files: []string{"testdata/extends/depends_on.yaml"},
+		},
+		{
+			name:  "extends-interpolated",
+			files: []string{"testdata/extends/interpolated.yaml"},
+		},
+		{
+			name:  "extends-nested",
+			files: []string{"testdata/extends/nested.yaml"},
+		},
+		{
+			name:  "extends-ports",
+			files: []string{"testdata/extends/ports.yaml"},
+		},
+		{
+			name:  "extends-reset",
+			files: []string{"testdata/extends/reset.yaml"},
+		},
+		{
+			name:  "extends-sibling",
+			files: []string{"testdata/extends/sibling.yaml"},
+		},
+		{
+			name:  "include-dir",
+			files: []string{"testdata/include/compose.yaml"},
+		},
+		{
+			name:  "include-project-directory",
+			files: []string{"testdata/include/project-directory.yaml"},
+		},
 	}
 
 	for _, tc := range fixtures {

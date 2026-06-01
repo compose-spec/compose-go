@@ -27,6 +27,7 @@ import (
 	interp "github.com/compose-spec/compose-go/v3/interpolation"
 	"github.com/compose-spec/compose-go/v3/override"
 	"github.com/compose-spec/compose-go/v3/paths"
+	"github.com/compose-spec/compose-go/v3/schema"
 	"github.com/compose-spec/compose-go/v3/template"
 	"github.com/compose-spec/compose-go/v3/transform"
 	"github.com/compose-spec/compose-go/v3/tree"
@@ -135,6 +136,15 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		}
 	}
 
+	// JSON Schema validation runs early — before canonicalization and
+	// transform — so structural errors (top-level not a mapping, services
+	// declared as a list, ...) are caught with a clear v2-compatible
+	// message rather than panicking inside a downstream transformer that
+	// assumes a canonical shape.
+	if err := validateAndStripVersion(merged.Node, cd, opts); err != nil {
+		return nil, err
+	}
+
 	// Lazy bare-key environment resolution: services.*.environment entries
 	// that are just `KEY` (no `=`) get rewritten to `KEY=value` using each
 	// scalar own SourceContext.Environment. Mirrors v2 ResolveEnvironment
@@ -171,15 +181,6 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		if err := validation.ValidateNode(merged.Node); err != nil {
 			return nil, err
 		}
-		// The version attribute is obsolete; v2 strips it after schema
-		// validation and emits a deprecation warning. v3 preserves the
-		// behavior so existing fixtures keep producing identical output.
-		if hasMappingKey(merged.Node, "version") {
-			for _, f := range cd.ConfigFiles {
-				opts.warnObsoleteVersion(f.Filename)
-			}
-			deleteMappingKey(merged.Node, "version")
-		}
 		// v2 rejects a load whose project name is still empty at this
 		// point. The check is gated on SkipValidation to keep the v3
 		// orchestrator usable from tests that skip validation outright.
@@ -202,6 +203,34 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		return nil, errors.New("empty compose file")
 	}
 	return dict, nil
+}
+
+// validateAndStripVersion runs the JSON Schema validator on a decoded
+// view of the merged tree and, on success, strips the obsolete top-level
+// `version` attribute with the v2 deprecation warning. Carved out of
+// LoadV3 to keep its cyclomatic complexity in check.
+func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Options) error {
+	if opts.SkipValidation {
+		return nil
+	}
+	var schemaDict map[string]any
+	if err := root.Decode(&schemaDict); err != nil {
+		return fmt.Errorf("loadV3: decode for schema validation: %w", err)
+	}
+	if err := schema.Validate(schemaDict); err != nil {
+		source := "(inline)"
+		if len(cd.ConfigFiles) > 0 && cd.ConfigFiles[0].Filename != "" {
+			source = cd.ConfigFiles[0].Filename
+		}
+		return fmt.Errorf("validating %s: %w", source, err)
+	}
+	if hasMappingKey(root, "version") {
+		for _, f := range cd.ConfigFiles {
+			opts.warnObsoleteVersion(f.Filename)
+		}
+		deleteMappingKey(root, "version")
+	}
+	return nil
 }
 
 // hasMappingKey reports whether n is a MappingNode containing key.

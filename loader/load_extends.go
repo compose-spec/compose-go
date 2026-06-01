@@ -25,6 +25,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v3/internal/node"
 	"github.com/compose-spec/compose-go/v3/override"
+	"github.com/compose-spec/compose-go/v3/paths"
 	"github.com/compose-spec/compose-go/v3/tree"
 	"github.com/compose-spec/compose-go/v3/types"
 )
@@ -85,6 +86,12 @@ func applyServiceExtendsNode(
 	if service == nil {
 		return nil, nil
 	}
+	// A YAML null value (`name:` with no body) is treated as an empty
+	// service — same as v2, where the empty mapping contributes no fields
+	// to a downstream extends merge but is otherwise valid.
+	if service.Kind == yaml.ScalarNode && service.Tag == "!!null" {
+		return service, nil
+	}
 	if service.Kind != yaml.MappingNode {
 		return nil, fmt.Errorf("services.%s must be a mapping", name)
 	}
@@ -93,15 +100,17 @@ func applyServiceExtendsNode(
 		return service, nil
 	}
 
-	ref, file, err := parseExtendsRef(name, extendsNode)
+	ref, file, err := parseExtendsRef(name, extendsNode, opts)
 	if err != nil {
 		return nil, err
 	}
 
 	currentFile := layer.Context.File
 	baseSiblings := siblingServices
+	childOpts := opts
+	originalLayer := layer
 	if file != "" {
-		baseLayer, err := loadExtendsBaseLayer(ctx, layer, file, opts)
+		baseLayer, childOptsLoaded, err := loadExtendsBaseLayer(ctx, layer, file, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -110,6 +119,12 @@ func applyServiceExtendsNode(
 			return nil, fmt.Errorf("cannot extend service %q in %s: no services section", name, file)
 		}
 		currentFile = baseLayer.Context.File
+		// Reuse layer so the recursion sees the base layer's tree, but
+		// keep the child-scoped opts so further extends.file references
+		// resolve against the extended file's directory rather than the
+		// project root.
+		layer = baseLayer
+		childOpts = childOptsLoaded
 	}
 
 	if mappingValueByKey(baseSiblings, ref) == nil {
@@ -122,7 +137,7 @@ func applyServiceExtendsNode(
 	}
 
 	// Recurse into the base to resolve its own extends chain first.
-	base, err := applyServiceExtendsNode(ctx, layer, ref, baseSiblings, opts, tracker)
+	base, err := applyServiceExtendsNode(ctx, layer, ref, baseSiblings, childOpts, tracker)
 	if err != nil {
 		return nil, err
 	}
@@ -130,34 +145,60 @@ func applyServiceExtendsNode(
 		return service, nil
 	}
 
+	// Apply the parent layer's recorded !reset / !override paths to the
+	// cloned base BEFORE merging it with the derived service. Mirrors v2
+	// applyServiceExtends, which calls processor.Apply on the wrapped base
+	// to drop any path that the derived service marked with !reset or
+	// !override — so the override entry from the derived service wins
+	// outright once mergeSpecials kicks in.
+	clonedBase := deepCloneNode(base)
+	resetParentPaths(clonedBase, name, originalLayer.ResetPaths())
+
 	// Merge base + service through the standard service-level rules. The
 	// canonical merge path is "services.x" — same key used by the v2
 	// override.ExtendService.
-	merged, err := override.MergeNode(deepCloneNode(base), service, tree.NewPath("services", "x"))
+	merged, err := override.MergeNode(clonedBase, service, tree.NewPath("services", "x"))
 	if err != nil {
 		return nil, err
 	}
 	deleteMappingKey(merged, "extends")
+	// When extends went through an extends.file (loaded a sub-layer),
+	// rewrite relative paths in the merged service against the sub-file's
+	// working directory. Matches v2 getExtendsBaseFromFile semantics where
+	// paths accumulate the file's relative dir as the chain unwinds.
+	if file != "" {
+		if err := resolveExtendedServicePaths(merged, layer.Context.WorkingDir, childOpts); err != nil {
+			return nil, err
+		}
+	}
 	return merged, nil
 }
 
-// parseExtendsRef extracts the (service, file) tuple from an extends value.
-// The short form (a bare scalar) names a sibling service. The long form is
-// a mapping with required `service` and optional `file`.
-func parseExtendsRef(name string, extendsNode *yaml.Node) (string, string, error) {
+// parseExtendsRef extracts the (service, file) tuple from an extends value
+// and fires the "extends" Listener event with a v2-compatible payload so
+// downstream consumers (telemetry, dependency analysis) keep observing the
+// same callback signature as before the refactor. The short form (a bare
+// scalar) names a sibling service; the long form is a mapping with
+// required `service` and optional `file`.
+func parseExtendsRef(name string, extendsNode *yaml.Node, opts *Options) (string, string, error) {
 	switch extendsNode.Kind {
 	case yaml.ScalarNode:
+		opts.ProcessEvent("extends", map[string]any{"service": extendsNode.Value})
 		return extendsNode.Value, "", nil
 	case yaml.MappingNode:
 		var ref, file string
+		payload := map[string]any{}
 		if r := mappingValueByKey(extendsNode, "service"); r != nil && r.Kind == yaml.ScalarNode {
 			ref = r.Value
+			payload["service"] = r.Value
 		}
 		if f := mappingValueByKey(extendsNode, "file"); f != nil && f.Kind == yaml.ScalarNode {
 			file = f.Value
+			payload["file"] = f.Value
 		}
+		opts.ProcessEvent("extends", payload)
 		if ref == "" {
-			return "", "", fmt.Errorf("services.%s.extends.service is required", name)
+			return "", "", fmt.Errorf("extends.%s.service is required", name)
 		}
 		return ref, file, nil
 	}
@@ -172,28 +213,141 @@ func parseExtendsRef(name string, extendsNode *yaml.Node) (string, string, error
 // Relative paths are resolved through the configured ResourceLoaders, so
 // remote loaders (oci://, https://, ...) registered on opts also work for
 // extends.file references.
-func loadExtendsBaseLayer(ctx context.Context, parent *node.Layer, file string, opts *Options) (*node.Layer, error) {
-	fullPath, err := resolveResourcePath(ctx, opts, file)
+//
+// The function also returns child-scoped Options whose ResourceLoaders are
+// re-rooted at the extended file's directory. Recursive extends inside the
+// loaded layer (extends.file pointing at a sibling file) are then resolved
+// against the file's own directory rather than the project root, matching
+// v2 getExtendsBaseFromFile behavior.
+func loadExtendsBaseLayer(ctx context.Context, parent *node.Layer, file string, opts *Options) (*node.Layer, *Options, error) {
+	// Resolve extends.file against the *parent layer* working directory so
+	// extends declared inside an included file pick up the include's own
+	// project_directory rather than the outer project root. This makes
+	// nested `include -> extends -> extends.file` work the same way v2
+	// does, where each recursive load uses ResourceLoaders pinned to the
+	// current file's directory.
+	parentOpts := opts
+	if parent.Context.WorkingDir != "" {
+		parentOpts = opts.clone()
+		parentOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{WorkingDir: parent.Context.WorkingDir})
+	}
+	loader, fullPath, err := resolveResourceWithLoader(ctx, parentOpts, file)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	if !filepath.IsAbs(fullPath) {
-		fullPath = filepath.Join(parent.Context.WorkingDir, fullPath)
-	}
+	// localDir is the directory of the extended file expressed in a form
+	// compatible with the way v2 ResolveRelativePaths works:
+	// loader.Dir(file) returns a project-relative path when the file lives
+	// under the project root, otherwise the absolute path. Recursive path
+	// resolution uses this dir so the resulting paths match the relative
+	// form v2 produces.
+	localDir := loader.Dir(file)
+	absLocalDir := filepath.Dir(fullPath)
 	sc := &node.SourceContext{
 		File:        fullPath,
-		WorkingDir:  filepath.Dir(fullPath),
+		WorkingDir:  localDir,
 		Environment: parent.Context.Environment,
 		Parent:      parent.Context,
 	}
-	layers, err := LoadLayer(ctx, types.ConfigFile{Filename: fullPath}, sc, opts)
+	childOpts := opts.clone()
+	childOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{WorkingDir: absLocalDir})
+	layers, err := LoadLayer(ctx, types.ConfigFile{Filename: fullPath}, sc, childOpts)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(layers) == 0 {
-		return nil, fmt.Errorf("extends.file %s yields no document", fullPath)
+		return nil, nil, fmt.Errorf("extends.file %s yields no document", fullPath)
 	}
-	return layers[0], nil
+	return layers[0], childOpts, nil
+}
+
+// resolveExtendedServicePaths runs path resolution on the merged service
+// node using workingDir as the base, mimicking the v2 paths.ResolveRelative
+// Paths call inside getExtendsBaseFromFile. Each extends.file level rewrites
+// the paths against its own relative dir, so nested extends accumulate the
+// expected relative form (sibling.yaml's `.` becomes `testdata/extends`
+// when extended from base.yaml which lives there).
+func resolveExtendedServicePaths(merged *yaml.Node, workingDir string, opts *Options) error {
+	if workingDir == "" {
+		return nil
+	}
+	var remotes []paths.RemoteResource
+	for _, loader := range opts.RemoteResourceLoaders() {
+		remotes = append(remotes, loader.Accept)
+	}
+	// Wrap the merged service node in a synthetic "services.x" mapping so
+	// the path patterns (which all start at the root) match against it.
+	wrapper := &yaml.Node{
+		Kind: yaml.MappingNode,
+		Tag:  "!!map",
+		Content: []*yaml.Node{
+			{Kind: yaml.ScalarNode, Tag: "!!str", Value: "services"},
+			{
+				Kind: yaml.MappingNode,
+				Tag:  "!!map",
+				Content: []*yaml.Node{
+					{Kind: yaml.ScalarNode, Tag: "!!str", Value: "x"},
+					merged,
+				},
+			},
+		},
+	}
+	return paths.ResolveRelativePathsNode(wrapper, paths.NodeResolverOptions{
+		WorkingDir: workingDir,
+		Remotes:    remotes,
+	})
+}
+
+// resetParentPaths removes mapping keys in serviceNode that match a recorded
+// !reset / !override path under services.<serviceName>. Mirrors the
+// applyNullOverrides traversal v2 does on processor.Apply, but scoped to a
+// single service's body so it can run on the cloned base before extends
+// merge fires.
+func resetParentPaths(serviceNode *yaml.Node, serviceName string, resetPaths []tree.Path) {
+	if serviceNode == nil || serviceNode.Kind != yaml.MappingNode || len(resetPaths) == 0 {
+		return
+	}
+	prefix := tree.NewPath("services", serviceName)
+	for _, p := range resetPaths {
+		rel := relativePath(p, prefix)
+		if rel == "" {
+			continue
+		}
+		deleteAtPath(serviceNode, rel)
+	}
+}
+
+// relativePath returns the portion of p that follows prefix, or "" when p
+// is not rooted at prefix. Comparison treats prefix parts as literal (no
+// wildcard expansion).
+func relativePath(p, prefix tree.Path) tree.Path {
+	pParts := p.Parts()
+	prefixParts := prefix.Parts()
+	if len(pParts) <= len(prefixParts) {
+		return ""
+	}
+	for i, part := range prefixParts {
+		if pParts[i] != part {
+			return ""
+		}
+	}
+	return tree.NewPath(pParts[len(prefixParts):]...)
+}
+
+// deleteAtPath removes the entry at a relative path inside n (a Mapping
+// Node). Only the first segment is followed at each step; intermediate
+// segments must reference Mapping keys, otherwise the function is a no-op.
+func deleteAtPath(n *yaml.Node, p tree.Path) {
+	parts := p.Parts()
+	if len(parts) == 0 || n == nil {
+		return
+	}
+	if len(parts) == 1 {
+		deleteMappingKey(n, parts[0])
+		return
+	}
+	child := mappingValueByKey(n, parts[0])
+	deleteAtPath(child, tree.NewPath(parts[1:]...))
 }
 
 // mappingValueByKey returns the value Node for a key inside a MappingNode,
