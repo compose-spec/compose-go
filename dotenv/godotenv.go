@@ -20,7 +20,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/compose-spec/compose-go/v2/template"
+	"github.com/compose-spec/compose-go/v3/template"
 )
 
 var utf8BOM = []byte("\uFEFF")

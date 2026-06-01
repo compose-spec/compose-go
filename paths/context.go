@@ -19,7 +19,7 @@ package paths
 import (
 	"strings"
 
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/types"
 )
 
 func (r *relativePathsResolver) absContextPath(value any) (any, error) {

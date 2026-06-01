@@ -16,7 +16,7 @@
 
 package override
 
-import "github.com/compose-spec/compose-go/v2/tree"
+import "github.com/compose-spec/compose-go/v3/tree"
 
 func ExtendService(base, override map[string]any) (map[string]any, error) {
 	yaml, err := MergeYaml(base, override, tree.NewPath("services.x"))

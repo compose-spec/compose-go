@@ -19,8 +19,8 @@ package transform
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/tree"
+	"github.com/compose-spec/compose-go/v3/types"
 	"github.com/go-viper/mapstructure/v2"
 )
 

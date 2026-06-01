@@ -1,4 +1,4 @@
-module github.com/compose-spec/compose-go/v2
+module github.com/compose-spec/compose-go/v3
 
 go 1.24
 

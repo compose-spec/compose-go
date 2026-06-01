@@ -19,7 +19,7 @@ package loader
 import (
 	"testing"
 
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/types"
 	"github.com/go-viper/mapstructure/v2"
 	"gotest.tools/v3/assert"
 )

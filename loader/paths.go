@@ -19,7 +19,7 @@ package loader
 import (
 	"path/filepath"
 
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/types"
 )
 
 // ResolveRelativePaths resolves relative paths based on project WorkingDirectory

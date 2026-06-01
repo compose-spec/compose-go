@@ -19,7 +19,7 @@ package transform
 import (
 	"testing"
 
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/tree"
 	"gotest.tools/v3/assert"
 )
 

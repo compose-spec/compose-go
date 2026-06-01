@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/compose-spec/compose-go/v2/format"
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/format"
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 func transformVolumeMount(data any, p tree.Path, ignoreParseError bool) (any, error) {

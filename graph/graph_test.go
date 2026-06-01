@@ -23,8 +23,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/compose-spec/compose-go/v2/types"
-	"github.com/compose-spec/compose-go/v2/utils"
+	"github.com/compose-spec/compose-go/v3/types"
+	"github.com/compose-spec/compose-go/v3/utils"
 	"github.com/stretchr/testify/require"
 	"gotest.tools/v3/assert"
 )

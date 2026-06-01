@@ -16,7 +16,7 @@
 
 package loader
 
-import "github.com/compose-spec/compose-go/v2/tree"
+import "github.com/compose-spec/compose-go/v3/tree"
 
 var omitempty = []tree.Path{
 	"services.*.dns",

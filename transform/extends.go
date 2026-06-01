@@ -19,7 +19,7 @@ package transform
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 func transformExtends(data any, p tree.Path, ignoreParseError bool) (any, error) {

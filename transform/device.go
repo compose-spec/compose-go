@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 func transformDeviceMapping(data any, p tree.Path, ignoreParseError bool) (any, error) {
