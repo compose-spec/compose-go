@@ -24,6 +24,7 @@ package node
 import (
 	"go.yaml.in/yaml/v4"
 
+	"github.com/compose-spec/compose-go/v3/tree"
 	"github.com/compose-spec/compose-go/v3/types"
 )
 
@@ -76,7 +77,8 @@ type Layer struct {
 	Node    *yaml.Node
 	Context *SourceContext
 
-	origins map[*yaml.Node]*SourceContext
+	origins    map[*yaml.Node]*SourceContext
+	resetPaths []tree.Path
 }
 
 // NewLayer returns a Layer that pairs node with ctx. The origins side-table
@@ -106,4 +108,17 @@ func (l *Layer) SetOrigin(n *yaml.Node, ctx *SourceContext) {
 		l.origins = make(map[*yaml.Node]*SourceContext)
 	}
 	l.origins[n] = ctx
+}
+
+// SetResetPaths records the tree.Paths where !reset / !override tags were
+// found during ResolveResetOverride. The merge phase consults this list to
+// drop or replace values from base layers at those paths.
+func (l *Layer) SetResetPaths(paths []tree.Path) {
+	l.resetPaths = paths
+}
+
+// ResetPaths returns the list of paths recorded by SetResetPaths, in the
+// order they were collected.
+func (l *Layer) ResetPaths() []tree.Path {
+	return l.resetPaths
 }

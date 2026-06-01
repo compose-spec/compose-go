@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/go-viper/mapstructure/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 // isCaseInsensitiveEnvVars is true on platforms where environment variable names are treated case-insensitively.
@@ -63,6 +64,12 @@ type ConfigFile struct {
 	Content []byte
 	// Config if the yaml tree for this config file. Will be parsed from Content if not set
 	Config map[string]interface{}
+	// Node is a pre-parsed yaml.Node for this config file. When non-nil, v3
+	// loader paths consume it directly and skip both Content and Filename.
+	// Allows callers that already produced a Node (e.g. through a custom
+	// reader, a remote loader or a previous transformation) to feed it into
+	// the loader without re-parsing.
+	Node *yaml.Node
 }
 
 func (cf ConfigFile) IsStdin() bool {
