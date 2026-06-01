@@ -21,8 +21,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/tree"
+	"github.com/compose-spec/compose-go/v3/types"
 )
 
 type resolver func(any) (any, error)

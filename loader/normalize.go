@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/types"
 )
 
 // Normalize compose project by moving deprecated attributes to their canonical position and injecting implicit defaults

@@ -20,7 +20,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/compose-spec/compose-go/v2/utils"
+	"github.com/compose-spec/compose-go/v3/utils"
 )
 
 func (r *relativePathsResolver) maybeUnixPath(a any) (any, error) {

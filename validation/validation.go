@@ -21,7 +21,7 @@ import (
 	"net"
 	"strings"
 
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 type checkerFunc func(value any, p tree.Path) error

@@ -19,7 +19,7 @@ package transform
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/v2/tree"
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 // Func is a function that can transform data at a specific path

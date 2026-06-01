@@ -25,7 +25,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/compose-spec/compose-go/v2/utils"
+	"github.com/compose-spec/compose-go/v3/utils"
 	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/v3/assert"

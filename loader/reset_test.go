@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v3/types"
 	"gotest.tools/v3/assert"
 )
 
