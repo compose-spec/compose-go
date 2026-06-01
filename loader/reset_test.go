@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/compose-spec/compose-go/v3/internal/node"
 	"github.com/compose-spec/compose-go/v3/types"
 	"gotest.tools/v3/assert"
 )
@@ -236,8 +237,8 @@ services:
 // TestVisitCounterLimit verifies that a document with more than the default node visit cap
 // is rejected with a clear error, providing a safety belt independent of alias memoization.
 func TestVisitCounterLimit(t *testing.T) {
-	// Two mappings of (defaultMaxNodeVisits/2 + 1) entries each → total > cap value visits.
-	half := defaultMaxNodeVisits/2 + 1
+	// Two mappings of (node.DefaultMaxNodeVisits/2 + 1) entries each → total > cap value visits.
+	half := node.DefaultMaxNodeVisits/2 + 1
 	var sb strings.Builder
 	sb.WriteString("name: test\nx-data1:\n")
 	for i := 0; i < half; i++ {
@@ -254,7 +255,7 @@ func TestVisitCounterLimit(t *testing.T) {
 // TestVisitCounterLimitOverride verifies that Options.MaxNodeVisits raises the cap, allowing
 // documents that would be rejected at the default limit to load successfully.
 func TestVisitCounterLimitOverride(t *testing.T) {
-	half := defaultMaxNodeVisits/2 + 1
+	half := node.DefaultMaxNodeVisits/2 + 1
 	var sb strings.Builder
 	sb.WriteString("name: test\nx-data1:\n")
 	for i := 0; i < half; i++ {
@@ -269,7 +270,7 @@ func TestVisitCounterLimitOverride(t *testing.T) {
 	}, func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
-		options.MaxNodeVisits = defaultMaxNodeVisits * 2
+		options.MaxNodeVisits = node.DefaultMaxNodeVisits * 2
 	})
 	assert.NilError(t, err)
 }
