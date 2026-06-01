@@ -48,6 +48,7 @@ services:
 `)
 	dict, err := LoadV3(context.TODO(), v3Config(t, dir, "compose.yaml"), &Options{
 		SkipNormalization:    true,
+		SkipValidation:       true,
 		SkipConsistencyCheck: true,
 	})
 	assert.NilError(t, err)
@@ -70,6 +71,7 @@ services:
 `)
 	dict, err := LoadV3(context.TODO(), v3Config(t, dir, "base.yaml", "override.yaml"), &Options{
 		SkipNormalization:    true,
+		SkipValidation:       true,
 		SkipConsistencyCheck: true,
 	})
 	assert.NilError(t, err)
@@ -108,6 +110,7 @@ services:
 	cd.Environment = types.Mapping{"WEB_TAG": "root-1.0"}
 	dict, err := LoadV3(context.TODO(), cd, &Options{
 		SkipNormalization:    true,
+		SkipValidation:       true,
 		SkipConsistencyCheck: true,
 	})
 	assert.NilError(t, err)
@@ -133,6 +136,7 @@ services:
 `)
 	dict, err := LoadV3(context.TODO(), v3Config(t, dir, "compose.yaml"), &Options{
 		SkipNormalization:    true,
+		SkipValidation:       true,
 		SkipConsistencyCheck: true,
 	})
 	assert.NilError(t, err)
@@ -158,6 +162,7 @@ services:
 `)
 	dict, err := LoadV3(context.TODO(), v3Config(t, dir, "base.yaml", "override.yaml"), &Options{
 		SkipNormalization:    true,
+		SkipValidation:       true,
 		SkipConsistencyCheck: true,
 	})
 	assert.NilError(t, err)
@@ -189,6 +194,7 @@ services:
 `)
 	dict, err := LoadV3(context.TODO(), v3Config(t, root, "compose.yaml"), &Options{
 		SkipNormalization:    true,
+		SkipValidation:       true,
 		SkipConsistencyCheck: true,
 		ResolvePaths:         true,
 	})
@@ -213,6 +219,7 @@ func TestLoadV3_EmptyConfigRejected(t *testing.T) {
 		Environment: types.Mapping{},
 	}, &Options{
 		SkipNormalization:    true,
+		SkipValidation:       true,
 		SkipConsistencyCheck: true,
 	})
 	assert.ErrorContains(t, err, "empty compose file")

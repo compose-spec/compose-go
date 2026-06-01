@@ -65,6 +65,26 @@ func TestDifferentialV2V3(t *testing.T) {
 			name:  "empty",
 			files: []string{"testdata/empty.yaml"},
 		},
+		{
+			name:  "depends-on-self",
+			files: []string{"testdata/compose-depends-on-self.yaml"},
+		},
+		{
+			name:  "depends-on-cycle",
+			files: []string{"testdata/compose-depends-on-cycle.yaml"},
+		},
+		{
+			name:  "depends-on-profile-no-cycle",
+			files: []string{"testdata/compose-depends-on-profile-no-cycle.yaml"},
+		},
+		{
+			name:  "include-cycle",
+			files: []string{"testdata/compose-include-cycle.yaml"},
+		},
+		{
+			name:  "extends-with-context-url-imported",
+			files: []string{"testdata/compose-test-extends-with-context-url-imported.yaml"},
+		},
 	}
 
 	for _, tc := range fixtures {

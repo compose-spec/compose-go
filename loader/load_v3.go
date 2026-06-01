@@ -73,6 +73,25 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 	if !hasLocalLoader(opts.ResourceLoaders) {
 		opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{WorkingDir: cd.WorkingDir})
 	}
+	// Ensure Interpolate is non-nil: projectName extraction and the
+	// interpolate-merged pass both dereference *opts.Interpolate. Callers
+	// that go through ToOptions already have it set; the defensive init
+	// covers tests that build Options literals directly.
+	if opts.Interpolate == nil {
+		opts.Interpolate = &interp.Options{
+			Substitute:      template.Substitute,
+			LookupValue:     cd.LookupEnv,
+			TypeCastMapping: interpolateTypeCastMapping,
+		}
+	}
+	// Reproduce the v2 contract: extract the project name from the first
+	// config file (or its `name:` field) before the pipeline runs. Errors
+	// from explicit-name validation (NormalizeProjectName) propagate as in
+	// v2; an empty result is rejected after schema validation below.
+	if err := projectName(&cd, opts); err != nil {
+		return nil, err
+	}
+
 	rootCtx := &node.SourceContext{
 		WorkingDir:  cd.WorkingDir,
 		Environment: cd.Environment,
@@ -152,6 +171,12 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 				opts.warnObsoleteVersion(f.Filename)
 			}
 			deleteMappingKey(merged.Node, "version")
+		}
+		// v2 rejects a load whose project name is still empty at this
+		// point. The check is gated on SkipValidation to keep the v3
+		// orchestrator usable from tests that skip validation outright.
+		if opts.projectName == "" {
+			return nil, errors.New("project name must not be empty")
 		}
 	}
 
