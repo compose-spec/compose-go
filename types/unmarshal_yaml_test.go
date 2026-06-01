@@ -109,3 +109,108 @@ env_file:
 	assert.DeepEqual(t, cfg.Path, StringList{"first.yaml", "second.yaml"})
 	assert.DeepEqual(t, cfg.EnvFile, StringList{".env.a", ".env.b"})
 }
+
+func TestLabels_UnmarshalYAML_Mapping(t *testing.T) {
+	var l Labels
+	src := `
+com.example.a: "1"
+com.example.b: hello
+com.example.c: 42
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &l))
+	assert.Equal(t, l["com.example.a"], "1")
+	assert.Equal(t, l["com.example.b"], "hello")
+	assert.Equal(t, l["com.example.c"], "42")
+}
+
+func TestLabels_UnmarshalYAML_List(t *testing.T) {
+	var l Labels
+	src := `
+- com.example.a=value
+- com.example.b=
+- com.example.c
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &l))
+	assert.Equal(t, l["com.example.a"], "value")
+	assert.Equal(t, l["com.example.b"], "")
+	assert.Equal(t, l["com.example.c"], "")
+}
+
+func TestMapping_UnmarshalYAML_Mapping(t *testing.T) {
+	var m Mapping
+	src := `
+FOO: bar
+EMPTY:
+NUM: 42
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &m))
+	assert.Equal(t, m["FOO"], "bar")
+	assert.Equal(t, m["EMPTY"], "")
+	assert.Equal(t, m["NUM"], "42")
+}
+
+func TestMapping_UnmarshalYAML_List(t *testing.T) {
+	var m Mapping
+	src := `
+- FOO=bar
+- EMPTY=
+- BARE
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &m))
+	assert.Equal(t, m["FOO"], "bar")
+	assert.Equal(t, m["EMPTY"], "")
+	assert.Equal(t, m["BARE"], "")
+}
+
+func TestMappingWithEquals_UnmarshalYAML_NilVsEmptyPreserved(t *testing.T) {
+	var m MappingWithEquals
+	src := `
+- WITH_VALUE=hello
+- EMPTY_VALUE=
+- BARE_KEY
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &m))
+	// WITH_VALUE: non-nil pointer with "hello".
+	assert.Assert(t, m["WITH_VALUE"] != nil)
+	assert.Equal(t, *m["WITH_VALUE"], "hello")
+	// EMPTY_VALUE: non-nil pointer with "".
+	assert.Assert(t, m["EMPTY_VALUE"] != nil)
+	assert.Equal(t, *m["EMPTY_VALUE"], "")
+	// BARE_KEY: nil pointer.
+	v, present := m["BARE_KEY"]
+	assert.Assert(t, present)
+	assert.Assert(t, v == nil)
+}
+
+func TestMappingWithEquals_UnmarshalYAML_MappingTrailingSpace(t *testing.T) {
+	var m MappingWithEquals
+	src := `
+- "FOO =bar"
+`
+	err := yaml.Unmarshal([]byte(src), &m)
+	assert.ErrorContains(t, err, "trailing space")
+}
+
+func TestHostsList_UnmarshalYAML_ListShortForm(t *testing.T) {
+	var h HostsList
+	src := `
+- "host1:1.2.3.4"
+- "host2=5.6.7.8"
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &h))
+	assert.DeepEqual(t, h["host1"], []string{"1.2.3.4"})
+	assert.DeepEqual(t, h["host2"], []string{"5.6.7.8"})
+}
+
+func TestHostsList_UnmarshalYAML_Mapping(t *testing.T) {
+	var h HostsList
+	src := `
+host1: 1.2.3.4
+host2:
+  - 5.6.7.8
+  - 9.10.11.12
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &h))
+	assert.DeepEqual(t, h["host1"], []string{"1.2.3.4"})
+	assert.DeepEqual(t, h["host2"], []string{"5.6.7.8", "9.10.11.12"})
+}

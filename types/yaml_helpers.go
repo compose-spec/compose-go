@@ -28,3 +28,29 @@ func unwrapDocument(n *yaml.Node) *yaml.Node {
 	}
 	return n
 }
+
+// scalarToString returns the string representation of a scalar node,
+// treating !!null tagged scalars and nil nodes as empty strings. Numeric
+// and boolean scalars are returned verbatim because yaml.v4 preserves the
+// source representation in Node.Value regardless of Tag, which mirrors the
+// fmt.Sprint(e) behavior of the v2 mapstructure helpers.
+func scalarToString(n *yaml.Node) string {
+	if n == nil || n.Kind != yaml.ScalarNode {
+		return ""
+	}
+	if n.Tag == "!!null" {
+		return ""
+	}
+	return n.Value
+}
+
+// scalarToStringPtr returns a *string for a scalar node, distinguishing the
+// !!null tag (returns nil) from an empty string (returns a pointer to ""):
+// the same distinction MappingWithEquals encodes with `key=` vs `key`.
+func scalarToStringPtr(n *yaml.Node) *string {
+	if n == nil || n.Kind != yaml.ScalarNode || n.Tag == "!!null" {
+		return nil
+	}
+	v := n.Value
+	return &v
+}

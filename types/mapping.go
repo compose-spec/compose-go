@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // MappingWithEquals is a mapping type that can be converted from a list of
@@ -107,6 +109,43 @@ func (m *MappingWithEquals) DecodeMapstructure(value interface{}) error {
 		*m = mapping
 	default:
 		return fmt.Errorf("unexpected value type %T for mapping", value)
+	}
+	return nil
+}
+
+// UnmarshalYAML accepts a mapping form or a list of `key[=value]` entries
+// and stores the result as a MappingWithEquals. The pointer distinction
+// between a bare `key` (nil) and `key=` (pointer to "") is preserved: that
+// distinction drives environment variable resolution downstream.
+func (m *MappingWithEquals) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.MappingNode:
+		mapping := make(MappingWithEquals, len(value.Content)/2)
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			mapping[value.Content[i].Value] = scalarToStringPtr(value.Content[i+1])
+		}
+		*m = mapping
+	case yaml.SequenceNode:
+		mapping := make(MappingWithEquals, len(value.Content))
+		for _, item := range value.Content {
+			if item.Kind != yaml.ScalarNode {
+				return fmt.Errorf("mapping list entry must be scalar, got kind %d", item.Kind)
+			}
+			k, e, ok := strings.Cut(item.Value, "=")
+			if k != "" && unicode.IsSpace(rune(k[len(k)-1])) {
+				return fmt.Errorf("environment variable %s is declared with a trailing space", k)
+			}
+			if !ok {
+				mapping[k] = nil
+			} else {
+				v := e
+				mapping[k] = &v
+			}
+		}
+		*m = mapping
+	default:
+		return fmt.Errorf("unexpected yaml kind %d for mapping", value.Kind)
 	}
 	return nil
 }
@@ -204,6 +243,34 @@ func (m *Mapping) DecodeMapstructure(value interface{}) error {
 		*m = decodeMapping(v, "=")
 	default:
 		return fmt.Errorf("unexpected value type %T for mapping", value)
+	}
+	return nil
+}
+
+// UnmarshalYAML accepts a mapping form or a list of "key=value" entries and
+// stores the result as a Mapping. A bare `key` in list form maps to an
+// empty string, matching the v2 behavior.
+func (m *Mapping) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.MappingNode:
+		mapping := make(Mapping, len(value.Content)/2)
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			mapping[value.Content[i].Value] = scalarToString(value.Content[i+1])
+		}
+		*m = mapping
+	case yaml.SequenceNode:
+		mapping := make(Mapping, len(value.Content))
+		for _, item := range value.Content {
+			if item.Kind != yaml.ScalarNode {
+				return fmt.Errorf("mapping list entry must be scalar, got kind %d", item.Kind)
+			}
+			k, v, _ := strings.Cut(item.Value, "=")
+			mapping[k] = v
+		}
+		*m = mapping
+	default:
+		return fmt.Errorf("unexpected yaml kind %d for mapping", value.Kind)
 	}
 	return nil
 }
