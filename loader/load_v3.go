@@ -135,6 +135,14 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		}
 	}
 
+	// Lazy bare-key environment resolution: services.*.environment entries
+	// that are just `KEY` (no `=`) get rewritten to `KEY=value` using each
+	// scalar own SourceContext.Environment. Mirrors v2 ResolveEnvironment
+	// but operates per-scalar so an env_file scoped to an include block is
+	// visible to services declared inside that include — and not leaked to
+	// the surrounding project environment.
+	ResolveEnvironmentNode(merged.Node, origins)
+
 	// Path resolution runs before canonicalization on purpose: the
 	// CanonicalNode bridge currently rebuilds the affected subtrees via
 	// map[string]any, which loses *yaml.Node pointer identity and breaks
