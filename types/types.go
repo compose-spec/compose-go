@@ -26,6 +26,7 @@ import (
 
 	"github.com/docker/go-connections/nat"
 	"github.com/xhit/go-str2duration/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 // ServiceConfig is the configuration of one service
@@ -656,6 +657,22 @@ func (f *FileMode) DecodeMapstructure(value interface{}) error {
 	return nil
 }
 
+// UnmarshalYAML accepts a scalar value representing a file mode in octal
+// form (string with or without a leading "0") or a decimal integer.
+// Mirrors DecodeMapstructure for yaml.v4 native decoding.
+func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	if value.Kind != yaml.ScalarNode {
+		return fmt.Errorf("expected scalar file mode, got kind %d", value.Kind)
+	}
+	i, err := strconv.ParseInt(value.Value, 8, 64)
+	if err != nil {
+		return fmt.Errorf("invalid file mode %q: %w", value.Value, err)
+	}
+	*f = FileMode(i)
+	return nil
+}
+
 // MarshalYAML makes FileMode implement yaml.Marshaller
 func (f *FileMode) MarshalYAML() (interface{}, error) {
 	return f.String(), nil
@@ -683,6 +700,45 @@ type UlimitsConfig struct {
 	Hard   int `yaml:"hard,omitempty" json:"hard,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+// UnmarshalYAML accepts either a scalar integer (single-value form) or a
+// mapping with soft / hard fields. Mirrors DecodeMapstructure for yaml.v4
+// native decoding.
+func (u *UlimitsConfig) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.ScalarNode:
+		i, err := strconv.Atoi(value.Value)
+		if err != nil {
+			return fmt.Errorf("invalid ulimit value %q: %w", value.Value, err)
+		}
+		u.Single = i
+		u.Soft = 0
+		u.Hard = 0
+	case yaml.MappingNode:
+		u.Single = 0
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			key := value.Content[i].Value
+			val := value.Content[i+1]
+			if val.Kind != yaml.ScalarNode {
+				return fmt.Errorf("ulimit %s must be a scalar", key)
+			}
+			n, err := strconv.Atoi(val.Value)
+			if err != nil {
+				return fmt.Errorf("invalid ulimit %s value %q: %w", key, val.Value, err)
+			}
+			switch key {
+			case "soft":
+				u.Soft = n
+			case "hard":
+				u.Hard = n
+			}
+		}
+	default:
+		return fmt.Errorf("unexpected yaml kind %d for ulimit", value.Kind)
+	}
+	return nil
 }
 
 func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {

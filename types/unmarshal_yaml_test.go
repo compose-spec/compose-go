@@ -214,3 +214,86 @@ host2:
 	assert.DeepEqual(t, h["host1"], []string{"1.2.3.4"})
 	assert.DeepEqual(t, h["host2"], []string{"5.6.7.8", "9.10.11.12"})
 }
+
+func TestDuration_UnmarshalYAML(t *testing.T) {
+	var d Duration
+	assert.NilError(t, yaml.Unmarshal([]byte("1h30m"), &d))
+	assert.Equal(t, d.String(), "1h30m0s")
+}
+
+func TestNanoCPUs_UnmarshalYAML(t *testing.T) {
+	var n NanoCPUs
+	assert.NilError(t, yaml.Unmarshal([]byte("0.5"), &n))
+	assert.Equal(t, n.Value(), float32(0.5))
+	assert.NilError(t, yaml.Unmarshal([]byte("\"1.5\""), &n))
+	assert.Equal(t, n.Value(), float32(1.5))
+}
+
+func TestDeviceCount_UnmarshalYAML_All(t *testing.T) {
+	var c DeviceCount
+	assert.NilError(t, yaml.Unmarshal([]byte("all"), &c))
+	assert.Equal(t, int64(c), int64(-1))
+}
+
+func TestDeviceCount_UnmarshalYAML_Integer(t *testing.T) {
+	var c DeviceCount
+	assert.NilError(t, yaml.Unmarshal([]byte("4"), &c))
+	assert.Equal(t, int64(c), int64(4))
+}
+
+func TestDeviceCount_UnmarshalYAML_InvalidString(t *testing.T) {
+	var c DeviceCount
+	err := yaml.Unmarshal([]byte("some"), &c)
+	assert.ErrorContains(t, err, "the only value allowed is 'all' or a number")
+}
+
+func TestFileMode_UnmarshalYAML(t *testing.T) {
+	var f FileMode
+	assert.NilError(t, yaml.Unmarshal([]byte("0755"), &f))
+	// 0755 octal == 493 decimal
+	assert.Equal(t, int64(f), int64(493))
+}
+
+func TestUlimitsConfig_UnmarshalYAML_Scalar(t *testing.T) {
+	var u UlimitsConfig
+	assert.NilError(t, yaml.Unmarshal([]byte("65535"), &u))
+	assert.Equal(t, u.Single, 65535)
+	assert.Equal(t, u.Soft, 0)
+	assert.Equal(t, u.Hard, 0)
+}
+
+func TestUlimitsConfig_UnmarshalYAML_Mapping(t *testing.T) {
+	var u UlimitsConfig
+	src := `
+soft: 1000
+hard: 2000
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &u))
+	assert.Equal(t, u.Single, 0)
+	assert.Equal(t, u.Soft, 1000)
+	assert.Equal(t, u.Hard, 2000)
+}
+
+func TestOptions_UnmarshalYAML(t *testing.T) {
+	var o Options
+	src := `
+max-size: 10m
+max-file: "3"
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &o))
+	assert.Equal(t, o["max-size"], "10m")
+	assert.Equal(t, o["max-file"], "3")
+}
+
+func TestMultiOptions_UnmarshalYAML_Mixed(t *testing.T) {
+	var m MultiOptions
+	src := `
+single: value
+list:
+  - a
+  - b
+`
+	assert.NilError(t, yaml.Unmarshal([]byte(src), &m))
+	assert.DeepEqual(t, m["single"], []string{"value"})
+	assert.DeepEqual(t, m["list"], []string{"a", "b"})
+}
