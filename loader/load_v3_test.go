@@ -205,14 +205,15 @@ services:
 		"included scalar resolved against include project_directory")
 }
 
-func TestLoadV3_EmptyConfigYieldsEmptyMap(t *testing.T) {
-	dict, err := LoadV3(context.TODO(), types.ConfigDetails{
+func TestLoadV3_EmptyConfigRejected(t *testing.T) {
+	// LoadV3 reproduces the v2 behavior that rejects an empty input rather
+	// than silently producing a map[string]any{}.
+	_, err := LoadV3(context.TODO(), types.ConfigDetails{
 		WorkingDir:  "/work",
 		Environment: types.Mapping{},
 	}, &Options{
 		SkipNormalization:    true,
 		SkipConsistencyCheck: true,
 	})
-	assert.NilError(t, err)
-	assert.Equal(t, len(dict), 0)
+	assert.ErrorContains(t, err, "empty compose file")
 }

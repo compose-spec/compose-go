@@ -18,6 +18,7 @@ package loader
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.yaml.in/yaml/v4"
@@ -82,7 +83,7 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		return nil, err
 	}
 	if len(allLayers) == 0 {
-		return map[string]any{}, nil
+		return nil, errors.New("empty compose file")
 	}
 
 	if !opts.SkipExtends {
@@ -143,6 +144,15 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		if err := validation.ValidateNode(merged.Node); err != nil {
 			return nil, err
 		}
+		// The version attribute is obsolete; v2 strips it after schema
+		// validation and emits a deprecation warning. v3 preserves the
+		// behavior so existing fixtures keep producing identical output.
+		if hasMappingKey(merged.Node, "version") {
+			for _, f := range cd.ConfigFiles {
+				opts.warnObsoleteVersion(f.Filename)
+			}
+			deleteMappingKey(merged.Node, "version")
+		}
 	}
 
 	if !opts.SkipNormalization {
@@ -155,7 +165,23 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 	if err := merged.Node.Decode(&dict); err != nil {
 		return nil, fmt.Errorf("loadV3: decode merged tree: %w", err)
 	}
+	if len(dict) == 0 {
+		return nil, errors.New("empty compose file")
+	}
 	return dict, nil
+}
+
+// hasMappingKey reports whether n is a MappingNode containing key.
+func hasMappingKey(n *yaml.Node, key string) bool {
+	if n == nil || n.Kind != yaml.MappingNode {
+		return false
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		if n.Content[i].Value == key {
+			return true
+		}
+	}
+	return false
 }
 
 // collectAllLayers parses each ConfigFile and recursively folds in every

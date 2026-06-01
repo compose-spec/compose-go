@@ -71,6 +71,7 @@ func ResolveRelativePathsNode(root *yaml.Node, opts NodeResolverOptions) error {
 	}
 	r := &nodeResolverState{opts: opts}
 	r.resolvers = map[tree.Path]func(*yaml.Node) error{
+		"services.*.build":                       r.absBuild,
 		"services.*.build.context":               r.absContextScalar,
 		"services.*.build.additional_contexts.*": r.absContextScalar,
 		"services.*.build.ssh.*":                 r.maybeUnixScalar,
@@ -190,6 +191,63 @@ func (r *nodeResolverState) maybeUnixScalar(n *yaml.Node) error {
 		return nil
 	}
 	n.Value = expanded
+	return nil
+}
+
+// absBuild handles services.*.build in both canonical short and long form.
+// Short form (a scalar Value is the build context path) is treated as a
+// context path and resolved against the layer working directory. Long form
+// (a mapping with context / additional_contexts / ssh fields) is recursed
+// into by walking the mapping's children — this is needed because the
+// generic walker stops at the first matching pattern, so it cannot descend
+// past services.*.build to reach services.*.build.context on its own.
+//
+// Running paths before canonicalization avoids the loss of pointer identity
+// that the CanonicalNode bridge would otherwise cause; this handler keeps
+// both shapes supported until per-transformer Node ports are in place.
+func (r *nodeResolverState) absBuild(n *yaml.Node) error {
+	if n == nil {
+		return nil
+	}
+	if n.Kind == yaml.ScalarNode {
+		return r.absContextScalar(n)
+	}
+	if n.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		key := n.Content[i].Value
+		val := n.Content[i+1]
+		switch key {
+		case "context":
+			if err := r.absContextScalar(val); err != nil {
+				return err
+			}
+		case "additional_contexts":
+			if val.Kind == yaml.MappingNode {
+				for j := 1; j < len(val.Content); j += 2 {
+					if err := r.absContextScalar(val.Content[j]); err != nil {
+						return err
+					}
+				}
+			}
+			if val.Kind == yaml.SequenceNode {
+				for _, item := range val.Content {
+					if err := r.absContextScalar(item); err != nil {
+						return err
+					}
+				}
+			}
+		case "ssh":
+			if val.Kind == yaml.SequenceNode {
+				for _, item := range val.Content {
+					if err := r.maybeUnixScalar(item); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
 	return nil
 }
 
