@@ -67,6 +67,8 @@ networks:
       baz: 1
     ipam:
       driver: overlay
+      options:
+        ipam-opt-key: ipam-opt-value
       config:
         - subnet: 172.28.0.0/16
           ip_range: 172.28.5.0/24
@@ -97,6 +99,7 @@ networks:
 		assert.Equal(t, other.Driver, "overlay")
 		assert.DeepEqual(t, other.DriverOpts, types.Options{"foo": "bar", "baz": "1"})
 		assert.Equal(t, other.Ipam.Driver, "overlay")
+		assert.DeepEqual(t, other.Ipam.Options, types.Mapping{"ipam-opt-key": "ipam-opt-value"})
 		assert.Equal(t, len(other.Ipam.Config), 2)
 		assert.Equal(t, other.Ipam.Config[0].Subnet, "172.28.0.0/16")
 		assert.Equal(t, other.Ipam.Config[0].IPRange, "172.28.5.0/24")
@@ -119,4 +122,8 @@ networks:
 	yamlP, jsonP := roundTrip(t, p)
 	expect(yamlP)
 	expect(jsonP)
+
+	copied, err := p.WithProfiles(nil)
+	assert.NilError(t, err)
+	expect(copied)
 }
