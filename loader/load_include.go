@@ -204,7 +204,7 @@ func resolveIncludePaths(ctx context.Context, cfg types.IncludeConfig, parentWD 
 	var resolved []string
 	projectDir := cfg.ProjectDirectory
 	for i, p := range cfg.Path {
-		_, fullPath, err := resourceLoaderFor(ctx, opts, p)
+		fullPath, err := resolveResourcePath(ctx, opts, p)
 		if err != nil {
 			return nil, "", err
 		}
@@ -262,21 +262,17 @@ func resolveIncludeEnvironment(cfg types.IncludeConfig, projectDir, parentWD str
 	return envFiles, merged, nil
 }
 
-// resourceLoaderFor finds the ResourceLoader in opts that accepts p and
-// returns it together with the resolved absolute path. Mirrors the v2
-// dispatch logic inside ApplyInclude.
-func resourceLoaderFor(ctx context.Context, opts *Options, p string) (ResourceLoader, string, error) {
+// resolveResourcePath finds the ResourceLoader in opts that accepts p and
+// returns the resolved absolute path produced by its Load method. Mirrors
+// the v2 dispatch logic inside ApplyInclude.
+func resolveResourcePath(ctx context.Context, opts *Options, p string) (string, error) {
 	for _, loader := range opts.ResourceLoaders {
 		if !loader.Accept(p) {
 			continue
 		}
-		full, err := loader.Load(ctx, p)
-		if err != nil {
-			return nil, "", err
-		}
-		return loader, full, nil
+		return loader.Load(ctx, p)
 	}
-	return nil, "", fmt.Errorf("no ResourceLoader accepted %q", p)
+	return "", fmt.Errorf("no ResourceLoader accepted %q", p)
 }
 
 // interpolateIncludeBlock runs InterpolateNode on the include sub-tree with
