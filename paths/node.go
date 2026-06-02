@@ -83,6 +83,7 @@ func ResolveRelativePathsNode(root *yaml.Node, opts NodeResolverOptions) error {
 		"services.*.build.context":               r.absContextScalar,
 		"services.*.build.additional_contexts.*": r.absContextScalar,
 		"services.*.build.ssh.*":                 r.absSSHEntry,
+		"services.*.env_file":                    r.absEnvFileShortForm,
 		"services.*.env_file.*":                  r.absEnvFile,
 		"services.*.env_file.*.path":             r.absScalar,
 		"services.*.label_file":                  r.absScalarMaybeSequence,
@@ -303,6 +304,30 @@ func (r *nodeResolverState) absSSHEntry(n *yaml.Node) error {
 		return err
 	}
 	n.Value = key + "=" + tmp.Value
+	return nil
+}
+
+// absEnvFileShortForm handles services.*.env_file in every shape it can
+// take before Canonical normalizes it: a scalar (env_file: ./foo), a
+// sequence of scalars (env_file: [./foo, ./bar]) or a sequence of mappings
+// (env_file: [{path: ./foo, required: false}]). The generic walker stops
+// at the first matching pattern, so this handler explicitly recurses into
+// each sequence shape rather than letting the per-element pattern below
+// take over.
+func (r *nodeResolverState) absEnvFileShortForm(n *yaml.Node) error {
+	if n == nil {
+		return nil
+	}
+	switch n.Kind {
+	case yaml.ScalarNode:
+		return r.absScalar(n)
+	case yaml.SequenceNode:
+		for _, item := range n.Content {
+			if err := r.absEnvFile(item); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

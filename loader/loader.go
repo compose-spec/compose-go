@@ -95,6 +95,13 @@ type Options struct {
 	// MaxNodeVisits caps total YAML node visits during reset/override resolution.
 	// Zero means use the default. Useful for very large compose files that exceed the default cap.
 	MaxNodeVisits int
+
+	// envFileScopes captures, during v3 LoadV3, the layer Environment in
+	// effect when each env_file entry was declared. The map is keyed by
+	// the resolved absolute env_file path and consumed by ModelToProject
+	// to populate EnvFile.Env, which WithServicesEnvironmentResolved
+	// then uses as the preferred interpolation scope.
+	envFileScopes map[string]types.Mapping
 }
 
 var versionWarning []string
@@ -365,18 +372,13 @@ func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails
 	return loadModelWithContext(ctx, &configDetails, opts)
 }
 
-// LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
+// LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary.
+// Routes through the v3 yaml.Node-centric LoadV3.
 func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (map[string]any, error) {
 	if len(configDetails.ConfigFiles) < 1 {
 		return nil, errors.New("no compose file specified")
 	}
-
-	err := projectName(configDetails, opts)
-	if err != nil {
-		return nil, err
-	}
-
-	return load(ctx, *configDetails, opts, nil)
+	return LoadV3(ctx, *configDetails, opts)
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
@@ -556,6 +558,11 @@ func loadYamlFile(ctx context.Context,
 	return dict, processor, nil
 }
 
+// load is the v2 map-based pipeline. Kept available behind the LoadV3
+// cutover so individual tests that still need v2 semantics can opt in
+// during the v3 transition window.
+//
+//nolint:unused
 func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options, loaded []string) (map[string]interface{}, error) {
 	mainFile := configDetails.ConfigFiles[0].Filename
 	for _, f := range loaded {
@@ -607,6 +614,16 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	err = Transform(dict, project)
 	if err != nil {
 		return nil, err
+	}
+
+	// v3: propagate the per-env_file declaring-layer environment so
+	// WithServicesEnvironmentResolved can interpolate the file content
+	// against the scope where it was declared (the include env_file,
+	// not just the project-wide env). Stored on a side-table on the
+	// Project so types.EnvFile struct equality with v2 fixtures is
+	// preserved.
+	for path, env := range opts.envFileScopes {
+		project.SetEnvFileScope(path, env)
 	}
 
 	if opts.ConvertWindowsPaths {

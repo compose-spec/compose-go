@@ -106,6 +106,19 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		return nil, errors.New("empty compose file")
 	}
 
+	// v3 lazy env_file interpolation: capture each env_file entry's
+	// declaring-layer environment so ModelToProject can attach it to
+	// EnvFile.Env. WithServicesEnvironmentResolved then prefers that
+	// scope when interpolating the env_file content, which is what
+	// makes "FOO=$BAR" in an include's env_file resolve $BAR against
+	// the include's env rather than only the project-wide env.
+	if opts.envFileScopes == nil {
+		opts.envFileScopes = map[string]types.Mapping{}
+	}
+	for _, layer := range allLayers {
+		captureEnvFileScopes(layer, opts.envFileScopes)
+	}
+
 	if !opts.SkipExtends {
 		if err := applyExtendsPerLayer(ctx, allLayers, opts); err != nil {
 			return nil, err
@@ -224,6 +237,16 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 	if len(dict) == 0 {
 		return nil, errors.New("empty compose file")
 	}
+
+	// Parity with v2 loadYamlModel post-Canonical pass: drop empty
+	// attributes that resulted from interpolation of unset variables
+	// (e.g. `dns: ${UNSET}` → `dns: ""` collapses to absent), then resolve
+	// secrets/configs `environment:` entries to their `Content` value so
+	// SecretConfig/ConfigObjConfig pick them up at decode time.
+	dict = OmitEmpty(dict)
+	resolveSecretsEnvironment(dict, cd.Environment)
+	resolveConfigsEnvironment(dict, cd.Environment)
+
 	return dict, nil
 }
 
@@ -375,6 +398,54 @@ func hasMappingKey(n *yaml.Node, key string) bool {
 		}
 	}
 	return false
+}
+
+// captureEnvFileScopes walks a layer's services and records, for each
+// env_file entry it carries, the layer environment in effect when the
+// entry was declared. Keyed by the resolved env_file path (absolute when
+// CollectIncludeLayers has pre-resolved it, raw otherwise) so the
+// downstream ModelToProject step can attach Mapping to the corresponding
+// types.EnvFile.Env field.
+func captureEnvFileScopes(layer *node.Layer, scopes map[string]types.Mapping) {
+	if layer == nil || layer.Context == nil || layer.Context.Parent == nil || len(layer.Context.Environment) == 0 {
+		return
+	}
+	target := layer.Node
+	if target == nil {
+		return
+	}
+	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
+		target = target.Content[0]
+	}
+	services := mappingValueByKey(target, "services")
+	if services == nil || services.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 1; i < len(services.Content); i += 2 {
+		svc := services.Content[i]
+		if svc == nil || svc.Kind != yaml.MappingNode {
+			continue
+		}
+		envFile := mappingValueByKey(svc, "env_file")
+		if envFile == nil {
+			continue
+		}
+		switch envFile.Kind {
+		case yaml.ScalarNode:
+			scopes[envFile.Value] = layer.Context.Environment
+		case yaml.SequenceNode:
+			for _, item := range envFile.Content {
+				switch item.Kind {
+				case yaml.ScalarNode:
+					scopes[item.Value] = layer.Context.Environment
+				case yaml.MappingNode:
+					if p := mappingValueByKey(item, "path"); p != nil && p.Kind == yaml.ScalarNode {
+						scopes[p.Value] = layer.Context.Environment
+					}
+				}
+			}
+		}
+	}
 }
 
 // applyExtendsPerLayer iterates layers and applies extends to each with a
