@@ -796,19 +796,18 @@ func (p *Project) WithServicesTransform(fn func(name string, s ServiceConfig) (S
 	newProject := p.deepCopy()
 
 	eg, ctx := errgroup.WithContext(context.Background())
+	collected := Services{}
 	eg.Go(func() error {
-		s := Services{}
 		for expect > 0 {
 			select {
 			case <-ctx.Done():
 				// interrupted as some goroutine returned an error
 				return nil
 			case r := <-resultCh:
-				s[r.name] = r.service
+				collected[r.name] = r.service
 				expect--
 			}
 		}
-		newProject.Services = s
 		return nil
 	})
 	for n, s := range newProject.Services {
@@ -826,7 +825,11 @@ func (p *Project) WithServicesTransform(fn func(name string, s ServiceConfig) (S
 			return nil
 		})
 	}
-	return newProject, eg.Wait()
+	if err := eg.Wait(); err != nil {
+		return newProject, err
+	}
+	newProject.Services = collected
+	return newProject, nil
 }
 
 // CheckContainerNameUnicity validate project doesn't have services declaring the same container_name
