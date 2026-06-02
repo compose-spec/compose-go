@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"go.yaml.in/yaml/v4"
@@ -198,6 +199,16 @@ func loadV3(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.
 		if opts.ResolvePaths {
 			resolveDefaultBuildContext(merged.Node, cd.WorkingDir, serviceContexts)
 		}
+	}
+
+	// Post-canonical path resolution for entries whose short form bypassed
+	// the pre-canonical sweep (volumes:./host:/container yields canonical
+	// nodes with no recorded origin). v2 ran a second paths.ResolveRelative
+	// Paths after Canonical in loadYamlModel; mirror that here, but use the
+	// per-service serviceContexts so an included service still picks up
+	// the include project_directory rather than the project root.
+	if opts.ResolvePaths {
+		resolveServiceVolumeSources(merged.Node, cd.WorkingDir, serviceContexts)
 	}
 
 	if !opts.SkipValidation {
@@ -410,6 +421,63 @@ func resolveDefaultBuildContext(root *yaml.Node, projectWD string, serviceContex
 			wd = origin
 		}
 		ctx.Value = wd
+	}
+}
+
+// resolveServiceVolumeSources walks the canonical services.*.volumes
+// sequence and joins each relative bind-mount source with the service's
+// recorded WorkingDir. Sources that the pre-canonical sweep already
+// absolutized (because they were declared in long form to begin with)
+// are skipped via filepath.IsAbs. Volume entries whose type is not bind
+// (named volumes) are left untouched.
+func resolveServiceVolumeSources(root *yaml.Node, projectWD string, serviceContexts map[string]string) {
+	target := root
+	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
+		target = target.Content[0]
+	}
+	services := mappingValueByKey(target, "services")
+	if services == nil || services.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(services.Content); i += 2 {
+		name := services.Content[i].Value
+		svc := services.Content[i+1]
+		volumes := mappingValueByKey(svc, "volumes")
+		if volumes == nil || volumes.Kind != yaml.SequenceNode {
+			continue
+		}
+		wd := projectWD
+		if origin, ok := serviceContexts[name]; ok && origin != "" {
+			wd = origin
+		}
+		if wd == "" {
+			continue
+		}
+		for _, item := range volumes.Content {
+			if item == nil || item.Kind != yaml.MappingNode {
+				continue
+			}
+			if mappingValueByKey(item, "type") == nil || mappingValueByKey(item, "type").Value != "bind" {
+				continue
+			}
+			source := mappingValueByKey(item, "source")
+			if source == nil || source.Kind != yaml.ScalarNode || source.Value == "" {
+				continue
+			}
+			if filepath.IsAbs(source.Value) || paths.IsWindowsAbs(source.Value) {
+				continue
+			}
+			// Only resolve sources that still carry the relative-dot
+			// indicator that format.ParseVolume preserved from the
+			// short form. A value like "testdata/subdir/foo" comes
+			// from a long-form mapping the pre-canonical sweep
+			// already absolutized against its layer WorkingDir;
+			// re-joining it here would double the relative prefix.
+			if !strings.HasPrefix(source.Value, ".") {
+				continue
+			}
+			source.Value = filepath.Join(wd, source.Value)
+		}
 	}
 }
 
