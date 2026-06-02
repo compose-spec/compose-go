@@ -144,6 +144,12 @@ func applyServiceExtendsNode(
 	if base == nil {
 		return service, nil
 	}
+	// Mutate the sibling services mapping so the resolved base replaces
+	// its original entry. Subsequent top-level iterations over the same
+	// services mapping see the already-resolved base and skip re-entering
+	// the extends chain — mirrors the v2 `services[name] = merged` side
+	// effect that keeps Listener event counts deterministic.
+	setMappingValue(baseSiblings, ref, base)
 
 	// Apply the parent layer's recorded !reset / !override paths to the
 	// cloned base BEFORE merging it with the derived service. Mirrors v2
@@ -348,6 +354,26 @@ func deleteAtPath(n *yaml.Node, p tree.Path) {
 	}
 	child := mappingValueByKey(n, parts[0])
 	deleteAtPath(child, tree.NewPath(parts[1:]...))
+}
+
+// setMappingValue replaces (or appends) the entry whose key matches in a
+// MappingNode. Used by applyServiceExtendsNode to commit the resolved base
+// service back into the siblings mapping so further iterations observe the
+// updated tree.
+func setMappingValue(n *yaml.Node, key string, value *yaml.Node) {
+	if n == nil || n.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		if n.Content[i].Value == key {
+			n.Content[i+1] = value
+			return
+		}
+	}
+	n.Content = append(n.Content,
+		&yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key},
+		value,
+	)
 }
 
 // mappingValueByKey returns the value Node for a key inside a MappingNode,

@@ -145,8 +145,11 @@ func (r *nodeResolverState) isRemoteResource(p string) bool {
 // scalar is left untouched; a non-scalar node is also left untouched (a
 // caller that targets a path expecting a scalar but receives a sequence has
 // pre-canonicalization shape and is handled by absScalarMaybeSequence).
+// Scalars tagged !!null are skipped so post-canonical placeholders (e.g.
+// the `default: null` entry produced by ssh canonicalization) keep their
+// type instead of being rewritten to a path string.
 func (r *nodeResolverState) absScalar(n *yaml.Node) error {
-	if n == nil || n.Kind != yaml.ScalarNode || n.Value == "" {
+	if n == nil || n.Kind != yaml.ScalarNode || n.Value == "" || n.Tag == "!!null" {
 		return nil
 	}
 	expanded := ExpandUser(n.Value)
@@ -154,7 +157,11 @@ func (r *nodeResolverState) absScalar(n *yaml.Node) error {
 		n.Value = expanded
 		return nil
 	}
-	n.Value = filepath.Join(r.opts.WorkingDirFor(n), expanded)
+	wd := r.opts.WorkingDirFor(n)
+	if wd == "" {
+		return nil
+	}
+	n.Value = filepath.Join(wd, expanded)
 	return nil
 }
 
@@ -178,9 +185,10 @@ func (r *nodeResolverState) absScalarMaybeSequence(n *yaml.Node) error {
 
 // maybeUnixScalar resolves a path scalar against the working directory,
 // unless the value is already an absolute Unix or Windows path. Mirrors
-// maybeUnixPath in paths/unix.go.
+// maybeUnixPath in paths/unix.go. Skips !!null scalars and empty values so
+// post-canonical null placeholders are not rewritten.
 func (r *nodeResolverState) maybeUnixScalar(n *yaml.Node) error {
-	if n == nil || n.Kind != yaml.ScalarNode {
+	if n == nil || n.Kind != yaml.ScalarNode || n.Value == "" || n.Tag == "!!null" {
 		return nil
 	}
 	expanded := ExpandUser(n.Value)
@@ -189,7 +197,11 @@ func (r *nodeResolverState) maybeUnixScalar(n *yaml.Node) error {
 			n.Value = expanded
 			return nil
 		}
-		n.Value = filepath.Join(r.opts.WorkingDirFor(n), expanded)
+		wd := r.opts.WorkingDirFor(n)
+		if wd == "" {
+			return nil
+		}
+		n.Value = filepath.Join(wd, expanded)
 		return nil
 	}
 	n.Value = expanded

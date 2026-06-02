@@ -153,13 +153,12 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 	// the surrounding project environment.
 	ResolveEnvironmentNode(merged.Node, origins)
 
-	// Path resolution runs before canonicalization on purpose: the
-	// CanonicalNode bridge currently rebuilds the affected subtrees via
-	// map[string]any, which loses *yaml.Node pointer identity and breaks
-	// the origins-driven per-scalar WorkingDir lookup. Resolving paths
-	// first guarantees every relative path scalar still has its origin
-	// recorded. Once individual transformers are ported to operate on
-	// yaml.Node directly (Phase B follow-ups) this constraint disappears.
+	// Path resolution runs first on the pre-canonical tree so that
+	// pointer identity is preserved for every scalar whose origin is
+	// tracked in the side-table. The CanonicalNode bridge currently
+	// rebuilds affected subtrees via map[string]any, which would lose
+	// origin pointers — Phase B follow-ups will port individual
+	// transformers to operate on yaml.Node and remove this constraint.
 	if opts.ResolvePaths {
 		var remotes []paths.RemoteResource
 		for _, loader := range opts.RemoteResourceLoaders() {
@@ -178,12 +177,21 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 	}
 
 	// SetDefaultValues fills in canonical defaults (DeviceCount(-1) for
-	// unspecified GPU count, default network configuration, ...). v2 calls
-	// it from loadYamlModel between merge and validate; v3 does the same
-	// through a map roundtrip until per-rule Node ports land.
+	// unspecified GPU count, default network configuration, default build
+	// context ".", ...). v2 calls it from loadYamlModel between merge and
+	// validate; v3 does the same through a map roundtrip until per-rule
+	// Node ports land. Path resolution intentionally runs *before*
+	// SetDefaultValues so the per-scalar origins side-table can still drive
+	// the WorkingDir lookup. Defaults that are themselves path-shaped
+	// (build.context ".") are resolved by a targeted helper below rather
+	// than by a second full sweep, which would double-resolve every
+	// already-handled relative path.
 	if !opts.SkipDefaultValues {
 		if err := setDefaultValuesNode(merged.Node); err != nil {
 			return nil, err
+		}
+		if opts.ResolvePaths {
+			resolveDefaultBuildContext(merged.Node, cd.WorkingDir)
 		}
 	}
 
@@ -267,6 +275,37 @@ func setDefaultValuesNode(root *yaml.Node) error {
 	}
 	*target = rebuilt
 	return nil
+}
+
+// resolveDefaultBuildContext walks services.*.build.context entries and,
+// for each one whose value is "." or empty (i.e. the default produced by
+// SetDefaultValues for builds that did not declare a context), joins it
+// with the project working directory. Tightly scoped to avoid the
+// double-resolution problem that a generic post-defaults sweep would
+// introduce on relative paths already resolved by the earlier pass.
+func resolveDefaultBuildContext(root *yaml.Node, projectWD string) {
+	target := root
+	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
+		target = target.Content[0]
+	}
+	services := mappingValueByKey(target, "services")
+	if services == nil || services.Kind != yaml.MappingNode {
+		return
+	}
+	for i := 1; i < len(services.Content); i += 2 {
+		svc := services.Content[i]
+		build := mappingValueByKey(svc, "build")
+		if build == nil || build.Kind != yaml.MappingNode {
+			continue
+		}
+		ctx := mappingValueByKey(build, "context")
+		if ctx == nil || ctx.Kind != yaml.ScalarNode {
+			continue
+		}
+		if ctx.Value == "." || ctx.Value == "" {
+			ctx.Value = projectWD
+		}
+	}
 }
 
 // hasMappingKey reports whether n is a MappingNode containing key.
