@@ -106,6 +106,8 @@ networks:
       driver: default
       config:
         - subnet: 172.28.0.0/16
+      options:
+        foo: bar
 `
 
 var samplePortsConfig = []types.ServicePortConfig{
@@ -207,6 +209,9 @@ var sampleConfig = types.Config{
 					{
 						Subnet: "172.28.0.0/16",
 					},
+				},
+				Options: types.Options{
+					"foo": "bar",
 				},
 			},
 		},
