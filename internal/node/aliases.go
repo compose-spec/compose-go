@@ -46,19 +46,44 @@ func NormalizeAliases(root *yaml.Node) error {
 	if root == nil {
 		return nil
 	}
-	if err := unfoldAliases(root, map[*yaml.Node]bool{}, map[*yaml.Node]bool{}); err != nil {
+	st := &aliasState{
+		inProgress: map[*yaml.Node]bool{},
+		cleaned:    map[*yaml.Node]bool{},
+		sizes:      map[*yaml.Node]int{},
+		maxNodes:   defaultMaxAliasNodes,
+	}
+	if err := unfoldAliases(root, st); err != nil {
 		return err
 	}
 	foldMergeKeys(root)
 	return nil
 }
 
+// defaultMaxAliasNodes caps the total number of nodes created by
+// unfoldAliases as it deep-copies alias targets. Sized to accommodate
+// large real-world compose files while still rejecting alias-bomb
+// documents (e.g. B9_N9 with 9^9 effective nodes after expansion).
+const defaultMaxAliasNodes = 1_000_000
+
+type aliasState struct {
+	inProgress map[*yaml.Node]bool
+	cleaned    map[*yaml.Node]bool
+	// sizes caches the (post-unfold) node count of an anchor target, so a
+	// reused anchor adds size(target) per reference rather than walking
+	// the target's subtree again.
+	sizes    map[*yaml.Node]int
+	created  int
+	maxNodes int
+}
+
 // unfoldAliases replaces AliasNode children of n with deep copies of their
 // resolved targets. inProgress tracks targets whose unfolding is on the
 // current call stack so cycles are detected; cleaned remembers targets that
 // have already been fully unfolded so anchor reuse stays linear in the
-// number of distinct anchors (defense against alias bombs).
-func unfoldAliases(n *yaml.Node, inProgress, cleaned map[*yaml.Node]bool) error {
+// number of distinct anchors. The aliasState.created counter is checked
+// against maxNodes to abort exponentially blown-up alias graphs (excessive
+// aliasing) before they exhaust memory.
+func unfoldAliases(n *yaml.Node, st *aliasState) error {
 	if n == nil {
 		return nil
 	}
@@ -71,25 +96,43 @@ func unfoldAliases(n *yaml.Node, inProgress, cleaned map[*yaml.Node]bool) error 
 			if target == nil {
 				continue
 			}
-			if inProgress[target] {
+			if st.inProgress[target] {
 				return fmt.Errorf("cycle detected in alias chain at line %d", child.Line)
 			}
-			if !cleaned[target] {
-				inProgress[target] = true
-				if err := unfoldAliases(target, inProgress, cleaned); err != nil {
+			if !st.cleaned[target] {
+				st.inProgress[target] = true
+				if err := unfoldAliases(target, st); err != nil {
 					return err
 				}
-				delete(inProgress, target)
-				cleaned[target] = true
+				delete(st.inProgress, target)
+				st.cleaned[target] = true
+				st.sizes[target] = countNodes(target)
+			}
+			st.created += st.sizes[target]
+			if st.created > st.maxNodes {
+				return fmt.Errorf("excessive aliasing: alias expansion exceeded %d nodes", st.maxNodes)
 			}
 			n.Content[i] = deepCopy(target)
 			continue
 		}
-		if err := unfoldAliases(child, inProgress, cleaned); err != nil {
+		if err := unfoldAliases(child, st); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// countNodes returns the total number of nodes reachable from n, used by
+// unfoldAliases to charge each alias reuse against the expansion cap.
+func countNodes(n *yaml.Node) int {
+	if n == nil {
+		return 0
+	}
+	total := 1
+	for _, c := range n.Content {
+		total += countNodes(c)
+	}
+	return total
 }
 
 // deepCopy returns a structural copy of n with all nested content cloned.
