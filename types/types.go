@@ -325,16 +325,16 @@ type DeviceMapping struct {
 
 // WeightDevice is a structure that holds device:weight pair
 type WeightDevice struct {
-	Path   string
-	Weight uint16
+	Path   string `yaml:"path,omitempty" json:"path,omitempty"`
+	Weight uint16 `yaml:"weight,omitempty" json:"weight,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ThrottleDevice is a structure that holds device:rate_per_second pair
 type ThrottleDevice struct {
-	Path string
-	Rate UnitBytes
+	Path string    `yaml:"path,omitempty" json:"path,omitempty"`
+	Rate UnitBytes `yaml:"rate,omitempty" json:"rate,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
@@ -662,15 +662,22 @@ func (f *FileMode) DecodeMapstructure(value interface{}) error {
 	return nil
 }
 
-// UnmarshalYAML accepts a scalar value representing a file mode in octal
-// form (string with or without a leading "0") or a decimal integer.
-// Mirrors DecodeMapstructure for yaml.v4 native decoding.
+// UnmarshalYAML accepts a scalar value representing a file mode. Values
+// of the form 0NNN are interpreted as octal (the standard Unix mode
+// notation, so 0755 -> 493); values without a leading zero are read as
+// decimal. The fallback path matters because the Transform yaml
+// round-trip can re-emit an octal literal as its decimal equivalent
+// (e.g. `mode: 0440` reaches us as the int 288).
 func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
 	value = unwrapDocument(value)
 	if value.Kind != yaml.ScalarNode {
 		return fmt.Errorf("expected scalar file mode, got kind %d", value.Kind)
 	}
-	i, err := strconv.ParseInt(value.Value, 8, 64)
+	if i, err := strconv.ParseInt(value.Value, 8, 64); err == nil {
+		*f = FileMode(i)
+		return nil
+	}
+	i, err := strconv.ParseInt(value.Value, 10, 64)
 	if err != nil {
 		return fmt.Errorf("invalid file mode %q: %w", value.Value, err)
 	}

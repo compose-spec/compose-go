@@ -41,7 +41,6 @@ import (
 	"github.com/compose-spec/compose-go/v3/tree"
 	"github.com/compose-spec/compose-go/v3/types"
 	"github.com/compose-spec/compose-go/v3/validation"
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v4"
 )
@@ -825,62 +824,49 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 	return dict, nil
 }
 
-// Transform converts the source into the target struct with compose types transformer
-// and the specified transformers if any.
+// Transform projects a canonical compose dict (produced by the loader
+// pipeline) into a typed compose-go struct. It marshals the source to
+// yaml and decodes it back into target via yaml.v4 so each registered
+// UnmarshalYAML method on the destination types (Services injects Name,
+// SecretConfig / ConfigObjConfig lift x-content, the per-type short /
+// long form decoders, ...) runs naturally without a parallel
+// mapstructure decode-hook stack. processExtensions has already moved
+// each x-* attribute into a nested "#extensions" sub-map; the inline
+// yaml tag on Extensions fields expects them at parent level, so unwind
+// that nesting just before the yaml round-trip.
 func Transform(source interface{}, target interface{}) error {
-	data := mapstructure.Metadata{}
-	config := &mapstructure.DecoderConfig{
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			nameServices,
-			decoderHook,
-			cast,
-			secretConfigDecoderHook,
-		),
-		Result:   target,
-		TagName:  "yaml",
-		Metadata: &data,
-	}
-	decoder, err := mapstructure.NewDecoder(config)
+	inlineExtensions(source)
+	buf, err := yaml.Marshal(source)
 	if err != nil {
 		return err
 	}
-	return decoder.Decode(source)
+	return yaml.Unmarshal(buf, target)
 }
 
-// nameServices create implicit `name` key for convenience accessing service
-func nameServices(from reflect.Value, to reflect.Value) (interface{}, error) {
-	if to.Type() == reflect.TypeOf(types.Services{}) {
-		nameK := reflect.ValueOf("name")
-		iter := from.MapRange()
-		for iter.Next() {
-			name := iter.Key()
-			elem := iter.Value()
-			elem.Elem().SetMapIndex(nameK, name)
-		}
-	}
-	return from.Interface(), nil
-}
-
-func secretConfigDecoderHook(from, to reflect.Type, data interface{}) (interface{}, error) {
-	// Check if the input is a map and we're decoding into a SecretConfig
-	if from.Kind() == reflect.Map && to == reflect.TypeOf(types.SecretConfig{}) {
-		if v, ok := data.(map[string]interface{}); ok {
-			if ext, ok := v[consts.Extensions].(map[string]interface{}); ok {
-				if val, ok := ext[types.SecretConfigXValue].(string); ok {
-					// Return a map with the Content field populated
-					v["Content"] = val
-					delete(ext, types.SecretConfigXValue)
-
-					if len(ext) == 0 {
-						delete(v, consts.Extensions)
-					}
-				}
+// inlineExtensions walks the source recursively and hoists every nested
+// "#extensions" map up to its parent level, so a value previously
+// rewritten by processExtensions as `{#extensions: {x-foo: bar}}` becomes
+// `{x-foo: bar}` again. This is the shape the Extensions inline yaml tag
+// captures, and it leaves typed extensions (KnownExtensions decoded into
+// concrete structs) untouched because they round-trip through yaml.Marshal
+// against the same struct tags as the source type.
+func inlineExtensions(v any) {
+	switch t := v.(type) {
+	case map[string]any:
+		if ext, ok := t[consts.Extensions].(map[string]any); ok {
+			for k, val := range ext {
+				t[k] = val
 			}
+			delete(t, consts.Extensions)
+		}
+		for _, child := range t {
+			inlineExtensions(child)
+		}
+	case []any:
+		for _, child := range t {
+			inlineExtensions(child)
 		}
 	}
-
-	// Return the original data so the rest is handled by default mapstructure logic
-	return data, nil
 }
 
 // keys need to be converted to strings for jsonschema
