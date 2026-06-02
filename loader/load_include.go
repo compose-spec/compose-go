@@ -27,6 +27,7 @@ import (
 	"github.com/compose-spec/compose-go/v3/dotenv"
 	"github.com/compose-spec/compose-go/v3/internal/node"
 	interp "github.com/compose-spec/compose-go/v3/interpolation"
+	"github.com/compose-spec/compose-go/v3/paths"
 	"github.com/compose-spec/compose-go/v3/template"
 	"github.com/compose-spec/compose-go/v3/types"
 )
@@ -114,6 +115,24 @@ func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node
 		if err != nil {
 			return nil, err
 		}
+		// Match v2 ApplyInclude: regardless of the parent opts.ResolvePaths
+		// setting, the include sub-load resolves its own relative paths
+		// against the include working directory. Without this, a parent
+		// that opts out of path resolution would leave include-originating
+		// scalars relative — but they cannot be re-resolved at the parent
+		// level (different working directory) and would fail validation.
+		var remotes []paths.RemoteResource
+		for _, loader := range opts.RemoteResourceLoaders() {
+			remotes = append(remotes, loader.Accept)
+		}
+		for _, layer := range fileLayers {
+			if err := paths.ResolveRelativePathsNode(layer.Node, paths.NodeResolverOptions{
+				WorkingDir: projectDir,
+				Remotes:    remotes,
+			}); err != nil {
+				return nil, err
+			}
+		}
 		layers = append(layers, fileLayers...)
 	}
 	return layers, nil
@@ -146,23 +165,24 @@ func readIncludeEntry(entry *yaml.Node) (types.IncludeConfig, error) {
 // defines the project_directory when none is declared; later paths in the
 // same entry are treated as overrides loaded from the same directory.
 //
-// The returned project_directory is always absolute, departing from v2
-// which stored a relative path in ConfigDetails.WorkingDir. The absolute
-// form is required by v3's per-scalar path resolution, where each scalar
-// is resolved against its own SourceContext.WorkingDir without an extra
-// rebasing step.
+// The returned project_directory follows the v2 convention: a path
+// relative to the parent's working directory when loader.Dir can express
+// it that way, otherwise the absolute path. This is what file-source
+// volumes ("./:/mnt") and similar relative references collapse against,
+// preserving the v2 normalization (filepath.Join cleans "./" to ".") used
+// throughout the existing fixture suite.
 func resolveIncludePaths(ctx context.Context, cfg types.IncludeConfig, parentWD string, opts *Options) ([]string, string, error) {
 	var resolved []string
 	projectDir := cfg.ProjectDirectory
 	for i, p := range cfg.Path {
-		fullPath, err := resolveResourcePath(ctx, opts, p)
+		loader, fullPath, err := resolveResourceWithLoader(ctx, opts, p)
 		if err != nil {
 			return nil, "", err
 		}
 		if i == 0 {
 			switch {
 			case projectDir == "":
-				projectDir = filepath.Dir(fullPath)
+				projectDir = loader.Dir(p)
 			case !filepath.IsAbs(projectDir):
 				projectDir = filepath.Join(parentWD, projectDir)
 			}
@@ -213,23 +233,11 @@ func resolveIncludeEnvironment(cfg types.IncludeConfig, projectDir, parentWD str
 	return envFiles, merged, nil
 }
 
-// resolveResourcePath finds the ResourceLoader in opts that accepts p and
-// returns the resolved absolute path produced by its Load method. Mirrors
-// the v2 dispatch logic inside ApplyInclude.
-func resolveResourcePath(ctx context.Context, opts *Options, p string) (string, error) {
-	for _, loader := range opts.ResourceLoaders {
-		if !loader.Accept(p) {
-			continue
-		}
-		return loader.Load(ctx, p)
-	}
-	return "", fmt.Errorf("no ResourceLoader accepted %q", p)
-}
-
-// resolveResourceWithLoader is the variant of resolveResourcePath that also
-// returns the ResourceLoader that handled p, so callers can ask it for a
-// project-relative dir (loader.Dir) — required by extends to mirror v2
-// getExtendsBaseFromFile semantics.
+// resolveResourceWithLoader finds the ResourceLoader in opts that accepts
+// p and returns it together with the resolved absolute path produced by
+// its Load method. Mirrors the v2 dispatch logic inside ApplyInclude and
+// is the only resource-lookup helper kept in v3 because every caller needs
+// the loader handle for follow-up loader.Dir computations.
 func resolveResourceWithLoader(ctx context.Context, opts *Options, p string) (ResourceLoader, string, error) {
 	for _, loader := range opts.ResourceLoaders {
 		if !loader.Accept(p) {
