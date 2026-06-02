@@ -19,7 +19,6 @@ package transform
 import (
 	"fmt"
 	"path"
-	"strings"
 
 	"github.com/compose-spec/compose-go/v3/format"
 	"github.com/compose-spec/compose-go/v3/tree"
@@ -53,21 +52,20 @@ func cleanTarget(target string) string {
 	return path.Clean(target)
 }
 
-// cleanSource normalizes the short-form source value (`./` -> `.`,
-// `./foo` -> `foo`). Uses path.Clean (forward slashes only) so the
-// result matches what filepath.Join would produce on Linux and stays
-// stable across host OSes -- the compose-spec semantics treat the
-// host portion of the short form as POSIX-style. Absolute paths
-// (including Windows-style C:\) and bare relative paths without a
-// leading `.` are left untouched.
+// cleanSource normalizes the only short-form source spelling that v2
+// produces a different decoded form for vs v3: "./" collapses to "."
+// in v2 because filepath.Join in the sub-resolve cleans it, while v3's
+// node-level resolver preserves the literal "./" until the format
+// parser sees it. Mirror v2 here by rewriting "./" -> "." in place,
+// keeping the `.` prefix that format.ParseVolume relies on to flag the
+// value as a bind path. Other short-form spellings (`./foo`, `/abs`,
+// `name`) are left alone so format.ParseVolume / Windows path
+// conversion observe the original characters.
 func cleanSource(source string) string {
-	if source == "" {
-		return source
+	if source == "./" {
+		return "."
 	}
-	if !strings.HasPrefix(source, "./") && source != "." {
-		return source
-	}
-	return path.Clean(source)
+	return source
 }
 
 func defaultVolumeBind(data any, p tree.Path, _ bool) (any, error) {
