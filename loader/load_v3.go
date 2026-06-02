@@ -36,8 +36,10 @@ import (
 )
 
 // LoadV3 runs the full yaml.Node-centric v3 pipeline over the input
-// ConfigDetails and returns the merged compose model decoded into a
-// map[string]any.
+// ConfigDetails and returns the merged compose tree as a canonical
+// *yaml.Node. Callers project the node into the shape they need via
+// yaml.Decode (or via the package-internal nodeToModel / nodeToProject
+// helpers that drive LoadModelWithContext and LoadWithContext).
 //
 // The pipeline goes:
 //
@@ -53,38 +55,9 @@ import (
 //  7. canonicalize short-form syntax via transform.CanonicalNode;
 //  8. resolve relative paths per-scalar via paths.ResolveRelativePathsNode;
 //  9. validate via validation.ValidateNode;
-//  10. normalize defaults via NormalizeNode;
-//  11. decode the final yaml.Node tree into map[string]any so the existing
-//     ModelToProject (mapstructure) can finish the projection.
-//
-// Step 11 disappears in Phase D when types gain UnmarshalYAML methods and
-// the final decode can go directly to *types.Project. The map detour is the
-// last remaining v2 bridge.
-//
-// LoadV3 does not yet replace LoadWithContext; that cutover lands in the
-// next commit once differential testing confirms parity with the existing
-// fixture suite.
-func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[string]any, error) {
-	if opts == nil {
-		opts = &Options{}
-	}
-	// Mirror the v2 ToOptions behavior: always append a localResourceLoader
-	// rooted at the project working directory so include / extends paths
-	// fall back to a working loader when the caller did not configure any.
-	if !hasLocalLoader(opts.ResourceLoaders) {
-		opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{WorkingDir: cd.WorkingDir})
-	}
-	// Ensure Interpolate is non-nil: projectName extraction and the
-	// interpolate-merged pass both dereference *opts.Interpolate. Callers
-	// that go through ToOptions already have it set; the defensive init
-	// covers tests that build Options literals directly.
-	if opts.Interpolate == nil {
-		opts.Interpolate = &interp.Options{
-			Substitute:      template.Substitute,
-			LookupValue:     cd.LookupEnv,
-			TypeCastMapping: interpolateTypeCastMapping,
-		}
-	}
+//  10. normalize defaults via NormalizeNode.
+func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (*yaml.Node, error) {
+	opts = ensureLoadV3Options(opts, cd)
 	// Reproduce the v2 contract: extract the project name from the first
 	// config file (or its `name:` field) before the pipeline runs. Errors
 	// from explicit-name validation (NormalizeProjectName) propagate as in
@@ -107,11 +80,9 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 	}
 
 	// v3 lazy env_file interpolation: capture each env_file entry's
-	// declaring-layer environment so ModelToProject can attach it to
-	// EnvFile.Env. WithServicesEnvironmentResolved then prefers that
-	// scope when interpolating the env_file content, which is what
-	// makes "FOO=$BAR" in an include's env_file resolve $BAR against
-	// the include's env rather than only the project-wide env.
+	// declaring-layer environment so nodeToProject can attach it to the
+	// Project EnvFileScopes side-table. WithServicesEnvironmentResolved
+	// then prefers that scope when interpolating the env_file content.
 	if opts.envFileScopes == nil {
 		opts.envFileScopes = map[string]types.Mapping{}
 	}
@@ -230,23 +201,101 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		}
 	}
 
-	var dict map[string]any
-	if err := merged.Node.Decode(&dict); err != nil {
-		return nil, fmt.Errorf("loadV3: decode merged tree: %w", err)
+	root := merged.Node
+	if root.Kind == yaml.DocumentNode && len(root.Content) == 1 {
+		root = root.Content[0]
 	}
-	if len(dict) == 0 {
+	if root.Kind != yaml.MappingNode || len(root.Content) == 0 {
 		return nil, errors.New("empty compose file")
 	}
 
-	// Parity with v2 loadYamlModel post-Canonical pass: drop empty
-	// attributes that resulted from interpolation of unset variables
-	// (e.g. `dns: ${UNSET}` → `dns: ""` collapses to absent), then resolve
-	// secrets/configs `environment:` entries to their `Content` value so
-	// SecretConfig/ConfigObjConfig pick them up at decode time.
-	dict = OmitEmpty(dict)
-	resolveSecretsEnvironment(dict, cd.Environment)
-	resolveConfigsEnvironment(dict, cd.Environment)
+	// Drop empty attributes that resulted from interpolation of unset
+	// variables (e.g. `dns: ${UNSET}` -> `dns: ""` collapses to absent).
+	// Equivalent of v2 loadYamlModel's post-Canonical OmitEmpty pass,
+	// applied at the node level so both nodeToModel and nodeToProject
+	// observe the same shape.
+	omitEmptyNode(root, tree.NewPath())
 
+	return root, nil
+}
+
+// omitEmptyNode walks the tree and drops entries whose value is empty
+// (nil / empty string) when their path matches one of the omitempty
+// patterns. Mirrors OmitEmpty on the map-based representation.
+func omitEmptyNode(n *yaml.Node, p tree.Path) {
+	if n == nil {
+		return
+	}
+	switch n.Kind {
+	case yaml.MappingNode:
+		filtered := n.Content[:0]
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			k, v := n.Content[i], n.Content[i+1]
+			child := p.Next(k.Value)
+			if isEmptyNode(v) && mustOmit(child) {
+				continue
+			}
+			omitEmptyNode(v, child)
+			filtered = append(filtered, k, v)
+		}
+		n.Content = filtered
+	case yaml.SequenceNode:
+		// The map-based OmitEmpty passes the parent path to mustOmit (not
+		// path.Next("[]")) so a pattern like `services.*.dns` filters
+		// scalar items inside the dns sequence. Mirror that here.
+		filtered := n.Content[:0]
+		for _, item := range n.Content {
+			if isEmptyNode(item) && mustOmit(p) {
+				continue
+			}
+			omitEmptyNode(item, p.Next("[]"))
+			filtered = append(filtered, item)
+		}
+		n.Content = filtered
+	}
+}
+
+func isEmptyNode(n *yaml.Node) bool {
+	if n == nil || n.Tag == "!!null" {
+		return true
+	}
+	return n.Kind == yaml.ScalarNode && n.Value == ""
+}
+
+// ensureLoadV3Options applies the same defaults as ToOptions for callers
+// that pass a bare *Options (most production callers go through
+// ToOptions; this covers tests that build the struct directly).
+func ensureLoadV3Options(opts *Options, cd types.ConfigDetails) *Options {
+	if opts == nil {
+		opts = &Options{}
+	}
+	if !hasLocalLoader(opts.ResourceLoaders) {
+		opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{WorkingDir: cd.WorkingDir})
+	}
+	if opts.Interpolate == nil {
+		opts.Interpolate = &interp.Options{
+			Substitute:      template.Substitute,
+			LookupValue:     cd.LookupEnv,
+			TypeCastMapping: interpolateTypeCastMapping,
+		}
+	}
+	return opts
+}
+
+// nodeToModel projects the merged tree into the legacy map[string]any
+// shape consumed by LoadModelWithContext. It applies the v2 post-decode
+// passes (OmitEmpty drops `dns: ""` style leftovers from unset variable
+// interpolation; resolveSecrets/ConfigsEnvironment surface
+// `environment:` lookups as Content) so the dict matches the v2
+// loadYamlModel output byte-for-byte.
+func nodeToModel(root *yaml.Node, env types.Mapping) (map[string]any, error) {
+	var dict map[string]any
+	if err := root.Decode(&dict); err != nil {
+		return nil, fmt.Errorf("loadV3: decode merged tree: %w", err)
+	}
+	dict = OmitEmpty(dict)
+	resolveSecretsEnvironment(dict, env)
+	resolveConfigsEnvironment(dict, env)
 	return dict, nil
 }
 

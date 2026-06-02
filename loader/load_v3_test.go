@@ -26,6 +26,22 @@ import (
 	"github.com/compose-spec/compose-go/v3/types"
 )
 
+// loadV3Map runs LoadV3 and decodes the returned tree into a
+// map[string]any so the existing test assertions can keep navigating it
+// the same way the v2 dict-based API did.
+func loadV3Map(t *testing.T, cd types.ConfigDetails, opts *Options) (map[string]any, error) {
+	t.Helper()
+	root, err := LoadV3(context.TODO(), cd, opts)
+	if err != nil {
+		return nil, err
+	}
+	var dict map[string]any
+	if err := root.Decode(&dict); err != nil {
+		return nil, err
+	}
+	return dict, nil
+}
+
 func v3Config(t *testing.T, dir string, files ...string) types.ConfigDetails {
 	t.Helper()
 	cfgFiles := make([]types.ConfigFile, len(files))
@@ -46,7 +62,7 @@ services:
   web:
     image: nginx
 `)
-	dict, err := LoadV3(context.TODO(), v3Config(t, dir, "compose.yaml"), &Options{
+	dict, err := loadV3Map(t, v3Config(t, dir, "compose.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -69,7 +85,7 @@ services:
   web:
     image: caddy
 `)
-	dict, err := LoadV3(context.TODO(), v3Config(t, dir, "base.yaml", "override.yaml"), &Options{
+	dict, err := loadV3Map(t, v3Config(t, dir, "base.yaml", "override.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -108,7 +124,7 @@ services:
 `)
 	cd := v3Config(t, root, "compose.yaml")
 	cd.Environment = types.Mapping{"WEB_TAG": "root-1.0"}
-	dict, err := LoadV3(context.TODO(), cd, &Options{
+	dict, err := loadV3Map(t, cd, &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -134,7 +150,7 @@ services:
   web:
     extends: base
 `)
-	dict, err := LoadV3(context.TODO(), v3Config(t, dir, "compose.yaml"), &Options{
+	dict, err := loadV3Map(t, v3Config(t, dir, "compose.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -160,7 +176,7 @@ services:
   web:
     command: !reset null
 `)
-	dict, err := LoadV3(context.TODO(), v3Config(t, dir, "base.yaml", "override.yaml"), &Options{
+	dict, err := loadV3Map(t, v3Config(t, dir, "base.yaml", "override.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -192,7 +208,7 @@ services:
     build:
       context: ./root-app
 `)
-	dict, err := LoadV3(context.TODO(), v3Config(t, root, "compose.yaml"), &Options{
+	dict, err := loadV3Map(t, v3Config(t, root, "compose.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,

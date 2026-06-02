@@ -358,26 +358,27 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 // LoadWithContext reads a ConfigDetails and returns a fully loaded configuration as a compose-go Project
 func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	opts := ToOptions(&configDetails, options)
-	dict, err := loadModelWithContext(ctx, &configDetails, opts)
+	if len(configDetails.ConfigFiles) < 1 {
+		return nil, errors.New("no compose file specified")
+	}
+	root, err := LoadV3(ctx, configDetails, opts)
 	if err != nil {
 		return nil, err
 	}
-	return ModelToProject(dict, opts, configDetails)
+	return nodeToProject(root, opts, configDetails)
 }
 
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
 func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (map[string]any, error) {
 	opts := ToOptions(&configDetails, options)
-	return loadModelWithContext(ctx, &configDetails, opts)
-}
-
-// LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary.
-// Routes through the v3 yaml.Node-centric LoadV3.
-func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (map[string]any, error) {
 	if len(configDetails.ConfigFiles) < 1 {
 		return nil, errors.New("no compose file specified")
 	}
-	return LoadV3(ctx, *configDetails, opts)
+	root, err := LoadV3(ctx, configDetails, opts)
+	if err != nil {
+		return nil, err
+	}
+	return nodeToModel(root, configDetails.Environment)
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
@@ -595,32 +596,63 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 	return dict, nil
 }
 
-// ModelToProject binds a canonical yaml dict into compose-go structs
-func ModelToProject(dict map[string]interface{}, opts *Options, configDetails types.ConfigDetails) (*types.Project, error) {
+// nodeToProject decodes the canonical merged yaml.Node directly into a
+// *types.Project (no intermediate map[string]any) and applies the
+// project-level post-decode passes: env_file declaring-scope side-table
+// for lazy interpolation, Windows path conversion, profile / service
+// selection, services environment + label resolution. Runs the
+// equivalent of v2 ModelToProject without the map -> mapstructure
+// detour.
+func nodeToProject(root *yaml.Node, opts *Options, configDetails types.ConfigDetails) (*types.Project, error) {
 	project := &types.Project{
 		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
 		Environment: configDetails.Environment,
 	}
-	delete(dict, "name") // project name set by yaml must be identified by caller as opts.projectName
 
-	var err error
-	dict, err = processExtensions(dict, tree.NewPath(), opts.KnownExtensions)
-	if err != nil {
+	// The project name comes from opts.projectName (set by projectName()
+	// during the LoadV3 prologue with the first ConfigFile's `name:`
+	// folded in). Strip any `name` scalar from the tree before decode so
+	// it does not silently overwrite the value the loader has already
+	// canonicalized.
+	deleteMappingKey(root, "name")
+
+	if err := root.Decode(project); err != nil {
+		return nil, fmt.Errorf("decode project: %w", err)
+	}
+
+	// Lift secrets / configs `environment:` entries to their resolved
+	// Content value. v2 did the same on the map (resolveSecretsEnvironment
+	// writes SecretConfigXValue which SecretConfig.UnmarshalYAML lifts);
+	// here we work straight on the typed value because we skipped the
+	// intermediate map.
+	for name, secret := range project.Secrets {
+		if secret.Environment == "" || secret.Content != "" {
+			continue
+		}
+		if v, ok := configDetails.Environment[secret.Environment]; ok {
+			secret.Content = v
+			project.Secrets[name] = secret
+		}
+	}
+	for name, config := range project.Configs {
+		if config.Environment == "" || config.Content != "" {
+			continue
+		}
+		if v, ok := configDetails.Environment[config.Environment]; ok {
+			config.Content = v
+			project.Configs[name] = config
+		}
+	}
+
+	// Decode KnownExtensions into their declared target types. The yaml
+	// inline tag has parked them as map[string]any under Extensions; this
+	// pass swaps each known x-* entry for the typed value the caller
+	// registered.
+	if err := decodeKnownExtensions(project, opts.KnownExtensions); err != nil {
 		return nil, err
 	}
 
-	err = Transform(dict, project)
-	if err != nil {
-		return nil, err
-	}
-
-	// v3: propagate the per-env_file declaring-layer environment so
-	// WithServicesEnvironmentResolved can interpolate the file content
-	// against the scope where it was declared (the include env_file,
-	// not just the project-wide env). Stored on a side-table on the
-	// Project so types.EnvFile struct equality with v2 fixtures is
-	// preserved.
 	for path, env := range opts.envFileScopes {
 		project.SetEnvFileScope(path, env)
 	}
@@ -634,13 +666,13 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 		}
 	}
 
+	var err error
 	if project, err = project.WithProfiles(opts.Profiles); err != nil {
 		return nil, err
 	}
 
 	if !opts.SkipConsistencyCheck {
-		err := checkConsistency(project)
-		if err != nil {
+		if err := checkConsistency(project); err != nil {
 			return nil, err
 		}
 	}
@@ -673,6 +705,51 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	}
 
 	return project, nil
+}
+
+// decodeKnownExtensions walks Project.Extensions and every typed
+// container's Extensions map looking for keys the caller registered via
+// Options.KnownExtensions. Each match has its raw map[string]any value
+// re-decoded into the declared target type via a yaml round-trip so the
+// caller gets the strongly-typed value back at p.Extensions[name].
+func decodeKnownExtensions(project *types.Project, known map[string]any) error {
+	if len(known) == 0 {
+		return nil
+	}
+	maps := []types.Extensions{project.Extensions}
+	for _, s := range project.Services {
+		maps = append(maps, s.Extensions)
+	}
+	for _, n := range project.Networks {
+		maps = append(maps, n.Extensions)
+	}
+	for _, v := range project.Volumes {
+		maps = append(maps, v.Extensions)
+	}
+	for _, c := range project.Configs {
+		maps = append(maps, c.Extensions)
+	}
+	for _, s := range project.Secrets {
+		maps = append(maps, s.Extensions)
+	}
+	for _, m := range maps {
+		for name, typ := range known {
+			raw, ok := m[name]
+			if !ok {
+				continue
+			}
+			target := reflect.New(reflect.TypeOf(typ)).Interface()
+			buf, err := yaml.Marshal(raw)
+			if err != nil {
+				return err
+			}
+			if err := yaml.Unmarshal(buf, target); err != nil {
+				return err
+			}
+			m[name] = reflect.ValueOf(target).Elem().Interface()
+		}
+	}
+	return nil
 }
 
 func InvalidProjectNameErr(v string) error {
@@ -766,6 +843,7 @@ func NormalizeProjectName(s string) string {
 	return strings.TrimLeft(s, "_-")
 }
 
+//nolint:unused
 var userDefinedKeys = []tree.Path{
 	"services",
 	"services.*.depends_on",
@@ -775,6 +853,7 @@ var userDefinedKeys = []tree.Path{
 	"configs",
 }
 
+//nolint:unused
 func processExtensions(dict map[string]any, p tree.Path, extensions map[string]any) (map[string]interface{}, error) {
 	extras := map[string]any{}
 	var err error
@@ -869,7 +948,6 @@ func inlineExtensions(v any) {
 	}
 }
 
-// keys need to be converted to strings for jsonschema
 func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interface{}, error) {
 	if mapping, ok := value.(map[string]interface{}); ok {
 		for key, entry := range mapping {
