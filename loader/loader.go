@@ -101,6 +101,14 @@ type Options struct {
 	// to populate EnvFile.Env, which WithServicesEnvironmentResolved
 	// then uses as the preferred interpolation scope.
 	envFileScopes map[string]types.Mapping
+
+	// extendsRelativeDir carries the v2-compatible relative project
+	// directory recorded by loadExtendsBaseLayer for the path resolution
+	// that runs on the merged service body. SourceContext.WorkingDir
+	// remains absolute (chained extends.file lookups require it), so
+	// this side-table keeps the v2 relative form available without
+	// regressing the absolute lookup path.
+	extendsRelativeDir string
 }
 
 var versionWarning []string
@@ -361,11 +369,15 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	if len(configDetails.ConfigFiles) < 1 {
 		return nil, errors.New("no compose file specified")
 	}
-	root, err := LoadV3(ctx, configDetails, opts)
+	// Capture LoadV3's mutation of cd.Environment (COMPOSE_PROJECT_NAME)
+	// so nodeToProject sees the same environment that scalar
+	// interpolation observed during the pipeline.
+	cd := configDetails
+	root, err := loadV3(ctx, &cd, opts)
 	if err != nil {
 		return nil, err
 	}
-	return nodeToProject(root, opts, configDetails)
+	return nodeToProject(root, opts, cd)
 }
 
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
@@ -374,7 +386,8 @@ func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails
 	if len(configDetails.ConfigFiles) < 1 {
 		return nil, errors.New("no compose file specified")
 	}
-	root, err := LoadV3(ctx, configDetails, opts)
+	cd := configDetails
+	root, err := loadV3(ctx, &cd, opts)
 	if err != nil {
 		return nil, err
 	}

@@ -19,6 +19,7 @@ package transform
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 
 	"github.com/compose-spec/compose-go/v3/format"
 	"github.com/compose-spec/compose-go/v3/tree"
@@ -37,6 +38,7 @@ func transformVolumeMount(data any, p tree.Path, ignoreParseError bool) (any, er
 			return nil, err
 		}
 		volume.Target = cleanTarget(volume.Target)
+		volume.Source = cleanSource(volume.Source)
 
 		return encode(volume)
 	default:
@@ -49,6 +51,18 @@ func cleanTarget(target string) string {
 		return ""
 	}
 	return path.Clean(target)
+}
+
+// cleanSource normalizes the short-form source value (`./` -> `.`,
+// `./foo` -> `foo`) using OS-native filepath.Clean so the canonicalized
+// long form spelling matches what the path resolver would produce
+// when joining the value against any working directory. Absolute paths
+// are left untouched.
+func cleanSource(source string) string {
+	if source == "" || filepath.IsAbs(source) {
+		return source
+	}
+	return filepath.Clean(source)
 }
 
 func defaultVolumeBind(data any, p tree.Path, _ bool) (any, error) {

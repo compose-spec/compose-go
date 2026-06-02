@@ -178,7 +178,16 @@ func applyServiceExtendsNode(
 	// working directory. Matches v2 getExtendsBaseFromFile semantics where
 	// paths accumulate the file's relative dir as the chain unwinds.
 	if file != "" {
-		if err := resolveExtendedServicePaths(merged, layer.Context.WorkingDir, childOpts); err != nil {
+		// resolveExtendedServicePaths uses the relative form preferred
+		// by v2 so paths stamped on the merged service look "as if" the
+		// caller had declared them at the parent layer's working dir.
+		// Fall back to the absolute WorkingDir when the relative form
+		// is empty (remote loaders that did not stash a relative form).
+		extendsWD := childOpts.extendsRelativeDir
+		if extendsWD == "" {
+			extendsWD = layer.Context.WorkingDir
+		}
+		if err := resolveExtendedServicePaths(merged, extendsWD, childOpts); err != nil {
 			return nil, err
 		}
 	}
@@ -246,22 +255,26 @@ func loadExtendsBaseLayer(ctx context.Context, parent *node.Layer, file string, 
 	if err != nil {
 		return nil, nil, err
 	}
-	// localDir is the directory of the extended file expressed in a form
-	// compatible with the way v2 ResolveRelativePaths works:
-	// loader.Dir(file) returns a project-relative path when the file lives
-	// under the project root, otherwise the absolute path. Recursive path
-	// resolution uses this dir so the resulting paths match the relative
-	// form v2 produces.
+	// absLocalDir is the directory of the extended file (always absolute).
+	// localDir is the relative form returned by loader.Dir, used as the
+	// base for in-tree path resolution so the resulting paths match the
+	// v2 relative form (paths look like "testdata/subdir/extra.env"
+	// rather than absolute paths until the outer pass absolutizes them).
+	// We store absLocalDir on the SourceContext so chained extends /
+	// include extends always find files relative to a real directory,
+	// and keep localDir as a side-table on Options for the per-merge
+	// path resolution call below.
 	localDir := loader.Dir(file)
 	absLocalDir := filepath.Dir(fullPath)
 	sc := &node.SourceContext{
 		File:        fullPath,
-		WorkingDir:  localDir,
+		WorkingDir:  absLocalDir,
 		Environment: parent.Context.Environment,
 		Parent:      parent.Context,
 	}
 	childOpts := opts.clone()
 	childOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{WorkingDir: absLocalDir})
+	childOpts.extendsRelativeDir = localDir
 	layers, err := LoadLayer(ctx, types.ConfigFile{Filename: fullPath}, sc, childOpts)
 	if err != nil {
 		return nil, nil, err

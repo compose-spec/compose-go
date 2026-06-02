@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"go.yaml.in/yaml/v4"
 
@@ -57,12 +58,20 @@ import (
 //  9. validate via validation.ValidateNode;
 //  10. normalize defaults via NormalizeNode.
 func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (*yaml.Node, error) {
-	opts = ensureLoadV3Options(opts, cd)
+	return loadV3(ctx, &cd, opts)
+}
+
+// loadV3 is the pointer-taking variant LoadWithContext / LoadModelWithContext
+// use internally so the projectName side effect on cd.Environment (which
+// adds COMPOSE_PROJECT_NAME) propagates back to the caller and reaches
+// nodeToProject through the same Environment map.
+func loadV3(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.Node, error) {
+	opts = ensureLoadV3Options(opts, *cd)
 	// Reproduce the v2 contract: extract the project name from the first
 	// config file (or its `name:` field) before the pipeline runs. Errors
 	// from explicit-name validation (NormalizeProjectName) propagate as in
 	// v2; an empty result is rejected after schema validation below.
-	if err := projectName(&cd, opts); err != nil {
+	if err := projectName(cd, opts); err != nil {
 		return nil, err
 	}
 
@@ -71,7 +80,7 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (*yaml.N
 		Environment: cd.Environment,
 	}
 
-	allLayers, err := collectAllLayers(ctx, cd, rootCtx, opts)
+	allLayers, err := collectAllLayers(ctx, *cd, rootCtx, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +131,7 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (*yaml.N
 	// declared as a list, ...) are caught with a clear v2-compatible
 	// message rather than panicking inside a downstream transformer that
 	// assumes a canonical shape.
-	if err := validateAndStripVersion(merged.Node, cd, opts); err != nil {
+	if err := validateAndStripVersion(merged.Node, *cd, opts); err != nil {
 		return nil, err
 	}
 
@@ -532,6 +541,8 @@ func applyExtendsPerLayer(ctx context.Context, allLayers []*node.Layer, opts *Op
 // importResources convention where the parent overrides the include.
 func collectAllLayers(ctx context.Context, cd types.ConfigDetails, root *node.SourceContext, opts *Options) ([]*node.Layer, error) {
 	var all []*node.Layer
+	seen := map[string]bool{}
+	chain := []string{}
 	for _, file := range cd.ConfigFiles {
 		sc := *root
 		sc.File = file.Filename
@@ -540,7 +551,7 @@ func collectAllLayers(ctx context.Context, cd types.ConfigDetails, root *node.So
 			return nil, err
 		}
 		for _, layer := range layers {
-			expanded, err := expandIncludes(ctx, layer, opts)
+			expanded, err := expandIncludes(ctx, layer, opts, seen, chain)
 			if err != nil {
 				return nil, err
 			}
@@ -561,9 +572,25 @@ func collectAllLayers(ctx context.Context, cd types.ConfigDetails, root *node.So
 // against the include's project_directory, not the outer project root.
 // Matches v2 ApplyInclude which similarly replaces ResourceLoaders on the
 // recursive load.
-func expandIncludes(ctx context.Context, layer *node.Layer, opts *Options) ([]*node.Layer, error) {
+func expandIncludes(ctx context.Context, layer *node.Layer, opts *Options, seen map[string]bool, chain []string) ([]*node.Layer, error) {
 	if opts.SkipInclude {
 		return []*node.Layer{layer}, nil
+	}
+	// Cycle detection: track the absolute filename chain. A file that
+	// appears as its own ancestor (directly or transitively) means an
+	// include directive eventually points back to a file already being
+	// expanded; return the v2-compatible "include cycle detected" error
+	// rather than recursing forever.
+	if layer.Context != nil && layer.Context.File != "" {
+		file := layer.Context.File
+		if seen[file] {
+			return nil, fmt.Errorf("include cycle detected:\n%s\n include %s", chain[0], strings.Join(append(chain[1:], file), "\n include "))
+		}
+		seen[file] = true
+		chain = append(chain, file)
+		defer func() {
+			delete(seen, file)
+		}()
 	}
 	children, err := CollectIncludeLayers(ctx, layer, opts)
 	if err != nil {
@@ -576,7 +603,7 @@ func expandIncludes(ctx context.Context, layer *node.Layer, opts *Options) ([]*n
 			childOpts = opts.clone()
 			childOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{WorkingDir: child.Context.WorkingDir})
 		}
-		grandchildren, err := expandIncludes(ctx, child, childOpts)
+		grandchildren, err := expandIncludes(ctx, child, childOpts, seen, chain)
 		if err != nil {
 			return nil, err
 		}

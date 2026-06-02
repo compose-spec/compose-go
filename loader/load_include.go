@@ -129,28 +129,52 @@ func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node
 		// include. Resolving it here would lead to double-joining when
 		// the orchestrator runs loader.Load on the already-absolutized
 		// path.
-		var remotes []paths.RemoteResource
-		for _, loader := range opts.RemoteResourceLoaders() {
-			remotes = append(remotes, loader.Accept)
-		}
-		for _, layer := range fileLayers {
-			if err := paths.ResolveRelativePathsNode(layer.Node, paths.NodeResolverOptions{
-				WorkingDirFor: func(_ *yaml.Node) string {
-					return projectDir
-				},
-				Remotes: remotes,
-				ExcludePaths: []string{
-					"services.*.extends.file",
-				},
-			}); err != nil {
-				return nil, err
+		// v2 ApplyInclude force-runs ResolvePaths=true on the include
+		// sub-load even when the outer load opted out, so include paths
+		// become absolute and the outer pass never has to touch them
+		// again. v3 only runs the sub-resolve when the outer load opted
+		// in: otherwise leave the include's relative paths untouched so
+		// `build: .` declared next to the include stays "." after the
+		// merge (TestIncludeRelative). When skipping, run a lightweight
+		// cleaning pass so cosmetic forms (`./`, `./foo`) collapse to
+		// their canonical relative spelling (`.`, `foo`) the same way
+		// filepath.Join in the v2 sub-resolve would have.
+		if opts.ResolvePaths {
+			var remotes []paths.RemoteResource
+			for _, loader := range opts.RemoteResourceLoaders() {
+				remotes = append(remotes, loader.Accept)
 			}
-			// Mark the layer as having gone through the include sub-load
-			// path resolution so the orchestrator outer pass does not
-			// double-join already-resolved scalars when the include
-			// project_directory was relative.
-			if layer.Context != nil {
-				layer.Context.PathsPreResolved = true
+			for _, layer := range fileLayers {
+				if err := paths.ResolveRelativePathsNode(layer.Node, paths.NodeResolverOptions{
+					WorkingDirFor: func(_ *yaml.Node) string {
+						return projectDir
+					},
+					Remotes: remotes,
+					ExcludePaths: []string{
+						"services.*.extends.file",
+					},
+				}); err != nil {
+					return nil, err
+				}
+				if layer.Context != nil {
+					layer.Context.PathsPreResolved = true
+				}
+			}
+		} else {
+			for _, layer := range fileLayers {
+				if err := paths.ResolveRelativePathsNode(layer.Node, paths.NodeResolverOptions{
+					WorkingDirFor: func(_ *yaml.Node) string {
+						return "."
+					},
+					ExcludePaths: []string{
+						"services.*.extends.file",
+					},
+				}); err != nil {
+					return nil, err
+				}
+				if layer.Context != nil {
+					layer.Context.PathsPreResolved = true
+				}
 			}
 		}
 		layers = append(layers, fileLayers...)
