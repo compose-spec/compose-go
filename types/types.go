@@ -911,6 +911,49 @@ func (s SecretConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(FileObjectConfig(s))
 }
 
+// UnmarshalYAML decodes the canonical mapping into a SecretConfig and
+// lifts a SecretConfigXValue extension up into Content. Replaces the v2
+// secretConfigDecoderHook mapstructure hook, which read the same
+// extension out of the temporary map.
+func (s *SecretConfig) UnmarshalYAML(value *yaml.Node) error {
+	var raw FileObjectConfig
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	liftXContent(&raw)
+	*s = SecretConfig(raw)
+	return nil
+}
+
+// UnmarshalYAML decodes the canonical mapping into a ConfigObjConfig and
+// lifts a SecretConfigXValue extension up into Content. Mirrors the
+// SecretConfig handling so configs whose value was provided via the
+// `environment` indirection surface their resolved Content at decode time.
+func (s *ConfigObjConfig) UnmarshalYAML(value *yaml.Node) error {
+	var raw FileObjectConfig
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	liftXContent(&raw)
+	*s = ConfigObjConfig(raw)
+	return nil
+}
+
+func liftXContent(f *FileObjectConfig) {
+	if f.Extensions == nil {
+		return
+	}
+	if val, ok := f.Extensions[SecretConfigXValue]; ok {
+		if str, ok := val.(string); ok {
+			f.Content = str
+		}
+		delete(f.Extensions, SecretConfigXValue)
+		if len(f.Extensions) == 0 {
+			f.Extensions = nil
+		}
+	}
+}
+
 // ConfigObjConfig is the config for the swarm "Config" object
 type ConfigObjConfig FileObjectConfig
 
