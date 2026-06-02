@@ -113,23 +113,60 @@ func processLayer(doc *yaml.Node, sc *node.SourceContext, maxVisits int) ([]*nod
 	if resolved.Kind != yaml.MappingNode {
 		return nil, errors.New("top-level object must be a mapping")
 	}
-	// Reject non-string keys at the top level: yaml.v4 accepts non-string
-	// scalar keys (e.g. integers), but every downstream consumer assumes
-	// string keys. Surface the v2-compatible diagnostic before schema
-	// validation produces a less informative "additional properties not
-	// allowed" message.
-	for i := 0; i+1 < len(resolved.Content); i += 2 {
-		key := resolved.Content[i]
-		if key.Kind != yaml.ScalarNode || (key.Tag != "" && key.Tag != "!!str") {
-			return nil, fmt.Errorf("non-string key at top level: %s", key.Value)
-		}
-	}
 	if err := node.NormalizeAliases(resolved); err != nil {
+		return nil, err
+	}
+	// Reject non-string keys throughout the tree: yaml.v4 accepts
+	// non-string scalar keys (e.g. integers), but every downstream
+	// consumer assumes string keys. Runs after NormalizeAliases so the
+	// merge-key marker (`<<`) used by anchor expansion is folded away
+	// before we walk for the diagnostic.
+	if err := checkStringKeys(resolved, "top level"); err != nil {
 		return nil, err
 	}
 	layer := node.NewLayer(resolved, sc)
 	layer.SetResetPaths(resetPaths)
 	return []*node.Layer{layer}, nil
+}
+
+// checkStringKeys walks a yaml.Node tree depth-first and returns the first
+// non-string mapping key it encounters. The path string mirrors the v2
+// diagnostic format ("services", "networks.default.ipam.config[0]", ...)
+// so existing fixture tests keep their error-content assertions stable.
+func checkStringKeys(n *yaml.Node, currentPath string) error {
+	if n == nil {
+		return nil
+	}
+	switch n.Kind {
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			key := n.Content[i]
+			value := n.Content[i+1]
+			if key.Kind != yaml.ScalarNode || (key.Tag != "" && key.Tag != "!!str") {
+				preposition := "in"
+				if currentPath == "top level" {
+					preposition = "at"
+				}
+				return fmt.Errorf("non-string key %s %s: %s", preposition, currentPath, key.Value)
+			}
+			var next string
+			if currentPath == "top level" {
+				next = key.Value
+			} else {
+				next = currentPath + "." + key.Value
+			}
+			if err := checkStringKeys(value, next); err != nil {
+				return err
+			}
+		}
+	case yaml.SequenceNode:
+		for i, c := range n.Content {
+			if err := checkStringKeys(c, fmt.Sprintf("%s[%d]", currentPath, i)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // readConfigFileContent returns the raw YAML bytes for a ConfigFile,
