@@ -644,24 +644,6 @@ type FileReferenceConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
-func (f *FileMode) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case *FileMode:
-		return nil
-	case string:
-		i, err := strconv.ParseInt(v, 8, 64)
-		if err != nil {
-			return err
-		}
-		*f = FileMode(i)
-	case int:
-		*f = FileMode(v)
-	default:
-		return fmt.Errorf("unexpected value type %T for mode", value)
-	}
-	return nil
-}
-
 // UnmarshalYAML accepts a scalar value representing a file mode. Values
 // of the form 0NNN are interpreted as octal (the standard Unix mode
 // notation, so 0755 -> 493); values without a leading zero are read as
@@ -749,31 +731,6 @@ func (u *UlimitsConfig) UnmarshalYAML(value *yaml.Node) error {
 		}
 	default:
 		return fmt.Errorf("unexpected yaml kind %d for ulimit", value.Kind)
-	}
-	return nil
-}
-
-func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case *UlimitsConfig:
-		// this call to DecodeMapstructure is triggered after initial value conversion as we use a map[string]*UlimitsConfig
-		return nil
-	case int:
-		u.Single = v
-		u.Soft = 0
-		u.Hard = 0
-	case map[string]any:
-		u.Single = 0
-		soft, ok := v["soft"]
-		if ok {
-			u.Soft = soft.(int)
-		}
-		hard, ok := v["hard"]
-		if ok {
-			u.Hard = hard.(int)
-		}
-	default:
-		return fmt.Errorf("unexpected value type %T for ulimit", value)
 	}
 	return nil
 }
@@ -932,20 +889,6 @@ func (s *SecretConfig) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
-// UnmarshalYAML decodes the canonical mapping into a ConfigObjConfig and
-// lifts a SecretConfigXValue extension up into Content. Mirrors the
-// SecretConfig handling so configs whose value was provided via the
-// `environment` indirection surface their resolved Content at decode time.
-func (s *ConfigObjConfig) UnmarshalYAML(value *yaml.Node) error {
-	var raw FileObjectConfig
-	if err := value.Decode(&raw); err != nil {
-		return err
-	}
-	liftXContent(&raw)
-	*s = ConfigObjConfig(raw)
-	return nil
-}
-
 func liftXContent(f *FileObjectConfig) {
 	if f.Extensions == nil {
 		return
@@ -980,6 +923,20 @@ func (s ConfigObjConfig) MarshalJSON() ([]byte, error) {
 		s.Content = ""
 	}
 	return json.Marshal(FileObjectConfig(s))
+}
+
+// UnmarshalYAML decodes the canonical mapping into a ConfigObjConfig and
+// lifts a SecretConfigXValue extension up into Content. Mirrors the
+// SecretConfig handling so configs whose value was provided via the
+// `environment` indirection surface their resolved Content at decode time.
+func (s *ConfigObjConfig) UnmarshalYAML(value *yaml.Node) error {
+	var raw FileObjectConfig
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	liftXContent(&raw)
+	*s = ConfigObjConfig(raw)
+	return nil
 }
 
 type IncludeConfig struct {

@@ -33,15 +33,6 @@ func (d Duration) String() string {
 	return time.Duration(d).String()
 }
 
-func (d *Duration) DecodeMapstructure(value interface{}) error {
-	v, err := str2duration.ParseDuration(fmt.Sprint(value))
-	if err != nil {
-		return err
-	}
-	*d = Duration(v)
-	return nil
-}
-
 // MarshalJSON makes Duration implement json.Marshaler
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(d.String())

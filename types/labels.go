@@ -62,40 +62,6 @@ func (l Labels) ToMappingWithEquals() MappingWithEquals {
 	return mapping
 }
 
-// label value can be a string | number | boolean | null (empty)
-func labelValue(e interface{}) string {
-	if e == nil {
-		return ""
-	}
-	switch v := e.(type) {
-	case string:
-		return v
-	default:
-		return fmt.Sprint(v)
-	}
-}
-
-func (l *Labels) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		labels := make(map[string]string, len(v))
-		for k, e := range v {
-			labels[k] = labelValue(e)
-		}
-		*l = labels
-	case []interface{}:
-		labels := make(map[string]string, len(v))
-		for _, s := range v {
-			k, e, _ := strings.Cut(fmt.Sprint(s), "=")
-			labels[k] = labelValue(e)
-		}
-		*l = labels
-	default:
-		return fmt.Errorf("unexpected value type %T for labels", value)
-	}
-	return nil
-}
-
 // UnmarshalYAML accepts a mapping (key -> value) or a list of "key=value"
 // entries and stores the result as a Labels map. Mirrors DecodeMapstructure
 // for yaml.v4 native decoding. Numeric and boolean scalar values in the

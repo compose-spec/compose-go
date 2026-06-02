@@ -21,7 +21,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/go-viper/mapstructure/v2"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -143,10 +142,19 @@ func (c Config) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m)
 }
 
+// Get decodes the named extension value into target. The extension may
+// have been stored raw (map[string]any / []any from a yaml decode) or
+// already projected into a typed struct; both shapes round-trip through
+// yaml so the caller receives target populated from the source's yaml
+// tag layout.
 func (e Extensions) Get(name string, target interface{}) (bool, error) {
-	if v, ok := e[name]; ok {
-		err := mapstructure.Decode(v, target)
+	v, ok := e[name]
+	if !ok {
+		return false, nil
+	}
+	buf, err := yaml.Marshal(v)
+	if err != nil {
 		return true, err
 	}
-	return false, nil
+	return true, yaml.Unmarshal(buf, target)
 }

@@ -55,25 +55,6 @@ func (s SSHKey) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`%q: %s`, s.ID, s.Path)), nil
 }
 
-func (s *SSHConfig) DecodeMapstructure(value interface{}) error {
-	v, ok := value.(map[string]any)
-	if !ok {
-		return fmt.Errorf("invalid ssh config type %T", value)
-	}
-	result := make(SSHConfig, len(v))
-	i := 0
-	for id, path := range v {
-		key := SSHKey{ID: id}
-		if path != nil {
-			key.Path = fmt.Sprint(path)
-		}
-		result[i] = key
-		i++
-	}
-	*s = result
-	return nil
-}
-
 // UnmarshalYAML accepts a canonical mapping of `id: path` entries (the
 // short-form `default` and `id=path` forms are turned into this shape by
 // transform.CanonicalNode before decoding) and stores them as a slice of

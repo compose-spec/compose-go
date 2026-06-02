@@ -38,22 +38,6 @@ type HealthCheckConfig struct {
 // HealthCheckTest is the command run to test the health of a service
 type HealthCheckTest []string
 
-func (l *HealthCheckTest) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		*l = []string{"CMD-SHELL", v}
-	case []interface{}:
-		seq := make([]string, len(v))
-		for i, e := range v {
-			seq[i] = e.(string)
-		}
-		*l = seq
-	default:
-		return fmt.Errorf("unexpected value type %T for healthcheck.test", value)
-	}
-	return nil
-}
-
 // UnmarshalYAML accepts either a CMD-SHELL string (shorthand: prefixed with
 // "CMD-SHELL" at runtime) or a sequence of explicit argv entries. Mirrors
 // DecodeMapstructure for yaml.v4 native decoding.

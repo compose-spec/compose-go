@@ -72,24 +72,6 @@ func (s ShellCommand) MarshalYAML() (interface{}, error) {
 	return []string(s), nil
 }
 
-func (s *ShellCommand) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		cmd, err := shellwords.Parse(v)
-		if err != nil {
-			return err
-		}
-		*s = cmd
-	case []interface{}:
-		cmd := make([]string, len(v))
-		for i, s := range v {
-			cmd[i] = s.(string)
-		}
-		*s = cmd
-	}
-	return nil
-}
-
 // UnmarshalYAML accepts either a shell command string (parsed with shellwords)
 // or a sequence of arguments and stores the resulting argv in s. Mirrors
 // DecodeMapstructure for yaml.v4 native decoding.

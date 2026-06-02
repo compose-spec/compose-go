@@ -78,13 +78,3 @@ func (u *UnitBytes) UnmarshalYAML(value *yaml.Node) error {
 	}
 	return u.parseString(s)
 }
-
-func (u *UnitBytes) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case int:
-		*u = UnitBytes(v)
-	case string:
-		return u.parseString(v)
-	}
-	return nil
-}
