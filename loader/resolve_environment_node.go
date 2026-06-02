@@ -89,3 +89,98 @@ func resolveEnvSequence(seq *yaml.Node, origins map[*yaml.Node]*node.SourceConte
 		}
 	}
 }
+
+// CaptureSecretConfigContent walks the merged tree and, for each
+// `secrets.NAME.environment` / `configs.NAME.environment` scalar,
+// resolves the variable against the SourceContext.Environment of the
+// layer that DECLARED that scalar. Returns two `secrets-name -> resolved
+// value` and `configs-name -> resolved value` maps so the resolution can
+// later survive a CanonicalNode round-trip that re-encodes subtrees and
+// invalidates the *yaml.Node pointers backing `origins`.
+//
+// The v3 lookup-at-origin behavior fixes a v2 limitation: v2 only looked
+// at the project-wide environment, so a secret declared in an included
+// compose file whose env_file introduced the variable could not see it.
+// In v3 the secret/config now resolves in the same scope its declaration
+// would resolve `${VAR}` interpolation in -- the layer's own environment.
+func CaptureSecretConfigContent(root *yaml.Node, origins map[*yaml.Node]*node.SourceContext) (map[string]string, map[string]string) {
+	secrets := map[string]string{}
+	configs := map[string]string{}
+	if root == nil {
+		return secrets, configs
+	}
+	target := root
+	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
+		target = target.Content[0]
+	}
+	if target.Kind != yaml.MappingNode {
+		return secrets, configs
+	}
+	collect := func(section *yaml.Node, into map[string]string) {
+		if section == nil || section.Kind != yaml.MappingNode {
+			return
+		}
+		for i := 0; i+1 < len(section.Content); i += 2 {
+			name := section.Content[i].Value
+			entry := section.Content[i+1]
+			if entry.Kind != yaml.MappingNode {
+				continue
+			}
+			env := mappingValueByKey(entry, "environment")
+			if env == nil || env.Kind != yaml.ScalarNode || env.Value == "" {
+				continue
+			}
+			ctx := origins[env]
+			if ctx == nil {
+				continue
+			}
+			if value, ok := ctx.Environment[env.Value]; ok {
+				into[name] = value
+			}
+		}
+	}
+	collect(mappingValueByKey(target, "secrets"), secrets)
+	collect(mappingValueByKey(target, "configs"), configs)
+	return secrets, configs
+}
+
+// ApplySecretConfigContent injects each captured `name -> value` pair as
+// a `content` scalar inside the corresponding entry of the post-canonical
+// tree. Runs after the compose-rule validator so the mutual-exclusivity
+// check between content and environment does not flag the synthesized
+// value.
+func ApplySecretConfigContent(root *yaml.Node, secrets, configs map[string]string) {
+	if root == nil || (len(secrets) == 0 && len(configs) == 0) {
+		return
+	}
+	target := root
+	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
+		target = target.Content[0]
+	}
+	if target.Kind != yaml.MappingNode {
+		return
+	}
+	apply := func(section *yaml.Node, values map[string]string) {
+		if section == nil || section.Kind != yaml.MappingNode || len(values) == 0 {
+			return
+		}
+		for i := 0; i+1 < len(section.Content); i += 2 {
+			name := section.Content[i].Value
+			value, ok := values[name]
+			if !ok {
+				continue
+			}
+			entry := section.Content[i+1]
+			if entry.Kind != yaml.MappingNode {
+				continue
+			}
+			setMappingValue(entry, "content", &yaml.Node{
+				Kind:  yaml.ScalarNode,
+				Tag:   "!!str",
+				Value: value,
+			})
+		}
+	}
+	apply(mappingValueByKey(target, "secrets"), secrets)
+	apply(mappingValueByKey(target, "configs"), configs)
+}

@@ -73,3 +73,30 @@ func TestInclude_EnvFile_ProvidesContextToServiceEnvFile(t *testing.T) {
 		assert.Check(t, *ovr == "fallback", "OVR should be 'fallback' (BAR is not visible in top-level scope), got %q", *ovr)
 	}
 }
+
+// TestInclude_SecretEnvironment_ProvidesContextToSecret asserts that a
+// secret declared inside an included file resolves its `environment:`
+// variable against the env_file declared on the include block, not the
+// parent project environment. Concrete v3 fix for the v2 limitation
+// where resolveSecretsEnvironment only looked at the project-wide
+// environment and therefore could not see a variable that an include
+// env_file introduced inside the include scope.
+func TestInclude_SecretEnvironment_ProvidesContextToSecret(t *testing.T) {
+	workdir, err := filepath.Abs("testdata/include/secret_env")
+	assert.NilError(t, err)
+	topPath := filepath.Join(workdir, "compose.yaml")
+
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir:  workdir,
+		ConfigFiles: []types.ConfigFile{{Filename: topPath}},
+		Environment: map[string]string{},
+	}, withProjectName("test-include-secret-env", true))
+	assert.NilError(t, err)
+
+	secret, ok := p.Secrets["scoped"]
+	assert.Assert(t, ok, "secret 'scoped' should be present")
+	assert.Equal(t, secret.Environment, "MY_SECRET",
+		"secret keeps the environment variable name it was declared with")
+	assert.Equal(t, secret.Content, "shadoks",
+		"secret content resolves against include env_file MY_SECRET, not parent env")
+}

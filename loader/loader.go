@@ -378,7 +378,7 @@ func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails
 	if err != nil {
 		return nil, err
 	}
-	return nodeToModel(root, configDetails.Environment)
+	return nodeToModel(root)
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
@@ -619,30 +619,6 @@ func nodeToProject(root *yaml.Node, opts *Options, configDetails types.ConfigDet
 
 	if err := root.Decode(project); err != nil {
 		return nil, fmt.Errorf("decode project: %w", err)
-	}
-
-	// Lift secrets / configs `environment:` entries to their resolved
-	// Content value. v2 did the same on the map (resolveSecretsEnvironment
-	// writes SecretConfigXValue which SecretConfig.UnmarshalYAML lifts);
-	// here we work straight on the typed value because we skipped the
-	// intermediate map.
-	for name, secret := range project.Secrets {
-		if secret.Environment == "" || secret.Content != "" {
-			continue
-		}
-		if v, ok := configDetails.Environment[secret.Environment]; ok {
-			secret.Content = v
-			project.Secrets[name] = secret
-		}
-	}
-	for name, config := range project.Configs {
-		if config.Environment == "" || config.Content != "" {
-			continue
-		}
-		if v, ok := configDetails.Environment[config.Environment]; ok {
-			config.Content = v
-			project.Configs[name] = config
-		}
 	}
 
 	// Decode KnownExtensions into their declared target types. The yaml

@@ -1,0 +1,8 @@
+services:
+  consumer:
+    image: alpine
+    secrets:
+      - scoped
+secrets:
+  scoped:
+    environment: MY_SECRET

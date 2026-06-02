@@ -134,6 +134,14 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (*yaml.N
 	// the surrounding project environment.
 	ResolveEnvironmentNode(merged.Node, origins)
 
+	// Capture per-scalar secret/config `environment: NAME` resolutions
+	// BEFORE CanonicalNode re-encodes subtrees and invalidates origin
+	// pointers. The captured map[name]value is replayed onto the tree
+	// AFTER the compose-rule validator so the synthesized `content`
+	// scalar does not trip the content+environment mutual-exclusivity
+	// check.
+	secretContents, configContents := CaptureSecretConfigContent(merged.Node, origins)
+
 	// Path resolution runs first on the pre-canonical tree so that
 	// pointer identity is preserved for every scalar whose origin is
 	// tracked in the side-table. The CanonicalNode bridge currently
@@ -216,6 +224,12 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (*yaml.N
 	// observe the same shape.
 	omitEmptyNode(root, tree.NewPath())
 
+	// Replay the per-scalar secret/config Content resolution captured
+	// before CanonicalNode invalidated the origin pointer map. Runs
+	// after the validator so the synthesized `content` scalar does not
+	// trip the content+environment mutual-exclusivity check.
+	ApplySecretConfigContent(root, secretContents, configContents)
+
 	return root, nil
 }
 
@@ -283,19 +297,14 @@ func ensureLoadV3Options(opts *Options, cd types.ConfigDetails) *Options {
 }
 
 // nodeToModel projects the merged tree into the legacy map[string]any
-// shape consumed by LoadModelWithContext. It applies the v2 post-decode
-// passes (OmitEmpty drops `dns: ""` style leftovers from unset variable
-// interpolation; resolveSecrets/ConfigsEnvironment surface
-// `environment:` lookups as Content) so the dict matches the v2
-// loadYamlModel output byte-for-byte.
-func nodeToModel(root *yaml.Node, env types.Mapping) (map[string]any, error) {
+// shape consumed by LoadModelWithContext. OmitEmpty and the per-scalar
+// secrets / configs environment resolution have already run on the node
+// (LoadV3 calls them); the map is only the decoded view.
+func nodeToModel(root *yaml.Node) (map[string]any, error) {
 	var dict map[string]any
 	if err := root.Decode(&dict); err != nil {
 		return nil, fmt.Errorf("loadV3: decode merged tree: %w", err)
 	}
-	dict = OmitEmpty(dict)
-	resolveSecretsEnvironment(dict, env)
-	resolveConfigsEnvironment(dict, env)
 	return dict, nil
 }
 

@@ -1,0 +1,8 @@
+include:
+  - path: sub/compose.yaml
+    env_file:
+      - secret.env
+
+services:
+  foo:
+    image: alpine
