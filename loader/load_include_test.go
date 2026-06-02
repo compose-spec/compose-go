@@ -83,10 +83,11 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, len(got), 1)
 
-	// The included layer's WorkingDir is loader.Dir of the included path
-	// (relative to the parent project root) — matches the v2 form so
-	// downstream relative-path normalization collapses "./" to ".".
-	assert.Equal(t, got[0].Context.WorkingDir, ".")
+	// The included layer's WorkingDir defaults to the absolute directory
+	// of the included file. v3 prefers absolute paths over the v2 relative
+	// form so the per-scalar path resolution in the orchestrator can fall
+	// back to the layer working directory without an extra rebasing step.
+	assert.Equal(t, got[0].Context.WorkingDir, dir)
 	assert.Equal(t, got[0].Context.File, filepath.Join(dir, "included.yaml"))
 	// Parent chain is preserved for diagnostics.
 	assert.Equal(t, got[0].Context.Parent, parent.Context)

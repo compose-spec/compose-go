@@ -49,6 +49,14 @@ type NodeResolverOptions struct {
 	// URL, exempting it from absolute-path conversion. Mirrors the v2
 	// behavior of the same name.
 	Remotes []RemoteResource
+
+	// ExcludePaths is the optional list of tree.Path patterns to skip
+	// during traversal. Resolvers registered at any of these patterns are
+	// not invoked, and the walker continues into the children as if no
+	// rule were registered. Used by the include pre-resolution to defer
+	// extends.file resolution to the orchestrator extends pass, which
+	// needs the original relative reference.
+	ExcludePaths []string
 }
 
 // ResolveRelativePathsNode walks root and converts relative path scalars to
@@ -88,6 +96,9 @@ func ResolveRelativePathsNode(root *yaml.Node, opts NodeResolverOptions) error {
 		"include.project_directory":              r.absScalar,
 		"include.env_file":                       r.absScalarMaybeSequence,
 		"volumes.*":                              r.volumeDriverOpts,
+	}
+	for _, ex := range opts.ExcludePaths {
+		delete(r.resolvers, tree.NewPath(ex))
 	}
 	return r.walk(root, tree.NewPath())
 }

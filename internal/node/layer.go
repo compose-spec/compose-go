@@ -59,6 +59,14 @@ type SourceContext struct {
 	// (via include or extends). Nil for the root context. The chain enables
 	// "in file X included from file Y" style diagnostics.
 	Parent *SourceContext
+
+	// PathsPreResolved is set to true once the include sub-load has
+	// absolutized every relative path scalar inside the layer's tree. The
+	// orchestrator path resolution pass consults this flag to skip
+	// re-resolving scalars that already went through the include's own
+	// resolution, which would otherwise double-join when the include
+	// project_directory was relative.
+	PathsPreResolved bool
 }
 
 // Layer is a parsed YAML document paired with its SourceContext.

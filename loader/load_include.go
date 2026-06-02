@@ -115,22 +115,42 @@ func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node
 		if err != nil {
 			return nil, err
 		}
-		// Match v2 ApplyInclude: regardless of the parent opts.ResolvePaths
-		// setting, the include sub-load resolves its own relative paths
-		// against the include working directory. Without this, a parent
-		// that opts out of path resolution would leave include-originating
-		// scalars relative — but they cannot be re-resolved at the parent
-		// level (different working directory) and would fail validation.
+		// v2 ApplyInclude always forces ResolvePaths=true for the include
+		// sub-load. v3 does the same here; subsequent passes in the
+		// orchestrator short-circuit on already-absolute paths via
+		// filepath.IsAbs in absScalar, so this single resolution does not
+		// double up with the outer pass when ResolvePaths is also true.
+		//
+		// extends.file is deliberately left untouched: the orchestrator
+		// extends pass needs the original relative reference so it can
+		// re-resolve through the loaded layer's ResourceLoader (re-rooted
+		// at the include working directory in LoadV3), exactly as v2
+		// ApplyExtends does inside the recursive loadYamlModel of an
+		// include. Resolving it here would lead to double-joining when
+		// the orchestrator runs loader.Load on the already-absolutized
+		// path.
 		var remotes []paths.RemoteResource
 		for _, loader := range opts.RemoteResourceLoaders() {
 			remotes = append(remotes, loader.Accept)
 		}
 		for _, layer := range fileLayers {
 			if err := paths.ResolveRelativePathsNode(layer.Node, paths.NodeResolverOptions{
-				WorkingDir: projectDir,
-				Remotes:    remotes,
+				WorkingDirFor: func(_ *yaml.Node) string {
+					return projectDir
+				},
+				Remotes: remotes,
+				ExcludePaths: []string{
+					"services.*.extends.file",
+				},
 			}); err != nil {
 				return nil, err
+			}
+			// Mark the layer as having gone through the include sub-load
+			// path resolution so the orchestrator outer pass does not
+			// double-join already-resolved scalars when the include
+			// project_directory was relative.
+			if layer.Context != nil {
+				layer.Context.PathsPreResolved = true
 			}
 		}
 		layers = append(layers, fileLayers...)
@@ -165,24 +185,23 @@ func readIncludeEntry(entry *yaml.Node) (types.IncludeConfig, error) {
 // defines the project_directory when none is declared; later paths in the
 // same entry are treated as overrides loaded from the same directory.
 //
-// The returned project_directory follows the v2 convention: a path
-// relative to the parent's working directory when loader.Dir can express
-// it that way, otherwise the absolute path. This is what file-source
-// volumes ("./:/mnt") and similar relative references collapse against,
-// preserving the v2 normalization (filepath.Join cleans "./" to ".") used
-// throughout the existing fixture suite.
+// The returned project_directory is the absolute path to the include's
+// project root. The per-include path resolution pass uses it as the
+// WorkingDir to absolutize relative paths inside the included tree, and
+// the PathsPreResolved flag set on the layer's SourceContext prevents the
+// orchestrator outer pass from re-resolving them.
 func resolveIncludePaths(ctx context.Context, cfg types.IncludeConfig, parentWD string, opts *Options) ([]string, string, error) {
 	var resolved []string
 	projectDir := cfg.ProjectDirectory
 	for i, p := range cfg.Path {
-		loader, fullPath, err := resolveResourceWithLoader(ctx, opts, p)
+		_, fullPath, err := resolveResourceWithLoader(ctx, opts, p)
 		if err != nil {
 			return nil, "", err
 		}
 		if i == 0 {
 			switch {
 			case projectDir == "":
-				projectDir = loader.Dir(p)
+				projectDir = filepath.Dir(fullPath)
 			case !filepath.IsAbs(projectDir):
 				projectDir = filepath.Join(parentWD, projectDir)
 			}

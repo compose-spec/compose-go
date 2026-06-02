@@ -156,9 +156,14 @@ func applyServiceExtendsNode(
 	// applyServiceExtends, which calls processor.Apply on the wrapped base
 	// to drop any path that the derived service marked with !reset or
 	// !override — so the override entry from the derived service wins
-	// outright once mergeSpecials kicks in.
+	// outright once mergeSpecials kicks in. The consumed paths are then
+	// removed from the layer's resetPaths so the orchestrator post-merge
+	// ApplyResetPaths does not delete them again from the final tree.
 	clonedBase := deepCloneNode(base)
-	resetParentPaths(clonedBase, name, originalLayer.ResetPaths())
+	consumed := resetParentPaths(clonedBase, name, originalLayer.ResetPaths())
+	if len(consumed) > 0 {
+		originalLayer.SetResetPaths(diffPaths(originalLayer.ResetPaths(), consumed))
+	}
 
 	// Merge base + service through the standard service-level rules. The
 	// canonical merge path is "services.x" — same key used by the v2
@@ -308,19 +313,46 @@ func resolveExtendedServicePaths(merged *yaml.Node, workingDir string, opts *Opt
 // !reset / !override path under services.<serviceName>. Mirrors the
 // applyNullOverrides traversal v2 does on processor.Apply, but scoped to a
 // single service's body so it can run on the cloned base before extends
-// merge fires.
-func resetParentPaths(serviceNode *yaml.Node, serviceName string, resetPaths []tree.Path) {
+// merge fires. Returns the list of paths that were consumed so the caller
+// can clear them from the layer's master list to avoid double-application
+// during the orchestrator post-merge sweep.
+func resetParentPaths(serviceNode *yaml.Node, serviceName string, resetPaths []tree.Path) []tree.Path {
 	if serviceNode == nil || serviceNode.Kind != yaml.MappingNode || len(resetPaths) == 0 {
-		return
+		return nil
 	}
 	prefix := tree.NewPath("services", serviceName)
+	var consumed []tree.Path
 	for _, p := range resetPaths {
 		rel := relativePath(p, prefix)
 		if rel == "" {
 			continue
 		}
 		deleteAtPath(serviceNode, rel)
+		consumed = append(consumed, p)
 	}
+	return consumed
+}
+
+// diffPaths returns the elements of all not present in remove, preserving
+// the original order. Used to drop !override paths that have already been
+// honored by extends so they don't get re-applied by ApplyResetPaths on the
+// merged tree.
+func diffPaths(all []tree.Path, remove []tree.Path) []tree.Path {
+	if len(all) == 0 || len(remove) == 0 {
+		return all
+	}
+	removed := make(map[tree.Path]bool, len(remove))
+	for _, r := range remove {
+		removed[r] = true
+	}
+	out := all[:0]
+	for _, p := range all {
+		if removed[p] {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
 }
 
 // relativePath returns the portion of p that follows prefix, or "" when p

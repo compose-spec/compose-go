@@ -107,11 +107,8 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 	}
 
 	if !opts.SkipExtends {
-		tracker := &cycleTracker{}
-		for _, layer := range allLayers {
-			if err := ApplyExtendsToLayer(ctx, layer, opts, tracker); err != nil {
-				return nil, err
-			}
+		if err := applyExtendsPerLayer(ctx, allLayers, opts); err != nil {
+			return nil, err
 		}
 	}
 
@@ -172,6 +169,13 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		}
 	}
 
+	// Snapshot a service-name → SourceContext map BEFORE Canonical to
+	// survive the bridge: Canonical re-encodes the merged tree and loses
+	// the origin pointer identity for every Node, so post-canonical
+	// passes that need per-service context (default build.context
+	// resolution) consult this name-keyed map instead of the pointer map.
+	serviceContexts := buildServiceContexts(merged.Node, origins)
+
 	if _, err := transform.CanonicalNode(merged.Node, opts.SkipInterpolation); err != nil {
 		return nil, err
 	}
@@ -191,7 +195,7 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 			return nil, err
 		}
 		if opts.ResolvePaths {
-			resolveDefaultBuildContext(merged.Node, cd.WorkingDir)
+			resolveDefaultBuildContext(merged.Node, cd.WorkingDir, serviceContexts)
 		}
 	}
 
@@ -280,10 +284,15 @@ func setDefaultValuesNode(root *yaml.Node) error {
 // resolveDefaultBuildContext walks services.*.build.context entries and,
 // for each one whose value is "." or empty (i.e. the default produced by
 // SetDefaultValues for builds that did not declare a context), joins it
-// with the project working directory. Tightly scoped to avoid the
-// double-resolution problem that a generic post-defaults sweep would
-// introduce on relative paths already resolved by the earlier pass.
-func resolveDefaultBuildContext(root *yaml.Node, projectWD string) {
+// with the appropriate working directory. The service node's origin is
+// consulted first so an included service whose build had no context picks
+// up the include's project_directory; falls back to projectWD for services
+// whose origin is unknown (e.g. synthesized by SetDefaultValues itself).
+//
+// Tightly scoped to avoid the double-resolution problem that a generic
+// post-defaults sweep would introduce on relative paths already resolved
+// by the earlier pass.
+func resolveDefaultBuildContext(root *yaml.Node, projectWD string, serviceContexts map[string]string) {
 	target := root
 	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
 		target = target.Content[0]
@@ -292,8 +301,9 @@ func resolveDefaultBuildContext(root *yaml.Node, projectWD string) {
 	if services == nil || services.Kind != yaml.MappingNode {
 		return
 	}
-	for i := 1; i < len(services.Content); i += 2 {
-		svc := services.Content[i]
+	for i := 0; i+1 < len(services.Content); i += 2 {
+		name := services.Content[i].Value
+		svc := services.Content[i+1]
 		build := mappingValueByKey(svc, "build")
 		if build == nil || build.Kind != yaml.MappingNode {
 			continue
@@ -302,10 +312,56 @@ func resolveDefaultBuildContext(root *yaml.Node, projectWD string) {
 		if ctx == nil || ctx.Kind != yaml.ScalarNode {
 			continue
 		}
-		if ctx.Value == "." || ctx.Value == "" {
-			ctx.Value = projectWD
+		if ctx.Value != "." && ctx.Value != "" {
+			continue
+		}
+		wd := projectWD
+		if origin, ok := serviceContexts[name]; ok && origin != "" {
+			wd = origin
+		}
+		ctx.Value = wd
+	}
+}
+
+// buildServiceContexts inspects the merged tree's `services` mapping and
+// records, for each service name, the WorkingDir of the SourceContext that
+// produced it. The map survives the CanonicalNode bridge because it is
+// keyed by name (a stable identifier) rather than by Node pointer. Used by
+// resolveDefaultBuildContext to give an included service whose build had
+// no context the include's project_directory as the resolved default.
+func buildServiceContexts(root *yaml.Node, origins map[*yaml.Node]*node.SourceContext) map[string]string {
+	out := map[string]string{}
+	target := root
+	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
+		target = target.Content[0]
+	}
+	services := mappingValueByKey(target, "services")
+	if services == nil || services.Kind != yaml.MappingNode {
+		return out
+	}
+	for i := 0; i+1 < len(services.Content); i += 2 {
+		name := services.Content[i].Value
+		svc := services.Content[i+1]
+		if wd := serviceOriginWorkingDir(svc, origins); wd != "" {
+			out[name] = wd
 		}
 	}
+	return out
+}
+
+func serviceOriginWorkingDir(svc *yaml.Node, origins map[*yaml.Node]*node.SourceContext) string {
+	if ctx, ok := origins[svc]; ok && ctx != nil {
+		return ctx.WorkingDir
+	}
+	for _, c := range svc.Content {
+		if c == nil {
+			continue
+		}
+		if ctx, ok := origins[c]; ok && ctx != nil {
+			return ctx.WorkingDir
+		}
+	}
+	return ""
 }
 
 // hasMappingKey reports whether n is a MappingNode containing key.
@@ -319,6 +375,26 @@ func hasMappingKey(n *yaml.Node, key string) bool {
 		}
 	}
 	return false
+}
+
+// applyExtendsPerLayer iterates layers and applies extends to each with a
+// child-scoped Options whose localResourceLoader points at the layer's own
+// WorkingDir. Mirrors v2 ApplyExtends running per-file inside the recursive
+// loadYamlModel of an include, so a relative extends.file declared in an
+// included file resolves against the include project_directory.
+func applyExtendsPerLayer(ctx context.Context, allLayers []*node.Layer, opts *Options) error {
+	tracker := &cycleTracker{}
+	for _, layer := range allLayers {
+		layerOpts := opts
+		if layer.Context != nil && layer.Context.WorkingDir != "" && layer.Context.WorkingDir != opts.workingDirOfFirstLoader() {
+			layerOpts = opts.clone()
+			layerOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{WorkingDir: layer.Context.WorkingDir})
+		}
+		if err := ApplyExtendsToLayer(ctx, layer, layerOpts, tracker); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // collectAllLayers parses each ConfigFile and recursively folds in every
@@ -407,19 +483,26 @@ func populateOrigins(m map[*yaml.Node]*node.SourceContext, root *yaml.Node, ctx 
 }
 
 // mergeLayers folds layers[1:] into layers[0] using override.MergeNode at
-// the root path. The accumulated reset / override paths are returned so
-// the orchestrator can apply them after merge.
+// the root path. Before each merge, the right-hand layer's recorded
+// !reset / !override paths are applied to the accumulator so the override
+// value replaces (rather than merges with) the base; the same paths are
+// then dropped from the returned list so the orchestrator post-merge
+// ApplyResetPaths does not delete the value it was meant to preserve.
 func mergeLayers(layers []*node.Layer) (*node.Layer, []tree.Path, error) {
 	acc := layers[0]
-	var resetPaths []tree.Path
-	resetPaths = append(resetPaths, acc.ResetPaths()...)
+	resetPaths := append([]tree.Path(nil), acc.ResetPaths()...)
 	for _, layer := range layers[1:] {
+		if len(layer.ResetPaths()) > 0 {
+			node.ApplyResetPaths(acc.Node, layer.ResetPaths())
+		}
 		out, err := override.MergeNode(acc.Node, layer.Node, tree.NewPath())
 		if err != nil {
 			return nil, nil, err
 		}
 		acc.Node = out
-		resetPaths = append(resetPaths, layer.ResetPaths()...)
+		// Do not re-record paths consumed during merge; they have served
+		// their purpose by clearing the base value, and re-applying them
+		// post-merge would delete the override value the user wants kept.
 	}
 	if _, err := override.EnforceUnicityNode(acc.Node); err != nil {
 		return nil, nil, err
@@ -460,8 +543,17 @@ func interpolateMerged(merged *node.Layer, origins map[*yaml.Node]*node.SourceCo
 // (synthesized during merge) fall back to fallback.
 func workingDirLookup(origins map[*yaml.Node]*node.SourceContext, fallback string) func(*yaml.Node) string {
 	return func(n *yaml.Node) string {
-		if ctx := origins[n]; ctx != nil && ctx.WorkingDir != "" {
-			return ctx.WorkingDir
+		if ctx := origins[n]; ctx != nil {
+			// Skip scalars whose layer already went through the include
+			// sub-load path resolution: re-resolving them at this level
+			// would double-join when the include project_directory was
+			// relative.
+			if ctx.PathsPreResolved {
+				return ""
+			}
+			if ctx.WorkingDir != "" {
+				return ctx.WorkingDir
+			}
 		}
 		return fallback
 	}
