@@ -113,6 +113,17 @@ func processLayer(doc *yaml.Node, sc *node.SourceContext, maxVisits int) ([]*nod
 	if resolved.Kind != yaml.MappingNode {
 		return nil, errors.New("top-level object must be a mapping")
 	}
+	// Reject non-string keys at the top level: yaml.v4 accepts non-string
+	// scalar keys (e.g. integers), but every downstream consumer assumes
+	// string keys. Surface the v2-compatible diagnostic before schema
+	// validation produces a less informative "additional properties not
+	// allowed" message.
+	for i := 0; i+1 < len(resolved.Content); i += 2 {
+		key := resolved.Content[i]
+		if key.Kind != yaml.ScalarNode || (key.Tag != "" && key.Tag != "!!str") {
+			return nil, fmt.Errorf("non-string key at top level: %s", key.Value)
+		}
+	}
 	if err := node.NormalizeAliases(resolved); err != nil {
 		return nil, err
 	}

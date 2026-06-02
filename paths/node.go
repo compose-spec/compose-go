@@ -74,8 +74,10 @@ func ResolveRelativePathsNode(root *yaml.Node, opts NodeResolverOptions) error {
 		"services.*.build":                       r.absBuild,
 		"services.*.build.context":               r.absContextScalar,
 		"services.*.build.additional_contexts.*": r.absContextScalar,
-		"services.*.build.ssh.*":                 r.maybeUnixScalar,
+		"services.*.build.ssh.*":                 r.absSSHEntry,
+		"services.*.env_file.*":                  r.absEnvFile,
 		"services.*.env_file.*.path":             r.absScalar,
+		"services.*.label_file":                  r.absScalarMaybeSequence,
 		"services.*.label_file.*":                r.absScalar,
 		"services.*.extends.file":                r.absExtendsScalar,
 		"services.*.develop.watch.*.path":        r.absSymbolicLinkScalar,
@@ -239,12 +241,68 @@ func (r *nodeResolverState) absBuild(n *yaml.Node) error {
 				}
 			}
 		case "ssh":
-			if val.Kind == yaml.SequenceNode {
+			switch val.Kind {
+			case yaml.SequenceNode:
 				for _, item := range val.Content {
-					if err := r.maybeUnixScalar(item); err != nil {
+					if err := r.absSSHEntry(item); err != nil {
 						return err
 					}
 				}
+			case yaml.MappingNode:
+				for j := 1; j < len(val.Content); j += 2 {
+					if err := r.maybeUnixScalar(val.Content[j]); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// absSSHEntry handles services.*.build.ssh.* in the short form (sequence
+// of strings) and the post-canonical mapping form. The short form entries
+// are either a bare key (e.g. "default") or "key=path"; only the path
+// portion after the `=` is resolved against the working directory. Post-
+// canonical, ssh is a mapping whose values are scalar paths and are
+// resolved directly.
+func (r *nodeResolverState) absSSHEntry(n *yaml.Node) error {
+	if n == nil || n.Kind != yaml.ScalarNode {
+		return nil
+	}
+	key, value, hasEq := strings.Cut(n.Value, "=")
+	if !hasEq {
+		// Bare key (e.g. "default") — nothing to resolve.
+		return nil
+	}
+	tmp := &yaml.Node{Kind: yaml.ScalarNode, Value: value, Line: n.Line, Column: n.Column}
+	if err := r.maybeUnixScalar(tmp); err != nil {
+		return err
+	}
+	n.Value = key + "=" + tmp.Value
+	return nil
+}
+
+// absEnvFile handles services.*.env_file.* entries. The short form is a
+// scalar path; the long form is a mapping with a `path` field. Both are
+// resolved against the scalar working directory. For the long form the
+// per-field handler ("services.*.env_file.*.path") takes over once the
+// walker recurses into the mapping, so this function only acts on the
+// short form to avoid double resolution.
+func (r *nodeResolverState) absEnvFile(n *yaml.Node) error {
+	if n == nil {
+		return nil
+	}
+	if n.Kind == yaml.ScalarNode {
+		return r.absScalar(n)
+	}
+	if n.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(n.Content); i += 2 {
+		if n.Content[i].Value == "path" {
+			if err := r.absScalar(n.Content[i+1]); err != nil {
+				return err
 			}
 		}
 	}

@@ -177,6 +177,16 @@ func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (map[str
 		return nil, err
 	}
 
+	// SetDefaultValues fills in canonical defaults (DeviceCount(-1) for
+	// unspecified GPU count, default network configuration, ...). v2 calls
+	// it from loadYamlModel between merge and validate; v3 does the same
+	// through a map roundtrip until per-rule Node ports land.
+	if !opts.SkipDefaultValues {
+		if err := setDefaultValuesNode(merged.Node); err != nil {
+			return nil, err
+		}
+	}
+
 	if !opts.SkipValidation {
 		if err := validation.ValidateNode(merged.Node); err != nil {
 			return nil, err
@@ -233,6 +243,32 @@ func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Opti
 	return nil
 }
 
+// setDefaultValuesNode applies the v2 transform.SetDefaultValues defaults
+// to the merged tree via a temporary map roundtrip. Sets DeviceCount(-1)
+// for unspecified GPU count and similar defaults that exist outside the
+// per-path Canonical transformers. The Node-typed port lives in transform/
+// and replaces the bridge in a follow-up.
+func setDefaultValuesNode(root *yaml.Node) error {
+	target := root
+	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
+		target = target.Content[0]
+	}
+	var data map[string]any
+	if err := target.Decode(&data); err != nil {
+		return fmt.Errorf("loadV3: decode for SetDefaultValues: %w", err)
+	}
+	defaulted, err := transform.SetDefaultValues(data)
+	if err != nil {
+		return err
+	}
+	var rebuilt yaml.Node
+	if err := rebuilt.Encode(defaulted); err != nil {
+		return fmt.Errorf("loadV3: re-encode after SetDefaultValues: %w", err)
+	}
+	*target = rebuilt
+	return nil
+}
+
 // hasMappingKey reports whether n is a MappingNode containing key.
 func hasMappingKey(n *yaml.Node, key string) bool {
 	if n == nil || n.Kind != yaml.MappingNode {
@@ -275,6 +311,12 @@ func collectAllLayers(ctx context.Context, cd types.ConfigDetails, root *node.So
 // tracker maintained by CollectIncludeLayers; an explicit visited set at
 // this level guards against fixture-induced infinite loops in the
 // orchestrator itself.
+//
+// Each child include is processed recursively with opts re-rooted at the
+// child's WorkingDir so its own include directives resolve relative paths
+// against the include's project_directory, not the outer project root.
+// Matches v2 ApplyInclude which similarly replaces ResourceLoaders on the
+// recursive load.
 func expandIncludes(ctx context.Context, layer *node.Layer, opts *Options) ([]*node.Layer, error) {
 	if opts.SkipInclude {
 		return []*node.Layer{layer}, nil
@@ -285,7 +327,12 @@ func expandIncludes(ctx context.Context, layer *node.Layer, opts *Options) ([]*n
 	}
 	var out []*node.Layer
 	for _, child := range children {
-		grandchildren, err := expandIncludes(ctx, child, opts)
+		childOpts := opts
+		if child.Context != nil && child.Context.WorkingDir != "" && child.Context.WorkingDir != opts.workingDirOfFirstLoader() {
+			childOpts = opts.clone()
+			childOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{WorkingDir: child.Context.WorkingDir})
+		}
+		grandchildren, err := expandIncludes(ctx, child, childOpts)
 		if err != nil {
 			return nil, err
 		}
@@ -403,6 +450,19 @@ func hasLocalLoader(loaders []ResourceLoader) bool {
 		}
 	}
 	return false
+}
+
+// workingDirOfFirstLoader returns the WorkingDir of the first
+// localResourceLoader in opts.ResourceLoaders, or empty when none is
+// present. Used to detect when expandIncludes should clone Options to
+// re-root the resource lookup at a child's project_directory.
+func (o Options) workingDirOfFirstLoader() string {
+	for _, l := range o.ResourceLoaders {
+		if local, ok := l.(localResourceLoader); ok {
+			return local.WorkingDir
+		}
+	}
+	return ""
 }
 
 func tagForCast(c interp.Cast) string {
