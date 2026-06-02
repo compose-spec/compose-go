@@ -616,7 +616,10 @@ func expandIncludes(ctx context.Context, layer *node.Layer, opts *Options, seen 
 // populateOrigins records the SourceContext for every node reachable from
 // root in m, so the merge phase can later look up which layer a scalar
 // originated from. Mappings, sequences and scalars are all recorded;
-// downstream phases query the map per scalar.
+// downstream phases query the map per scalar. Existing entries are
+// preserved, so a sub-load (extends merging a cloned base service from a
+// different SourceContext) that pre-stamped its clones can override the
+// parent layer attribution that would otherwise win here.
 func populateOrigins(m map[*yaml.Node]*node.SourceContext, root *yaml.Node, ctx *node.SourceContext) {
 	if root == nil || ctx == nil {
 		return
@@ -630,7 +633,9 @@ func populateOrigins(m map[*yaml.Node]*node.SourceContext, root *yaml.Node, ctx 
 		if n == nil {
 			return
 		}
-		m[n] = ctx
+		if _, exists := m[n]; !exists {
+			m[n] = ctx
+		}
 		for _, c := range n.Content {
 			visit(c)
 		}
