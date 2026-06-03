@@ -26,12 +26,12 @@ import (
 	"github.com/compose-spec/compose-go/v3/types"
 )
 
-// loadV3Map runs LoadV3 and decodes the returned tree into a
+// loadMap runs load and decodes the returned tree into a
 // map[string]any so the existing test assertions can keep navigating it
-// the same way the v2 dict-based API did.
-func loadV3Map(t *testing.T, cd types.ConfigDetails, opts *Options) (map[string]any, error) {
+// in dict form.
+func loadMap(t *testing.T, cd types.ConfigDetails, opts *Options) (map[string]any, error) {
 	t.Helper()
-	root, err := LoadV3(context.TODO(), cd, opts)
+	root, err := load(context.TODO(), &cd, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func loadV3Map(t *testing.T, cd types.ConfigDetails, opts *Options) (map[string]
 	return dict, nil
 }
 
-func v3Config(t *testing.T, dir string, files ...string) types.ConfigDetails {
+func loadConfig(t *testing.T, dir string, files ...string) types.ConfigDetails {
 	t.Helper()
 	cfgFiles := make([]types.ConfigFile, len(files))
 	for i, name := range files {
@@ -55,14 +55,14 @@ func v3Config(t *testing.T, dir string, files ...string) types.ConfigDetails {
 	}
 }
 
-func TestLoadV3_SingleFileBasic(t *testing.T) {
+func TestLoad_SingleFileBasic(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "compose.yaml", `
 services:
   web:
     image: nginx
 `)
-	dict, err := loadV3Map(t, v3Config(t, dir, "compose.yaml"), &Options{
+	dict, err := loadMap(t, loadConfig(t, dir, "compose.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -72,7 +72,7 @@ services:
 	assert.Equal(t, web["image"], "nginx")
 }
 
-func TestLoadV3_MultiFileMergeLeftToRight(t *testing.T) {
+func TestLoad_MultiFileMergeLeftToRight(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "base.yaml", `
 services:
@@ -85,7 +85,7 @@ services:
   web:
     image: caddy
 `)
-	dict, err := loadV3Map(t, v3Config(t, dir, "base.yaml", "override.yaml"), &Options{
+	dict, err := loadMap(t, loadConfig(t, dir, "base.yaml", "override.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -96,8 +96,8 @@ services:
 	assert.Equal(t, web["restart"], "always", "base value preserved")
 }
 
-func TestLoadV3_LazyInterpolationAcrossInclude(t *testing.T) {
-	// The headline v3 demonstration: an env_file declared on the include
+func TestLoad_LazyInterpolationAcrossInclude(t *testing.T) {
+	// The headline demonstration: an env_file declared on the include
 	// block introduces variables that are only visible to scalars from the
 	// included file. The parent file keeps the variables of its own shell
 	// environment. Same merged tree, two scopes.
@@ -122,9 +122,9 @@ services:
   web:
     image: nginx:${WEB_TAG}
 `)
-	cd := v3Config(t, root, "compose.yaml")
+	cd := loadConfig(t, root, "compose.yaml")
 	cd.Environment = types.Mapping{"WEB_TAG": "root-1.0"}
-	dict, err := loadV3Map(t, cd, &Options{
+	dict, err := loadMap(t, cd, &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -140,7 +140,7 @@ services:
 		"parent scalar interpolated in parent SourceContext")
 }
 
-func TestLoadV3_ExtendsSameFile(t *testing.T) {
+func TestLoad_ExtendsSameFile(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "compose.yaml", `
 services:
@@ -150,7 +150,7 @@ services:
   web:
     extends: base
 `)
-	dict, err := loadV3Map(t, v3Config(t, dir, "compose.yaml"), &Options{
+	dict, err := loadMap(t, loadConfig(t, dir, "compose.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -163,7 +163,7 @@ services:
 	assert.Assert(t, !hasExtends, "extends key stripped after merge")
 }
 
-func TestLoadV3_ResetTagApplied(t *testing.T) {
+func TestLoad_ResetTagApplied(t *testing.T) {
 	dir := t.TempDir()
 	writeFile(t, dir, "base.yaml", `
 services:
@@ -176,7 +176,7 @@ services:
   web:
     command: !reset null
 `)
-	dict, err := loadV3Map(t, v3Config(t, dir, "base.yaml", "override.yaml"), &Options{
+	dict, err := loadMap(t, loadConfig(t, dir, "base.yaml", "override.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -188,7 +188,7 @@ services:
 	assert.Equal(t, web["image"], "nginx")
 }
 
-func TestLoadV3_PathResolutionPerInclude(t *testing.T) {
+func TestLoad_PathResolutionPerInclude(t *testing.T) {
 	// Different relative paths in parent vs included file must resolve
 	// against their own working dirs.
 	root := t.TempDir()
@@ -208,7 +208,7 @@ services:
     build:
       context: ./root-app
 `)
-	dict, err := loadV3Map(t, v3Config(t, root, "compose.yaml"), &Options{
+	dict, err := loadMap(t, loadConfig(t, root, "compose.yaml"), &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,
@@ -227,13 +227,14 @@ services:
 		"included scalar resolved against include project_directory")
 }
 
-func TestLoadV3_EmptyConfigRejected(t *testing.T) {
-	// LoadV3 reproduces the v2 behavior that rejects an empty input rather
-	// than silently producing a map[string]any{}.
-	_, err := LoadV3(context.TODO(), types.ConfigDetails{
+func TestLoad_EmptyConfigRejected(t *testing.T) {
+	// load rejects an empty input rather than silently producing an
+	// empty tree.
+	cd := types.ConfigDetails{
 		WorkingDir:  "/work",
 		Environment: types.Mapping{},
-	}, &Options{
+	}
+	_, err := load(context.TODO(), &cd, &Options{
 		SkipNormalization:    true,
 		SkipValidation:       true,
 		SkipConsistencyCheck: true,

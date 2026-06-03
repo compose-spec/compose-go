@@ -34,7 +34,7 @@ import (
 // "interpolation produced the empty string" from "value cannot be
 // resolved").
 //
-// The Node-side implementation is the v3 fix for the bare-key lookup
+// The Node-side implementation is the fix for the bare-key lookup
 // quirk: the lookup is performed in the SourceContext of the scalar itself,
 // not in the project-wide environment, so an env_file declared on an
 // include block becomes visible to services defined inside that include
@@ -98,11 +98,12 @@ func resolveEnvSequence(seq *yaml.Node, origins map[*yaml.Node]*node.SourceConte
 // later survive a CanonicalNode round-trip that re-encodes subtrees and
 // invalidates the *yaml.Node pointers backing `origins`.
 //
-// The v3 lookup-at-origin behavior fixes a v2 limitation: v2 only looked
-// at the project-wide environment, so a secret declared in an included
-// compose file whose env_file introduced the variable could not see it.
-// In v3 the secret/config now resolves in the same scope its declaration
-// would resolve `${VAR}` interpolation in -- the layer's own environment.
+// The lookup-at-origin behavior fixes a v2 limitation where the
+// project-wide environment was the only scope: a secret declared in an
+// included compose file whose env_file introduced the variable could
+// not see it. The secret/config now resolves in the same scope its
+// declaration would resolve `${VAR}` interpolation in -- the layer's
+// own environment.
 func CaptureSecretConfigContent(root *yaml.Node, origins map[*yaml.Node]*node.SourceContext) (map[string]string, map[string]string) {
 	secrets := map[string]string{}
 	configs := map[string]string{}

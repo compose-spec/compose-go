@@ -88,7 +88,7 @@ type Options struct {
 	// Zero means use the default. Useful for very large compose files that exceed the default cap.
 	MaxNodeVisits int
 
-	// envFileScopes captures, during v3 LoadV3, the layer Environment in
+	// envFileScopes captures, during Load, the layer Environment in
 	// effect when each env_file entry was declared. The map is keyed by
 	// the resolved absolute env_file path and consumed by ModelToProject
 	// to populate EnvFile.Env, which WithServicesEnvironmentResolved
@@ -362,11 +362,11 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 	if len(configDetails.ConfigFiles) < 1 {
 		return nil, errors.New("no compose file specified")
 	}
-	// Capture LoadV3's mutation of cd.Environment (COMPOSE_PROJECT_NAME)
+	// Capture Load's mutation of cd.Environment (COMPOSE_PROJECT_NAME)
 	// so nodeToProject sees the same environment that scalar
 	// interpolation observed during the pipeline.
 	cd := configDetails
-	root, err := loadV3(ctx, &cd, opts)
+	root, err := load(ctx, &cd, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -380,7 +380,7 @@ func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails
 		return nil, errors.New("no compose file specified")
 	}
 	cd := configDetails
-	root, err := loadV3(ctx, &cd, opts)
+	root, err := load(ctx, &cd, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -419,7 +419,7 @@ func nodeToProject(root *yaml.Node, opts *Options, configDetails types.ConfigDet
 	}
 
 	// The project name comes from opts.projectName (set by projectName()
-	// during the LoadV3 prologue with the first ConfigFile's `name:`
+	// during the Load prologue with the first ConfigFile's `name:`
 	// folded in). Strip any `name` scalar from the tree before decode so
 	// it does not silently overwrite the value the loader has already
 	// canonicalized.

@@ -37,11 +37,11 @@ import (
 	"github.com/compose-spec/compose-go/v3/validation"
 )
 
-// LoadV3 runs the full yaml.Node-centric v3 pipeline over the input
+// load runs the full yaml.Node-centric pipeline over the input
 // ConfigDetails and returns the merged compose tree as a canonical
-// *yaml.Node. Callers project the node into the shape they need via
-// yaml.Decode (or via the package-internal nodeToModel / nodeToProject
-// helpers that drive LoadModelWithContext and LoadWithContext).
+// *yaml.Node. The pointer on cd lets the projectName side effect on
+// cd.Environment (COMPOSE_PROJECT_NAME) propagate back to the caller
+// and reach nodeToProject through the same Environment map.
 //
 // The pipeline goes:
 //
@@ -51,27 +51,22 @@ import (
 //  3. populate per-scalar origins so each scalar can be looked up against
 //     the SourceContext of the layer that produced it (lazy interpolation);
 //  4. merge layers left-to-right via override.MergeNode at the root path
-//     (matches v2 ConfigFiles[0] is base, later files override);
+//     (ConfigFiles[0] is base, later files override);
 //  5. apply !reset / !override paths collected from each layer;
 //  6. interpolate every scalar with its own SourceContext.Environment;
 //  7. canonicalize short-form syntax via transform.CanonicalNode;
 //  8. resolve relative paths per-scalar via paths.ResolveRelativePathsNode;
 //  9. validate via validation.ValidateNode;
 //  10. normalize defaults via NormalizeNode.
-func LoadV3(ctx context.Context, cd types.ConfigDetails, opts *Options) (*yaml.Node, error) {
-	return loadV3(ctx, &cd, opts)
-}
-
-// loadV3 is the pointer-taking variant LoadWithContext / LoadModelWithContext
-// use internally so the projectName side effect on cd.Environment (which
-// adds COMPOSE_PROJECT_NAME) propagates back to the caller and reaches
-// nodeToProject through the same Environment map.
-func loadV3(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.Node, error) {
-	opts = ensureLoadV3Options(opts, *cd)
-	// Reproduce the v2 contract: extract the project name from the first
-	// config file (or its `name:` field) before the pipeline runs. Errors
-	// from explicit-name validation (NormalizeProjectName) propagate as in
-	// v2; an empty result is rejected after schema validation below.
+//
+// Entry points are LoadWithContext (returns *types.Project) and
+// LoadModelWithContext (returns map[string]any).
+func load(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.Node, error) {
+	opts = ensureLoadOptions(opts, *cd)
+	// Extract the project name from the first config file (or its `name:`
+	// field) before the pipeline runs. Errors from explicit-name
+	// validation (NormalizeProjectName) propagate; an empty result is
+	// rejected after schema validation below.
 	if err := projectName(cd, opts); err != nil {
 		return nil, err
 	}
@@ -89,7 +84,7 @@ func loadV3(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.
 		return nil, errors.New("empty compose file")
 	}
 
-	// v3 lazy env_file interpolation: capture each env_file entry's
+	// Lazy env_file interpolation: capture each env_file entry's
 	// declaring-layer environment so nodeToProject can attach it to the
 	// Project EnvFileScopes side-table. WithServicesEnvironmentResolved
 	// then prefers that scope when interpolating the env_file content.
@@ -184,9 +179,9 @@ func loadV3(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.
 
 	// SetDefaultValues fills in canonical defaults (DeviceCount(-1) for
 	// unspecified GPU count, default network configuration, default build
-	// context ".", ...). v2 calls it from loadYamlModel between merge and
-	// validate; v3 does the same through a map roundtrip until per-rule
-	// Node ports land. Path resolution intentionally runs *before*
+	// context ".", ...). Runs after Canonical through a temporary map
+	// roundtrip until per-rule Node ports land. Path resolution
+	// intentionally runs *before*
 	// SetDefaultValues so the per-scalar origins side-table can still drive
 	// the WorkingDir lookup. Defaults that are themselves path-shaped
 	// (build.context ".") are resolved by a targeted helper below rather
@@ -309,10 +304,10 @@ func isEmptyNode(n *yaml.Node) bool {
 	return n.Kind == yaml.ScalarNode && n.Value == ""
 }
 
-// ensureLoadV3Options applies the same defaults as ToOptions for callers
+// ensureLoadOptions applies the same defaults as ToOptions for callers
 // that pass a bare *Options (most production callers go through
 // ToOptions; this covers tests that build the struct directly).
-func ensureLoadV3Options(opts *Options, cd types.ConfigDetails) *Options {
+func ensureLoadOptions(opts *Options, cd types.ConfigDetails) *Options {
 	if opts == nil {
 		opts = &Options{}
 	}
@@ -332,11 +327,11 @@ func ensureLoadV3Options(opts *Options, cd types.ConfigDetails) *Options {
 // nodeToModel projects the merged tree into the legacy map[string]any
 // shape consumed by LoadModelWithContext. OmitEmpty and the per-scalar
 // secrets / configs environment resolution have already run on the node
-// (LoadV3 calls them); the map is only the decoded view.
+// (Load calls them); the map is only the decoded view.
 func nodeToModel(root *yaml.Node) (map[string]any, error) {
 	var dict map[string]any
 	if err := root.Decode(&dict); err != nil {
-		return nil, fmt.Errorf("loadV3: decode merged tree: %w", err)
+		return nil, fmt.Errorf("load: decode merged tree: %w", err)
 	}
 	return dict, nil
 }
@@ -344,14 +339,14 @@ func nodeToModel(root *yaml.Node) (map[string]any, error) {
 // validateAndStripVersion runs the JSON Schema validator on a decoded
 // view of the merged tree and, on success, strips the obsolete top-level
 // `version` attribute with the v2 deprecation warning. Carved out of
-// LoadV3 to keep its cyclomatic complexity in check.
+// Load to keep its cyclomatic complexity in check.
 func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Options) error {
 	if opts.SkipValidation {
 		return nil
 	}
 	var schemaDict map[string]any
 	if err := root.Decode(&schemaDict); err != nil {
-		return fmt.Errorf("loadV3: decode for schema validation: %w", err)
+		return fmt.Errorf("load: decode for schema validation: %w", err)
 	}
 	if err := schema.Validate(schemaDict); err != nil {
 		source := "(inline)"
@@ -381,7 +376,7 @@ func setDefaultValuesNode(root *yaml.Node) error {
 	}
 	var data map[string]any
 	if err := target.Decode(&data); err != nil {
-		return fmt.Errorf("loadV3: decode for SetDefaultValues: %w", err)
+		return fmt.Errorf("load: decode for SetDefaultValues: %w", err)
 	}
 	defaulted, err := transform.SetDefaultValues(data)
 	if err != nil {
@@ -389,7 +384,7 @@ func setDefaultValuesNode(root *yaml.Node) error {
 	}
 	var rebuilt yaml.Node
 	if err := rebuilt.Encode(defaulted); err != nil {
-		return fmt.Errorf("loadV3: re-encode after SetDefaultValues: %w", err)
+		return fmt.Errorf("load: re-encode after SetDefaultValues: %w", err)
 	}
 	*target = rebuilt
 	return nil
@@ -775,7 +770,7 @@ func interpolateMerged(merged *node.Layer, origins map[*yaml.Node]*node.SourceCo
 	return interp.InterpolateNode(merged.Node, interp.NodeOptions{
 		LookupValueFor: lookupFor,
 		Substitute:     substitute,
-		Tags:           tagsForV3Casts(),
+		Tags:           tagsForCasts(),
 	})
 }
 
@@ -801,11 +796,11 @@ func workingDirLookup(origins map[*yaml.Node]*node.SourceContext, fallback strin
 	}
 }
 
-// tagsForV3Casts maps tree.Path patterns to YAML tags so the interpolation
+// tagsForCasts maps tree.Path patterns to YAML tags so the interpolation
 // phase can rewrite scalar.Tag in place after substitution, letting yaml.v4
 // perform the type conversion natively at decode time. Mirrors the cast
 // targets registered in interpolateTypeCastMapping.
-func tagsForV3Casts() map[tree.Path]string {
+func tagsForCasts() map[tree.Path]string {
 	out := map[tree.Path]string{}
 	for path, caster := range interpolateTypeCastMapping {
 		out[path] = tagForCast(caster)
@@ -815,7 +810,7 @@ func tagsForV3Casts() map[tree.Path]string {
 
 // hasLocalLoader reports whether the slice already contains a
 // localResourceLoader. Order-insensitive helper for the defensive
-// initialization in LoadV3.
+// initialization in Load.
 func hasLocalLoader(loaders []ResourceLoader) bool {
 	for _, l := range loaders {
 		if _, ok := l.(localResourceLoader); ok {

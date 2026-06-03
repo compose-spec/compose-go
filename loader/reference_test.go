@@ -25,7 +25,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-// Reference tests for the v3 refactoring (see plan.md).
+// Reference tests for the refactoring.
 //
 // These tests are written first and skipped until the corresponding phase of
 // the refactoring closes the underlying gap. They are the discriminant gates
@@ -77,7 +77,7 @@ func TestInclude_EnvFile_ProvidesContextToServiceEnvFile(t *testing.T) {
 // TestInclude_SecretEnvironment_ProvidesContextToSecret asserts that a
 // secret declared inside an included file resolves its `environment:`
 // variable against the env_file declared on the include block, not the
-// parent project environment. Concrete v3 fix for the v2 limitation
+// parent project environment. Fix for the v2 limitation
 // where resolveSecretsEnvironment only looked at the project-wide
 // environment and therefore could not see a variable that an include
 // env_file introduced inside the include scope.

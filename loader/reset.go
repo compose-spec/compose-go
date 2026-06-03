@@ -30,7 +30,7 @@ import (
 // them as map deletions via Apply, after the v2 pipeline has merged the
 // decoded documents into the running map[string]any.
 //
-// The yaml.Node-side logic lives in internal/node so the upcoming v3 merge
+// The yaml.Node-side logic lives in internal/node so the upcoming merge
 // phase can reuse it without going through the legacy map[string]any path.
 type ResetProcessor struct {
 	target        any
@@ -50,7 +50,7 @@ func (p *ResetProcessor) UnmarshalYAML(value *yaml.Node) error {
 
 // Apply walks target (a map[string]any tree decoded from YAML) and removes
 // every entry whose path matches one of the recorded !reset/!override paths.
-// This is the v2 post-merge cleanup; v3 replaces it with a direct Node-tree
+// This is the v2 post-merge cleanup; replaced by a direct Node-tree
 // rewrite during merge.
 func (p *ResetProcessor) Apply(target any) error {
 	return p.applyNullOverrides(target, tree.NewPath())
@@ -79,7 +79,7 @@ func (p *ResetProcessor) applyNullOverrides(target any, path tree.Path) error {
 			for _, pattern := range p.paths {
 				if next.Matches(pattern) {
 					continue ITER
-					// TODO(ndeloof) support removal from sequence — tracked for v3 rejection.
+					// TODO(ndeloof) support removal from sequence — tracked.
 				}
 			}
 			if err := p.applyNullOverrides(e, next); err != nil {

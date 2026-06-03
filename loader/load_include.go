@@ -42,7 +42,7 @@ import (
 // The include block is interpolated in the parent's SourceContext before
 // any path is resolved, because the path / project_directory / env_file
 // scalars themselves may contain ${VAR} references that must be substituted
-// in the *parent* environment. This is the one point in the v3 pipeline
+// in the *parent* environment. This is the one point in the pipeline
 // where interpolation is performed eagerly; everywhere else, scalars are
 // interpolated after merge in their own SourceContext.
 //
@@ -116,7 +116,7 @@ func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node
 			return nil, err
 		}
 		// v2 ApplyInclude always forces ResolvePaths=true for the include
-		// sub-load. v3 does the same here; subsequent passes in the
+		// sub-load. matches that here; subsequent passes in the
 		// orchestrator short-circuit on already-absolute paths via
 		// filepath.IsAbs in absScalar, so this single resolution does not
 		// double up with the outer pass when ResolvePaths is also true.
@@ -124,7 +124,7 @@ func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node
 		// extends.file is deliberately left untouched: the orchestrator
 		// extends pass needs the original relative reference so it can
 		// re-resolve through the loaded layer's ResourceLoader (re-rooted
-		// at the include working directory in LoadV3), exactly as v2
+		// at the include working directory in Load), exactly as v2
 		// ApplyExtends does inside the recursive loadYamlModel of an
 		// include. Resolving it here would lead to double-joining when
 		// the orchestrator runs loader.Load on the already-absolutized
@@ -132,7 +132,7 @@ func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node
 		// v2 ApplyInclude force-runs ResolvePaths=true on the include
 		// sub-load even when the outer load opted out, so include paths
 		// become absolute and the outer pass never has to touch them
-		// again. v3 only runs the sub-resolve when the outer load opted
+		// again. We only run the sub-resolve when the outer load opted
 		// in: otherwise leave the include's relative paths untouched so
 		// `build: .` declared next to the include stays "." after the
 		// merge (TestIncludeRelative). When skipping, run a lightweight
@@ -279,7 +279,7 @@ func resolveIncludeEnvironment(cfg types.IncludeConfig, projectDir, parentWD str
 // resolveResourceWithLoader finds the ResourceLoader in opts that accepts
 // p and returns it together with the resolved absolute path produced by
 // its Load method. Mirrors the v2 dispatch logic inside ApplyInclude and
-// is the only resource-lookup helper kept in v3 because every caller needs
+// is the only resource-lookup helper kept because every caller needs
 // the loader handle for follow-up loader.Dir computations.
 func resolveResourceWithLoader(ctx context.Context, opts *Options, p string) (ResourceLoader, string, error) {
 	for _, loader := range opts.ResourceLoaders {
@@ -296,7 +296,7 @@ func resolveResourceWithLoader(ctx context.Context, opts *Options, p string) (Re
 }
 
 // interpolateIncludeBlock runs InterpolateNode on the include sub-tree with
-// the parent SourceContext. This is the one place in the v3 pipeline where
+// the parent SourceContext. This is the one place in the pipeline where
 // interpolation is eager: the include path / project_directory / env_file
 // scalars must be substituted before paths are resolved, otherwise the
 // loader has no way to find the referenced files.

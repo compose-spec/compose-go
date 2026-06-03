@@ -34,7 +34,7 @@ import (
 // LoadLayer parses a single ConfigFile into one or more node.Layer values,
 // each carrying a *yaml.Node tree and the SourceContext that produced it.
 //
-// The function is the v3 replacement for the per-file half of loadYamlFile.
+// The function is the per-file parse stage.
 // It performs only the steps that turn raw YAML bytes into a clean,
 // alias-free Node tree:
 //

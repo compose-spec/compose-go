@@ -84,7 +84,7 @@ services:
 	assert.Equal(t, len(got), 1)
 
 	// The included layer's WorkingDir defaults to the absolute directory
-	// of the included file. v3 prefers absolute paths over the v2 relative
+	// of the included file. prefers absolute paths
 	// form so the per-scalar path resolution in the orchestrator can fall
 	// back to the layer working directory without an extra rebasing step.
 	assert.Equal(t, got[0].Context.WorkingDir, dir)
