@@ -89,7 +89,7 @@ func InterpolateNode(root *yaml.Node, opts NodeOptions) error {
 		lookup := opts.LookupValueFor(n)
 		substituted, err := opts.Substitute(n.Value, template.Mapping(lookup))
 		if err != nil {
-			return newPathError(p, err)
+			return &Error{Path: p, Node: n, Cause: newPathError(p, err)}
 		}
 		n.Value = substituted
 		if tag, ok := tagFor(p, opts.Tags); ok {
@@ -97,6 +97,30 @@ func InterpolateNode(root *yaml.Node, opts NodeOptions) error {
 		}
 		return nil
 	})
+}
+
+// Error is returned by InterpolateNode when substitution fails on a
+// scalar. It carries the offending *yaml.Node and tree.Path so the
+// loader can wrap it with the source file from the origins side-table
+// and surface an errdefs.Diagnostic.
+type Error struct {
+	Path  tree.Path
+	Node  *yaml.Node
+	Cause error
+}
+
+func (e *Error) Error() string {
+	if e == nil || e.Cause == nil {
+		return ""
+	}
+	return e.Cause.Error()
+}
+
+func (e *Error) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Cause
 }
 
 func tagFor(p tree.Path, tags map[tree.Path]string) (string, bool) {

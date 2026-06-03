@@ -28,6 +28,69 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// TestDiagnostic_InterpolationStrictModeIncludesFileLineColumn confirms
+// that a strict-mode unset variable surfaces with the file, line and
+// column of the offending scalar.
+func TestDiagnostic_InterpolationStrictModeIncludesFileLineColumn(t *testing.T) {
+	dir := t.TempDir()
+	src := `
+services:
+  web:
+    image: nginx:${MISSING:?must be set}
+`
+	writeFile(t, dir, "compose.yaml", src)
+
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+		}},
+		Environment: map[string]string{},
+	}, withProjectName("diag-interp", true))
+
+	assert.Assert(t, err != nil, "expected interpolation error")
+
+	var diag *errdefs.Diagnostic
+	assert.Assert(t, errors.As(err, &diag),
+		"expected *errdefs.Diagnostic, got %T: %v", err, err)
+	assert.Equal(t, diag.File, filepath.Join(dir, "compose.yaml"))
+	assert.Assert(t, diag.Line > 0, "Line must be set, got %d", diag.Line)
+	assert.Equal(t, diag.Path, "services.web.image")
+	assert.Assert(t, strings.Contains(diag.Cause.Error(), "must be set"),
+		"unexpected cause: %v", diag.Cause)
+}
+
+// TestDiagnostic_SchemaErrorIncludesFileLineColumn confirms that a
+// JSON Schema failure surfaces the file, line and column the user
+// wrote, via *errdefs.Diagnostic.
+func TestDiagnostic_SchemaErrorIncludesFileLineColumn(t *testing.T) {
+	dir := t.TempDir()
+	src := `
+services:
+  bad:
+    image: 42
+`
+	writeFile(t, dir, "compose.yaml", src)
+
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+		}},
+		Environment: map[string]string{},
+	}, withProjectName("diag-schema", true))
+
+	assert.Assert(t, err != nil, "expected schema error")
+
+	var diag *errdefs.Diagnostic
+	assert.Assert(t, errors.As(err, &diag),
+		"expected *errdefs.Diagnostic, got %T: %v", err, err)
+	assert.Equal(t, diag.File, filepath.Join(dir, "compose.yaml"))
+	assert.Assert(t, diag.Line > 0, "Line must be set, got %d", diag.Line)
+	assert.Assert(t, strings.HasPrefix(diag.Path, "services.bad"),
+		"path should target the offending value, got %q", diag.Path)
+}
+
 // TestDiagnostic_ValidateNodeIncludesFileLineColumn confirms that a
 // validation error surfaces the source file, line and column of the
 // offending node alongside the failure reason, via *errdefs.Diagnostic.

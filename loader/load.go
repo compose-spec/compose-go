@@ -215,16 +215,23 @@ func load(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.No
 
 	if !opts.SkipInterpolation {
 		if err := interpolateMerged(merged, origins, opts); err != nil {
-			return nil, err
+			return nil, diagnoseInterpolation(err, origins, firstConfigFile(*cd))
 		}
 	}
 
+	// Snapshot every reachable path -> (file, line, column) up front so
+	// schema validation diagnostics can resolve the offending location
+	// (the schema validator only returns the dotted path) and the
+	// post-canonical compose-rule validator can fall back to it after
+	// CanonicalNode wipes Line / Column on every fresh node.
+	positions := buildPathPositions(merged.Node, origins)
+
 	// JSON Schema validation runs early — before canonicalization and
 	// transform — so structural errors (top-level not a mapping, services
-	// declared as a list, ...) are caught with a clear v2-compatible
-	// message rather than panicking inside a downstream transformer that
-	// assumes a canonical shape.
-	if err := validateAndStripVersion(merged.Node, *cd, opts); err != nil {
+	// declared as a list, ...) are caught with a clear message rather
+	// than panicking inside a downstream transformer that assumes a
+	// canonical shape.
+	if err := validateAndStripVersion(merged.Node, *cd, opts, positions); err != nil {
 		return nil, err
 	}
 
@@ -269,12 +276,6 @@ func load(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.No
 	// passes that need per-service context (default build.context
 	// resolution) consult this name-keyed map instead of the pointer map.
 	serviceContexts := buildServiceContexts(merged.Node, origins)
-
-	// Snapshot every reachable path -> (file, line, column) for the
-	// same reason: the canonical re-encode wipes Line/Column on every
-	// fresh node, so diagnoseValidation falls back to this map when an
-	// error returned by ValidateNode points at a post-canonical node.
-	positions := buildPathPositions(merged.Node, origins)
 
 	if _, err := transform.CanonicalNode(merged.Node, opts.SkipInterpolation); err != nil {
 		return nil, err
@@ -441,9 +442,11 @@ func nodeToModel(root *yaml.Node) (map[string]any, error) {
 
 // validateAndStripVersion runs the JSON Schema validator on a decoded
 // view of the merged tree and, on success, strips the obsolete top-level
-// `version` attribute with the v2 deprecation warning. Carved out of
-// Load to keep its cyclomatic complexity in check.
-func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Options) error {
+// `version` attribute with the deprecation warning. Carved out of load
+// to keep its cyclomatic complexity in check. The positions snapshot
+// turns each schema failure into an *errdefs.Diagnostic that points at
+// the line and column the user wrote.
+func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Options, positions map[string]nodePosition) error {
 	if opts.SkipValidation {
 		return nil
 	}
@@ -452,11 +455,7 @@ func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Opti
 		return fmt.Errorf("load: decode for schema validation: %w", err)
 	}
 	if err := schema.Validate(schemaDict); err != nil {
-		source := "(inline)"
-		if len(cd.ConfigFiles) > 0 && cd.ConfigFiles[0].Filename != "" {
-			source = cd.ConfigFiles[0].Filename
-		}
-		return fmt.Errorf("validating %s: %w", source, err)
+		return diagnoseSchema(err, positions, firstConfigFile(cd))
 	}
 	if hasMappingKey(root, "version") {
 		for _, f := range cd.ConfigFiles {
@@ -466,6 +465,63 @@ func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Opti
 	}
 	return nil
 }
+
+// diagnoseInterpolation wraps an *interpolation.Error with the source
+// location of the offending scalar so a strict-mode substitution
+// failure (unset `${VAR:?msg}`, invalid template, ...) surfaces as
+// "file:line:col: path: cause" instead of a bare interpolation
+// message.
+func diagnoseInterpolation(err error, origins map[*yaml.Node]*node.SourceContext, fallbackFile string) error {
+	var ie *interp.Error
+	if !errors.As(err, &ie) || ie.Node == nil {
+		return err
+	}
+	file := fallbackFile
+	if ctx := origins[ie.Node]; ctx != nil && ctx.File != "" {
+		file = ctx.File
+	}
+	return &errdefs.Diagnostic{
+		File:   file,
+		Line:   ie.Node.Line,
+		Column: ie.Node.Column,
+		Path:   ie.Path.String(),
+		Cause:  errString(ie.Cause.Error()),
+	}
+}
+
+// diagnoseSchema wraps a schema validation failure with the source
+// location of the offending value. The schema package exposes a *Error
+// whose Path() returns the dotted compose path; we look that path up in
+// the pre-canonical positions snapshot to pull the file, line and
+// column the user wrote.
+func diagnoseSchema(err error, positions map[string]nodePosition, fallbackFile string) error {
+	var se *schema.Error
+	if !errors.As(err, &se) {
+		return err
+	}
+	path := se.Path()
+	pos := positions[path]
+	file := pos.file
+	if file == "" {
+		file = fallbackFile
+	}
+	return &errdefs.Diagnostic{
+		File:   file,
+		Line:   pos.line,
+		Column: pos.column,
+		Path:   path,
+		Cause:  errString(se.Error()),
+	}
+}
+
+// errString is a tiny error type used to attach a plain string body to
+// a Diagnostic without re-prepending the path that the wrapped Cause
+// already embeds. Keeps the rendered diagnostic free of duplicated
+// prefixes when the wrapped error is one of the package-specific
+// *Error types.
+type errString string
+
+func (e errString) Error() string { return string(e) }
 
 // setDefaultValuesNode applies the v2 transform.SetDefaultValues defaults
 // to the merged tree via a temporary map roundtrip. Sets DeviceCount(-1)
@@ -758,12 +814,16 @@ func expandIncludes(ctx context.Context, layer *node.Layer, opts *Options, seen 
 	// Cycle detection: track the absolute filename chain. A file that
 	// appears as its own ancestor (directly or transitively) means an
 	// include directive eventually points back to a file already being
-	// expanded; return the v2-compatible "include cycle detected" error
-	// rather than recursing forever.
+	// expanded; return an "include cycle detected" diagnostic pointing
+	// at the offending file rather than recursing forever.
 	if layer.Context != nil && layer.Context.File != "" {
 		file := layer.Context.File
 		if seen[file] {
-			return nil, fmt.Errorf("include cycle detected:\n%s\n include %s", chain[0], strings.Join(append(chain[1:], file), "\n include "))
+			cause := errString(fmt.Sprintf("include cycle detected:\n%s\n include %s", chain[0], strings.Join(append(chain[1:], file), "\n include ")))
+			return nil, &errdefs.Diagnostic{
+				File:  file,
+				Cause: cause,
+			}
 		}
 		seen[file] = true
 		chain = append(chain, file)

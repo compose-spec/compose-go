@@ -2149,7 +2149,7 @@ services:
 
 func TestInvalidProjectNameType(t *testing.T) {
 	p, err := loadYAML(`name: 123`)
-	assert.Error(t, err, "validating filename0.yml: name must be a string")
+	assert.Error(t, err, "filename0.yml:1:7: name: name must be a string")
 	assert.Assert(t, is.Nil(p))
 }
 
@@ -2309,7 +2309,7 @@ func TestLoadWithIncludeCycle(t *testing.T) {
 			},
 		},
 	})
-	assert.Check(t, strings.HasPrefix(err.Error(), "include cycle detected"))
+	assert.Check(t, strings.Contains(err.Error(), "include cycle detected"))
 }
 
 func TestLoadWithIncludeOverride(t *testing.T) {

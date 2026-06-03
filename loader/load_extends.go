@@ -23,6 +23,7 @@ import (
 
 	"go.yaml.in/yaml/v4"
 
+	"github.com/compose-spec/compose-go/v3/errdefs"
 	"github.com/compose-spec/compose-go/v3/internal/node"
 	"github.com/compose-spec/compose-go/v3/override"
 	"github.com/compose-spec/compose-go/v3/paths"
@@ -128,7 +129,16 @@ func applyServiceExtendsNode(
 	}
 
 	if mappingValueByKey(baseSiblings, ref) == nil {
-		return nil, fmt.Errorf("cannot extend service %q in %s: service %q not found", name, layer.Context.File, ref)
+		diag := &errdefs.Diagnostic{
+			Path:  fmt.Sprintf("services.%s.extends", name),
+			Cause: errString(fmt.Sprintf("cannot extend service %q in %s: service %q not found", name, layer.Context.File, ref)),
+		}
+		if extendsNode != nil {
+			diag.File = originalLayer.Context.File
+			diag.Line = extendsNode.Line
+			diag.Column = extendsNode.Column
+		}
+		return nil, diag
 	}
 
 	tracker, err = tracker.Add(currentFile, name)

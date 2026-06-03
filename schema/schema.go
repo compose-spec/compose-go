@@ -79,17 +79,30 @@ func Validate(config map[string]interface{}) error {
 	err = schema.Validate(raw)
 	var verr *jsonschema.ValidationError
 	if ok := errors.As(err, &verr); ok {
-		return validationError{getMostSpecificError(verr)}
+		return &Error{err: getMostSpecificError(verr)}
 	}
 	return err
 }
 
-type validationError struct {
+// Error wraps a jsonschema.ValidationError with helpers that surface
+// the dotted compose path of the offending value, so the loader can
+// look the corresponding source position up in its per-path snapshot
+// and turn the failure into an errdefs.Diagnostic.
+type Error struct {
 	err *jsonschema.ValidationError
 }
 
-func (e validationError) Error() string {
-	path := strings.Join(e.err.InstanceLocation, ".")
+// Path returns the dotted compose path of the offending value (e.g.
+// "services.web.ports.0").
+func (e *Error) Path() string {
+	if e == nil || e.err == nil {
+		return ""
+	}
+	return strings.Join(e.err.InstanceLocation, ".")
+}
+
+func (e *Error) Error() string {
+	path := e.Path()
 	p := message.NewPrinter(language.English)
 	switch k := e.err.ErrorKind.(type) {
 	case *kind.Type:
