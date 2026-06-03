@@ -97,6 +97,17 @@ func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node
 	}
 
 	parentWD := parent.Context.WorkingDir
+
+	// Notify listeners that an include directive is being processed,
+	// matching the v2 ApplyInclude event payload (path is the raw list
+	// declared by the user, workingdir is the parent layer's working
+	// dir). Consumers such as the Docker Compose CLI rely on this event
+	// to count local includes and decide whether a project can be
+	// published as a self-contained OCI artifact.
+	opts.ProcessEvent("include", map[string]any{
+		"path":       cfg.Path,
+		"workingdir": parentWD,
+	})
 	resolvedPaths, projectDir, err := resolveIncludePaths(ctx, cfg, parentWD, opts)
 	if err != nil {
 		return nil, err
