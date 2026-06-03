@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"go.yaml.in/yaml/v4"
 
@@ -185,14 +186,8 @@ func applyServiceExtendsNode(
 	deleteMappingKey(merged, "extends")
 	// When extends went through an extends.file (loaded a sub-layer),
 	// rewrite relative paths in the merged service against the sub-file's
-	// working directory. Matches v2 getExtendsBaseFromFile semantics where
-	// paths accumulate the file's relative dir as the chain unwinds.
+	// working directory.
 	if file != "" {
-		// resolveExtendedServicePaths uses the relative form preferred
-		// by v2 so paths stamped on the merged service look "as if" the
-		// caller had declared them at the parent layer's working dir.
-		// Fall back to the absolute WorkingDir when the relative form
-		// is empty (remote loaders that did not stash a relative form).
 		extendsWD := childOpts.extendsRelativeDir
 		if extendsWD == "" {
 			extendsWD = layer.Context.WorkingDir
@@ -200,8 +195,50 @@ func applyServiceExtendsNode(
 		if err := resolveExtendedServicePaths(merged, extendsWD, childOpts); err != nil {
 			return nil, err
 		}
+		// Also rewrite short-form `services.*.volumes.*` host paths
+		// (`./host:/container[:opts]`). absVolumeMount only handles
+		// the canonical long form, so the relative dot prefix on a
+		// short-form entry would otherwise reach the outer pipeline
+		// unresolved -- format.ParseVolume then fails to detect it as
+		// a bind path because the path looks like a named volume
+		// (the joined result drops the leading "."). Use the absolute
+		// base WorkingDir here so the produced value starts with "/"
+		// (or a drive letter on Windows) and ParseVolume reliably
+		// detects it as a bind path.
+		resolveShortFormVolumeSources(merged, layer.Context.WorkingDir)
 	}
 	return merged, nil
+}
+
+// resolveShortFormVolumeSources walks every short-form
+// `services.*.volumes.*` scalar in the merged service body and joins
+// its host portion (`./host`) with extendsWD so the canonical pass
+// later detects it as a bind. Skips named volumes (no leading `.` or
+// `~`) and interpolation placeholders (`${...}`) which the outer
+// pipeline resolves first.
+func resolveShortFormVolumeSources(merged *yaml.Node, extendsWD string) {
+	if merged == nil || merged.Kind != yaml.MappingNode {
+		return
+	}
+	volumes := mappingValueByKey(merged, "volumes")
+	if volumes == nil || volumes.Kind != yaml.SequenceNode {
+		return
+	}
+	for _, item := range volumes.Content {
+		if item == nil || item.Kind != yaml.ScalarNode || item.Value == "" {
+			continue
+		}
+		parts := strings.SplitN(item.Value, ":", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		src := parts[0]
+		if !strings.HasPrefix(src, ".") && !strings.HasPrefix(src, "~") {
+			continue
+		}
+		parts[0] = filepath.Join(extendsWD, src)
+		item.Value = strings.Join(parts, ":")
+	}
 }
 
 // parseExtendsRef extracts the (service, file) tuple from an extends value
