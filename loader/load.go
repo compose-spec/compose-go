@@ -323,6 +323,14 @@ func load(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.No
 	}
 
 	if !opts.SkipNormalization {
+		// Stamp the resolved project name onto the tree so
+		// setNameFromKeyNode can build the implicit
+		// "<project>_<resource>" names with the right prefix. Mirrors
+		// the v2 `dict["name"] = opts.projectName` step that ran just
+		// before Normalize.
+		setMappingValue(merged.Node, "name", &yaml.Node{
+			Kind: yaml.ScalarNode, Tag: "!!str", Value: opts.projectName,
+		})
 		if _, err := NormalizeNode(merged.Node, cd.Environment); err != nil {
 			return nil, err
 		}
