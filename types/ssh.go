@@ -60,6 +60,7 @@ func (s SSHKey) MarshalJSON() ([]byte, error) {
 // transform.CanonicalNode before decoding) and stores them as a slice of
 // SSHKey. Mirrors DecodeMapstructure for yaml.v4 native decoding.
 func (s *SSHConfig) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
 	if value.Kind != yaml.MappingNode {
 		return fmt.Errorf("invalid ssh config type, expected mapping, got %v", value.Kind)
 	}

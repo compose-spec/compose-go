@@ -26,6 +26,24 @@ import (
 	"github.com/compose-spec/compose-go/v3/tree"
 )
 
+// kindName returns a human-readable label for a yaml.Kind, used in
+// error messages. yaml.v4 exposes the constants but no String() helper.
+func kindName(k yaml.Kind) string {
+	switch k {
+	case yaml.DocumentNode:
+		return "document"
+	case yaml.MappingNode:
+		return "mapping"
+	case yaml.SequenceNode:
+		return "sequence"
+	case yaml.ScalarNode:
+		return "scalar"
+	case yaml.AliasNode:
+		return "alias"
+	}
+	return "unknown"
+}
+
 func checkVolumeNode(n *yaml.Node, p tree.Path) error {
 	if n == nil {
 		return nil
@@ -35,7 +53,7 @@ func checkVolumeNode(n *yaml.Node, p tree.Path) error {
 		if n.Kind == yaml.ScalarNode && n.Tag == "!!null" {
 			return nil
 		}
-		return fmt.Errorf("expected volume, got %s", n.Value)
+		return fmt.Errorf("expected volume, got %s", kindName(n.Kind))
 	}
 	return checkExternalNode(n, p)
 }

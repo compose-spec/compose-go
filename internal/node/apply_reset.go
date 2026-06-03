@@ -64,9 +64,8 @@ func applyResetPaths(n *yaml.Node, p tree.Path, patterns []tree.Path) {
 		}
 		n.Content = filtered
 	case yaml.SequenceNode:
-		for i, c := range n.Content {
+		for _, c := range n.Content {
 			applyResetPaths(c, p.Next(tree.PathMatchList), patterns)
-			_ = i
 		}
 	}
 }

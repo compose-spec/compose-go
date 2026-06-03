@@ -297,3 +297,80 @@ list:
 	assert.DeepEqual(t, m["single"], []string{"value"})
 	assert.DeepEqual(t, m["list"], []string{"a", "b"})
 }
+
+// TestOptions_UnmarshalYAML_RejectsNonScalarValue covers the Copilot
+// review finding that Options used to silently turn a non-scalar value
+// into "" via scalarToString. A sequence value is now rejected.
+func TestOptions_UnmarshalYAML_RejectsNonScalarValue(t *testing.T) {
+	var d Options
+	err := yaml.Unmarshal([]byte("foo: [a, b]\n"), &d)
+	assert.ErrorContains(t, err, "expected scalar")
+}
+
+// TestOptions_UnmarshalYAML_RejectsMappingValue covers the same fix on
+// a mapping payload.
+func TestOptions_UnmarshalYAML_RejectsMappingValue(t *testing.T) {
+	var d Options
+	err := yaml.Unmarshal([]byte("foo: {bar: baz}\n"), &d)
+	assert.ErrorContains(t, err, "expected scalar")
+}
+
+// TestMultiOptions_UnmarshalYAML_RejectsNonScalarSequenceEntry covers
+// the Copilot review finding that MultiOptions used to silently turn a
+// nested non-scalar (e.g. `key: [[a]]`) into "".
+func TestMultiOptions_UnmarshalYAML_RejectsNonScalarSequenceEntry(t *testing.T) {
+	var d MultiOptions
+	err := yaml.Unmarshal([]byte("foo:\n  - [a, b]\n"), &d)
+	assert.ErrorContains(t, err, "sequence entry must be scalar")
+}
+
+// TestSSHConfig_UnmarshalYAML_TopLevelDocument covers the Copilot
+// review finding that SSHConfig did not unwrap a DocumentNode wrapper:
+// a caller passing the YAML straight to yaml.Unmarshal got an
+// incorrect "expected mapping" error.
+func TestSSHConfig_UnmarshalYAML_TopLevelDocument(t *testing.T) {
+	var s SSHConfig
+	assert.NilError(t, yaml.Unmarshal([]byte("default: ~\nfoo: /tmp/foo\n"), &s))
+	assert.Equal(t, len(s), 2)
+}
+
+// TestServices_UnmarshalYAML_TopLevelDocument covers the same
+// DocumentNode wrapper unwrap, for the Services type.
+func TestServices_UnmarshalYAML_TopLevelDocument(t *testing.T) {
+	var s Services
+	assert.NilError(t, yaml.Unmarshal([]byte("web:\n  image: nginx\n"), &s))
+	web, ok := s["web"]
+	assert.Assert(t, ok)
+	assert.Equal(t, web.Name, "web")
+	assert.Equal(t, web.Image, "nginx")
+}
+
+// TestFileMode_UnmarshalYAML_OctalFirstThenDecimal documents the
+// FileMode parsing contract that the Copilot review prompted us to
+// clarify: octal is tried first, and decimal is the fallback for
+// values that don't parse as octal (the canonical post-round-trip
+// "288" form of `mode: 0440`). Values valid in both bases keep the
+// octal reading.
+func TestFileMode_UnmarshalYAML_OctalFirstThenDecimal(t *testing.T) {
+	cases := []struct {
+		in   string
+		want FileMode
+	}{
+		// Unix octal notation (with and without leading zero).
+		{"0755", 0o755},
+		{"755", 0o755},
+		// Decimal-only digits like "288" (= 0o440) cannot parse as
+		// octal because of the '8' and fall back to decimal.
+		{"288", 288},
+		{"0288", 288},
+		// "0440" parses cleanly as octal.
+		{"0440", 0o440},
+	}
+	for _, tc := range cases {
+		t.Run(tc.in, func(t *testing.T) {
+			var f FileMode
+			assert.NilError(t, yaml.Unmarshal([]byte(tc.in), &f))
+			assert.Equal(t, f, tc.want)
+		})
+	}
+}

@@ -644,12 +644,18 @@ type FileReferenceConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
-// UnmarshalYAML accepts a scalar value representing a file mode. Values
-// of the form 0NNN are interpreted as octal (the standard Unix mode
-// notation, so 0755 -> 493); values without a leading zero are read as
-// decimal. The fallback path matters because the Transform yaml
-// round-trip can re-emit an octal literal as its decimal equivalent
-// (e.g. `mode: 0440` reaches us as the int 288).
+// UnmarshalYAML accepts a scalar value representing a file mode.
+// Octal is tried first because compose file modes are conventionally
+// written in Unix octal notation (`mode: 0755` and `mode: 755` both
+// mean rwxr-xr-x); a decimal fallback covers the corner case where
+// the yaml round-trip done by Transform / Canonical re-emits an
+// octal literal as its decimal equivalent (`mode: 0440` reaches us
+// as the int 288, which has no valid octal reading).
+//
+// Values that parse in both bases keep the octal reading -- so "755"
+// is FileMode(0o755) = 493, never FileMode(755). The contract is
+// surprising for non-Unix audiences but matches the v2 / spec
+// behavior every fixture relies on.
 func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
 	value = unwrapDocument(value)
 	if value.Kind != yaml.ScalarNode {

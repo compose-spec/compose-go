@@ -136,3 +136,19 @@ services:
 func TestValidateNode_NilSafe(t *testing.T) {
 	assert.NilError(t, ValidateNode(nil))
 }
+
+// TestCheckVolumeNode_NonMappingErrorIncludesKind covers the Copilot
+// review finding that the previous error printed n.Value -- which is
+// empty for non-scalar nodes -- and was therefore useless. The fix
+// formats the offending node's kind ("sequence" / "mapping" / ...).
+func TestCheckVolumeNode_NonMappingErrorIncludesKind(t *testing.T) {
+	var root yaml.Node
+	assert.NilError(t, yaml.Unmarshal([]byte(`
+volumes:
+  bad:
+    - element
+`), &root))
+	err := ValidateNode(&root)
+	assert.ErrorContains(t, err, "expected volume")
+	assert.ErrorContains(t, err, "sequence")
+}

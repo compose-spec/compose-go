@@ -30,6 +30,7 @@ type Services map[string]ServiceConfig
 // mapstructure decode hook so the value populated on Project.Services is
 // self-describing.
 func (s *Services) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
 	if value.Kind != yaml.MappingNode {
 		return fmt.Errorf("invalid services config type, expected mapping, got %v", value.Kind)
 	}
