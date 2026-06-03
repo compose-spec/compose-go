@@ -17,6 +17,7 @@
 package validation
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"strings"
@@ -42,10 +43,44 @@ var nodeChecks = map[tree.Path]nodeChecker{
 	"services.*.gpus.*": checkDeviceRequestNode,
 }
 
+// Error carries the offending node and path alongside the underlying
+// validation failure so the loader can wrap it with the source file
+// from the origins side-table when surfacing the error.
+//
+// The type name intentionally avoids the "ValidationError" stuttering
+// against the package name; consumers should refer to it as
+// *validation.Error.
+type Error struct {
+	Path  tree.Path
+	Node  *yaml.Node
+	Cause error
+}
+
+// Error renders as "path: cause" so the existing test assertions that
+// match on the substring keep working when validation is not wrapped
+// further upstream.
+func (e *Error) Error() string {
+	if e == nil {
+		return ""
+	}
+	if e.Path.String() == "" {
+		return e.Cause.Error()
+	}
+	return e.Path.String() + ": " + e.Cause.Error()
+}
+
+// Unwrap exposes Cause so errors.Is / errors.As walk through.
+func (e *Error) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Cause
+}
+
 // ValidateNode walks root and applies the per-path validation checks. The
 // tree is not mutated; only errors are reported. The function returns at the
-// first failing check, with the offending tree.Path included in the error so
-// callers can map it back to a source location.
+// first failing check, with the offending tree.Path and *yaml.Node included
+// in a *ValidationError so callers can map it back to a source location.
 func ValidateNode(root *yaml.Node) error {
 	if root == nil {
 		return nil
@@ -57,13 +92,42 @@ func ValidateNode(root *yaml.Node) error {
 	return checkNode(target, tree.NewPath())
 }
 
+func wrapCheckError(err error, node *yaml.Node, p tree.Path) error {
+	if err == nil {
+		return nil
+	}
+	var ve *Error
+	if errors.As(err, &ve) {
+		return ve
+	}
+	return &Error{Path: p, Node: node, Cause: stripPathPrefix(err, p)}
+}
+
+// stripPathPrefix removes the "path: " prefix the per-check helpers
+// embed in their error strings so wrapping does not duplicate it.
+func stripPathPrefix(err error, p tree.Path) error {
+	prefix := p.String() + ": "
+	if prefix == ": " {
+		return err
+	}
+	msg := err.Error()
+	if len(msg) > len(prefix) && msg[:len(prefix)] == prefix {
+		return errString(msg[len(prefix):])
+	}
+	return err
+}
+
+type errString string
+
+func (e errString) Error() string { return string(e) }
+
 func checkNode(n *yaml.Node, p tree.Path) error {
 	if n == nil {
 		return nil
 	}
 	for pattern, fn := range nodeChecks {
 		if p.Matches(pattern) {
-			return fn(n, p)
+			return wrapCheckError(fn(n, p), n, p)
 		}
 	}
 	switch n.Kind {

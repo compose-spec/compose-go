@@ -25,6 +25,7 @@ import (
 
 	"go.yaml.in/yaml/v4"
 
+	"github.com/compose-spec/compose-go/v3/errdefs"
 	"github.com/compose-spec/compose-go/v3/internal/node"
 	interp "github.com/compose-spec/compose-go/v3/interpolation"
 	"github.com/compose-spec/compose-go/v3/override"
@@ -36,6 +37,102 @@ import (
 	"github.com/compose-spec/compose-go/v3/types"
 	"github.com/compose-spec/compose-go/v3/validation"
 )
+
+// nodePosition is the pre-canonical position snapshot for a single path.
+type nodePosition struct {
+	file   string
+	line   int
+	column int
+}
+
+// diagnoseValidation wraps a *validation.Error with the source location
+// of the offending node so the user-facing error reads as
+// "file:line:col: path: cause". When the node has lost its origin
+// attribution to CanonicalNode's encode/decode round-trip (post-canonical
+// nodes are fresh pointers absent from the origins map and carry
+// Line / Column = 0), positions provides the pre-canonical snapshot
+// keyed by tree.Path. fallbackFile is the absolute path of the first
+// ConfigFile, used when neither side knows better.
+func diagnoseValidation(err error, origins map[*yaml.Node]*node.SourceContext, positions map[string]nodePosition, fallbackFile string) error {
+	var ve *validation.Error
+	if !errors.As(err, &ve) {
+		return err
+	}
+	file, line, column := fallbackFile, 0, 0
+	if ve.Node != nil {
+		line, column = ve.Node.Line, ve.Node.Column
+		if ctx := origins[ve.Node]; ctx != nil && ctx.File != "" {
+			file = ctx.File
+		}
+	}
+	if pos, ok := positions[ve.Path.String()]; ok {
+		if line == 0 {
+			line = pos.line
+		}
+		if column == 0 {
+			column = pos.column
+		}
+		if pos.file != "" {
+			file = pos.file
+		}
+	}
+	return &errdefs.Diagnostic{
+		File:   file,
+		Line:   line,
+		Column: column,
+		Path:   ve.Path.String(),
+		Cause:  ve.Cause,
+	}
+}
+
+// buildPathPositions snapshots every reachable path -> (file, line,
+// column) so diagnostics survive CanonicalNode invalidating the origins
+// pointer map. Walks mappings only (sequences expose their elements as
+// `[]` segments that are unstable across canonical re-encoding).
+func buildPathPositions(root *yaml.Node, origins map[*yaml.Node]*node.SourceContext) map[string]nodePosition {
+	out := map[string]nodePosition{}
+	target := root
+	if target == nil {
+		return out
+	}
+	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
+		target = target.Content[0]
+	}
+	var visit func(n *yaml.Node, p tree.Path)
+	visit = func(n *yaml.Node, p tree.Path) {
+		if n == nil {
+			return
+		}
+		if n.Kind == yaml.MappingNode {
+			for i := 0; i+1 < len(n.Content); i += 2 {
+				k, v := n.Content[i], n.Content[i+1]
+				child := p.Next(k.Value)
+				pos := nodePosition{line: v.Line, column: v.Column}
+				if ctx := origins[v]; ctx != nil {
+					pos.file = ctx.File
+				} else if ctx := origins[k]; ctx != nil {
+					pos.file = ctx.File
+				}
+				out[child.String()] = pos
+				visit(v, child)
+			}
+		}
+	}
+	visit(target, tree.NewPath())
+	return out
+}
+
+// firstConfigFile returns the absolute path of the first ConfigFile
+// when one is set, or node.SourceInline as a default. Used as the
+// diagnostics fallback when a per-node origin is not available.
+func firstConfigFile(cd types.ConfigDetails) string {
+	for _, f := range cd.ConfigFiles {
+		if f.Filename != "" {
+			return f.Filename
+		}
+	}
+	return node.SourceInline
+}
 
 // load runs the full yaml.Node-centric pipeline over the input
 // ConfigDetails and returns the merged compose tree as a canonical
@@ -173,6 +270,12 @@ func load(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.No
 	// resolution) consult this name-keyed map instead of the pointer map.
 	serviceContexts := buildServiceContexts(merged.Node, origins)
 
+	// Snapshot every reachable path -> (file, line, column) for the
+	// same reason: the canonical re-encode wipes Line/Column on every
+	// fresh node, so diagnoseValidation falls back to this map when an
+	// error returned by ValidateNode points at a post-canonical node.
+	positions := buildPathPositions(merged.Node, origins)
+
 	if _, err := transform.CanonicalNode(merged.Node, opts.SkipInterpolation); err != nil {
 		return nil, err
 	}
@@ -208,10 +311,10 @@ func load(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.No
 
 	if !opts.SkipValidation {
 		if err := validation.ValidateNode(merged.Node); err != nil {
-			return nil, err
+			return nil, diagnoseValidation(err, origins, positions, firstConfigFile(*cd))
 		}
-		// v2 rejects a load whose project name is still empty at this
-		// point. The check is gated on SkipValidation to keep the v3
+		// Reject a load whose project name is still empty at this
+		// point. The check is gated on SkipValidation to keep the
 		// orchestrator usable from tests that skip validation outright.
 		if opts.projectName == "" {
 			return nil, errors.New("project name must not be empty")
