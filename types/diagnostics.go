@@ -21,9 +21,9 @@ package types
 // built from in-memory bytes) plus the 1-based line and column emitted
 // by the YAML parser. Zero on Line or Column means "not recorded".
 type Location struct {
-	File   string `json:"file,omitempty"`
-	Line   int    `json:"line,omitempty"`
-	Column int    `json:"column,omitempty"`
+	File   string `yaml:"file,omitempty" json:"file,omitempty"`
+	Line   int    `yaml:"line,omitempty" json:"line,omitempty"`
+	Column int    `yaml:"column,omitempty" json:"column,omitempty"`
 }
 
 // Sources maps a dotted compose path (e.g. "services.web.image") to the

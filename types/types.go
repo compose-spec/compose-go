@@ -411,8 +411,8 @@ type GenericResource struct {
 // "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
 // Value is used to count the resource (SSD=5, HDD=3, ...)
 type DiscreteGenericResource struct {
-	Kind  string `json:"kind"`
-	Value int64  `json:"value"`
+	Kind  string `yaml:"kind" json:"kind"`
+	Value int64  `yaml:"value" json:"value"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
