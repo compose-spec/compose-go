@@ -413,18 +413,13 @@ func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Op
 // detour.
 func nodeToProject(root *yaml.Node, opts *Options, configDetails types.ConfigDetails) (*types.Project, error) {
 	project := &types.Project{
-		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
 		Environment: configDetails.Environment,
 	}
 
-	// The project name comes from opts.projectName (set by projectName()
-	// during the Load prologue with the first ConfigFile's `name:`
-	// folded in). Strip any `name` scalar from the tree before decode so
-	// it does not silently overwrite the value the loader has already
-	// canonicalized.
-	deleteMappingKey(root, "name")
-
+	// The project name has been stamped onto the merged tree by load()
+	// just before NormalizeNode, so the Decode below picks it up via
+	// the regular `name:` field. No special handling needed here.
 	if err := root.Decode(project); err != nil {
 		return nil, fmt.Errorf("decode project: %w", err)
 	}
