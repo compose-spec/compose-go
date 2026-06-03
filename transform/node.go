@@ -20,24 +20,24 @@ import (
 	"fmt"
 
 	"go.yaml.in/yaml/v4"
+
+	"github.com/compose-spec/compose-go/v3/tree"
 )
 
 // CanonicalNode rewrites short-form syntax into canonical (long-form) syntax
-// on a yaml.Node tree, using the same per-path transformers as Canonical.
+// on a yaml.Node tree.
 //
-// First cut: the function bridges through map[string]any — it decodes root,
-// runs the existing Canonical, and rebuilds a yaml.Node from the result.
-// This keeps the v3 wiring honest end-to-end while reusing the well-tested
-// per-transformer rules of the v2 implementation. Subsequent commits will
-// port individual transformers (transformPorts, transformVolumeMount,
-// transformBuild, ...) to operate on *yaml.Node directly so that source
-// positions survive the canonicalization for downstream diagnostics; until
-// then the rebuilt tree has Line/Column zero on nodes that the bridge had
-// to reconstruct.
+// Walker design: instead of decoding the whole tree into map[string]any and
+// re-encoding (which zeroed Line / Column on every fresh node), recurse
+// node by node and invoke the per-path transformer only on the matching
+// subtree. The decode + encode round-trip is therefore scoped to the
+// smallest subtree that needs reshaping, and every parent / sibling node
+// keeps the original source position the YAML parser recorded. Downstream
+// diagnostics (errdefs.Diagnostic) consume those positions through the
+// origins side-table, so the smaller the subtree that loses Line / Column
+// the better the user-facing error message.
 //
-// CanonicalNode mutates root in place: the inner Content of the document
-// node is replaced with the encoded canonical tree. Returns root for
-// convenience.
+// CanonicalNode mutates root in place and returns root for convenience.
 func CanonicalNode(root *yaml.Node, ignoreParseError bool) (*yaml.Node, error) {
 	if root == nil {
 		return nil, nil
@@ -46,25 +46,79 @@ func CanonicalNode(root *yaml.Node, ignoreParseError bool) (*yaml.Node, error) {
 	if target.Kind == yaml.DocumentNode && len(target.Content) == 1 {
 		target = target.Content[0]
 	}
-
-	var data map[string]any
-	if err := target.Decode(&data); err != nil {
-		return nil, fmt.Errorf("transform: decode for canonical bridge: %w", err)
-	}
-
-	canonical, err := Canonical(data, ignoreParseError)
-	if err != nil {
+	if err := canonicalizeNode(target, tree.NewPath(), ignoreParseError); err != nil {
 		return nil, err
 	}
-
-	var rebuilt yaml.Node
-	if err := rebuilt.Encode(canonical); err != nil {
-		return nil, fmt.Errorf("transform: re-encode after canonical bridge: %w", err)
-	}
-
-	// Replace target's contents with the rebuilt mapping while keeping the
-	// outer Document wrapper intact so callers that hold a pointer to root
-	// keep observing the same value.
-	*target = rebuilt
 	return root, nil
+}
+
+// canonicalizeNode walks n in place, applying the matching transformer
+// to the smallest subtree that matches a registered pattern. Nodes that
+// no transformer claims are traversed structurally so their children
+// can themselves match -- and untouched scalars keep their original
+// Line / Column.
+func canonicalizeNode(n *yaml.Node, p tree.Path, ignoreParseError bool) error {
+	if n == nil {
+		return nil
+	}
+	for pattern, transformer := range transformers {
+		if p.Matches(pattern) {
+			return applyTransformer(n, p, transformer, ignoreParseError)
+		}
+	}
+	switch n.Kind {
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(n.Content); i += 2 {
+			if err := canonicalizeNode(n.Content[i+1], p.Next(n.Content[i].Value), ignoreParseError); err != nil {
+				return err
+			}
+		}
+	case yaml.SequenceNode:
+		for _, c := range n.Content {
+			if err := canonicalizeNode(c, p.Next(tree.PathMatchList), ignoreParseError); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// applyTransformer runs the legacy map / slice based transformer on
+// the scoped subtree at n by going through a minimal decode + encode
+// round-trip. Only this subtree loses Line / Column on its fresh
+// nodes; every ancestor and sibling keeps the original position.
+func applyTransformer(n *yaml.Node, p tree.Path, transformer Func, ignoreParseError bool) error {
+	var raw any
+	if err := n.Decode(&raw); err != nil {
+		return fmt.Errorf("transform %s: decode for canonical: %w", p, err)
+	}
+	transformed, err := transformer(raw, p, ignoreParseError)
+	if err != nil {
+		return err
+	}
+	// Recurse into the transformed value so nested patterns still fire.
+	// Example: transformService at "services.*" rewrites the service
+	// shape; nested transformers like "services.*.ports" need to run
+	// next on the rewritten shape.
+	switch v := transformed.(type) {
+	case map[string]any:
+		if v, err = transformMapping(v, p, ignoreParseError); err != nil {
+			return err
+		}
+		transformed = v
+	case []any:
+		if v, err = transformSequence(v, p, ignoreParseError); err != nil {
+			return err
+		}
+		transformed = v
+	}
+	var rebuilt yaml.Node
+	if err := rebuilt.Encode(transformed); err != nil {
+		return fmt.Errorf("transform %s: re-encode after canonical: %w", p, err)
+	}
+	// Replace n's content with the rebuilt subtree while keeping the
+	// outer node pointer intact so callers that walked into this node
+	// still observe the canonical shape.
+	*n = rebuilt
+	return nil
 }

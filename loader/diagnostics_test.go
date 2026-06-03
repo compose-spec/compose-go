@@ -28,6 +28,43 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// TestDiagnostic_ValidationKeepsPositionAcrossCanonical confirms that
+// CanonicalNode's node-level walker preserves Line / Column on every
+// node it does not actually reshape, so a post-canonical
+// compose-rule validation failure still points at the line and column
+// the user wrote (rather than zero, which the full-tree decode/encode
+// bridge used to produce).
+func TestDiagnostic_ValidationKeepsPositionAcrossCanonical(t *testing.T) {
+	dir := t.TempDir()
+	src := `
+services:
+  foo:
+    image: alpine
+configs:
+  bad:
+    file: /tmp/cfg
+    environment: VAR
+`
+	writeFile(t, dir, "compose.yaml", src)
+
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+		}},
+		Environment: map[string]string{},
+	}, withProjectName("diag-canonical", true))
+
+	var diag *errdefs.Diagnostic
+	assert.Assert(t, errors.As(err, &diag),
+		"expected *errdefs.Diagnostic, got %T: %v", err, err)
+	assert.Equal(t, diag.Path, "configs.bad")
+	assert.Assert(t, diag.Line > 0,
+		"Line must survive CanonicalNode walk, got %d", diag.Line)
+	assert.Assert(t, diag.Column > 0,
+		"Column must survive CanonicalNode walk, got %d", diag.Column)
+}
+
 // TestDiagnostic_InterpolationStrictModeIncludesFileLineColumn confirms
 // that a strict-mode unset variable surfaces with the file, line and
 // column of the offending scalar.
