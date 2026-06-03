@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/xhit/go-str2duration/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 // Duration is a thin wrapper around time.Duration with improved JSON marshalling
@@ -30,15 +31,6 @@ type Duration time.Duration
 
 func (d Duration) String() string {
 	return time.Duration(d).String()
-}
-
-func (d *Duration) DecodeMapstructure(value interface{}) error {
-	v, err := str2duration.ParseDuration(fmt.Sprint(value))
-	if err != nil {
-		return err
-	}
-	*d = Duration(v)
-	return nil
 }
 
 // MarshalJSON makes Duration implement json.Marshaler
@@ -58,5 +50,21 @@ func (d *Duration) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	*d = Duration(timeDuration)
+	return nil
+}
+
+// UnmarshalYAML accepts a scalar string in str2duration format (e.g. "10s",
+// "1h30m") and stores the parsed value in d. Mirrors DecodeMapstructure for
+// yaml.v4 native decoding.
+func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	if value.Kind != yaml.ScalarNode {
+		return fmt.Errorf("expected scalar duration, got kind %d", value.Kind)
+	}
+	v, err := str2duration.ParseDuration(value.Value)
+	if err != nil {
+		return err
+	}
+	*d = Duration(v)
 	return nil
 }

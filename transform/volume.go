@@ -37,6 +37,7 @@ func transformVolumeMount(data any, p tree.Path, ignoreParseError bool) (any, er
 			return nil, err
 		}
 		volume.Target = cleanTarget(volume.Target)
+		volume.Source = cleanSource(volume.Source)
 
 		return encode(volume)
 	default:
@@ -49,6 +50,22 @@ func cleanTarget(target string) string {
 		return ""
 	}
 	return path.Clean(target)
+}
+
+// cleanSource normalizes the only short-form source spelling that v2
+// produces a different decoded form for vs v3: "./" collapses to "."
+// in v2 because filepath.Join in the sub-resolve cleans it, while v3's
+// node-level resolver preserves the literal "./" until the format
+// parser sees it. Mirror v2 here by rewriting "./" -> "." in place,
+// keeping the `.` prefix that format.ParseVolume relies on to flag the
+// value as a bind path. Other short-form spellings (`./foo`, `/abs`,
+// `name`) are left alone so format.ParseVolume / Windows path
+// conversion observe the original characters.
+func cleanSource(source string) string {
+	if source == "./" {
+		return "."
+	}
+	return source
 }
 
 func defaultVolumeBind(data any, p tree.Path, _ bool) (any, error) {

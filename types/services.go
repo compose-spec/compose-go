@@ -16,8 +16,37 @@
 
 package types
 
+import (
+	"fmt"
+
+	"go.yaml.in/yaml/v4"
+)
+
 // Services is a map of ServiceConfig
 type Services map[string]ServiceConfig
+
+// UnmarshalYAML decodes the services mapping and injects each map key into
+// the corresponding ServiceConfig.Name field. Replaces the v2 nameServices
+// mapstructure decode hook so the value populated on Project.Services is
+// self-describing.
+func (s *Services) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	if value.Kind != yaml.MappingNode {
+		return fmt.Errorf("invalid services config type, expected mapping, got %v", value.Kind)
+	}
+	out := Services{}
+	for i := 0; i+1 < len(value.Content); i += 2 {
+		name := value.Content[i].Value
+		var svc ServiceConfig
+		if err := value.Content[i+1].Decode(&svc); err != nil {
+			return fmt.Errorf("services.%s: %w", name, err)
+		}
+		svc.Name = name
+		out[name] = svc
+	}
+	*s = out
+	return nil
+}
 
 // GetProfiles retrieve the profiles implicitly enabled by explicitly targeting selected services
 func (s Services) GetProfiles() []string {

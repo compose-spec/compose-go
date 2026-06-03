@@ -21,7 +21,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v3/tree"
 	"github.com/compose-spec/compose-go/v3/types"
-	"github.com/go-viper/mapstructure/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 func transformPorts(data any, p tree.Path, ignoreParseError bool) (any, error) {
@@ -75,17 +75,21 @@ func transformPorts(data any, p tree.Path, ignoreParseError bool) (any, error) {
 	}
 }
 
+// encode marshals a typed value (ServicePortConfig, parsed volume mount,
+// ...) into the canonical map[string]any layout the schema validator and
+// downstream transformers expect. The yaml.Encode/Decode round-trip
+// honors the yaml struct tags (snake_case, omitempty) the same way the
+// previous mapstructure-based encoder did, without the runtime dependency.
 func encode(v any) (map[string]any, error) {
-	m := map[string]any{}
-	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Result:  &m,
-		TagName: "yaml",
-	})
-	if err != nil {
+	var node yaml.Node
+	if err := node.Encode(v); err != nil {
 		return nil, err
 	}
-	err = decoder.Decode(v)
-	return m, err
+	m := map[string]any{}
+	if err := node.Decode(&m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func portDefaults(data any, _ tree.Path, _ bool) (any, error) {

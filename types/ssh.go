@@ -18,11 +18,13 @@ package types
 
 import (
 	"fmt"
+
+	"go.yaml.in/yaml/v4"
 )
 
 type SSHKey struct {
 	ID   string `yaml:"id,omitempty" json:"id,omitempty"`
-	Path string `path:"path,omitempty" json:"path,omitempty"`
+	Path string `yaml:"path,omitempty" json:"path,omitempty"`
 }
 
 // SSHConfig is a mapping type for SSH build config
@@ -53,20 +55,22 @@ func (s SSHKey) MarshalJSON() ([]byte, error) {
 	return []byte(fmt.Sprintf(`%q: %s`, s.ID, s.Path)), nil
 }
 
-func (s *SSHConfig) DecodeMapstructure(value interface{}) error {
-	v, ok := value.(map[string]any)
-	if !ok {
-		return fmt.Errorf("invalid ssh config type %T", value)
+// UnmarshalYAML accepts a canonical mapping of `id: path` entries (the
+// short-form `default` and `id=path` forms are turned into this shape by
+// transform.CanonicalNode before decoding) and stores them as a slice of
+// SSHKey. Mirrors DecodeMapstructure for yaml.v4 native decoding.
+func (s *SSHConfig) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	if value.Kind != yaml.MappingNode {
+		return fmt.Errorf("invalid ssh config type, expected mapping, got %v", value.Kind)
 	}
-	result := make(SSHConfig, len(v))
-	i := 0
-	for id, path := range v {
-		key := SSHKey{ID: id}
-		if path != nil {
-			key.Path = fmt.Sprint(path)
+	result := make(SSHConfig, 0, len(value.Content)/2)
+	for i := 0; i+1 < len(value.Content); i += 2 {
+		key := SSHKey{ID: value.Content[i].Value}
+		if v := value.Content[i+1]; v.Kind == yaml.ScalarNode && v.Tag != "!!null" {
+			key.Path = v.Value
 		}
-		result[i] = key
-		i++
+		result = append(result, key)
 	}
 	*s = result
 	return nil

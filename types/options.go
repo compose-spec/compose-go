@@ -16,51 +16,68 @@
 
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	"go.yaml.in/yaml/v4"
+)
 
 // Options is a mapping type for options we pass as-is to container runtime
 type Options map[string]string
 
-func (d *Options) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		m := make(map[string]string)
-		for key, e := range v {
-			if e == nil {
-				m[key] = ""
-			} else {
-				m[key] = fmt.Sprint(e)
-			}
-		}
-		*d = m
-	case map[string]string:
-		*d = v
-	default:
-		return fmt.Errorf("invalid type %T for options", value)
-	}
-	return nil
-}
-
 // MultiOptions allow option to be repeated
 type MultiOptions map[string][]string
 
-func (d *MultiOptions) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		m := make(map[string][]string)
-		for key, e := range v {
-			switch e := e.(type) {
-			case []interface{}:
-				for _, v := range e {
-					m[key] = append(m[key], fmt.Sprint(v))
-				}
-			default:
-				m[key] = append(m[key], fmt.Sprint(e))
-			}
-		}
-		*d = m
-	default:
-		return fmt.Errorf("invalid type %T for options", value)
+// UnmarshalYAML accepts a mapping of single-valued string options and
+// stores it in d. A non-scalar value (sequence or mapping) is rejected
+// rather than silently collapsed to the empty string.
+func (d *Options) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	if value.Kind != yaml.MappingNode {
+		return fmt.Errorf("expected mapping for options, got kind %d", value.Kind)
 	}
+	m := make(Options, len(value.Content)/2)
+	for i := 0; i+1 < len(value.Content); i += 2 {
+		key := value.Content[i].Value
+		val := value.Content[i+1]
+		if val.Kind != yaml.ScalarNode {
+			return fmt.Errorf("option %s: expected scalar, got kind %d", key, val.Kind)
+		}
+		m[key] = scalarToString(val)
+	}
+	*d = m
+	return nil
+}
+
+// UnmarshalYAML accepts a mapping where each value is either a scalar or
+// a sequence of scalars, and stores the result in d as a slice per key.
+// Non-scalar entries inside a sequence are rejected so a typo like
+// `key: [[a]]` fails fast instead of decoding as an empty string.
+func (d *MultiOptions) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	if value.Kind != yaml.MappingNode {
+		return fmt.Errorf("expected mapping for options, got kind %d", value.Kind)
+	}
+	m := make(MultiOptions, len(value.Content)/2)
+	for i := 0; i+1 < len(value.Content); i += 2 {
+		key := value.Content[i].Value
+		val := value.Content[i+1]
+		switch val.Kind {
+		case yaml.ScalarNode:
+			m[key] = []string{scalarToString(val)}
+		case yaml.SequenceNode:
+			values := make([]string, 0, len(val.Content))
+			for _, item := range val.Content {
+				if item.Kind != yaml.ScalarNode {
+					return fmt.Errorf("option %s: sequence entry must be scalar, got kind %d", key, item.Kind)
+				}
+				values = append(values, scalarToString(item))
+			}
+			m[key] = values
+		default:
+			return fmt.Errorf("option %s: expected scalar or sequence, got kind %d", key, val.Kind)
+		}
+	}
+	*d = m
 	return nil
 }

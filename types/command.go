@@ -16,7 +16,12 @@
 
 package types
 
-import "github.com/mattn/go-shellwords"
+import (
+	"fmt"
+
+	"github.com/mattn/go-shellwords"
+	"go.yaml.in/yaml/v4"
+)
 
 // ShellCommand is a string or list of string args.
 //
@@ -67,20 +72,26 @@ func (s ShellCommand) MarshalYAML() (interface{}, error) {
 	return []string(s), nil
 }
 
-func (s *ShellCommand) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case string:
-		cmd, err := shellwords.Parse(v)
+// UnmarshalYAML accepts either a shell command string (parsed with shellwords)
+// or a sequence of arguments and stores the resulting argv in s. Mirrors
+// DecodeMapstructure for yaml.v4 native decoding.
+func (s *ShellCommand) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.ScalarNode:
+		cmd, err := shellwords.Parse(value.Value)
 		if err != nil {
 			return err
 		}
 		*s = cmd
-	case []interface{}:
-		cmd := make([]string, len(v))
-		for i, s := range v {
-			cmd[i] = s.(string)
+	case yaml.SequenceNode:
+		var cmd []string
+		if err := value.Decode(&cmd); err != nil {
+			return err
 		}
 		*s = cmd
+	default:
+		return fmt.Errorf("invalid yaml kind %d for shell command", value.Kind)
 	}
 	return nil
 }

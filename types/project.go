@@ -56,6 +56,36 @@ type Project struct {
 	// DisabledServices track services which have been disable as profile is not active
 	DisabledServices Services `yaml:"-" json:"-"`
 	Profiles         []string `yaml:"-" json:"-"`
+
+	// EnvFileScopes captures, per env_file path, the layer Environment in
+	// effect when the entry was declared. v3 lazy interpolation uses it as
+	// the preferred lookup scope when WithServicesEnvironmentResolved
+	// reads the env_file content, so a file referenced from an include
+	// block resolves variables in the include env_file values rather than
+	// only the project-wide environment. Not serialized.
+	EnvFileScopes map[string]Mapping `yaml:"-" json:"-"`
+
+	// Sources maps a dotted compose path to the source Location of the
+	// corresponding value. Populated by the loader when invoked with
+	// loader.WithDiagnostics(); nil otherwise. Not serialized so the
+	// project shape is unchanged for callers that did not opt in.
+	Sources Sources `yaml:"-" json:"-"`
+}
+
+// SetEnvFileScope records the environment that was effective when path was
+// declared as an env_file entry. WithServicesEnvironmentResolved consults
+// this map first when interpolating env_file content.
+func (p *Project) SetEnvFileScope(path string, env Mapping) {
+	if p.EnvFileScopes == nil {
+		p.EnvFileScopes = map[string]Mapping{}
+	}
+	p.EnvFileScopes[path] = env
+}
+
+// EnvFileScope returns the environment recorded for the env_file at path,
+// or nil when none was recorded (the project-wide environment is then used).
+func (p *Project) EnvFileScope(path string) Mapping {
+	return p.EnvFileScopes[path]
 }
 
 // ServiceNames return names for all services in this Compose config
@@ -680,7 +710,18 @@ func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project
 
 		environment := service.Environment.ToMapping()
 		for _, envFile := range service.EnvFiles {
+			scopedEnv := p.EnvFileScopes[envFile.Path]
 			err := loadEnvFile(envFile, environment, func(k string) (string, bool) {
+				// v3 lazy interpolation: when the env_file entry was
+				// captured with its declaring layer environment, prefer
+				// that scope so a file referenced from an include block
+				// resolves against the include env_file values rather
+				// than only the project-wide environment.
+				if scopedEnv != nil {
+					if v, ok := scopedEnv.Resolve(k); ok {
+						return v, true
+					}
+				}
 				// project.env has precedence doing interpolation
 				if resolve, ok := p.Environment.Resolve(k); ok {
 					return resolve, true
@@ -782,6 +823,24 @@ func (p *Project) deepCopy() *Project {
 	}
 	n := &Project{}
 	deriveDeepCopyProject(n, p)
+	// EnvFileScopes and Sources are not handled by the generated
+	// deriveDeepCopyProject. Carry them over so chained WithProfiles /
+	// WithServicesEnvironmentResolved / ... calls keep the v3
+	// per-env_file declaring-layer environment metadata and the
+	// per-path source location snapshot (only present when the loader
+	// was invoked with WithDiagnostics).
+	if len(p.EnvFileScopes) > 0 {
+		n.EnvFileScopes = make(map[string]Mapping, len(p.EnvFileScopes))
+		for k, v := range p.EnvFileScopes {
+			n.EnvFileScopes[k] = v
+		}
+	}
+	if len(p.Sources) > 0 {
+		n.Sources = make(Sources, len(p.Sources))
+		for k, v := range p.Sources {
+			n.Sources[k] = v
+		}
+	}
 	return n
 }
 

@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strings"
 	"unicode"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // MappingWithEquals is a mapping type that can be converted from a list of
@@ -83,46 +85,41 @@ func (m MappingWithEquals) ToMapping() Mapping {
 	return o
 }
 
-func (m *MappingWithEquals) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		mapping := make(MappingWithEquals, len(v))
-		for k, e := range v {
-			mapping[k] = mappingValue(e)
+// UnmarshalYAML accepts a mapping form or a list of `key[=value]` entries
+// and stores the result as a MappingWithEquals. The pointer distinction
+// between a bare `key` (nil) and `key=` (pointer to "") is preserved: that
+// distinction drives environment variable resolution downstream.
+func (m *MappingWithEquals) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.MappingNode:
+		mapping := make(MappingWithEquals, len(value.Content)/2)
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			mapping[value.Content[i].Value] = scalarToStringPtr(value.Content[i+1])
 		}
 		*m = mapping
-	case []interface{}:
-		mapping := make(MappingWithEquals, len(v))
-		for _, s := range v {
-			k, e, ok := strings.Cut(fmt.Sprint(s), "=")
+	case yaml.SequenceNode:
+		mapping := make(MappingWithEquals, len(value.Content))
+		for _, item := range value.Content {
+			if item.Kind != yaml.ScalarNode {
+				return fmt.Errorf("mapping list entry must be scalar, got kind %d", item.Kind)
+			}
+			k, e, ok := strings.Cut(item.Value, "=")
 			if k != "" && unicode.IsSpace(rune(k[len(k)-1])) {
 				return fmt.Errorf("environment variable %s is declared with a trailing space", k)
 			}
 			if !ok {
 				mapping[k] = nil
 			} else {
-				mapping[k] = mappingValue(e)
+				v := e
+				mapping[k] = &v
 			}
 		}
 		*m = mapping
 	default:
-		return fmt.Errorf("unexpected value type %T for mapping", value)
+		return fmt.Errorf("unexpected yaml kind %d for mapping", value.Kind)
 	}
 	return nil
-}
-
-// label value can be a string | number | boolean | null
-func mappingValue(e interface{}) *string {
-	if e == nil {
-		return nil
-	}
-	switch v := e.(type) {
-	case string:
-		return &v
-	default:
-		s := fmt.Sprint(v)
-		return &s
-	}
 }
 
 // Mapping is a mapping type that can be converted from a list of
@@ -189,42 +186,30 @@ func (m Mapping) Merge(o Mapping) Mapping {
 	return m
 }
 
-func (m *Mapping) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		mapping := make(Mapping, len(v))
-		for k, e := range v {
-			if e == nil {
-				e = ""
-			}
-			mapping[k] = fmt.Sprint(e)
+// UnmarshalYAML accepts a mapping form or a list of "key=value" entries and
+// stores the result as a Mapping. A bare `key` in list form maps to an
+// empty string, matching the v2 behavior.
+func (m *Mapping) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.MappingNode:
+		mapping := make(Mapping, len(value.Content)/2)
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			mapping[value.Content[i].Value] = scalarToString(value.Content[i+1])
 		}
 		*m = mapping
-	case []interface{}:
-		*m = decodeMapping(v, "=")
+	case yaml.SequenceNode:
+		mapping := make(Mapping, len(value.Content))
+		for _, item := range value.Content {
+			if item.Kind != yaml.ScalarNode {
+				return fmt.Errorf("mapping list entry must be scalar, got kind %d", item.Kind)
+			}
+			k, v, _ := strings.Cut(item.Value, "=")
+			mapping[k] = v
+		}
+		*m = mapping
 	default:
-		return fmt.Errorf("unexpected value type %T for mapping", value)
+		return fmt.Errorf("unexpected yaml kind %d for mapping", value.Kind)
 	}
 	return nil
-}
-
-// Generate a mapping by splitting strings at any of seps, which will be tried
-// in-order for each input string. (For example, to allow the preferred 'host=ip'
-// in 'extra_hosts', as well as 'host:ip' for backwards compatibility.)
-func decodeMapping(v []interface{}, seps ...string) map[string]string {
-	mapping := make(Mapping, len(v))
-	for _, s := range v {
-		for i, sep := range seps {
-			k, e, ok := strings.Cut(fmt.Sprint(s), sep)
-			if ok {
-				// Mapping found with this separator, stop here.
-				mapping[k] = e
-				break
-			} else if i == len(seps)-1 {
-				// No more separators to try, map to empty string.
-				mapping[k] = ""
-			}
-		}
-	}
-	return mapping
 }

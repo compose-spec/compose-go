@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // HostsList is a list of colon-separated host-ip mappings
@@ -81,47 +83,55 @@ func (h HostsList) MarshalJSON() ([]byte, error) {
 
 var hostListSerapators = []string{"=", ":"}
 
-func (h *HostsList) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		list := make(HostsList, len(v))
-		for i, e := range v {
-			if e == nil {
-				e = ""
-			}
-			switch t := e.(type) {
-			case string:
-				list[i] = []string{t}
-			case []any:
-				hosts := make([]string, len(t))
-				for j, h := range t {
-					hosts[j] = fmt.Sprint(h)
+// UnmarshalYAML accepts either a mapping form (each value can be a scalar
+// hostname or a sequence of hostnames) or a list of "host=ip" / "host:ip"
+// short-form entries. Mirrors DecodeMapstructure for yaml.v4 native
+// decoding.
+func (h *HostsList) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.MappingNode:
+		list := make(HostsList, len(value.Content)/2)
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			key := value.Content[i].Value
+			val := value.Content[i+1]
+			switch val.Kind {
+			case yaml.ScalarNode:
+				list[key] = []string{val.Value}
+			case yaml.SequenceNode:
+				hosts := make([]string, 0, len(val.Content))
+				for _, item := range val.Content {
+					if item.Kind != yaml.ScalarNode {
+						return fmt.Errorf("extra_hosts entry must be scalar")
+					}
+					hosts = append(hosts, item.Value)
 				}
-				list[i] = hosts
+				list[key] = hosts
 			default:
-				return fmt.Errorf("unexpected value type %T for extra_hosts entry", value)
+				return fmt.Errorf("unexpected yaml kind %d for extra_hosts entry", val.Kind)
 			}
 		}
-		err := list.cleanup()
+		if err := list.cleanup(); err != nil {
+			return err
+		}
+		*h = list
+	case yaml.SequenceNode:
+		strs := make([]string, 0, len(value.Content))
+		for _, item := range value.Content {
+			if item.Kind != yaml.ScalarNode {
+				return fmt.Errorf("extra_hosts list entry must be scalar")
+			}
+			strs = append(strs, item.Value)
+		}
+		list, err := NewHostsList(strs)
 		if err != nil {
 			return err
 		}
 		*h = list
-		return nil
-	case []interface{}:
-		s := make([]string, len(v))
-		for i, e := range v {
-			s[i] = fmt.Sprint(e)
-		}
-		list, err := NewHostsList(s)
-		if err != nil {
-			return err
-		}
-		*h = list
-		return nil
 	default:
-		return fmt.Errorf("unexpected value type %T for extra_hosts", value)
+		return fmt.Errorf("unexpected yaml kind %d for extra_hosts", value.Kind)
 	}
+	return nil
 }
 
 func (h HostsList) cleanup() error {

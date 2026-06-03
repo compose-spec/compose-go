@@ -19,6 +19,8 @@ package types
 import (
 	"fmt"
 	"strings"
+
+	"go.yaml.in/yaml/v4"
 )
 
 // Labels is a mapping type for labels
@@ -60,36 +62,33 @@ func (l Labels) ToMappingWithEquals() MappingWithEquals {
 	return mapping
 }
 
-// label value can be a string | number | boolean | null (empty)
-func labelValue(e interface{}) string {
-	if e == nil {
-		return ""
-	}
-	switch v := e.(type) {
-	case string:
-		return v
-	default:
-		return fmt.Sprint(v)
-	}
-}
-
-func (l *Labels) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case map[string]interface{}:
-		labels := make(map[string]string, len(v))
-		for k, e := range v {
-			labels[k] = labelValue(e)
+// UnmarshalYAML accepts a mapping (key -> value) or a list of "key=value"
+// entries and stores the result as a Labels map. Mirrors DecodeMapstructure
+// for yaml.v4 native decoding. Numeric and boolean scalar values in the
+// mapping form are coerced to their stringified representation via the
+// underlying scalar Value (yaml.v4 preserves the source representation in
+// Node.Value regardless of Tag).
+func (l *Labels) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.MappingNode:
+		labels := make(Labels, len(value.Content)/2)
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			labels[value.Content[i].Value] = scalarToString(value.Content[i+1])
 		}
 		*l = labels
-	case []interface{}:
-		labels := make(map[string]string, len(v))
-		for _, s := range v {
-			k, e, _ := strings.Cut(fmt.Sprint(s), "=")
-			labels[k] = labelValue(e)
+	case yaml.SequenceNode:
+		labels := make(Labels, len(value.Content))
+		for _, item := range value.Content {
+			if item.Kind != yaml.ScalarNode {
+				return fmt.Errorf("labels list entry must be scalar, got kind %d", item.Kind)
+			}
+			k, v, _ := strings.Cut(item.Value, "=")
+			labels[k] = v
 		}
 		*l = labels
 	default:
-		return fmt.Errorf("unexpected value type %T for labels", value)
+		return fmt.Errorf("unexpected yaml kind %d for labels", value.Kind)
 	}
 	return nil
 }

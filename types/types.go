@@ -26,6 +26,7 @@ import (
 
 	"github.com/docker/go-connections/nat"
 	"github.com/xhit/go-str2duration/v2"
+	"go.yaml.in/yaml/v4"
 )
 
 // ServiceConfig is the configuration of one service
@@ -324,16 +325,16 @@ type DeviceMapping struct {
 
 // WeightDevice is a structure that holds device:weight pair
 type WeightDevice struct {
-	Path   string
-	Weight uint16
+	Path   string `yaml:"path,omitempty" json:"path,omitempty"`
+	Weight uint16 `yaml:"weight,omitempty" json:"weight,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
 // ThrottleDevice is a structure that holds device:rate_per_second pair
 type ThrottleDevice struct {
-	Path string
-	Rate UnitBytes
+	Path string    `yaml:"path,omitempty" json:"path,omitempty"`
+	Rate UnitBytes `yaml:"rate,omitempty" json:"rate,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
@@ -410,8 +411,8 @@ type GenericResource struct {
 // "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
 // Value is used to count the resource (SSD=5, HDD=3, ...)
 type DiscreteGenericResource struct {
-	Kind  string `json:"kind"`
-	Value int64  `json:"value"`
+	Kind  string `yaml:"kind" json:"kind"`
+	Value int64  `yaml:"value" json:"value"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
@@ -578,6 +579,11 @@ func (o OptOut) IsZero() bool {
 	return bool(o)
 }
 
+// IsTrue returns the effective boolean value carried by the OptOut.
+func (o OptOut) IsTrue() bool {
+	return bool(o)
+}
+
 // SELinux represents the SELinux re-labeling options.
 const (
 	// SELinuxShared option indicates that the bind mount content is shared among multiple containers
@@ -638,21 +644,32 @@ type FileReferenceConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
-func (f *FileMode) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case *FileMode:
-		return nil
-	case string:
-		i, err := strconv.ParseInt(v, 8, 64)
-		if err != nil {
-			return err
-		}
-		*f = FileMode(i)
-	case int:
-		*f = FileMode(v)
-	default:
-		return fmt.Errorf("unexpected value type %T for mode", value)
+// UnmarshalYAML accepts a scalar value representing a file mode.
+// Octal is tried first because compose file modes are conventionally
+// written in Unix octal notation (`mode: 0755` and `mode: 755` both
+// mean rwxr-xr-x); a decimal fallback covers the corner case where
+// the yaml round-trip done by Transform / Canonical re-emits an
+// octal literal as its decimal equivalent (`mode: 0440` reaches us
+// as the int 288, which has no valid octal reading).
+//
+// Values that parse in both bases keep the octal reading -- so "755"
+// is FileMode(0o755) = 493, never FileMode(755). The contract is
+// surprising for non-Unix audiences but matches the v2 / spec
+// behavior every fixture relies on.
+func (f *FileMode) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	if value.Kind != yaml.ScalarNode {
+		return fmt.Errorf("expected scalar file mode, got kind %d", value.Kind)
 	}
+	if i, err := strconv.ParseInt(value.Value, 8, 64); err == nil {
+		*f = FileMode(i)
+		return nil
+	}
+	i, err := strconv.ParseInt(value.Value, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid file mode %q: %w", value.Value, err)
+	}
+	*f = FileMode(i)
 	return nil
 }
 
@@ -685,27 +702,41 @@ type UlimitsConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
-func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {
-	switch v := value.(type) {
-	case *UlimitsConfig:
-		// this call to DecodeMapstructure is triggered after initial value conversion as we use a map[string]*UlimitsConfig
-		return nil
-	case int:
-		u.Single = v
+// UnmarshalYAML accepts either a scalar integer (single-value form) or a
+// mapping with soft / hard fields. Mirrors DecodeMapstructure for yaml.v4
+// native decoding.
+func (u *UlimitsConfig) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	switch value.Kind {
+	case yaml.ScalarNode:
+		i, err := strconv.Atoi(value.Value)
+		if err != nil {
+			return fmt.Errorf("invalid ulimit value %q: %w", value.Value, err)
+		}
+		u.Single = i
 		u.Soft = 0
 		u.Hard = 0
-	case map[string]any:
+	case yaml.MappingNode:
 		u.Single = 0
-		soft, ok := v["soft"]
-		if ok {
-			u.Soft = soft.(int)
-		}
-		hard, ok := v["hard"]
-		if ok {
-			u.Hard = hard.(int)
+		for i := 0; i+1 < len(value.Content); i += 2 {
+			key := value.Content[i].Value
+			val := value.Content[i+1]
+			if val.Kind != yaml.ScalarNode {
+				return fmt.Errorf("ulimit %s must be a scalar", key)
+			}
+			n, err := strconv.Atoi(val.Value)
+			if err != nil {
+				return fmt.Errorf("invalid ulimit %s value %q: %w", key, val.Value, err)
+			}
+			switch key {
+			case "soft":
+				u.Soft = n
+			case "hard":
+				u.Hard = n
+			}
 		}
 	default:
-		return fmt.Errorf("unexpected value type %T for ulimit", value)
+		return fmt.Errorf("unexpected yaml kind %d for ulimit", value.Kind)
 	}
 	return nil
 }
@@ -850,6 +881,35 @@ func (s SecretConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(FileObjectConfig(s))
 }
 
+// UnmarshalYAML decodes the canonical mapping into a SecretConfig and
+// lifts a SecretConfigXValue extension up into Content. Replaces the v2
+// secretConfigDecoderHook mapstructure hook, which read the same
+// extension out of the temporary map.
+func (s *SecretConfig) UnmarshalYAML(value *yaml.Node) error {
+	var raw FileObjectConfig
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	liftXContent(&raw)
+	*s = SecretConfig(raw)
+	return nil
+}
+
+func liftXContent(f *FileObjectConfig) {
+	if f.Extensions == nil {
+		return
+	}
+	if val, ok := f.Extensions[SecretConfigXValue]; ok {
+		if str, ok := val.(string); ok {
+			f.Content = str
+		}
+		delete(f.Extensions, SecretConfigXValue)
+		if len(f.Extensions) == 0 {
+			f.Extensions = nil
+		}
+	}
+}
+
 // ConfigObjConfig is the config for the swarm "Config" object
 type ConfigObjConfig FileObjectConfig
 
@@ -869,6 +929,20 @@ func (s ConfigObjConfig) MarshalJSON() ([]byte, error) {
 		s.Content = ""
 	}
 	return json.Marshal(FileObjectConfig(s))
+}
+
+// UnmarshalYAML decodes the canonical mapping into a ConfigObjConfig and
+// lifts a SecretConfigXValue extension up into Content. Mirrors the
+// SecretConfig handling so configs whose value was provided via the
+// `environment` indirection surface their resolved Content at decode time.
+func (s *ConfigObjConfig) UnmarshalYAML(value *yaml.Node) error {
+	var raw FileObjectConfig
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+	liftXContent(&raw)
+	*s = ConfigObjConfig(raw)
+	return nil
 }
 
 type IncludeConfig struct {

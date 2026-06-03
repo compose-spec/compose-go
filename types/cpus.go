@@ -19,30 +19,28 @@ package types
 import (
 	"fmt"
 	"strconv"
+
+	"go.yaml.in/yaml/v4"
 )
 
 type NanoCPUs float32
 
-func (n *NanoCPUs) DecodeMapstructure(a any) error {
-	switch v := a.(type) {
-	case string:
-		f, err := strconv.ParseFloat(v, 64)
-		if err != nil {
-			return err
-		}
-		*n = NanoCPUs(f)
-	case int:
-		*n = NanoCPUs(v)
-	case float32:
-		*n = NanoCPUs(v)
-	case float64:
-		*n = NanoCPUs(v)
-	default:
-		return fmt.Errorf("unexpected value type %T for cpus", v)
-	}
-	return nil
-}
-
 func (n *NanoCPUs) Value() float32 {
 	return float32(*n)
+}
+
+// UnmarshalYAML accepts a scalar number or numeric string and stores its
+// float32 value in n. Mirrors DecodeMapstructure for yaml.v4 native
+// decoding.
+func (n *NanoCPUs) UnmarshalYAML(value *yaml.Node) error {
+	value = unwrapDocument(value)
+	if value.Kind != yaml.ScalarNode {
+		return fmt.Errorf("expected scalar nanocpus, got kind %d", value.Kind)
+	}
+	f, err := strconv.ParseFloat(value.Value, 64)
+	if err != nil {
+		return fmt.Errorf("invalid cpus value %q: %w", value.Value, err)
+	}
+	*n = NanoCPUs(f)
+	return nil
 }

@@ -27,21 +27,13 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v3/consts"
 	"github.com/compose-spec/compose-go/v3/errdefs"
 	interp "github.com/compose-spec/compose-go/v3/interpolation"
-	"github.com/compose-spec/compose-go/v3/override"
-	"github.com/compose-spec/compose-go/v3/paths"
-	"github.com/compose-spec/compose-go/v3/schema"
 	"github.com/compose-spec/compose-go/v3/template"
-	"github.com/compose-spec/compose-go/v3/transform"
-	"github.com/compose-spec/compose-go/v3/tree"
 	"github.com/compose-spec/compose-go/v3/types"
-	"github.com/compose-spec/compose-go/v3/validation"
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v4"
 )
@@ -95,6 +87,35 @@ type Options struct {
 	// MaxNodeVisits caps total YAML node visits during reset/override resolution.
 	// Zero means use the default. Useful for very large compose files that exceed the default cap.
 	MaxNodeVisits int
+
+	// Diagnostics opts in to per-path source position tracking. When
+	// true, the resulting *types.Project carries a populated Sources
+	// map (path -> file:line:column) so tooling can surface the source
+	// location of any compose value (validation errors, schema misses,
+	// dependency warnings, ...). Defaults to off so the project shape
+	// stays the same for callers that did not opt in.
+	Diagnostics bool
+
+	// pathPositions is the snapshot of dotted compose path -> source
+	// position captured pre-canonical by load() when Diagnostics is on.
+	// nodeToProject converts it into Project.Sources at the end of the
+	// pipeline. Unexported so callers cannot mutate it directly.
+	pathPositions map[string]nodePosition
+
+	// envFileScopes captures, during Load, the layer Environment in
+	// effect when each env_file entry was declared. The map is keyed by
+	// the resolved absolute env_file path and consumed by ModelToProject
+	// to populate EnvFile.Env, which WithServicesEnvironmentResolved
+	// then uses as the preferred interpolation scope.
+	envFileScopes map[string]types.Mapping
+
+	// extendsRelativeDir carries the v2-compatible relative project
+	// directory recorded by loadExtendsBaseLayer for the path resolution
+	// that runs on the merged service body. SourceContext.WorkingDir
+	// remains absolute (chained extends.file lookups require it), so
+	// this side-table keeps the v2 relative form available without
+	// regressing the absolute lookup path.
+	extendsRelativeDir string
 }
 
 var versionWarning []string
@@ -263,6 +284,14 @@ func WithSkipValidation(opts *Options) {
 	opts.SkipValidation = true
 }
 
+// WithDiagnostics turns per-path source position tracking on. The
+// returned *types.Project will carry a populated Sources map keyed by
+// dotted compose path. Tooling that wants to surface "this error
+// happened at file:line:col" needs this opt-in.
+func WithDiagnostics(opts *Options) {
+	opts.Diagnostics = true
+}
+
 // WithProfiles sets profiles to be activated
 func WithProfiles(profiles []string) func(*Options) {
 	return func(opts *Options) {
@@ -352,31 +381,32 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 // LoadWithContext reads a ConfigDetails and returns a fully loaded configuration as a compose-go Project
 func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (*types.Project, error) {
 	opts := ToOptions(&configDetails, options)
-	dict, err := loadModelWithContext(ctx, &configDetails, opts)
+	if len(configDetails.ConfigFiles) < 1 {
+		return nil, errors.New("no compose file specified")
+	}
+	// Capture Load's mutation of cd.Environment (COMPOSE_PROJECT_NAME)
+	// so nodeToProject sees the same environment that scalar
+	// interpolation observed during the pipeline.
+	cd := configDetails
+	root, err := load(ctx, &cd, opts)
 	if err != nil {
 		return nil, err
 	}
-	return ModelToProject(dict, opts, configDetails)
+	return nodeToProject(root, opts, cd)
 }
 
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
 func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (map[string]any, error) {
 	opts := ToOptions(&configDetails, options)
-	return loadModelWithContext(ctx, &configDetails, opts)
-}
-
-// LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
-func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetails, opts *Options) (map[string]any, error) {
 	if len(configDetails.ConfigFiles) < 1 {
 		return nil, errors.New("no compose file specified")
 	}
-
-	err := projectName(configDetails, opts)
+	cd := configDetails
+	root, err := load(ctx, &cd, opts)
 	if err != nil {
 		return nil, err
 	}
-
-	return load(ctx, *configDetails, opts, nil)
+	return nodeToModel(root)
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
@@ -396,217 +426,50 @@ func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Op
 	return opts
 }
 
-func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Options, ct *cycleTracker, included []string) (map[string]interface{}, error) {
-	var (
-		dict = map[string]interface{}{}
-		err  error
-	)
-	workingDir, environment := config.WorkingDir, config.Environment
-
-	for _, file := range config.ConfigFiles {
-		dict, _, err = loadYamlFile(ctx, file, opts, workingDir, environment, ct, dict, included)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if !opts.SkipDefaultValues {
-		dict, err = transform.SetDefaultValues(dict)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if !opts.SkipValidation {
-		if err := validation.Validate(dict); err != nil {
-			return nil, err
-		}
-	}
-
-	if opts.ResolvePaths {
-		var remotes []paths.RemoteResource
-		for _, loader := range opts.RemoteResourceLoaders() {
-			remotes = append(remotes, loader.Accept)
-		}
-		err = paths.ResolveRelativePaths(dict, config.WorkingDir, remotes)
-		if err != nil {
-			return nil, err
-		}
-	}
-	ResolveEnvironment(dict, config.Environment)
-
-	return dict, nil
-}
-
-func loadYamlFile(ctx context.Context,
-	file types.ConfigFile,
-	opts *Options,
-	workingDir string,
-	environment types.Mapping,
-	ct *cycleTracker,
-	dict map[string]interface{},
-	included []string,
-) (map[string]interface{}, PostProcessor, error) {
-	ctx = context.WithValue(ctx, consts.ComposeFileKey{}, file.Filename)
-	if file.Content == nil && file.Config == nil {
-		content, err := os.ReadFile(file.Filename)
-		if err != nil {
-			return nil, nil, err
-		}
-		file.Content = content
-	}
-
-	processRawYaml := func(raw interface{}, processor PostProcessor) error {
-		converted, err := convertToStringKeysRecursive(raw, "")
-		if err != nil {
-			return err
-		}
-		cfg, ok := converted.(map[string]interface{})
-		if !ok {
-			return errors.New("top-level object must be a mapping")
-		}
-
-		if opts.Interpolate != nil && !opts.SkipInterpolation {
-			cfg, err = interp.Interpolate(cfg, *opts.Interpolate)
-			if err != nil {
-				return err
-			}
-		}
-
-		fixEmptyNotNull(cfg)
-
-		// Process includes first so that extended services have all merged attributes
-		if !opts.SkipInclude {
-			included = append(included, file.Filename)
-			err = ApplyInclude(ctx, workingDir, environment, cfg, opts, included, processor)
-			if err != nil {
-				return err
-			}
-		}
-
-		if err := processor.Apply(dict); err != nil {
-			return err
-		}
-
-		// Process extends after includes so base services are fully merged
-		if !opts.SkipExtends {
-			err = ApplyExtends(ctx, cfg, opts, ct, processor)
-			if err != nil {
-				return err
-			}
-
-		}
-
-		dict, err = override.Merge(dict, cfg)
-		if err != nil {
-			return err
-		}
-
-		dict, err = override.EnforceUnicity(dict)
-		if err != nil {
-			return err
-		}
-
-		if !opts.SkipValidation {
-			if err := schema.Validate(dict); err != nil {
-				return fmt.Errorf("validating %s: %w", file.Filename, err)
-			}
-			if _, ok := dict["version"]; ok {
-				opts.warnObsoleteVersion(file.Filename)
-				delete(dict, "version")
-			}
-		}
-
-		dict, err = transform.Canonical(dict, opts.SkipInterpolation)
-		if err != nil {
-			return err
-		}
-
-		dict = OmitEmpty(dict)
-
-		// Canonical transformation can reveal duplicates, typically as ports can be a range and conflict with an override
-		dict, err = override.EnforceUnicity(dict)
-		return err
-	}
-
-	var processor PostProcessor
-	if file.Config == nil {
-		r := bytes.NewReader(file.Content)
-		decoder := yaml.NewDecoder(r)
-		for {
-			var raw interface{}
-			reset := &ResetProcessor{target: &raw, maxNodeVisits: opts.MaxNodeVisits}
-			err := decoder.Decode(reset)
-			if err != nil && errors.Is(err, io.EOF) {
-				break
-			}
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to parse %s: %w", file.Filename, err)
-			}
-			processor = reset
-			if err := processRawYaml(raw, processor); err != nil {
-				return nil, nil, err
-			}
-		}
-	} else {
-		if err := processRawYaml(file.Config, NoopPostProcessor{}); err != nil {
-			return nil, nil, err
-		}
-	}
-	return dict, processor, nil
-}
-
-func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options, loaded []string) (map[string]interface{}, error) {
-	mainFile := configDetails.ConfigFiles[0].Filename
-	for _, f := range loaded {
-		if f == mainFile {
-			loaded = append(loaded, mainFile)
-			return nil, fmt.Errorf("include cycle detected:\n%s\n include %s", loaded[0], strings.Join(loaded[1:], "\n include "))
-		}
-	}
-
-	dict, err := loadYamlModel(ctx, configDetails, opts, &cycleTracker{}, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(dict) == 0 {
-		return nil, errors.New("empty compose file")
-	}
-
-	if !opts.SkipValidation && opts.projectName == "" {
-		return nil, errors.New("project name must not be empty")
-	}
-
-	if !opts.SkipNormalization {
-		dict["name"] = opts.projectName
-		dict, err = Normalize(dict, configDetails.Environment)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return dict, nil
-}
-
-// ModelToProject binds a canonical yaml dict into compose-go structs
-func ModelToProject(dict map[string]interface{}, opts *Options, configDetails types.ConfigDetails) (*types.Project, error) {
+// nodeToProject decodes the canonical merged yaml.Node directly into a
+// *types.Project (no intermediate map[string]any) and applies the
+// project-level post-decode passes: env_file declaring-scope side-table
+// for lazy interpolation, Windows path conversion, profile / service
+// selection, services environment + label resolution. Runs the
+// equivalent of v2 ModelToProject without the map -> mapstructure
+// detour.
+func nodeToProject(root *yaml.Node, opts *Options, configDetails types.ConfigDetails) (*types.Project, error) {
 	project := &types.Project{
-		Name:        opts.projectName,
 		WorkingDir:  configDetails.WorkingDir,
 		Environment: configDetails.Environment,
 	}
-	delete(dict, "name") // project name set by yaml must be identified by caller as opts.projectName
 
-	var err error
-	dict, err = processExtensions(dict, tree.NewPath(), opts.KnownExtensions)
-	if err != nil {
+	// The project name has been stamped onto the merged tree by load()
+	// just before NormalizeNode, so the Decode below picks it up via
+	// the regular `name:` field. No special handling needed here.
+	if err := root.Decode(project); err != nil {
+		return nil, fmt.Errorf("decode project: %w", err)
+	}
+
+	// Attach the pre-canonical path positions snapshot to the project
+	// when the caller opted in via WithDiagnostics. Tooling can then
+	// resolve any compose path to its source file + line + column.
+	if opts.Diagnostics && len(opts.pathPositions) > 0 {
+		project.Sources = make(types.Sources, len(opts.pathPositions))
+		for p, pos := range opts.pathPositions {
+			project.Sources[p] = types.Location{
+				File:   pos.file,
+				Line:   pos.line,
+				Column: pos.column,
+			}
+		}
+	}
+
+	// Decode KnownExtensions into their declared target types. The yaml
+	// inline tag has parked them as map[string]any under Extensions; this
+	// pass swaps each known x-* entry for the typed value the caller
+	// registered.
+	if err := decodeKnownExtensions(project, opts.KnownExtensions); err != nil {
 		return nil, err
 	}
 
-	err = Transform(dict, project)
-	if err != nil {
-		return nil, err
+	for path, env := range opts.envFileScopes {
+		project.SetEnvFileScope(path, env)
 	}
 
 	if opts.ConvertWindowsPaths {
@@ -618,13 +481,13 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 		}
 	}
 
+	var err error
 	if project, err = project.WithProfiles(opts.Profiles); err != nil {
 		return nil, err
 	}
 
 	if !opts.SkipConsistencyCheck {
-		err := checkConsistency(project)
-		if err != nil {
+		if err := checkConsistency(project); err != nil {
 			return nil, err
 		}
 	}
@@ -657,6 +520,51 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	}
 
 	return project, nil
+}
+
+// decodeKnownExtensions walks Project.Extensions and every typed
+// container's Extensions map looking for keys the caller registered via
+// Options.KnownExtensions. Each match has its raw map[string]any value
+// re-decoded into the declared target type via a yaml round-trip so the
+// caller gets the strongly-typed value back at p.Extensions[name].
+func decodeKnownExtensions(project *types.Project, known map[string]any) error {
+	if len(known) == 0 {
+		return nil
+	}
+	maps := []types.Extensions{project.Extensions}
+	for _, s := range project.Services {
+		maps = append(maps, s.Extensions)
+	}
+	for _, n := range project.Networks {
+		maps = append(maps, n.Extensions)
+	}
+	for _, v := range project.Volumes {
+		maps = append(maps, v.Extensions)
+	}
+	for _, c := range project.Configs {
+		maps = append(maps, c.Extensions)
+	}
+	for _, s := range project.Secrets {
+		maps = append(maps, s.Extensions)
+	}
+	for _, m := range maps {
+		for name, typ := range known {
+			raw, ok := m[name]
+			if !ok {
+				continue
+			}
+			target := reflect.New(reflect.TypeOf(typ)).Interface()
+			buf, err := yaml.Marshal(raw)
+			if err != nil {
+				return err
+			}
+			if err := yaml.Unmarshal(buf, target); err != nil {
+				return err
+			}
+			m[name] = reflect.ValueOf(target).Elem().Interface()
+		}
+	}
+	return nil
 }
 
 func InvalidProjectNameErr(v string) error {
@@ -748,186 +656,6 @@ func NormalizeProjectName(s string) string {
 	s = strings.ToLower(s)
 	s = strings.Join(r.FindAllString(s, -1), "")
 	return strings.TrimLeft(s, "_-")
-}
-
-var userDefinedKeys = []tree.Path{
-	"services",
-	"services.*.depends_on",
-	"volumes",
-	"networks",
-	"secrets",
-	"configs",
-}
-
-func processExtensions(dict map[string]any, p tree.Path, extensions map[string]any) (map[string]interface{}, error) {
-	extras := map[string]any{}
-	var err error
-	for key, value := range dict {
-		skip := false
-		for _, uk := range userDefinedKeys {
-			if p.Matches(uk) {
-				skip = true
-				break
-			}
-		}
-		if !skip && strings.HasPrefix(key, "x-") {
-			extras[key] = value
-			delete(dict, key)
-			continue
-		}
-		switch v := value.(type) {
-		case map[string]interface{}:
-			dict[key], err = processExtensions(v, p.Next(key), extensions)
-			if err != nil {
-				return nil, err
-			}
-		case []interface{}:
-			for i, e := range v {
-				if m, ok := e.(map[string]interface{}); ok {
-					v[i], err = processExtensions(m, p.Next(strconv.Itoa(i)), extensions)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
-		}
-	}
-	for name, val := range extras {
-		if typ, ok := extensions[name]; ok {
-			target := reflect.New(reflect.TypeOf(typ)).Elem().Interface()
-			err = Transform(val, &target)
-			if err != nil {
-				return nil, err
-			}
-			extras[name] = target
-		}
-	}
-	if len(extras) > 0 {
-		dict[consts.Extensions] = extras
-	}
-	return dict, nil
-}
-
-// Transform converts the source into the target struct with compose types transformer
-// and the specified transformers if any.
-func Transform(source interface{}, target interface{}) error {
-	data := mapstructure.Metadata{}
-	config := &mapstructure.DecoderConfig{
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			nameServices,
-			decoderHook,
-			cast,
-			secretConfigDecoderHook,
-		),
-		Result:   target,
-		TagName:  "yaml",
-		Metadata: &data,
-	}
-	decoder, err := mapstructure.NewDecoder(config)
-	if err != nil {
-		return err
-	}
-	return decoder.Decode(source)
-}
-
-// nameServices create implicit `name` key for convenience accessing service
-func nameServices(from reflect.Value, to reflect.Value) (interface{}, error) {
-	if to.Type() == reflect.TypeOf(types.Services{}) {
-		nameK := reflect.ValueOf("name")
-		iter := from.MapRange()
-		for iter.Next() {
-			name := iter.Key()
-			elem := iter.Value()
-			elem.Elem().SetMapIndex(nameK, name)
-		}
-	}
-	return from.Interface(), nil
-}
-
-func secretConfigDecoderHook(from, to reflect.Type, data interface{}) (interface{}, error) {
-	// Check if the input is a map and we're decoding into a SecretConfig
-	if from.Kind() == reflect.Map && to == reflect.TypeOf(types.SecretConfig{}) {
-		if v, ok := data.(map[string]interface{}); ok {
-			if ext, ok := v[consts.Extensions].(map[string]interface{}); ok {
-				if val, ok := ext[types.SecretConfigXValue].(string); ok {
-					// Return a map with the Content field populated
-					v["Content"] = val
-					delete(ext, types.SecretConfigXValue)
-
-					if len(ext) == 0 {
-						delete(v, consts.Extensions)
-					}
-				}
-			}
-		}
-	}
-
-	// Return the original data so the rest is handled by default mapstructure logic
-	return data, nil
-}
-
-// keys need to be converted to strings for jsonschema
-func convertToStringKeysRecursive(value interface{}, keyPrefix string) (interface{}, error) {
-	if mapping, ok := value.(map[string]interface{}); ok {
-		for key, entry := range mapping {
-			var newKeyPrefix string
-			if keyPrefix == "" {
-				newKeyPrefix = key
-			} else {
-				newKeyPrefix = fmt.Sprintf("%s.%s", keyPrefix, key)
-			}
-			convertedEntry, err := convertToStringKeysRecursive(entry, newKeyPrefix)
-			if err != nil {
-				return nil, err
-			}
-			mapping[key] = convertedEntry
-		}
-		return mapping, nil
-	}
-	if mapping, ok := value.(map[interface{}]interface{}); ok {
-		dict := make(map[string]interface{})
-		for key, entry := range mapping {
-			str, ok := key.(string)
-			if !ok {
-				return nil, formatInvalidKeyError(keyPrefix, key)
-			}
-			var newKeyPrefix string
-			if keyPrefix == "" {
-				newKeyPrefix = str
-			} else {
-				newKeyPrefix = fmt.Sprintf("%s.%s", keyPrefix, str)
-			}
-			convertedEntry, err := convertToStringKeysRecursive(entry, newKeyPrefix)
-			if err != nil {
-				return nil, err
-			}
-			dict[str] = convertedEntry
-		}
-		return dict, nil
-	}
-	if list, ok := value.([]interface{}); ok {
-		var convertedList []interface{}
-		for index, entry := range list {
-			newKeyPrefix := fmt.Sprintf("%s[%d]", keyPrefix, index)
-			convertedEntry, err := convertToStringKeysRecursive(entry, newKeyPrefix)
-			if err != nil {
-				return nil, err
-			}
-			convertedList = append(convertedList, convertedEntry)
-		}
-		return convertedList, nil
-	}
-	return value, nil
-}
-
-func formatInvalidKeyError(keyPrefix string, key interface{}) error {
-	var location string
-	if keyPrefix == "" {
-		location = "at top level"
-	} else {
-		location = fmt.Sprintf("in %s", keyPrefix)
-	}
-	return fmt.Errorf("non-string key %s: %#v", location, key)
 }
 
 // Windows path, c:\\my\\path\\shiny, need to be changed to be compatible with
