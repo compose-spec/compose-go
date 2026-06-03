@@ -95,7 +95,13 @@ func applyServiceExtendsNode(
 		return service, nil
 	}
 	if service.Kind != yaml.MappingNode {
-		return nil, fmt.Errorf("services.%s must be a mapping", name)
+		return nil, &errdefs.Diagnostic{
+			File:   layer.Context.File,
+			Line:   service.Line,
+			Column: service.Column,
+			Path:   fmt.Sprintf("services.%s", name),
+			Cause:  errString(fmt.Sprintf("services.%s must be a mapping", name)),
+		}
 	}
 	extendsNode := mappingValueByKey(service, "extends")
 	if extendsNode == nil {
@@ -104,7 +110,13 @@ func applyServiceExtendsNode(
 
 	ref, file, err := parseExtendsRef(name, extendsNode, opts)
 	if err != nil {
-		return nil, err
+		return nil, &errdefs.Diagnostic{
+			File:   layer.Context.File,
+			Line:   extendsNode.Line,
+			Column: extendsNode.Column,
+			Path:   fmt.Sprintf("services.%s.extends", name),
+			Cause:  errString(err.Error()),
+		}
 	}
 
 	currentFile := layer.Context.File
@@ -118,7 +130,13 @@ func applyServiceExtendsNode(
 		}
 		baseSiblings = layerMappingField(baseLayer.Node, "services")
 		if baseSiblings == nil {
-			return nil, fmt.Errorf("cannot extend service %q in %s: no services section", name, file)
+			return nil, &errdefs.Diagnostic{
+				File:   layer.Context.File,
+				Line:   extendsNode.Line,
+				Column: extendsNode.Column,
+				Path:   fmt.Sprintf("services.%s.extends", name),
+				Cause:  errString(fmt.Sprintf("cannot extend service %q in %s: no services section", name, file)),
+			}
 		}
 		currentFile = baseLayer.Context.File
 		// Reuse layer so the recursion sees the base layer's tree, but

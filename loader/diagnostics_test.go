@@ -28,6 +28,137 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// TestDiagnostic_IncludeMustBeAList confirms that an `include:` value
+// that isn't a sequence surfaces with the file / line / column of the
+// offending node.
+func TestDiagnostic_IncludeMustBeAList(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "compose.yaml", `
+include:
+  path: other.yaml
+services:
+  foo:
+    image: alpine
+`)
+
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+		}},
+		Environment: map[string]string{},
+	}, withProjectName("diag-include-list", true))
+
+	var diag *errdefs.Diagnostic
+	assert.Assert(t, errors.As(err, &diag),
+		"expected *errdefs.Diagnostic, got %T: %v", err, err)
+	assert.Equal(t, diag.File, filepath.Join(dir, "compose.yaml"))
+	assert.Equal(t, diag.Path, "include")
+	assert.Assert(t, diag.Line > 0, "Line must be set, got %d", diag.Line)
+	assert.Assert(t, strings.Contains(diag.Cause.Error(),
+		"`include` must be a list"),
+		"unexpected cause: %v", diag.Cause)
+}
+
+// TestDiagnostic_IncludeCycleHasFile confirms that a self-including
+// compose file surfaces an "include cycle detected" diagnostic whose
+// File points at the offending source.
+func TestDiagnostic_IncludeCycleHasFile(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "compose.yaml", `
+include:
+  - compose.yaml
+services:
+  foo:
+    image: alpine
+`)
+	target := filepath.Join(dir, "compose.yaml")
+
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: target,
+		}},
+		Environment: map[string]string{},
+	}, withProjectName("diag-cycle", true))
+
+	var diag *errdefs.Diagnostic
+	assert.Assert(t, errors.As(err, &diag),
+		"expected *errdefs.Diagnostic, got %T: %v", err, err)
+	assert.Equal(t, diag.File, target)
+	assert.Assert(t, strings.Contains(diag.Cause.Error(),
+		"include cycle detected"),
+		"unexpected cause: %v", diag.Cause)
+}
+
+// TestDiagnostic_ExtendsServiceNotFound confirms that an extends.file
+// pointing at a service the base file does not declare surfaces with
+// the file / line / column of the extends node on the derived service.
+func TestDiagnostic_ExtendsServiceNotFound(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "base.yaml", `
+services:
+  other:
+    image: alpine
+`)
+	writeFile(t, dir, "compose.yaml", `
+services:
+  derived:
+    extends:
+      file: base.yaml
+      service: ghost
+`)
+
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+		}},
+		Environment: map[string]string{},
+	}, withProjectName("diag-extends-missing", true))
+
+	var diag *errdefs.Diagnostic
+	assert.Assert(t, errors.As(err, &diag),
+		"expected *errdefs.Diagnostic, got %T: %v", err, err)
+	assert.Equal(t, diag.File, filepath.Join(dir, "compose.yaml"))
+	assert.Equal(t, diag.Path, "services.derived.extends")
+	assert.Assert(t, diag.Line > 0, "Line must be set, got %d", diag.Line)
+	assert.Assert(t, strings.Contains(diag.Cause.Error(),
+		`service "ghost" not found`),
+		"unexpected cause: %v", diag.Cause)
+}
+
+// TestDiagnostic_ExtendsMissingService confirms that an extends mapping
+// without the required `service` key surfaces with the position of the
+// extends node.
+func TestDiagnostic_ExtendsMissingService(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "compose.yaml", `
+services:
+  derived:
+    extends:
+      file: base.yaml
+`)
+
+	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+		}},
+		Environment: map[string]string{},
+	}, withProjectName("diag-extends-noservice", true))
+
+	var diag *errdefs.Diagnostic
+	assert.Assert(t, errors.As(err, &diag),
+		"expected *errdefs.Diagnostic, got %T: %v", err, err)
+	assert.Equal(t, diag.File, filepath.Join(dir, "compose.yaml"))
+	assert.Equal(t, diag.Path, "services.derived.extends")
+	assert.Assert(t, diag.Line > 0, "Line must be set, got %d", diag.Line)
+	assert.Assert(t, strings.Contains(diag.Cause.Error(),
+		"extends.derived.service is required"),
+		"unexpected cause: %v", diag.Cause)
+}
+
 // TestDiagnostic_ValidationKeepsPositionAcrossCanonical confirms that
 // CanonicalNode's node-level walker preserves Line / Column on every
 // node it does not actually reshape, so a post-canonical

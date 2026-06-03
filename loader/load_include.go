@@ -25,6 +25,7 @@ import (
 	"go.yaml.in/yaml/v4"
 
 	"github.com/compose-spec/compose-go/v3/dotenv"
+	"github.com/compose-spec/compose-go/v3/errdefs"
 	"github.com/compose-spec/compose-go/v3/internal/node"
 	interp "github.com/compose-spec/compose-go/v3/interpolation"
 	"github.com/compose-spec/compose-go/v3/paths"
@@ -61,7 +62,13 @@ func CollectIncludeLayers(ctx context.Context, parent *node.Layer, opts *Options
 		return nil, nil
 	}
 	if includeNode.Kind != yaml.SequenceNode {
-		return nil, fmt.Errorf("`include` must be a list, got %s", kindName(includeNode.Kind))
+		return nil, &errdefs.Diagnostic{
+			File:   parent.Context.File,
+			Line:   includeNode.Line,
+			Column: includeNode.Column,
+			Path:   "include",
+			Cause:  errString(fmt.Sprintf("`include` must be a list, got %s", kindName(includeNode.Kind))),
+		}
 	}
 
 	if err := interpolateIncludeBlock(includeNode, parent.Context, opts); err != nil {
@@ -86,7 +93,7 @@ func CollectIncludeLayers(ctx context.Context, parent *node.Layer, opts *Options
 func collectOneInclude(ctx context.Context, parent *node.Layer, entry *yaml.Node, opts *Options) ([]*node.Layer, error) {
 	cfg, err := readIncludeEntry(entry)
 	if err != nil {
-		return nil, err
+		return nil, diagnoseAt(err, parent.Context.File, entry, "include")
 	}
 
 	parentWD := parent.Context.WorkingDir

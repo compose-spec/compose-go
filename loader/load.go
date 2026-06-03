@@ -474,6 +474,31 @@ func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Opti
 	return nil
 }
 
+// diagnoseAt wraps cause as an errdefs.Diagnostic that points at the
+// given file and node. Used by the orchestrator to enrich the errors
+// returned by helper functions that do not themselves know the source
+// file. A nil cause yields nil so callers can pass through.
+func diagnoseAt(cause error, file string, n *yaml.Node, path string) error {
+	if cause == nil {
+		return nil
+	}
+	var diag *errdefs.Diagnostic
+	if errors.As(cause, &diag) {
+		// Cause already carries position metadata; preserve it.
+		return cause
+	}
+	d := &errdefs.Diagnostic{
+		File:  file,
+		Path:  path,
+		Cause: errString(cause.Error()),
+	}
+	if n != nil {
+		d.Line = n.Line
+		d.Column = n.Column
+	}
+	return d
+}
+
 // diagnoseInterpolation wraps an *interpolation.Error with the source
 // location of the offending scalar so a strict-mode substitution
 // failure (unset `${VAR:?msg}`, invalid template, ...) surfaces as
