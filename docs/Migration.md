@@ -155,12 +155,32 @@ than only the project-wide environment. The map is hidden from
 `yaml.Marshal` / `json.Marshal` (`yaml:"-" json:"-"`) and preserved
 by `deepCopy`.
 
-### `Project.Sources` (planned)
+### `Project.Sources` (opt-in)
 
-Not yet exposed. The internal `buildPathPositions` snapshot already
-records `path -> (file, line, column)` for diagnostics; a follow-up
-will attach it to `*Project.Sources` behind an `Options.Diagnostics`
-opt-in for tooling that wants to surface source locations in their UI.
+The `*types.Project` returned by `LoadWithContext` can carry a populated
+`Sources types.Sources` map (dotted compose path -> file:line:column)
+when the loader is invoked with `loader.WithDiagnostics`:
+
+```go
+project, err := loader.LoadWithContext(ctx, cd, loader.WithDiagnostics)
+if err != nil { ... }
+if loc, ok := project.Sources["services.web.image"]; ok {
+    fmt.Printf("declared at %s:%d:%d\n", loc.File, loc.Line, loc.Column)
+}
+```
+
+`types.Location` is the small struct that holds the position. The map
+covers every mapping path reachable from the merged tree at the moment
+the loader snapshots it (just before CanonicalNode reshuffles
+pointers). Paths under sequences are stable per index only when those
+entries survived the canonical transform without re-encoding; consumers
+should treat missing entries as "position not recorded" rather than as
+an error.
+
+Without `WithDiagnostics` the field stays nil, so the project shape is
+unchanged for callers that do not opt in. The map is preserved by
+`Project.deepCopy` so chained `WithProfiles` / `WithSelectedServices`
+calls keep it.
 
 ### `dns: ${UNSET}` collapsing
 

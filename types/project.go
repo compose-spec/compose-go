@@ -64,6 +64,12 @@ type Project struct {
 	// block resolves variables in the include env_file values rather than
 	// only the project-wide environment. Not serialized.
 	EnvFileScopes map[string]Mapping `yaml:"-" json:"-"`
+
+	// Sources maps a dotted compose path to the source Location of the
+	// corresponding value. Populated by the loader when invoked with
+	// loader.WithDiagnostics(); nil otherwise. Not serialized so the
+	// project shape is unchanged for callers that did not opt in.
+	Sources Sources `yaml:"-" json:"-"`
 }
 
 // SetEnvFileScope records the environment that was effective when path was
@@ -817,14 +823,22 @@ func (p *Project) deepCopy() *Project {
 	}
 	n := &Project{}
 	deriveDeepCopyProject(n, p)
-	// EnvFileScopes is unexported and ignored by the generated
-	// deriveDeepCopyProject. Carry it over so chained WithProfiles /
+	// EnvFileScopes and Sources are not handled by the generated
+	// deriveDeepCopyProject. Carry them over so chained WithProfiles /
 	// WithServicesEnvironmentResolved / ... calls keep the v3
-	// per-env_file declaring-layer environment metadata.
+	// per-env_file declaring-layer environment metadata and the
+	// per-path source location snapshot (only present when the loader
+	// was invoked with WithDiagnostics).
 	if len(p.EnvFileScopes) > 0 {
 		n.EnvFileScopes = make(map[string]Mapping, len(p.EnvFileScopes))
 		for k, v := range p.EnvFileScopes {
 			n.EnvFileScopes[k] = v
+		}
+	}
+	if len(p.Sources) > 0 {
+		n.Sources = make(Sources, len(p.Sources))
+		for k, v := range p.Sources {
+			n.Sources[k] = v
 		}
 	}
 	return n

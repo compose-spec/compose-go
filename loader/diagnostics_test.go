@@ -28,6 +28,65 @@ import (
 	"gotest.tools/v3/assert"
 )
 
+// TestDiagnostic_ProjectSourcesOptIn confirms that the WithDiagnostics
+// option populates *Project.Sources with the source Location of every
+// reachable compose path, so downstream tooling can resolve a path
+// (e.g. "services.web.image") to its file:line:column.
+func TestDiagnostic_ProjectSourcesOptIn(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "compose.yaml", `
+services:
+  web:
+    image: nginx
+`)
+
+	withDiag := func(opts *Options) {
+		opts.SetProjectName("diag-sources", true)
+		WithDiagnostics(opts)
+	}
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+		}},
+		Environment: map[string]string{},
+	}, withDiag)
+
+	assert.NilError(t, err)
+	assert.Assert(t, p.Sources != nil, "Project.Sources should be populated")
+
+	imgLoc, ok := p.Sources["services.web.image"]
+	assert.Assert(t, ok, "expected services.web.image in Sources, have %v",
+		p.Sources)
+	assert.Equal(t, imgLoc.File, filepath.Join(dir, "compose.yaml"))
+	assert.Assert(t, imgLoc.Line > 0, "Line should be > 0, got %d", imgLoc.Line)
+	assert.Assert(t, imgLoc.Column > 0, "Column should be > 0, got %d", imgLoc.Column)
+}
+
+// TestDiagnostic_ProjectSourcesDefaultOff confirms that without
+// WithDiagnostics, Project.Sources stays nil so the project shape is
+// unchanged for callers that did not opt in.
+func TestDiagnostic_ProjectSourcesDefaultOff(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, dir, "compose.yaml", `
+services:
+  web:
+    image: nginx
+`)
+
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+		}},
+		Environment: map[string]string{},
+	}, withProjectName("diag-off", true))
+
+	assert.NilError(t, err)
+	assert.Assert(t, p.Sources == nil,
+		"Project.Sources should be nil without WithDiagnostics, got %v", p.Sources)
+}
+
 // TestDiagnostic_IncludeMustBeAList confirms that an `include:` value
 // that isn't a sequence surfaces with the file / line / column of the
 // offending node.

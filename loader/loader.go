@@ -88,6 +88,20 @@ type Options struct {
 	// Zero means use the default. Useful for very large compose files that exceed the default cap.
 	MaxNodeVisits int
 
+	// Diagnostics opts in to per-path source position tracking. When
+	// true, the resulting *types.Project carries a populated Sources
+	// map (path -> file:line:column) so tooling can surface the source
+	// location of any compose value (validation errors, schema misses,
+	// dependency warnings, ...). Defaults to off so the project shape
+	// stays the same for callers that did not opt in.
+	Diagnostics bool
+
+	// pathPositions is the snapshot of dotted compose path -> source
+	// position captured pre-canonical by load() when Diagnostics is on.
+	// nodeToProject converts it into Project.Sources at the end of the
+	// pipeline. Unexported so callers cannot mutate it directly.
+	pathPositions map[string]nodePosition
+
 	// envFileScopes captures, during Load, the layer Environment in
 	// effect when each env_file entry was declared. The map is keyed by
 	// the resolved absolute env_file path and consumed by ModelToProject
@@ -270,6 +284,14 @@ func WithSkipValidation(opts *Options) {
 	opts.SkipValidation = true
 }
 
+// WithDiagnostics turns per-path source position tracking on. The
+// returned *types.Project will carry a populated Sources map keyed by
+// dotted compose path. Tooling that wants to surface "this error
+// happened at file:line:col" needs this opt-in.
+func WithDiagnostics(opts *Options) {
+	opts.Diagnostics = true
+}
+
 // WithProfiles sets profiles to be activated
 func WithProfiles(profiles []string) func(*Options) {
 	return func(opts *Options) {
@@ -422,6 +444,20 @@ func nodeToProject(root *yaml.Node, opts *Options, configDetails types.ConfigDet
 	// the regular `name:` field. No special handling needed here.
 	if err := root.Decode(project); err != nil {
 		return nil, fmt.Errorf("decode project: %w", err)
+	}
+
+	// Attach the pre-canonical path positions snapshot to the project
+	// when the caller opted in via WithDiagnostics. Tooling can then
+	// resolve any compose path to its source file + line + column.
+	if opts.Diagnostics && len(opts.pathPositions) > 0 {
+		project.Sources = make(types.Sources, len(opts.pathPositions))
+		for p, pos := range opts.pathPositions {
+			project.Sources[p] = types.Location{
+				File:   pos.file,
+				Line:   pos.line,
+				Column: pos.column,
+			}
+		}
 	}
 
 	// Decode KnownExtensions into their declared target types. The yaml

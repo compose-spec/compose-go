@@ -223,8 +223,11 @@ func load(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.No
 	// schema validation diagnostics can resolve the offending location
 	// (the schema validator only returns the dotted path) and the
 	// post-canonical compose-rule validator can fall back to it after
-	// CanonicalNode wipes Line / Column on every fresh node.
+	// CanonicalNode wipes Line / Column on every fresh node. The
+	// snapshot is also exposed on Project.Sources when the caller
+	// opted in via Options.Diagnostics.
 	positions := buildPathPositions(merged.Node, origins)
+	stashPositionsForDiagnostics(opts, positions)
 
 	// JSON Schema validation runs early — before canonicalization and
 	// transform — so structural errors (top-level not a mapping, services
@@ -472,6 +475,16 @@ func validateAndStripVersion(root *yaml.Node, cd types.ConfigDetails, opts *Opti
 		deleteMappingKey(root, "version")
 	}
 	return nil
+}
+
+// stashPositionsForDiagnostics records the per-path positions snapshot
+// onto opts when the caller opted in via WithDiagnostics. nodeToProject
+// reads the same snapshot back when populating Project.Sources.
+func stashPositionsForDiagnostics(opts *Options, positions map[string]nodePosition) {
+	if !opts.Diagnostics {
+		return
+	}
+	opts.pathPositions = positions
 }
 
 // diagnoseAt wraps cause as an errdefs.Diagnostic that points at the
