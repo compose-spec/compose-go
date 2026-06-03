@@ -255,7 +255,20 @@ func loadV3(ctx context.Context, cd *types.ConfigDetails, opts *Options) (*yaml.
 
 // omitEmptyNode walks the tree and drops entries whose value is empty
 // (nil / empty string) when their path matches one of the omitempty
-// patterns. Mirrors OmitEmpty on the map-based representation.
+// patterns. Mirrors what v2 OmitEmpty used to do on the map representation.
+var omitEmptyPatterns = []tree.Path{
+	"services.*.dns",
+}
+
+func mustOmit(p tree.Path) bool {
+	for _, pattern := range omitEmptyPatterns {
+		if p.Matches(pattern) {
+			return true
+		}
+	}
+	return false
+}
+
 func omitEmptyNode(n *yaml.Node, p tree.Path) {
 	if n == nil {
 		return
