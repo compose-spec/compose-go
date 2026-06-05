@@ -19,7 +19,9 @@ package interpolation
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 
 	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -58,7 +60,9 @@ func Interpolate(config map[string]interface{}, opts Options) (map[string]interf
 
 	out := map[string]interface{}{}
 
-	for key, value := range config {
+	keys := slices.Sorted(maps.Keys(config))
+	for _, key := range keys {
+		value := config[key]
 		interpolatedValue, err := recursiveInterpolate(value, tree.NewPath(key), opts)
 		if err != nil {
 			return out, err
@@ -88,7 +92,9 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 
 	case map[string]interface{}:
 		out := map[string]interface{}{}
-		for key, elem := range value {
+		keys := slices.Sorted(maps.Keys(value))
+		for _, key := range keys {
+			elem := value[key]
 			interpolatedElem, err := recursiveInterpolate(elem, path.Next(key), opts)
 			if err != nil {
 				return nil, err

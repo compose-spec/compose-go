@@ -266,9 +266,20 @@ func TestInterpolationExternalInterference(t *testing.T) {
 }
 
 func TestDefaultsWithNestedExpansion(t *testing.T) {
+	// Additional test cases with specific variable mapping
+	additionalDefaults := map[string]string{
+		"BBBB": "second",
+		"ZZZZ": "default",
+	}
+	additionalMapping := func(name string) (string, bool) {
+		val, ok := additionalDefaults[name]
+		return val, ok
+	}
+
 	testCases := []struct {
-		template string
-		expected string
+		template     string
+		expected     string
+		mapping      func(string) (string, bool)
 	}{
 		{
 			template: "ok ${UNSET_VAR-$FOO}",
@@ -302,10 +313,45 @@ func TestDefaultsWithNestedExpansion(t *testing.T) {
 			template: "ok ${BAR+$FOO ${FOO:+second}}",
 			expected: "ok first second",
 		},
+		// Maintainer's example: ${AAAA:-${BBBB:-${ZZZZ}}}
+		// AAAA is unset, BBBB=second, ZZZZ=default
+		// Should fall back to BBBB which equals "second"
+		{
+			template: "ok ${AAAA:-${BBBB:-${ZZZZ}}}",
+			expected: "ok second",
+			mapping: additionalMapping,
+		},
+		// Same as above but with only ZZZZ set
+		{
+			template: "ok ${AAAA:-${BBBB:-${ZZZZ}}}",
+			expected: "ok default",
+			mapping: func(name string) (string, bool) {
+				if name == "ZZZZ" {
+					return "default", true
+				}
+				return "", false
+			},
+		},
+		// Triple nested: AAAA depends on BBBB depends on ZZZZ
+		// Only ZZZZ is set, so should use ZZZZ's value
+		{
+			template: "${BBBB:-${ZZZZ}}",
+			expected: "default",
+			mapping: func(name string) (string, bool) {
+				if name == "ZZZZ" {
+					return "default", true
+				}
+				return "", false
+			},
+		},
 	}
 
 	for _, tc := range testCases {
-		result, err := Substitute(tc.template, defaultMapping)
+		mapping := defaultMapping
+		if tc.mapping != nil {
+			mapping = tc.mapping
+		}
+		result, err := Substitute(tc.template, mapping)
 		assert.NilError(t, err)
 		assert.Check(t, is.Equal(tc.expected, result))
 	}
