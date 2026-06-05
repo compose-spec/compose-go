@@ -207,6 +207,61 @@ func TestExtractVariables(t *testing.T) {
 				"SOURCE_LOCATION": {Name: "SOURCE_LOCATION"},
 			},
 		},
+		{
+			name: "duplicate-variable-required-preserved",
+			dict: map[string]interface{}{
+				"foo": []interface{}{
+					"${bar:?error}",
+					"${bar}",
+				},
+			},
+			expected: map[string]Variable{
+				"bar": {Name: "bar", Required: true},
+			},
+		},
+		{
+			name: "duplicate-variable-value-preserved",
+			dict: map[string]interface{}{
+				"foo": []interface{}{
+					"${bar}",
+					"${bar:-default}",
+				},
+			},
+			expected: map[string]Variable{
+				"bar": {Name: "bar", DefaultValue: "default"},
+			},
+		},
+		{
+			name: "duplicate-variable-in-map",
+			dict: map[string]interface{}{
+				"foo": "${bar:?error}",
+				"baz": "${bar}",
+			},
+			expected: map[string]Variable{
+				"bar": {Name: "bar", Required: true},
+			},
+		},
+		{
+			name: "duplicate-variable-in-string",
+			dict: map[string]interface{}{
+				"foo": "${bar:?error} ${bar}",
+			},
+			expected: map[string]Variable{
+				"bar": {Name: "bar", Required: true},
+			},
+		},
+		{
+			name: "duplicate-variable-conflict-default-required",
+			dict: map[string]interface{}{
+				"foo": []interface{}{
+					"${bar:-fallback}",
+					"${bar:?error}",
+				},
+			},
+			expected: map[string]Variable{
+				"bar": {Name: "bar", Required: true, DefaultValue: "fallback"},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
