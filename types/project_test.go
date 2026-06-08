@@ -209,6 +209,44 @@ func Test_ResolveImages(t *testing.T) {
 	}
 }
 
+func Test_ResolveImages_imageMount(t *testing.T) {
+	const dgst = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return dgst, nil
+	}
+	p := &Project{
+		Services: Services{
+			"app": ServiceConfig{
+				Name:  "app",
+				Image: "busybox:latest",
+				Volumes: []ServiceVolumeConfig{
+					{
+						Type:   VolumeTypeImage,
+						Source: "busybox:latest",
+						Target: "/test_mount",
+					},
+					{
+						// non-image volumes must be left untouched
+						Type:   VolumeTypeBind,
+						Source: "/host/path",
+						Target: "/bind_mount",
+					},
+				},
+			},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	app := p.Services["app"]
+	assert.Equal(t, app.Image, "docker.io/library/busybox:latest@"+dgst)
+	// image mount source is pinned to a digest just like the service image
+	assert.Equal(t, app.Volumes[0].Source, "docker.io/library/busybox:latest@"+dgst)
+	// non-image (bind) mount source is left untouched
+	assert.Equal(t, app.Volumes[1].Source, "/host/path")
+}
+
 func Test_ResolveImages_concurrent(t *testing.T) {
 	const garfield = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
 	resolver := func(_ reference.Named) (digest.Digest, error) {
