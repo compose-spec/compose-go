@@ -579,28 +579,50 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
 	return p.WithServicesTransform(func(_ string, service ServiceConfig) (ServiceConfig, error) {
-		if service.Image == "" {
-			return service, nil
-		}
-		named, err := reference.ParseDockerRef(service.Image)
-		if err != nil {
-			return service, err
+		if service.Image != "" {
+			resolved, err := resolveImageDigest(service.Image, resolver)
+			if err != nil {
+				return service, err
+			}
+			service.Image = resolved
 		}
 
-		if _, ok := named.(reference.Canonical); !ok {
-			// image is named but not digested reference
-			digest, err := resolver(named)
+		for i, volume := range service.Volumes {
+			if volume.Type != VolumeTypeImage || volume.Source == "" {
+				continue
+			}
+			resolved, err := resolveImageDigest(volume.Source, resolver)
 			if err != nil {
 				return service, err
 			}
-			named, err = reference.WithDigest(named, digest)
-			if err != nil {
-				return service, err
-			}
+			volume.Source = resolved
+			service.Volumes[i] = volume
 		}
-		service.Image = named.String()
+
 		return service, nil
 	})
+}
+
+// resolveImageDigest returns image pinned to a digest. If image is not already a
+// digested (canonical) reference, the digest is obtained from resolver.
+func resolveImageDigest(image string, resolver func(named reference.Named) (godigest.Digest, error)) (string, error) {
+	named, err := reference.ParseDockerRef(image)
+	if err != nil {
+		return image, err
+	}
+
+	if _, ok := named.(reference.Canonical); !ok {
+		// image is named but not digested reference
+		digest, err := resolver(named)
+		if err != nil {
+			return image, err
+		}
+		named, err = reference.WithDigest(named, digest)
+		if err != nil {
+			return image, err
+		}
+	}
+	return named.String(), nil
 }
 
 type marshallOptions struct {
