@@ -575,32 +575,71 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 	return newProject
 }
 
-// WithImagesResolved updates services images to include digest computed by a resolver function
-// It returns a new Project instance with the changes and keep the original Project unchanged
+// WithImagesResolved updates services to pin both service.Image and image-mount
+// volume sources (type=image) to digests computed by the resolver. It returns a
+// new Project with the changes and keeps the original Project unchanged. Within
+// each service, repeated lookups for the same image reference are deduplicated
+// so callers that hit a registry per resolve aren't charged twice when the
+// service image and an image-mount volume reference the same tag.
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
 	return p.WithServicesTransform(func(_ string, service ServiceConfig) (ServiceConfig, error) {
-		if service.Image == "" {
-			return service, nil
-		}
-		named, err := reference.ParseDockerRef(service.Image)
-		if err != nil {
-			return service, err
+		cache := map[string]string{}
+		resolve := func(img string) (string, error) {
+			if r, ok := cache[img]; ok {
+				return r, nil
+			}
+			r, err := resolveImageDigest(img, resolver)
+			if err != nil {
+				return img, err
+			}
+			cache[img] = r
+			return r, nil
 		}
 
-		if _, ok := named.(reference.Canonical); !ok {
-			// image is named but not digested reference
-			digest, err := resolver(named)
+		if service.Image != "" {
+			resolved, err := resolve(service.Image)
 			if err != nil {
 				return service, err
 			}
-			named, err = reference.WithDigest(named, digest)
-			if err != nil {
-				return service, err
-			}
+			service.Image = resolved
 		}
-		service.Image = named.String()
+
+		for i, volume := range service.Volumes {
+			if volume.Type != VolumeTypeImage || volume.Source == "" {
+				continue
+			}
+			resolved, err := resolve(volume.Source)
+			if err != nil {
+				return service, err
+			}
+			volume.Source = resolved
+			service.Volumes[i] = volume
+		}
+
 		return service, nil
 	})
+}
+
+// resolveImageDigest returns image pinned to a digest. If image is not already a
+// digested (canonical) reference, the digest is obtained from resolver.
+func resolveImageDigest(image string, resolver func(named reference.Named) (godigest.Digest, error)) (string, error) {
+	named, err := reference.ParseDockerRef(image)
+	if err != nil {
+		return image, err
+	}
+
+	if _, ok := named.(reference.Canonical); !ok {
+		// image is named but not digested reference
+		digest, err := resolver(named)
+		if err != nil {
+			return image, err
+		}
+		named, err = reference.WithDigest(named, digest)
+		if err != nil {
+			return image, err
+		}
+	}
+	return named.String(), nil
 }
 
 type marshallOptions struct {
