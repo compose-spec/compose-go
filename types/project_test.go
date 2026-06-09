@@ -247,6 +247,90 @@ func Test_ResolveImages_imageMount(t *testing.T) {
 	assert.Equal(t, app.Volumes[1].Source, "/host/path")
 }
 
+func Test_ResolveImages_imageMount_noServiceImage(t *testing.T) {
+	const dgst = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return dgst, nil
+	}
+	p := &Project{
+		Services: Services{
+			"app": ServiceConfig{
+				Name: "app",
+				Volumes: []ServiceVolumeConfig{
+					{
+						Type:   VolumeTypeImage,
+						Source: "busybox:latest",
+						Target: "/test_mount",
+					},
+				},
+			},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	app := p.Services["app"]
+	assert.Equal(t, app.Image, "")
+	assert.Equal(t, app.Volumes[0].Source, "docker.io/library/busybox:latest@"+dgst)
+}
+
+func Test_ResolveImages_imageMount_alreadyCanonical(t *testing.T) {
+	const dgst = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	resolverCalls := 0
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		resolverCalls++
+		return dgst, nil
+	}
+	pinned := "docker.io/library/busybox@" + dgst
+	p := &Project{
+		Services: Services{
+			"app": ServiceConfig{
+				Name:  "app",
+				Image: pinned,
+				Volumes: []ServiceVolumeConfig{
+					{
+						Type:   VolumeTypeImage,
+						Source: pinned,
+						Target: "/test_mount",
+					},
+				},
+			},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	app := p.Services["app"]
+	assert.Equal(t, app.Image, pinned)
+	assert.Equal(t, app.Volumes[0].Source, pinned)
+	assert.Equal(t, resolverCalls, 0)
+}
+
+func Test_ResolveImages_imageMount_unresolvable(t *testing.T) {
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return "", errors.New("manifest unknown")
+	}
+	p := &Project{
+		Services: Services{
+			"app": ServiceConfig{
+				Name: "app",
+				Volumes: []ServiceVolumeConfig{
+					{
+						Type:   VolumeTypeImage,
+						Source: "registry.example/missing:1.0",
+						Target: "/test_mount",
+					},
+				},
+			},
+		},
+	}
+
+	_, err := p.WithImagesResolved(resolver)
+	assert.Error(t, err, "manifest unknown")
+}
+
 func Test_ResolveImages_concurrent(t *testing.T) {
 	const garfield = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
 	resolver := func(_ reference.Named) (digest.Digest, error) {

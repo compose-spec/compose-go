@@ -575,12 +575,29 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 	return newProject
 }
 
-// WithImagesResolved updates services images to include digest computed by a resolver function
-// It returns a new Project instance with the changes and keep the original Project unchanged
+// WithImagesResolved updates services to pin both service.Image and image-mount
+// volume sources (type=image) to digests computed by the resolver. It returns a
+// new Project with the changes and keeps the original Project unchanged. Within
+// each service, repeated lookups for the same image reference are deduplicated
+// so callers that hit a registry per resolve aren't charged twice when the
+// service image and an image-mount volume reference the same tag.
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
 	return p.WithServicesTransform(func(_ string, service ServiceConfig) (ServiceConfig, error) {
+		cache := map[string]string{}
+		resolve := func(img string) (string, error) {
+			if r, ok := cache[img]; ok {
+				return r, nil
+			}
+			r, err := resolveImageDigest(img, resolver)
+			if err != nil {
+				return img, err
+			}
+			cache[img] = r
+			return r, nil
+		}
+
 		if service.Image != "" {
-			resolved, err := resolveImageDigest(service.Image, resolver)
+			resolved, err := resolve(service.Image)
 			if err != nil {
 				return service, err
 			}
@@ -591,7 +608,7 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 			if volume.Type != VolumeTypeImage || volume.Source == "" {
 				continue
 			}
-			resolved, err := resolveImageDigest(volume.Source, resolver)
+			resolved, err := resolve(volume.Source)
 			if err != nil {
 				return service, err
 			}
