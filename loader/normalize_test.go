@@ -376,3 +376,71 @@ services:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expect, model)
 }
+
+func TestNormalizePreStartInheritsServiceImage(t *testing.T) {
+	project := `
+name: myProject
+services:
+  app:
+    image: alpine
+    pre_start:
+      - command: ["migrate"]
+      - image: busybox
+        command: ["chown", "-R", "1000:1000", "/data"]
+  builder:
+    build:
+      context: .
+    pre_start:
+      - command: ["init"]
+  hybrid:
+    image: ubuntu
+    build:
+      context: .
+    pre_start:
+      - command: ["bootstrap"]
+`
+	expected := `
+name: myProject
+services:
+  app:
+    image: alpine
+    networks:
+      default: null
+    pre_start:
+      - command: ["migrate"]
+        image: alpine
+      - image: busybox
+        command: ["chown", "-R", "1000:1000", "/data"]
+  builder:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      default: null
+    pre_start:
+      - command: ["init"]
+  hybrid:
+    image: ubuntu
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      default: null
+    pre_start:
+      - command: ["bootstrap"]
+        image: ubuntu
+networks:
+  default:
+    name: myProject_default
+`
+	var model map[string]any
+	err := yaml.Unmarshal([]byte(project), &model)
+	assert.NilError(t, err)
+	model, err = Normalize(model, nil)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	err = yaml.Unmarshal([]byte(expected), &expect)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, expect, model)
+}
