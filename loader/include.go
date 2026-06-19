@@ -18,10 +18,14 @@ package loader
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
@@ -29,6 +33,114 @@ import (
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
 )
+
+// includeCache memoizes loaded include models for the duration of a single
+// project load. A file reached through more than one include path (a "diamond"
+// in the include graph) was previously parsed and recursively expanded once per
+// path, which is quadratic-to-exponential on deep graphs. The cache parses and
+// expands each distinct include only once.
+//
+// The key captures everything that determines the loaded model — the resolved
+// file paths, the project directory, and the effective environment — so a cache
+// hit is equivalent to a fresh load even when the same file is included with a
+// different env_file or project_directory. Each consumer gets a fresh deep copy,
+// so importResources (and later normalization) never mutates a cached entry or a
+// sibling branch that shares it.
+//
+// Cycle-safe: an include cycle is intrinsic to a node's subtree (the back-edge
+// is in the fixed set of files the node includes), so it is detected on the
+// node's first load, which fails before the node can be cached.
+type includeCache struct {
+	mu      sync.Mutex
+	entries map[string]map[string]any
+}
+
+type includeCacheKey struct{}
+
+// getOrCreateIncludeCache returns the include cache carried by ctx, creating one
+// (and a derived context) on first use so that all sibling and descendant
+// includes of a single load share it.
+func getOrCreateIncludeCache(ctx context.Context) (*includeCache, context.Context) {
+	if c, ok := ctx.Value(includeCacheKey{}).(*includeCache); ok {
+		return c, ctx
+	}
+	c := &includeCache{entries: map[string]map[string]any{}}
+	return c, context.WithValue(ctx, includeCacheKey{}, c)
+}
+
+func (c *includeCache) get(key string) (map[string]any, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if m, ok := c.entries[key]; ok {
+		return deepCopyMapping(m), true
+	}
+	return nil, false
+}
+
+func (c *includeCache) put(key string, model map[string]any) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[key] = deepCopyMapping(model)
+}
+
+// includeKey hashes the inputs that determine an included model. Two include
+// entries with the same key load identical content — including identical
+// relative paths, so a cached model is reuse-safe in the caller's context.
+//
+// workingDir (the relative base the included model's paths are resolved against)
+// is part of the key: the same file reached through two include parents can have
+// a different relative base (e.g. "a/b" vs "b"), which yields models with
+// different relative paths. Keying on it avoids reusing a model whose paths the
+// caller would then rebase incorrectly.
+func includeKey(paths []string, workingDir, projectDir string, env types.Mapping) string {
+	h := sha256.New()
+	for _, p := range paths {
+		_, _ = h.Write([]byte(p))
+		_, _ = h.Write([]byte{0})
+	}
+	_, _ = h.Write([]byte{1})
+	_, _ = h.Write([]byte(workingDir))
+	_, _ = h.Write([]byte{1})
+	_, _ = h.Write([]byte(projectDir))
+	_, _ = h.Write([]byte{1})
+	keys := make([]string, 0, len(env))
+	for k := range env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		_, _ = h.Write([]byte(k))
+		_, _ = h.Write([]byte{0})
+		_, _ = h.Write([]byte(env[k]))
+		_, _ = h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// deepCopyMapping returns a deep copy of a generic YAML mapping (the shape of a
+// not-yet-typed compose model: nested map[string]any / []any / scalars).
+func deepCopyMapping(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = deepCopyValue(v)
+	}
+	return out
+}
+
+func deepCopyValue(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		return deepCopyMapping(t)
+	case []any:
+		out := make([]any, len(t))
+		for i, e := range t {
+			out[i] = deepCopyValue(e)
+		}
+		return out
+	default:
+		return v
+	}
+}
 
 // loadIncludeConfig parse the required config from raw yaml
 func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
@@ -56,6 +168,8 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 	if err != nil {
 		return err
 	}
+
+	cache, ctx := getOrCreateIncludeCache(ctx)
 
 	for _, r := range includeConfig {
 		for _, listener := range options.Listeners {
@@ -151,9 +265,19 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 			LookupValue:     config.LookupEnv,
 			TypeCastMapping: options.Interpolate.TypeCastMapping,
 		}
-		imported, err := loadYamlModel(ctx, config, loadOptions, &cycleTracker{}, included)
-		if err != nil {
-			return err
+		// Memoize by the inputs that determine the loaded model so a file
+		// reached through several include paths is parsed and expanded once.
+		// The merge into `model` still runs for every occurrence (a copy is
+		// handed out), so any same-file `extends` in the including file still
+		// resolves and the result is identical to loading it each time.
+		key := includeKey(r.Path, config.WorkingDir, r.ProjectDirectory, config.Environment)
+		imported, ok := cache.get(key)
+		if !ok {
+			imported, err = loadYamlModel(ctx, config, loadOptions, &cycleTracker{}, included)
+			if err != nil {
+				return err
+			}
+			cache.put(key, imported)
 		}
 		err = importResources(imported, model, processor)
 		if err != nil {

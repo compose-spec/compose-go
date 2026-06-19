@@ -18,6 +18,7 @@ package loader
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -242,4 +243,48 @@ func createFileSubDir(t *testing.T, rootDir, subDir, content, fileName string) {
 	assert.NilError(t, os.Mkdir(subDirPath, 0o700))
 	path := filepath.Join(subDirPath, fileName)
 	assert.NilError(t, os.WriteFile(path, []byte(content), 0o600))
+}
+
+// TestIncludeDiamondDedup builds a deep "diamond" include graph where every
+// level includes the next level twice. Without include memoization the leaf is
+// loaded 2^depth times (exponential); the cache loads each distinct file once.
+// A depth that is trivial when deduplicated (and astronomically large when not)
+// makes this both a correctness and a non-flaky performance regression test.
+func TestIncludeDiamondDedup(t *testing.T) {
+	dir := t.TempDir()
+	const depth = 24 // 2^24 ~= 16.7M leaf loads without dedup
+	for i := 0; i < depth; i++ {
+		content := fmt.Sprintf("include:\n  - path: ./level%d.yaml\n  - path: ./level%d.yaml\n", i+1, i+1)
+		assert.NilError(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("level%d.yaml", i)), []byte(content), 0o600))
+	}
+	leaf := "services:\n  leaf:\n    image: busybox\n"
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("level%d.yaml", depth)), []byte(leaf), 0o600))
+
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir:  dir,
+		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "level0.yaml")}},
+	}, withProjectName("diamond", true))
+	assert.NilError(t, err)
+	_, err = p.GetService("leaf")
+	assert.NilError(t, err)
+}
+
+func BenchmarkIncludeDiamond(b *testing.B) {
+	dir := b.TempDir()
+	const depth = 16
+	for i := 0; i < depth; i++ {
+		content := fmt.Sprintf("include:\n  - path: ./level%d.yaml\n  - path: ./level%d.yaml\n", i+1, i+1)
+		_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("level%d.yaml", i)), []byte(content), 0o600)
+	}
+	_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("level%d.yaml", depth)), []byte("services:\n  leaf:\n    image: busybox\n"), 0o600)
+	b.ResetTimer()
+	for n := 0; n < b.N; n++ {
+		_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+			WorkingDir:  dir,
+			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "level0.yaml")}},
+		}, withProjectName("diamond", true))
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }
