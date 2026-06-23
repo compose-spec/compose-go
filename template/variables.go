@@ -37,6 +37,19 @@ func ExtractVariables(configDict map[string]interface{}, pattern *regexp.Regexp)
 	return recurseExtract(configDict, pattern)
 }
 
+func mergeVariable(existing, new Variable) Variable {
+	if existing.Required {
+		new.Required = true
+	}
+	if new.DefaultValue == "" && existing.DefaultValue != "" {
+		new.DefaultValue = existing.DefaultValue
+	}
+	if new.PresenceValue == "" && existing.PresenceValue != "" {
+		new.PresenceValue = existing.PresenceValue
+	}
+	return new
+}
+
 func recurseExtract(value interface{}, pattern *regexp.Regexp) map[string]Variable {
 	m := map[string]Variable{}
 
@@ -44,22 +57,31 @@ func recurseExtract(value interface{}, pattern *regexp.Regexp) map[string]Variab
 	case string:
 		if values, is := extractVariable(value, pattern); is {
 			for _, v := range values {
+				if existing, ok := m[v.Name]; ok {
+					v = mergeVariable(existing, v)
+				}
 				m[v.Name] = v
 			}
 		}
 	case map[string]interface{}:
 		for _, elem := range value {
 			submap := recurseExtract(elem, pattern)
-			for key, value := range submap {
-				m[key] = value
+			for key, val := range submap {
+				if existing, ok := m[key]; ok {
+					val = mergeVariable(existing, val)
+				}
+				m[key] = val
 			}
 		}
 
 	case []interface{}:
 		for _, elem := range value {
 			submap := recurseExtract(elem, pattern)
-			for key, value := range submap {
-				m[key] = value
+			for key, val := range submap {
+				if existing, ok := m[key]; ok {
+					val = mergeVariable(existing, val)
+				}
+				m[key] = val
 			}
 		}
 	}
