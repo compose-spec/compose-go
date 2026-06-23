@@ -509,3 +509,23 @@ func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
 func ptr[T any](s T) *T {
 	return &s
 }
+
+func TestWithServicesTransform_concurrent(t *testing.T) {
+	const n = 100
+	p := &Project{Services: Services{}}
+	for i := 0; i < n; i++ {
+		p.Services[fmt.Sprintf("svc_%d", i)] = ServiceConfig{Image: fmt.Sprintf("img_%d", i)}
+	}
+
+	got, err := p.WithServicesTransform(func(_ string, s ServiceConfig) (ServiceConfig, error) {
+		s.Image += "-transformed"
+		return s, nil
+	})
+	assert.NilError(t, err)
+	assert.Equal(t, len(got.Services), n)
+	for i := 0; i < n; i++ {
+		name := fmt.Sprintf("svc_%d", i)
+		want := fmt.Sprintf("img_%d-transformed", i)
+		assert.Equal(t, got.Services[name].Image, want)
+	}
+}
