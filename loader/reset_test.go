@@ -147,6 +147,18 @@ services:
 			expectError: false,
 		},
 		{
+			name: "dotted_service_names_prefix_no_cycle",
+			config: `
+name: test
+services:
+  test.unit: &shared
+    image: alpine
+  test: *shared
+  test.other: *shared
+`,
+			expectError: false,
+		},
+		{
 			name: "direct_self_reference_cycle",
 			config: `
 name: test
