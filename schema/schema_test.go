@@ -19,6 +19,7 @@ package schema
 import (
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
@@ -248,6 +249,30 @@ func TestValidateVariables(t *testing.T) {
 	err = yaml.Unmarshal(bytes, &config)
 	assert.NilError(t, err)
 	assert.NilError(t, Validate(config))
+}
+
+// TestValidateConcurrent ensures Validate can safely be called from several
+// goroutines at once. Run with -race to catch the regression reported in
+// https://github.com/docker/compose/issues/13866 ("concurrent map iteration
+// and map write" while compiling the schema).
+func TestValidateConcurrent(t *testing.T) {
+	config := map[string]any{
+		"services": map[string]any{
+			"foo": map[string]any{
+				"image": "busybox",
+			},
+		},
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			assert.NilError(t, Validate(config))
+		}()
+	}
+	wg.Wait()
 }
 
 func TestSchema(t *testing.T) {
