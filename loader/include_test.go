@@ -18,10 +18,12 @@ package loader
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
@@ -242,4 +244,120 @@ func createFileSubDir(t *testing.T, rootDir, subDir, content, fileName string) {
 	assert.NilError(t, os.Mkdir(subDirPath, 0o700))
 	path := filepath.Join(subDirPath, fileName)
 	assert.NilError(t, os.WriteFile(path, []byte(content), 0o600))
+}
+
+// TestIncludeDiamondDedup builds a deep diamond include graph (every level
+// includes the next twice). The cache must load each distinct file once; without
+// it the leaf loads 2^depth times. Doubles as a non-flaky perf regression guard.
+func TestIncludeDiamondDedup(t *testing.T) {
+	dir := t.TempDir()
+	const depth = 24 // 2^24 ~= 16.7M leaf loads without dedup
+	for i := 0; i < depth; i++ {
+		content := fmt.Sprintf("include:\n  - path: ./level%d.yaml\n  - path: ./level%d.yaml\n", i+1, i+1)
+		assert.NilError(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("level%d.yaml", i)), []byte(content), 0o600))
+	}
+	leaf := "services:\n  leaf:\n    image: busybox\n"
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("level%d.yaml", depth)), []byte(leaf), 0o600))
+
+	type result struct {
+		p   *types.Project
+		err error
+	}
+
+	// loader doesn't check ctx.Done() during expansion, so a context timeout can't
+	// interrupt a regressed load; run it off the test goroutine and select on a
+	// timer for a fast, descriptive failure. The leaked goroutine is harmless —
+	// t.Fatal ends the test.
+	timeout, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+
+	done := make(chan result, 1)
+	go func() {
+		p, err := LoadWithContext(t.Context(), types.ConfigDetails{
+			WorkingDir:  dir,
+			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "level0.yaml")}},
+		}, withProjectName("diamond", true))
+		done <- result{p, err}
+	}()
+
+	select {
+	case r := <-done:
+		assert.NilError(t, r.err)
+		_, err := r.p.GetService("leaf")
+		assert.NilError(t, err)
+	case <-timeout.Done():
+		t.Fatal("diamond include did not complete within 30s — include memoization likely regressed")
+	}
+}
+
+// TestIncludeDiamondListener pins the Listener contract under memoization:
+// shared.yaml is reached through both a.yaml and b.yaml and carries one extends,
+// so the "extends" event must fire once per path (twice) — the cache hit replays
+// it rather than dropping it. Without the replay this asserts 1.
+func TestIncludeDiamondListener(t *testing.T) {
+	dir := t.TempDir()
+	createFile(t, dir, "include:\n  - path: ./a.yaml\n  - path: ./b.yaml\n", "root.yaml")
+	createFile(t, dir, "include:\n  - path: ./shared.yaml\n", "a.yaml")
+	createFile(t, dir, "include:\n  - path: ./shared.yaml\n", "b.yaml")
+	createFile(t, dir, "services:\n  base:\n    image: alpine\n  derived:\n    extends: base\n    command: echo\n", "shared.yaml")
+
+	var extendsCount, includeCount int
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		WorkingDir:  dir,
+		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "root.yaml")}},
+	}, func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.SetProjectName("diamond-listener", true)
+		options.Listeners = []Listener{
+			func(event string, _ map[string]any) {
+				switch event {
+				case "extends":
+					extendsCount++
+				case "include":
+					includeCount++
+				}
+			},
+		}
+	})
+	assert.NilError(t, err)
+	_, err = p.GetService("derived")
+	assert.NilError(t, err)
+
+	// One extends per traversal of shared.yaml (via a.yaml and via b.yaml).
+	assert.Equal(t, extendsCount, 2)
+	// include fires per occurrence regardless of the cache: root→a, root→b,
+	// a→shared, b→shared.
+	assert.Equal(t, includeCount, 4)
+}
+
+// TestIncludeKeyNoCollision: distinct (paths, workingDir, projectDir, env) tuples
+// must never hash to the same key. A bare separator collides when an env value
+// contains the separator byte or a field spills across a positional boundary; a
+// collision would serve a wrong cached model silently.
+func TestIncludeKeyNoCollision(t *testing.T) {
+	base := includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A": "B"})
+
+	cases := map[string]string{
+		// NUL in key vs value: identical under a bare separator, distinct keys required.
+		"nul in key vs value a": includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A\x00B": "X"}),
+		"nul in key vs value b": includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A": "B\x00X"}),
+		// Field content that could impersonate an adjacent field.
+		"path absorbs workingdir": includeKey([]string{"compose.yaml", "/wd"}, "/pd", "", types.Mapping{}),
+		"env absorbs fields":      includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"X": "Y"}),
+		// Plain distinct inputs.
+		"different env value":  includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A": "C"}),
+		"different workingdir": includeKey([]string{"compose.yaml"}, "/other", "/pd", types.Mapping{"A": "B"}),
+	}
+
+	seen := map[string]string{base: "base"}
+	for name, key := range cases {
+		if prev, ok := seen[key]; ok {
+			t.Fatalf("include key collision between %q and %q", prev, name)
+		}
+		seen[key] = name
+	}
+
+	// Identical inputs must produce identical keys (the cache hit path).
+	assert.Equal(t, base, includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A": "B"}))
 }

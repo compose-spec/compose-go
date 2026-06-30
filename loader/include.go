@@ -18,10 +18,14 @@ package loader
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
+	"sync"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
@@ -29,6 +33,125 @@ import (
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
 )
+
+// includeCache memoizes include models for the duration of a single project
+// load, so a file reached through several include paths (a "diamond" in the
+// include graph) is parsed and expanded once rather than once per path. Entries
+// are keyed by every input that determines the model (see includeKey) and handed
+// out as deep copies, so importResources and later normalization never mutate a
+// cached entry or a sibling branch sharing it.
+//
+// An include cycle is intrinsic to a node's subtree, so it is detected on the
+// node's first load — which fails before the node is cached — and a cyclic node
+// is never served from cache.
+type includeCache struct {
+	mu      sync.Mutex
+	entries map[string]includeCacheEntry
+}
+
+// includeCacheEntry pairs a memoized model with the listener events emitted
+// while expanding it, replayed on each cache hit (see ApplyInclude).
+type includeCacheEntry struct {
+	model  map[string]any
+	events []recordedEvent
+}
+
+type recordedEvent struct {
+	event    string
+	metadata map[string]any
+}
+
+type includeCacheKey struct{}
+
+// getOrCreateIncludeCache returns the cache carried by ctx, creating one on first
+// use so every include in a single load shares it.
+func getOrCreateIncludeCache(ctx context.Context) (*includeCache, context.Context) {
+	if c, ok := ctx.Value(includeCacheKey{}).(*includeCache); ok {
+		return c, ctx
+	}
+	c := &includeCache{entries: map[string]includeCacheEntry{}}
+	return c, context.WithValue(ctx, includeCacheKey{}, c)
+}
+
+func (c *includeCache) get(key string) (includeCacheEntry, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if e, ok := c.entries[key]; ok {
+		return includeCacheEntry{model: deepCopyMapping(e.model), events: e.events}, true
+	}
+	return includeCacheEntry{}, false
+}
+
+func (c *includeCache) put(key string, model map[string]any, events []recordedEvent) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.entries[key] = includeCacheEntry{model: deepCopyMapping(model), events: events}
+}
+
+// includeKey hashes the inputs that fully determine an included model, so two
+// entries with the same key are interchangeable in the caller's context.
+//
+// workingDir is part of the key: the same file reached through two parents can
+// have a different relative base (e.g. "a/b" vs "b") and so resolve to different
+// relative paths; sharing across bases would let the caller rebase them wrongly.
+//
+// Fields are length-prefixed and variable-length sections count-prefixed so the
+// encoding is unambiguous. types.Mapping values may contain any byte, so a bare
+// separator would let one tuple impersonate another and collide onto a wrong
+// entry.
+//
+// Substitute and TypeCastMapping are excluded: they are invariant across includes
+// within a load. A future option that varies them per include must fold them in.
+func includeKey(paths []string, workingDir, projectDir string, env types.Mapping) string {
+	h := sha256.New()
+	writeInt := func(n int) { _, _ = fmt.Fprintf(h, "%d:", n) }
+	write := func(s string) {
+		_, _ = fmt.Fprintf(h, "%d:", len(s))
+		_, _ = h.Write([]byte(s))
+	}
+	writeInt(len(paths))
+	for _, p := range paths {
+		write(p)
+	}
+	write(workingDir)
+	write(projectDir)
+	keys := make([]string, 0, len(env))
+	for k := range env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	writeInt(len(keys))
+	for _, k := range keys {
+		write(k)
+		write(env[k])
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// deepCopyMapping returns a deep copy of a generic YAML mapping (the shape of a
+// not-yet-typed compose model: nested map[string]any / []any / scalars).
+func deepCopyMapping(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = deepCopyValue(v)
+	}
+	return out
+}
+
+func deepCopyValue(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		return deepCopyMapping(t)
+	case []any:
+		out := make([]any, len(t))
+		for i, e := range t {
+			out[i] = deepCopyValue(e)
+		}
+		return out
+	default:
+		return v
+	}
+}
 
 // loadIncludeConfig parse the required config from raw yaml
 func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
@@ -56,6 +179,8 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 	if err != nil {
 		return err
 	}
+
+	cache, ctx := getOrCreateIncludeCache(ctx)
 
 	for _, r := range includeConfig {
 		for _, listener := range options.Listeners {
@@ -151,11 +276,45 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 			LookupValue:     config.LookupEnv,
 			TypeCastMapping: options.Interpolate.TypeCastMapping,
 		}
-		imported, err := loadYamlModel(ctx, config, loadOptions, &cycleTracker{}, included)
-		if err != nil {
-			return err
+		// importResources below runs for every occurrence on a handed-out copy,
+		// so a same-file extends in the including file still resolves and the
+		// result matches loading the file each time; only parse and expansion
+		// are shared.
+		key := includeKey(r.Path, config.WorkingDir, r.ProjectDirectory, config.Environment)
+		entry, ok := cache.get(key)
+		switch {
+		case ok:
+			// Replay so per-occurrence listeners (extends, nested include) fire
+			// on this traversal too: a cache hit must look identical to a fresh
+			// load.
+			for _, ev := range entry.events {
+				options.ProcessEvent(ev.event, deepCopyMapping(ev.metadata))
+			}
+		case len(loadOptions.Listeners) == 0:
+			// No listeners, no event contract to preserve. Skipping the recorder
+			// is required, not just an optimization: a doubling include graph
+			// would otherwise record and replay an exponential number of events.
+			entry.model, err = loadYamlModel(ctx, config, loadOptions, &cycleTracker{}, included)
+			if err != nil {
+				return err
+			}
+			cache.put(key, entry.model, nil)
+		default:
+			// Record this subtree's events for replay on later hits. The recorder
+			// runs alongside the live listeners and, through the cloned options of
+			// nested includes, captures the whole subtree.
+			var recorded []recordedEvent
+			loadOptions.Listeners = append(append([]Listener{}, loadOptions.Listeners...),
+				func(event string, metadata map[string]any) {
+					recorded = append(recorded, recordedEvent{event: event, metadata: deepCopyMapping(metadata)})
+				})
+			entry.model, err = loadYamlModel(ctx, config, loadOptions, &cycleTracker{}, included)
+			if err != nil {
+				return err
+			}
+			cache.put(key, entry.model, recorded)
 		}
-		err = importResources(imported, model, processor)
+		err = importResources(entry.model, model, processor)
 		if err != nil {
 			return err
 		}
