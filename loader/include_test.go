@@ -23,6 +23,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
@@ -260,13 +261,117 @@ func TestIncludeDiamondDedup(t *testing.T) {
 	leaf := "services:\n  leaf:\n    image: busybox\n"
 	assert.NilError(t, os.WriteFile(filepath.Join(dir, fmt.Sprintf("level%d.yaml", depth)), []byte(leaf), 0o600))
 
+	type result struct {
+		p   *types.Project
+		err error
+	}
+
+	// loader doesn't check ctx.Done() during expansion, so a context timeout
+	// wouldn't interrupt a regressed (exponential) load — the goroutine would
+	// stay parked and the test would hang until the 10-minute `go test` default,
+	// failing with a generic timeout. Running the load off the test goroutine and
+	// selecting on a separate timer gives a fast, descriptive failure instead. The
+	// leaked goroutine on timeout is harmless: t.Fatal ends the test immediately.
+	timeout, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+
+	done := make(chan result, 1)
+	go func() {
+		p, err := LoadWithContext(t.Context(), types.ConfigDetails{
+			WorkingDir:  dir,
+			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "level0.yaml")}},
+		}, withProjectName("diamond", true))
+		done <- result{p, err}
+	}()
+
+	select {
+	case r := <-done:
+		assert.NilError(t, r.err)
+		_, err := r.p.GetService("leaf")
+		assert.NilError(t, err)
+	case <-timeout.Done():
+		t.Fatal("diamond include did not complete within 30s — include memoization likely regressed")
+	}
+}
+
+// TestIncludeDiamondListener pins the public Listener contract under include
+// memoization: a listener event emitted while expanding an included file must
+// fire once per include occurrence, even when the file is served from the
+// include cache. shared.yaml is reached through both a.yaml and b.yaml (a
+// diamond) and carries one `extends`; a faithful load emits "extends" twice
+// (once per path), exactly as loading shared.yaml twice without a cache would.
+// Memoizing the load must replay the recorded event on the cache hit rather than
+// silently dropping it — otherwise the emitted count would depend on include
+// topology. Without the recordings replayed in ApplyInclude this asserts 1.
+func TestIncludeDiamondListener(t *testing.T) {
+	dir := t.TempDir()
+	createFile(t, dir, "include:\n  - path: ./a.yaml\n  - path: ./b.yaml\n", "root.yaml")
+	createFile(t, dir, "include:\n  - path: ./shared.yaml\n", "a.yaml")
+	createFile(t, dir, "include:\n  - path: ./shared.yaml\n", "b.yaml")
+	createFile(t, dir, "services:\n  base:\n    image: alpine\n  derived:\n    extends: base\n    command: echo\n", "shared.yaml")
+
+	var extendsCount, includeCount int
 	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
 		WorkingDir:  dir,
-		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "level0.yaml")}},
-	}, withProjectName("diamond", true))
+		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "root.yaml")}},
+	}, func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+		options.SetProjectName("diamond-listener", true)
+		options.Listeners = []Listener{
+			func(event string, _ map[string]any) {
+				switch event {
+				case "extends":
+					extendsCount++
+				case "include":
+					includeCount++
+				}
+			},
+		}
+	})
 	assert.NilError(t, err)
-	_, err = p.GetService("leaf")
+	_, err = p.GetService("derived")
 	assert.NilError(t, err)
+
+	// One "extends" per traversal of shared.yaml (via a.yaml and via b.yaml).
+	assert.Equal(t, extendsCount, 2)
+	// "include" fires per occurrence in the outer loop (root→a, root→b, a→shared,
+	// b→shared); it is unaffected by the cache and pins that as the baseline.
+	assert.Equal(t, includeCount, 4)
+}
+
+// TestIncludeKeyNoCollision pins the length/count-prefixed encoding of the
+// include cache key: distinct (paths, workingDir, projectDir, env) tuples must
+// never hash to the same key. A bare-separator encoding can collide when a value
+// contains the separator byte (env comes from .env files / process env, where
+// any byte is legal) or when a field's content spills across a positional
+// boundary. A collision would serve a wrong cached model with no error surfaced.
+func TestIncludeKeyNoCollision(t *testing.T) {
+	base := includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A": "B"})
+
+	cases := map[string]string{
+		// Reviewer's NUL toy example: both serialize identically under a bare
+		// NUL separator, but the keys must differ.
+		"nul in key vs value a": includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A\x00B": "X"}),
+		"nul in key vs value b": includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A": "B\x00X"}),
+		// Field content that could impersonate an adjacent field/boundary.
+		"path absorbs workingdir": includeKey([]string{"compose.yaml", "/wd"}, "/pd", "", types.Mapping{}),
+		"env absorbs fields":      includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"X": "Y"}),
+		// Plain distinct inputs.
+		"different env value":  includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A": "C"}),
+		"different workingdir": includeKey([]string{"compose.yaml"}, "/other", "/pd", types.Mapping{"A": "B"}),
+	}
+
+	seen := map[string]string{base: "base"}
+	for name, key := range cases {
+		if prev, ok := seen[key]; ok {
+			t.Fatalf("include key collision between %q and %q", prev, name)
+		}
+		seen[key] = name
+	}
+
+	// Identical inputs must produce identical keys (the cache hit path).
+	assert.Equal(t, base, includeKey([]string{"compose.yaml"}, "/wd", "/pd", types.Mapping{"A": "B"}))
 }
 
 func BenchmarkIncludeDiamond(b *testing.B) {
