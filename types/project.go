@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"sync"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	"github.com/compose-spec/compose-go/v2/errdefs"
@@ -34,6 +35,7 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	"go.yaml.in/yaml/v4"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/singleflight"
 )
 
 // Project is the result of loading a set of compose files
@@ -577,23 +579,30 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 
 // WithImagesResolved updates services to pin both service.Image and image-mount
 // volume sources (type=image) to digests computed by the resolver. It returns a
-// new Project with the changes and keeps the original Project unchanged. Within
-// each service, repeated lookups for the same image reference are deduplicated
-// so callers that hit a registry per resolve aren't charged twice when the
-// service image and an image-mount volume reference the same tag.
+// new Project with the changes and keeps the original Project unchanged.
+// Repeated lookups for the same image reference are deduplicated across the
+// whole project, so callers that hit a registry per resolve are charged once
+// per distinct reference even when several services or image-mount volumes
+// share the same tag.
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
+	var cache sync.Map // map[string]string
+	var flight singleflight.Group
 	return p.WithServicesTransform(func(_ string, service ServiceConfig) (ServiceConfig, error) {
-		cache := map[string]string{}
 		resolve := func(img string) (string, error) {
-			if r, ok := cache[img]; ok {
+			// singleflight collapses concurrent lookups for the same reference
+			// so services transformed in parallel don't race past the cache
+			r, err, _ := flight.Do(img, func() (interface{}, error) {
+				if r, ok := cache.Load(img); ok {
+					return r, nil
+				}
+				r, err := resolveImageDigest(img, resolver)
+				if err != nil {
+					return img, err
+				}
+				cache.Store(img, r)
 				return r, nil
-			}
-			r, err := resolveImageDigest(img, resolver)
-			if err != nil {
-				return img, err
-			}
-			cache[img] = r
-			return r, nil
+			})
+			return r.(string), err
 		}
 
 		if service.Image != "" {
@@ -622,7 +631,7 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 
 // resolveImageDigest returns image pinned to a digest. If image is not already a
 // digested (canonical) reference, the digest is obtained from resolver.
-func resolveImageDigest(image string, resolver func(named reference.Named) (godigest.Digest, error)) (string, error) {
+func resolveImageDigest(image string, resolver func(reference.Named) (godigest.Digest, error)) (string, error) {
 	named, err := reference.ParseDockerRef(image)
 	if err != nil {
 		return image, err

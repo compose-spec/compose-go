@@ -23,6 +23,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/utils"
@@ -286,8 +287,7 @@ func Test_ResolveImages_imageMount_alreadyCanonical(t *testing.T) {
 	p := &Project{
 		Services: Services{
 			"app": ServiceConfig{
-				Name:  "app",
-				Image: pinned,
+				Name: "app",
 				Volumes: []ServiceVolumeConfig{
 					{
 						Type:   VolumeTypeImage,
@@ -303,9 +303,49 @@ func Test_ResolveImages_imageMount_alreadyCanonical(t *testing.T) {
 	assert.NilError(t, err)
 
 	app := p.Services["app"]
-	assert.Equal(t, app.Image, pinned)
 	assert.Equal(t, app.Volumes[0].Source, pinned)
 	assert.Equal(t, resolverCalls, 0)
+}
+
+func Test_ResolveImages_imageMount_sharedAcrossServices(t *testing.T) {
+	const dgst = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	var resolverCalls atomic.Int32
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		resolverCalls.Add(1)
+		return dgst, nil
+	}
+	service := func(name string) ServiceConfig {
+		return ServiceConfig{
+			Name:  name,
+			Image: "busybox:latest",
+			Volumes: []ServiceVolumeConfig{
+				{
+					Type:   VolumeTypeImage,
+					Source: "busybox:latest",
+					Target: "/test_mount",
+				},
+			},
+		}
+	}
+	p := &Project{
+		Services: Services{
+			"app1": service("app1"),
+			"app2": service("app2"),
+			"app3": service("app3"),
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	pinned := "docker.io/library/busybox:latest@" + dgst
+	for _, name := range []string{"app1", "app2", "app3"} {
+		assert.Equal(t, p.Services[name].Image, pinned)
+		assert.Equal(t, p.Services[name].Volumes[0].Source, pinned)
+	}
+	// the cache is project-wide, so a reference shared by several services is
+	// resolved only once
+	assert.Equal(t, resolverCalls.Load(), int32(1))
 }
 
 func Test_ResolveImages_imageMount_unresolvable(t *testing.T) {
@@ -328,7 +368,7 @@ func Test_ResolveImages_imageMount_unresolvable(t *testing.T) {
 	}
 
 	_, err := p.WithImagesResolved(resolver)
-	assert.Error(t, err, "manifest unknown")
+	assert.ErrorContains(t, err, "manifest unknown")
 }
 
 func Test_ResolveImages_concurrent(t *testing.T) {
