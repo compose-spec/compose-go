@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -58,8 +59,8 @@ func Interpolate(config map[string]interface{}, opts Options) (map[string]interf
 
 	out := map[string]interface{}{}
 
-	for key, value := range config {
-		interpolatedValue, err := recursiveInterpolate(value, tree.NewPath(key), opts)
+	for _, key := range sortedKeys(config) {
+		interpolatedValue, err := recursiveInterpolate(config[key], tree.NewPath(key), opts)
 		if err != nil {
 			return out, err
 		}
@@ -88,8 +89,8 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 
 	case map[string]interface{}:
 		out := map[string]interface{}{}
-		for key, elem := range value {
-			interpolatedElem, err := recursiveInterpolate(elem, path.Next(key), opts)
+		for _, key := range sortedKeys(value) {
+			interpolatedElem, err := recursiveInterpolate(value[key], path.Next(key), opts)
 			if err != nil {
 				return nil, err
 			}
@@ -125,6 +126,15 @@ func newPathError(path tree.Path, err error) error {
 	default:
 		return fmt.Errorf("error while interpolating %s: %w", path, err)
 	}
+}
+
+func sortedKeys(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func (o Options) getCasterForPath(path tree.Path) (Cast, bool) {

@@ -19,6 +19,7 @@ package interpolation
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -221,6 +222,34 @@ func TestInterpolateWithCast(t *testing.T) {
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, result))
+}
+
+func TestInterpolateRequiredErrorIsDeterministic(t *testing.T) {
+	// Two map keys with missing required variables: "zzz" sorts after "aaa",
+	// so the error must always reference "aaa" regardless of map iteration order.
+	config := map[string]interface{}{
+		"service": map[string]interface{}{
+			"zzz": "${MISSING:?required}",
+			"aaa": "${MISSING:?required}",
+		},
+	}
+
+	var firstErr string
+	for range 100 {
+		_, err := Interpolate(config, Options{})
+		if err == nil {
+			t.Fatal("expected an interpolation error, got nil")
+		}
+		if firstErr == "" {
+			firstErr = err.Error()
+		} else if err.Error() != firstErr {
+			t.Fatalf("non-deterministic error: got %q, want %q", err.Error(), firstErr)
+		}
+	}
+	// Alphabetically first key ("aaa") must appear in the path.
+	if !strings.Contains(firstErr, "service.aaa") {
+		t.Fatalf("expected error path to contain 'service.aaa', got: %s", firstErr)
+	}
 }
 
 func TestPathMatches(t *testing.T) {
