@@ -34,6 +34,7 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	"go.yaml.in/yaml/v4"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/singleflight"
 )
 
 // Project is the result of loading a set of compose files
@@ -577,22 +578,56 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 
 // WithImagesResolved updates services images to include digest computed by a resolver function
 // It returns a new Project instance with the changes and keep the original Project unchanged.
-// Besides the service image, this also resolves pre_start hook images, which run as ephemeral
-// init containers with their own image.
+// Besides the service image, this also resolves the images services depend on:
+//   - pre_start hook images, which run as ephemeral init containers with their own image
+//   - `type: image` volume sources, unless they reference another service by name (those are
+//     resolved to a locally built image rather than a registry digest)
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
+	// Deduplicate resolutions per raw image string across the whole call: transforms run
+	// concurrently (one goroutine per service), so images shared by several services (or a
+	// hook image equal to its service image, which the loader copies at load time) would
+	// otherwise trigger duplicate registry round-trips. singleflight collapses concurrent
+	// resolutions of the same image into a single call, sharing the result.
+	var group singleflight.Group
+	resolve := func(image string) (string, error) {
+		r, err, _ := group.Do(image, func() (any, error) {
+			return resolveImageDigest(image, resolver)
+		})
+		if err != nil {
+			return image, err
+		}
+		return r.(string), nil
+	}
 	return p.WithServicesTransform(func(_ string, service ServiceConfig) (ServiceConfig, error) {
-		image, err := resolveImageDigest(service.Image, resolver)
+		image, err := resolve(service.Image)
 		if err != nil {
 			return service, err
 		}
 		service.Image = image
 
 		for i, hook := range service.PreStart {
-			image, err := resolveImageDigest(hook.Image, resolver)
+			image, err := resolve(hook.Image)
 			if err != nil {
 				return service, err
 			}
 			service.PreStart[i].Image = image
+		}
+
+		for i, vol := range service.Volumes {
+			if vol.Type != VolumeTypeImage {
+				continue
+			}
+			if _, ok := p.Services[vol.Source]; ok {
+				continue
+			}
+			if _, ok := p.DisabledServices[vol.Source]; ok {
+				continue
+			}
+			image, err := resolve(vol.Source)
+			if err != nil {
+				return service, err
+			}
+			service.Volumes[i].Source = image
 		}
 		return service, nil
 	})
