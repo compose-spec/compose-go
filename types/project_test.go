@@ -238,6 +238,89 @@ func Test_ResolveImages_preStartHooks(t *testing.T) {
 	assert.Equal(t, service.PreStart[1].Image, "")
 }
 
+func Test_ResolveImages_imageVolumes(t *testing.T) {
+	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return digested, nil
+	}
+	p := &Project{
+		Services: Services{
+			"builder": {
+				Name:  "builder",
+				Image: "docker.io/library/alpine:latest@" + digested,
+			},
+			"service_1": {
+				Name:  "service_1",
+				Image: "alpine:3.20",
+				Volumes: []ServiceVolumeConfig{
+					// external image reference: must be resolved to a digest
+					{Type: VolumeTypeImage, Source: "alpine:3.19", Target: "/data"},
+					// reference to another service: resolved to a local image, left untouched
+					{Type: VolumeTypeImage, Source: "builder", Target: "/from-builder"},
+					// regular named volume: left untouched
+					{Type: VolumeTypeVolume, Source: "vol", Target: "/vol"},
+				},
+			},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	volumes := p.Services["service_1"].Volumes
+	assert.Equal(t, volumes[0].Source, "docker.io/library/alpine:3.19@"+digested)
+	assert.Equal(t, volumes[1].Source, "builder")
+	assert.Equal(t, volumes[2].Source, "vol")
+}
+
+func Test_ResolveImages_preStartHookError(t *testing.T) {
+	// A resolver failure on a pre_start hook image is fatal: hooks run as the
+	// service's own runtime images and must resolve.
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return "", errors.New("registry unreachable")
+	}
+	p := &Project{
+		Services: Services{
+			"service_1": {
+				Name:  "service_1",
+				Image: "docker.io/library/alpine:3.20@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+				PreStart: []ServiceHook{
+					{Image: "alpine:3.19", Command: ShellCommand{"echo", "init"}},
+				},
+			},
+		},
+	}
+
+	_, err := p.WithImagesResolved(resolver)
+	assert.Error(t, err, "registry unreachable")
+}
+
+func Test_ResolveImages_imageVolumeDisabledService(t *testing.T) {
+	// A `type: image` volume referencing a profile-disabled service is treated as a
+	// service reference: the resolver must never be called for it, and the source is
+	// left unchanged. The uppercase name would also trip reference.ParseDockerRef.
+	resolver := func(named reference.Named) (digest.Digest, error) {
+		return "", fmt.Errorf("resolver must not be called for %s", named)
+	}
+	p := &Project{
+		Services: Services{
+			"service_1": {
+				Name: "service_1",
+				Volumes: []ServiceVolumeConfig{
+					{Type: VolumeTypeImage, Source: "Builder", Target: "/from-builder"},
+				},
+			},
+		},
+		DisabledServices: Services{
+			"Builder": {Name: "Builder", Image: "alpine:3.19"},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["service_1"].Volumes[0].Source, "Builder")
+}
+
 func Test_ResolveImages_concurrent(t *testing.T) {
 	const garfield = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
 	resolver := func(_ reference.Named) (digest.Digest, error) {
