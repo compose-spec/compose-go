@@ -576,31 +576,52 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 }
 
 // WithImagesResolved updates services images to include digest computed by a resolver function
-// It returns a new Project instance with the changes and keep the original Project unchanged
+// It returns a new Project instance with the changes and keep the original Project unchanged.
+// Besides the service image, this also resolves pre_start hook images, which run as ephemeral
+// init containers with their own image.
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
 	return p.WithServicesTransform(func(_ string, service ServiceConfig) (ServiceConfig, error) {
-		if service.Image == "" {
-			return service, nil
-		}
-		named, err := reference.ParseDockerRef(service.Image)
+		image, err := resolveImageDigest(service.Image, resolver)
 		if err != nil {
 			return service, err
 		}
+		service.Image = image
 
-		if _, ok := named.(reference.Canonical); !ok {
-			// image is named but not digested reference
-			digest, err := resolver(named)
+		for i, hook := range service.PreStart {
+			image, err := resolveImageDigest(hook.Image, resolver)
 			if err != nil {
 				return service, err
 			}
-			named, err = reference.WithDigest(named, digest)
-			if err != nil {
-				return service, err
-			}
+			service.PreStart[i].Image = image
 		}
-		service.Image = named.String()
 		return service, nil
 	})
+}
+
+// resolveImageDigest returns image with its digest resolved by resolver, unless
+// it is empty or already a canonical (digested) reference, in which case it is
+// returned unchanged.
+func resolveImageDigest(image string, resolver func(named reference.Named) (godigest.Digest, error)) (string, error) {
+	if image == "" {
+		return image, nil
+	}
+	named, err := reference.ParseDockerRef(image)
+	if err != nil {
+		return image, err
+	}
+
+	if _, ok := named.(reference.Canonical); !ok {
+		// image is named but not digested reference
+		digest, err := resolver(named)
+		if err != nil {
+			return image, err
+		}
+		named, err = reference.WithDigest(named, digest)
+		if err != nil {
+			return image, err
+		}
+	}
+	return named.String(), nil
 }
 
 type marshallOptions struct {

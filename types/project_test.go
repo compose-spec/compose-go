@@ -209,6 +209,35 @@ func Test_ResolveImages(t *testing.T) {
 	}
 }
 
+func Test_ResolveImages_preStartHooks(t *testing.T) {
+	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return digested, nil
+	}
+	p := &Project{
+		Services: Services{
+			"service_1": {
+				Name:  "service_1",
+				Image: "alpine:3.20",
+				PreStart: []ServiceHook{
+					{Image: "alpine:3.19", Command: ShellCommand{"echo", "init"}},
+					// hook without an explicit image falls back to the service
+					// image at runtime and must be left untouched here
+					{Command: ShellCommand{"echo", "noimage"}},
+				},
+			},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	service := p.Services["service_1"]
+	assert.Equal(t, service.Image, "docker.io/library/alpine:3.20@"+digested)
+	assert.Equal(t, service.PreStart[0].Image, "docker.io/library/alpine:3.19@"+digested)
+	assert.Equal(t, service.PreStart[1].Image, "")
+}
+
 func Test_ResolveImages_concurrent(t *testing.T) {
 	const garfield = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
 	resolver := func(_ reference.Named) (digest.Digest, error) {
