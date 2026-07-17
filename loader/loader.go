@@ -362,7 +362,11 @@ func LoadWithContext(ctx context.Context, configDetails types.ConfigDetails, opt
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary
 func LoadModelWithContext(ctx context.Context, configDetails types.ConfigDetails, options ...func(*Options)) (map[string]any, error) {
 	opts := ToOptions(&configDetails, options)
-	return loadModelWithContext(ctx, &configDetails, opts)
+	dict, err := loadModelWithContext(ctx, &configDetails, opts)
+	if err != nil {
+		return nil, err
+	}
+	return SelectModelServices(dict, opts.SelectedServices)
 }
 
 // LoadModelWithContext reads a ConfigDetails and returns a fully loaded configuration as a yaml dictionary

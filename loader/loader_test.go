@@ -2923,6 +2923,21 @@ services:
 		assert.Assert(t, !hasWorker, "worker should have been filtered out")
 	})
 
+	t.Run("unselected services are disabled, not deleted", func(t *testing.T) {
+		// Unlike the model path, which deletes unselected services from the
+		// dict, the typed path keeps them in DisabledServices.
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		_, disabledAPI := p.DisabledServices["api"]
+		_, disabledWorker := p.DisabledServices["worker"]
+		assert.Assert(t, disabledAPI, "api should be disabled, not deleted")
+		assert.Assert(t, disabledWorker, "worker should be disabled, not deleted")
+		_, disabledWeb := p.DisabledServices["web"]
+		assert.Assert(t, !disabledWeb, "selected web must not be disabled")
+	})
+
 	t.Run("includes dependencies of selected services", func(t *testing.T) {
 		yamlWithDeps := `
 name: test
@@ -3004,6 +3019,169 @@ services:
 		_, hasOther := p.Services["other"]
 		assert.Assert(t, hasWeb)
 		assert.Assert(t, !hasOther)
+	})
+}
+
+// TestLoadModelWithSelectedServices exercises WithSelectedServices through the
+// raw-dict LoadModelWithContext entry point, which never goes through ModelToProject.
+func TestLoadModelWithSelectedServices(t *testing.T) {
+	modelServices := func(t *testing.T, model map[string]any) map[string]any {
+		t.Helper()
+		services, ok := model["services"].(map[string]any)
+		assert.Assert(t, ok, "model[\"services\"] should be a map[string]any")
+		return services
+	}
+
+	t.Run("basic selection with no dependencies", func(t *testing.T) {
+		yaml := `
+name: test
+services:
+  web:
+    image: nginx
+  api:
+    image: alpine
+  worker:
+    image: busybox
+`
+		model, err := LoadModelWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		services := modelServices(t, model)
+		assert.Assert(t, is.Len(services, 1))
+		_, hasWeb := services["web"]
+		assert.Assert(t, hasWeb)
+	})
+
+	t.Run("transitive depends_on closure", func(t *testing.T) {
+		yaml := `
+name: test
+services:
+  web:
+    image: nginx
+    depends_on:
+      - api
+  api:
+    image: alpine
+    depends_on:
+      - db
+  db:
+    image: postgres
+  worker:
+    image: busybox
+`
+		model, err := LoadModelWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		services := modelServices(t, model)
+		assert.Assert(t, is.Len(services, 3))
+		for _, name := range []string{"web", "api", "db"} {
+			_, ok := services[name]
+			assert.Assert(t, ok, "%s should be kept", name)
+		}
+		_, hasWorker := services["worker"]
+		assert.Assert(t, !hasWorker)
+	})
+
+	t.Run("implicit edge via links is followed", func(t *testing.T) {
+		yaml := `
+name: test
+services:
+  web:
+    image: nginx
+    links:
+      - other
+  other:
+    image: alpine
+  worker:
+    image: busybox
+`
+		model, err := LoadModelWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		services := modelServices(t, model)
+		_, hasWeb := services["web"]
+		_, hasOther := services["other"]
+		_, hasWorker := services["worker"]
+		assert.Assert(t, hasWeb)
+		assert.Assert(t, hasOther, "links should be folded into depends_on by Normalize")
+		assert.Assert(t, !hasWorker)
+	})
+
+	t.Run("uninterpolated depends_on key is silently ignored", func(t *testing.T) {
+		yaml := `
+name: test
+services:
+  web:
+    image: nginx
+    depends_on:
+      - "${VAR}"
+  other:
+    image: alpine
+`
+		model, err := LoadModelWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			func(o *Options) { o.SkipInterpolation = true },
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		services := modelServices(t, model)
+		_, hasWeb := services["web"]
+		assert.Assert(t, hasWeb)
+		_, hasVar := services["${VAR}"]
+		assert.Assert(t, !hasVar)
+	})
+
+	t.Run("SkipNormalization leaves links unfolded, so linked service is dropped", func(t *testing.T) {
+		yaml := `
+name: test
+services:
+  web:
+    image: nginx
+    links:
+      - other
+  other:
+    image: alpine
+`
+		model, err := LoadModelWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			func(o *Options) { o.SkipNormalization = true },
+			WithSelectedServices([]string{"web"}),
+		)
+		assert.NilError(t, err)
+		services := modelServices(t, model)
+		_, hasWeb := services["web"]
+		_, hasOther := services["other"]
+		assert.Assert(t, hasWeb)
+		assert.Assert(t, !hasOther, "without normalization, links are not folded into depends_on")
+	})
+
+	t.Run("unknown root service errors", func(t *testing.T) {
+		yaml := `
+name: test
+services:
+  web:
+    image: nginx
+`
+		_, err := LoadModelWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			WithSelectedServices([]string{"bogus"}),
+		)
+		assert.ErrorContains(t, err, "no such service:")
+	})
+
+	t.Run("no selection option leaves all services", func(t *testing.T) {
+		yaml := `
+name: test
+services:
+  web:
+    image: nginx
+  api:
+    image: alpine
+`
+		model, err := LoadModelWithContext(context.Background(), buildConfigDetails(yaml, nil))
+		assert.NilError(t, err)
+		services := modelServices(t, model)
+		assert.Assert(t, is.Len(services, 2))
 	})
 }
 
