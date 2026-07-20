@@ -63,7 +63,7 @@ services:
 	assert.NilError(t, err)
 	imported, err := p.GetService("imported")
 	assert.NilError(t, err)
-	assert.Equal(t, imported.ContainerName, "override")
+	assert.Equal(t, imported.ContainerName, "extends")
 }
 
 func TestLoadWithMultipleIncludeConflict(t *testing.T) {

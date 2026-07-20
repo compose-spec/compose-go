@@ -141,10 +141,15 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 			return err
 		}
 
+		includeEnv := environment.Clone()
+		for k, v := range envFromFile {
+			includeEnv[k] = v
+		}
+
 		config := types.ConfigDetails{
 			WorkingDir:  relworkingdir,
 			ConfigFiles: types.ToConfigFiles(r.Path),
-			Environment: environment.Clone().Merge(envFromFile),
+			Environment: includeEnv,
 		}
 		loadOptions.Interpolate = &interp.Options{
 			Substitute:      options.Interpolate.Substitute,
