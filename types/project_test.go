@@ -23,6 +23,8 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/utils"
@@ -319,6 +321,42 @@ func Test_ResolveImages_imageVolumeDisabledService(t *testing.T) {
 	p, err := p.WithImagesResolved(resolver)
 	assert.NilError(t, err)
 	assert.Equal(t, p.Services["service_1"].Volumes[0].Source, "Builder")
+}
+
+func Test_ResolveImages_deduplicated(t *testing.T) {
+	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	var calls sync.Map // image string -> *int32 call count
+	resolver := func(named reference.Named) (digest.Digest, error) {
+		c, _ := calls.LoadOrStore(named.String(), new(int32))
+		atomic.AddInt32(c.(*int32), 1)
+		return digested, nil
+	}
+	p := &Project{
+		Services: Services{
+			// service_1 references alpine:3.20 three times within a single
+			// transform (image, hook, volume) — the sequential lookups must
+			// collapse to a single resolver call.
+			"service_1": {
+				Name:     "service_1",
+				Image:    "alpine:3.20",
+				PreStart: []ServiceHook{{Image: "alpine:3.20", Command: ShellCommand{"echo"}}},
+				Volumes:  []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "alpine:3.20", Target: "/data"}},
+			},
+			// service_2 shares the same image, resolved from a concurrent
+			// transform — must also be served from the shared cache.
+			"service_2": {
+				Name:  "service_2",
+				Image: "alpine:3.20",
+			},
+		},
+	}
+
+	_, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	c, ok := calls.Load("docker.io/library/alpine:3.20")
+	assert.Assert(t, ok, "resolver was never called for alpine:3.20")
+	assert.Equal(t, atomic.LoadInt32(c.(*int32)), int32(1), "alpine:3.20 should be resolved exactly once")
 }
 
 func Test_ResolveImages_concurrent(t *testing.T) {

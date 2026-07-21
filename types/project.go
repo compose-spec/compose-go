@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"sync"
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	"github.com/compose-spec/compose-go/v2/errdefs"
@@ -583,15 +584,32 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 //   - `type: image` volume sources, unless they reference another service by name (those are
 //     resolved to a locally built image rather than a registry digest)
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
-	// Deduplicate resolutions per raw image string across the whole call: transforms run
-	// concurrently (one goroutine per service), so images shared by several services (or a
-	// hook image equal to its service image, which the loader copies at load time) would
-	// otherwise trigger duplicate registry round-trips. singleflight collapses concurrent
-	// resolutions of the same image into a single call, sharing the result.
-	var group singleflight.Group
+	// Deduplicate resolutions per raw image string across the whole call, on two axes:
+	//   - cache (sync.Map) memoizes results for the whole call, so images resolved at
+	//     different times — e.g. a hook or volume source equal to service.Image, resolved
+	//     sequentially within the same service — are resolved once.
+	//   - singleflight collapses concurrent resolutions of the same image (transforms run
+	//     one goroutine per service) into a single call before it reaches the cache.
+	// Neither alone suffices: the cache lets a concurrent burst miss simultaneously and
+	// all resolve, while singleflight forgets a key as soon as its call returns.
+	var (
+		cache sync.Map // map[string]string
+		group singleflight.Group
+	)
 	resolve := func(image string) (string, error) {
+		if r, ok := cache.Load(image); ok {
+			return r.(string), nil
+		}
 		r, err, _ := group.Do(image, func() (any, error) {
-			return resolveImageDigest(image, resolver)
+			if r, ok := cache.Load(image); ok {
+				return r, nil
+			}
+			r, err := resolveImageDigest(image, resolver)
+			if err != nil {
+				return image, err
+			}
+			cache.Store(image, r)
+			return r, nil
 		})
 		if err != nil {
 			return image, err
