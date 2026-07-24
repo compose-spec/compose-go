@@ -497,7 +497,11 @@ func loadYamlFile(ctx context.Context,
 
 		}
 
-		dict, err = override.Merge(dict, cfg)
+		var mergePaths []tree.Path
+		if rp, ok := processor.(*ResetProcessor); ok {
+			mergePaths = rp.MergePaths()
+		}
+		dict, err = override.MergeWithPositionalPaths(dict, cfg, mergePaths)
 		if err != nil {
 			return err
 		}
