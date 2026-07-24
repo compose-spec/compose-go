@@ -40,11 +40,19 @@ type nodeCache struct {
 type ResetProcessor struct {
 	target        any
 	paths         []tree.Path
+	mergePaths    []tree.Path
 	visitedNodes  map[*yaml.Node][]tree.Path
 	resolvedNodes map[*yaml.Node]nodeCache
 	visitCount    int
 	// maxNodeVisits is the per-document cap; when zero, defaultMaxNodeVisits is used.
 	maxNodeVisits int
+}
+
+// MergePaths returns the paths of the sequences tagged with `!merge` in the
+// processed document. The loader passes them to override.MergeWithPositionalPaths
+// so those sequences are merged element by element instead of appended.
+func (p *ResetProcessor) MergePaths() []tree.Path {
+	return p.mergePaths
 }
 
 // UnmarshalYAML implement yaml.Unmarshaler
@@ -87,6 +95,17 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 	if node.Tag == "!override" {
 		p.paths = append(p.paths, path)
 		return node, nil
+	}
+	// `!merge` requests a positional (element by element) merge of a sequence.
+	// Record the path so the merge step handles it, strip the tag so the node
+	// decodes as a plain sequence, then keep processing its children. The tag is
+	// ignored on anything that is not a sequence.
+	if node.Tag == "!merge" {
+		node.Tag = ""
+		if node.Kind == yaml.SequenceNode {
+			p.mergePaths = append(p.mergePaths, path)
+			return p.resolveContainer(node, path)
+		}
 	}
 
 	// If the node is an alias, process the alias target via the cache so each anchor is
