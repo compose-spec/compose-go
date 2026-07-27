@@ -66,6 +66,10 @@ type Options struct {
 	SkipInclude bool
 	// SkipResolveEnvironment will ignore computing `environment` for services
 	SkipResolveEnvironment bool
+	// SkipResolveLabels will ignore resolving `label_file` into `labels` for services.
+	// When set, service `labels` may be incomplete: `label_file` entries are left unresolved,
+	// so callers must not treat `labels` as authoritative.
+	SkipResolveLabels bool
 	// SkipDefaultValues will ignore missing required attributes
 	SkipDefaultValues bool
 	// Interpolation options
@@ -654,9 +658,12 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 		}
 	}
 
-	project, err = project.WithServicesLabelsResolved(opts.discardEnvFiles)
-	if err != nil {
-		return nil, err
+	if !opts.SkipResolveLabels {
+		// discardEnvFiles only applies to `env_file`: `label_file` entries are never discarded
+		project, err = project.WithServicesLabelsResolved(false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return project, nil

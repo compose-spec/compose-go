@@ -306,6 +306,21 @@ func TestProjectWithDiscardEnvFile(t *testing.T) {
 	assert.Equal(t, service.Ports[0].Published, "8000")
 }
 
+// TestProjectWithoutLabelsResolution loads a compose file referencing a missing
+// `label_file`, which only succeeds because resolution is skipped.
+func TestProjectWithoutLabelsResolution(t *testing.T) {
+	opts, err := NewProjectOptions([]string{
+		"testdata/label-file/compose-with-missing-label-file.yaml",
+	}, WithoutLabelsResolution)
+
+	assert.NilError(t, err)
+	p, err := ProjectFromOptions(context.TODO(), opts)
+	assert.NilError(t, err)
+	service, err := p.GetService("simple")
+	assert.NilError(t, err)
+	assert.Assert(t, len(service.LabelFiles) == 1, "label_file entry should be preserved when resolution is skipped")
+}
+
 func TestProjectWithMultipleEnvFile(t *testing.T) {
 	opts, err := NewProjectOptions([]string{
 		"testdata/env-file/compose-with-env-files.yaml",

@@ -1,0 +1,5 @@
+name: label-file
+services:
+  simple:
+    image: nginx
+    label_file: ./this-file-does-not-exist.labels
