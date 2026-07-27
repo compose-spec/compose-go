@@ -3007,6 +3007,78 @@ services:
 	})
 }
 
+// TestSkipResolveLabels ensures that a `label_file` referencing a missing file
+// fails the load by default, but not when label resolution is skipped with
+// Options.SkipResolveLabels.
+func TestSkipResolveLabels(t *testing.T) {
+	yaml := `
+name: test
+services:
+  other:
+    image: alpine
+    label_file: this-file-does-not-exist.labels
+`
+	t.Run("loading fails on missing label_file by default", func(t *testing.T) {
+		_, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil))
+		assert.ErrorContains(t, err, "this-file-does-not-exist.labels")
+	})
+
+	t.Run("loading succeeds when label resolution is skipped", func(t *testing.T) {
+		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+			func(options *Options) {
+				options.SkipResolveLabels = true
+			},
+		)
+		assert.NilError(t, err)
+		other, err := p.GetService("other")
+		assert.NilError(t, err)
+		assert.Assert(t, len(other.LabelFiles) == 1, "label_file entry should be preserved when resolution is skipped")
+	})
+}
+
+// TestWithSelectedServicesOption_SkipsMissingLabelFile ensures that a
+// `label_file` referencing a missing file on a service that is NOT in the
+// selection does not cause the load to fail: the loader must apply service
+// selection before resolving labels.
+func TestWithSelectedServicesOption_SkipsMissingLabelFile(t *testing.T) {
+	yaml := `
+name: test
+services:
+  web:
+    image: nginx
+  other:
+    image: alpine
+    label_file: this-file-does-not-exist.labels
+`
+	p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		WithSelectedServices([]string{"web"}),
+	)
+	assert.NilError(t, err)
+	_, hasWeb := p.Services["web"]
+	_, hasOther := p.Services["other"]
+	assert.Assert(t, hasWeb)
+	assert.Assert(t, !hasOther)
+}
+
+// TestWithDiscardEnvFilesKeepsLabelFiles pins that the discard option only
+// applies to `env_file` entries: `label_file` references are kept in the
+// model after being resolved into labels.
+func TestWithDiscardEnvFilesKeepsLabelFiles(t *testing.T) {
+	yaml := `
+name: test
+services:
+  web:
+    image: nginx
+    label_file: ./example1.label
+`
+	p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil), WithDiscardEnvFiles)
+	assert.NilError(t, err)
+	web, err := p.GetService("web")
+	assert.NilError(t, err)
+	assert.Equal(t, web.Labels["FOO"], "foo_from_label_file")
+	assert.Assert(t, len(web.LabelFiles) == 1, "label_file entries should be kept: the discard option only applies to env_file")
+}
+
 func TestWithoutUnnecessaryResourcesOption(t *testing.T) {
 	yaml := `
 name: test
