@@ -263,6 +263,29 @@ func TestInterpolateErrorsRemainUnwrappable(t *testing.T) {
 	assert.Check(t, is.Equal("MISSINGA", missing.Variable))
 }
 
+func TestInterpolateErrorsSortedByPath(t *testing.T) {
+	// Mixed error kinds: an invalid template at an early path and a missing
+	// required variable at a later one. Sorting by config path must report
+	// them in path order, not grouped by message kind, on every run whatever
+	// the map iteration order.
+	config := map[string]interface{}{
+		"service": map[string]interface{}{
+			"aaa": "${",
+			"zzz": "${MISSING:?required}",
+		},
+	}
+	expected := "invalid interpolation format for service.aaa.\nYou may need to escape any $ with another $.\n${\n" +
+		"error while interpolating service.zzz: required variable MISSING is missing a value: required"
+	for range 100 {
+		_, err := Interpolate(config, Options{LookupValue: defaultMapping})
+		assert.Error(t, err, expected)
+	}
+	// The pathError wrapper also makes the invalid-template error reachable.
+	_, err := Interpolate(config, Options{LookupValue: defaultMapping})
+	var ite *template.InvalidTemplateError
+	assert.Check(t, errors.As(err, &ite))
+}
+
 func TestPathMatches(t *testing.T) {
 	testcases := []struct {
 		doc      string
