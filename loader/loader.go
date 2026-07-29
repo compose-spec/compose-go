@@ -407,6 +407,10 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	)
 	workingDir, environment := config.WorkingDir, config.Environment
 
+	// interpolation options and environment are fixed within this call, so
+	// extends.file bases can be shared by every service loaded from it
+	ctx = withExtendsCache(ctx)
+
 	for _, file := range config.ConfigFiles {
 		dict, _, err = loadYamlFile(ctx, file, opts, workingDir, environment, ct, dict, included)
 		if err != nil {
@@ -569,7 +573,7 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		}
 	}
 
-	dict, err := loadYamlModel(ctx, configDetails, opts, &cycleTracker{}, nil)
+	dict, err := loadYamlModel(withIncludeCache(ctx), configDetails, opts, &cycleTracker{}, nil)
 	if err != nil {
 		return nil, err
 	}

@@ -75,7 +75,9 @@ services:
 	assert.DeepEqual(t, p.Services["test1"].Hostname, "test1")
 	assert.Equal(t, p.Services["test2"].Hostname, "test2")
 	assert.Equal(t, p.Services["test3"].Hostname, "test3")
-	assert.Equal(t, extendsCount, 4)
+	// only the extends declared in the config file passed to the loader are
+	// reported, not the one of service "another" inside base.yaml
+	assert.Equal(t, extendsCount, 3)
 }
 
 func TestExtendsPort(t *testing.T) {
@@ -329,7 +331,9 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, svcB.Build.Context, tmpdir)
 
-	assert.Equal(t, extendsCount, 3)
+	// only the two extends declared in the root file are reported, not the one
+	// of service "service" inside sub/compose.yaml
+	assert.Equal(t, extendsCount, 2)
 }
 
 func TestExtendsWithServiceRef(t *testing.T) {
@@ -515,7 +519,9 @@ services:
 		}
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, extendsCount, 2)
+	// only the extends declared in the root file is reported, not the one of
+	// service "b" inside sub/compose.yaml
+	assert.Equal(t, extendsCount, 1)
 }
 
 func TestExtendsReset(t *testing.T) {
