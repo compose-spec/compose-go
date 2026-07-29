@@ -17,10 +17,12 @@
 package interpolation
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -221,6 +223,44 @@ func TestInterpolateWithCast(t *testing.T) {
 		},
 	}
 	assert.Check(t, is.DeepEqual(expected, result))
+}
+
+func TestInterpolateReportsAllErrors(t *testing.T) {
+	config := map[string]interface{}{
+		"service": map[string]interface{}{
+			"environment": map[string]interface{}{
+				"TIMEZONE": "${TIMEZONE:?}",
+			},
+			"volumes": []interface{}{
+				map[string]interface{}{
+					"source": "${ACME_PATH:?}",
+				},
+			},
+		},
+	}
+	expected := "error while interpolating service.environment.TIMEZONE: required variable TIMEZONE is missing a value\n" +
+		"error while interpolating service.volumes.[].source: required variable ACME_PATH is missing a value"
+	// Go map iteration order is random, hence the repeats: sorting the
+	// collected errors must report them in the same order on every run.
+	for range 100 {
+		_, err := Interpolate(config, Options{LookupValue: defaultMapping})
+		assert.Error(t, err, expected)
+	}
+}
+
+func TestInterpolateErrorsRemainUnwrappable(t *testing.T) {
+	config := map[string]interface{}{
+		"service": map[string]interface{}{
+			"aaa": "${MISSINGA:?}",
+			"zzz": "${MISSINGZ:?}",
+		},
+	}
+	_, err := Interpolate(config, Options{LookupValue: defaultMapping})
+	// errors.As reports the first error of the joined list, which sorting
+	// pins to the one on the "aaa" key.
+	var missing *template.MissingRequiredError
+	assert.Assert(t, errors.As(err, &missing))
+	assert.Check(t, is.Equal("MISSINGA", missing.Variable))
 }
 
 func TestPathMatches(t *testing.T) {

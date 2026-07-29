@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
+	"strings"
 
 	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -44,7 +46,12 @@ type LookupValue func(key string) (string, bool)
 // Cast a value to a new type, or return an error if the value can't be cast
 type Cast func(value string) (interface{}, error)
 
-// Interpolate replaces variables in a string with the values from a mapping
+// Interpolate replaces variables in a string with the values from a mapping.
+// Every failure is collected into a single joined error, reported in a stable
+// order, rather than returning the first one. There is one error per failing
+// config value: if a value holds several failing variable references, only
+// the first one is reported. The walk continues past failures, so
+// LookupValue, Substitute and Cast may run on values dropped from the result.
 func Interpolate(config map[string]interface{}, opts Options) (map[string]interface{}, error) {
 	if opts.LookupValue == nil {
 		opts.LookupValue = os.LookupEnv
@@ -57,16 +64,17 @@ func Interpolate(config map[string]interface{}, opts Options) (map[string]interf
 	}
 
 	out := map[string]interface{}{}
-
+	var errs []error
 	for key, value := range config {
 		interpolatedValue, err := recursiveInterpolate(value, tree.NewPath(key), opts)
 		if err != nil {
-			return out, err
+			errs = append(errs, err)
+			continue
 		}
 		out[key] = interpolatedValue
 	}
 
-	return out, nil
+	return out, joinErrors(errs)
 }
 
 func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (interface{}, error) {
@@ -88,29 +96,49 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 
 	case map[string]interface{}:
 		out := map[string]interface{}{}
+		var errs []error
 		for key, elem := range value {
 			interpolatedElem, err := recursiveInterpolate(elem, path.Next(key), opts)
 			if err != nil {
-				return nil, err
+				errs = append(errs, err)
+				continue
 			}
 			out[key] = interpolatedElem
 		}
-		return out, nil
+		return out, joinErrors(errs)
 
 	case []interface{}:
 		out := make([]interface{}, len(value))
+		var errs []error
 		for i, elem := range value {
 			interpolatedElem, err := recursiveInterpolate(elem, path.Next(tree.PathMatchList), opts)
 			if err != nil {
-				return nil, err
+				errs = append(errs, err)
+				continue
 			}
 			out[i] = interpolatedElem
 		}
-		return out, nil
+		// Index order is already deterministic, no need to sort.
+		return out, errors.Join(errs...)
 
 	default:
 		return value, nil
 	}
+}
+
+// joinErrors joins errors collected while ranging over a map in a stable
+// order, so that the random map iteration order does not leak into the
+// reported error. Errors are sorted by their formatted message, so different
+// error kinds are grouped rather than interleaved by config path. Only called
+// on the error path: successful interpolation pays no sorting cost.
+func joinErrors(errs []error) error {
+	if len(errs) == 0 {
+		return nil
+	}
+	slices.SortStableFunc(errs, func(a, b error) int {
+		return strings.Compare(a.Error(), b.Error())
+	})
+	return errors.Join(errs...)
 }
 
 func newPathError(path tree.Path, err error) error {
