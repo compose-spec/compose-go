@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/compose-spec/compose-go/v2/template"
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -47,8 +46,8 @@ type LookupValue func(key string) (string, bool)
 type Cast func(value string) (interface{}, error)
 
 // Interpolate replaces variables in a string with the values from a mapping.
-// Every failure is collected into a single joined error, reported in a stable
-// order, rather than returning the first one. There is one error per failing
+// Every failure is collected into a single joined error, sorted by config
+// path, rather than returning the first one. There is one error per failing
 // config value: if a value holds several failing variable references, only
 // the first one is reported. The walk continues past failures, so
 // LookupValue, Substitute and Cast may run on values dropped from the result.
@@ -126,20 +125,45 @@ func recursiveInterpolate(value interface{}, path tree.Path, opts Options) (inte
 	}
 }
 
-// joinErrors joins errors collected while ranging over a map in a stable
-// order, so that the random map iteration order does not leak into the
-// reported error. Errors are sorted by their formatted message, so different
-// error kinds are grouped rather than interleaved by config path. Only called
-// on the error path: successful interpolation pays no sorting cost.
+// joinErrors joins errors collected while ranging over a map, sorted by the
+// config path they carry, so that the random map iteration order does not
+// leak into the reported error. Only called on the error path: successful
+// interpolation pays no sorting cost.
 func joinErrors(errs []error) error {
 	if len(errs) == 0 {
 		return nil
 	}
 	slices.SortStableFunc(errs, func(a, b error) int {
-		return strings.Compare(a.Error(), b.Error())
+		return slices.Compare(errorPath(a), errorPath(b))
 	})
 	return errors.Join(errs...)
 }
+
+// errorPath returns the config path an error is sorted by, as path segments
+// so that keys compare whole (a raw string compare would order "service-1"
+// before "service"). For an already-joined subtree, errors.As finds whichever
+// pathError comes first; any of them does, as they all share the subtree
+// prefix that orders it among its siblings. An error carrying no path falls
+// back to its message, so the order stays deterministic whatever is
+// collected.
+func errorPath(err error) []string {
+	var pe pathError
+	if errors.As(err, &pe) {
+		return pe.path.Parts()
+	}
+	return []string{err.Error()}
+}
+
+// pathError is an interpolation error carrying the config path where it
+// occurred, so collected errors can be sorted by path.
+type pathError struct {
+	path tree.Path
+	err  error
+	msg  string
+}
+
+func (e pathError) Error() string { return e.msg }
+func (e pathError) Unwrap() error { return e.err }
 
 func newPathError(path tree.Path, err error) error {
 	var ite *template.InvalidTemplateError
@@ -147,11 +171,19 @@ func newPathError(path tree.Path, err error) error {
 	case err == nil:
 		return nil
 	case errors.As(err, &ite):
-		return fmt.Errorf(
-			"invalid interpolation format for %s.\nYou may need to escape any $ with another $.\n%s",
-			path, ite.Template)
+		return pathError{
+			path: path,
+			err:  err,
+			msg: fmt.Sprintf(
+				"invalid interpolation format for %s.\nYou may need to escape any $ with another $.\n%s",
+				path, ite.Template),
+		}
 	default:
-		return fmt.Errorf("error while interpolating %s: %w", path, err)
+		return pathError{
+			path: path,
+			err:  err,
+			msg:  fmt.Sprintf("error while interpolating %s: %s", path, err),
+		}
 	}
 }
 
