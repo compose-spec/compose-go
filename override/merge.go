@@ -20,13 +20,22 @@ import (
 	"cmp"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/compose-spec/compose-go/v2/tree"
 )
 
 // Merge applies overrides to a config model
 func Merge(right, left map[string]any) (map[string]any, error) {
-	merged, err := MergeYaml(right, left, tree.NewPath())
+	return MergeWithPositionalPaths(right, left, nil)
+}
+
+// MergeWithPositionalPaths is like Merge but performs a positional (element by
+// element) merge for the sequences located at the given paths, instead of the
+// default append. These paths are collected by the loader from sequences tagged
+// with `!merge` in an override file. See mergePositional for the semantics.
+func MergeWithPositionalPaths(right, left map[string]any, positional []tree.Path) (map[string]any, error) {
+	merged, err := mergeYaml(right, left, tree.NewPath(), positional)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +81,19 @@ func init() {
 
 // MergeYaml merges map[string]any yaml trees handling special rules
 func MergeYaml(e any, o any, p tree.Path) (any, error) {
+	return mergeYaml(e, o, p, nil)
+}
+
+// mergeYaml is MergeYaml with the set of positional-merge paths threaded through
+// the recursion. A sequence whose path matches one of them is merged element by
+// element (see mergePositional) — this takes precedence over both the default
+// append and the mergeSpecials rules, since it is an explicit user request.
+func mergeYaml(e any, o any, p tree.Path, positional []tree.Path) (any, error) {
+	for _, mp := range positional {
+		if p.Matches(mp) {
+			return mergePositional(e, o, p, positional)
+		}
+	}
 	for pattern, merger := range mergeSpecials {
 		if p.Matches(pattern) {
 			merged, err := merger(e, o, p)
@@ -90,7 +112,7 @@ func MergeYaml(e any, o any, p tree.Path) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("cannot override %s", p)
 		}
-		return mergeMappings(value, other, p)
+		return mergeMappings(value, other, p, positional)
 	case []any:
 		other, ok := o.([]any)
 		if !ok {
@@ -102,7 +124,60 @@ func MergeYaml(e any, o any, p tree.Path) (any, error) {
 	}
 }
 
-func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (map[string]any, error) {
+// mergePositional merges two sequences element by element, by index, instead of
+// appending. It backs the `!merge` tag: an override can align its sequence with
+// the base and touch a single element while leaving the others untouched with a
+// no-op entry (`- {}` or `- null`). Semantics per index i:
+//
+//   - override shorter than base at i: keep base[i]
+//   - base shorter than override at i: take override[i] (the sequence is extended)
+//   - override[i] is a no-op (nil / empty map / empty seq): keep base[i]
+//   - otherwise: recursively merge base[i] with override[i] (deep-merge for
+//     mappings, replace for scalars)
+func mergePositional(e any, o any, p tree.Path, positional []tree.Path) (any, error) {
+	base, ok1 := e.([]any)
+	over, ok2 := o.([]any)
+	if !ok1 || !ok2 {
+		// The loader only records the tag for sequences, so this is defensive:
+		// fall back to a plain override rather than failing.
+		return o, nil
+	}
+	n := max(len(base), len(over))
+	out := make([]any, 0, n)
+	for i := range n {
+		switch {
+		case i >= len(over):
+			out = append(out, base[i])
+		case i >= len(base):
+			out = append(out, over[i])
+		case isNoOp(over[i]):
+			out = append(out, base[i])
+		default:
+			merged, err := mergeYaml(base[i], over[i], p.Next(strconv.Itoa(i)), positional)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, merged)
+		}
+	}
+	return out, nil
+}
+
+// isNoOp reports whether a positional override element must leave the base
+// element untouched: an explicit null or an empty container (`- {}`).
+func isNoOp(x any) bool {
+	switch v := x.(type) {
+	case nil:
+		return true
+	case map[string]any:
+		return len(v) == 0
+	case []any:
+		return len(v) == 0
+	}
+	return false
+}
+
+func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path, positional []tree.Path) (map[string]any, error) {
 	for k, v := range other {
 		e, ok := mapping[k]
 		if !ok {
@@ -110,7 +185,7 @@ func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (m
 			continue
 		}
 		next := p.Next(k)
-		merged, err := MergeYaml(e, v, next)
+		merged, err := mergeYaml(e, v, next, positional)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +202,7 @@ func mergeLogging(c any, o any, p tree.Path) (any, error) {
 	d, ok1 := other["driver"]
 	o, ok2 := config["driver"]
 	if d == o || !ok1 || !ok2 {
-		return mergeMappings(config, other, p)
+		return mergeMappings(config, other, p, nil)
 	}
 	return other, nil
 }
@@ -144,7 +219,7 @@ func mergeBuild(c any, o any, path tree.Path) (any, error) {
 		}
 		return nil
 	}
-	return mergeMappings(toBuild(c), toBuild(o), path)
+	return mergeMappings(toBuild(c), toBuild(o), path, nil)
 }
 
 func mergeDependsOn(c any, o any, path tree.Path) (any, error) {
@@ -156,19 +231,19 @@ func mergeDependsOn(c any, o any, path tree.Path) (any, error) {
 		"condition": "service_started",
 		"required":  true,
 	})
-	return mergeMappings(right, left, path)
+	return mergeMappings(right, left, path, nil)
 }
 
 func mergeModels(c any, o any, path tree.Path) (any, error) {
 	right := convertIntoMapping(c, nil)
 	left := convertIntoMapping(o, nil)
-	return mergeMappings(right, left, path)
+	return mergeMappings(right, left, path, nil)
 }
 
 func mergeNetworks(c any, o any, path tree.Path) (any, error) {
 	right := convertIntoMapping(c, nil)
 	left := convertIntoMapping(o, nil)
-	return mergeMappings(right, left, path)
+	return mergeMappings(right, left, path, nil)
 }
 
 func mergeExtraHosts(c any, o any, _ tree.Path) (any, error) {
@@ -227,7 +302,7 @@ func convertIntoSequence(value any) []any {
 func mergeUlimit(_ any, o any, p tree.Path) (any, error) {
 	over, ismapping := o.(map[string]any)
 	if base, ok := o.(map[string]any); ok && ismapping {
-		return mergeMappings(base, over, p)
+		return mergeMappings(base, over, p, nil)
 	}
 	return o, nil
 }
@@ -255,7 +330,7 @@ func mergeIPAMConfig(c any, o any, path tree.Path) (any, error) {
 					continue
 				}
 			}
-			merged, err := mergeMappings(right, left, path)
+			merged, err := mergeMappings(right, left, path, nil)
 			if err != nil {
 				return nil, err
 			}
