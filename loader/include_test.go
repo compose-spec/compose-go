@@ -66,6 +66,32 @@ services:
 	assert.Equal(t, imported.ContainerName, "override")
 }
 
+func TestLoadWithDiamondInclude(t *testing.T) {
+	// the same file reached through multiple include paths must merge
+	// idempotently — re-merging identical definitions duplicated entries in
+	// list-valued extension fields
+	details := buildConfigDetails(`
+name: 'test-diamond-include'
+
+include:
+  - path: ./testdata/include-diamond-left.yaml
+  - path: ./testdata/include-diamond-right.yaml
+`, nil)
+
+	p, err := LoadWithContext(context.TODO(), details, func(options *Options) {
+		options.SkipNormalization = true
+		options.ResolvePaths = true
+	})
+	assert.NilError(t, err)
+	diamond, err := p.GetService("diamond")
+	assert.NilError(t, err)
+	xbake, ok := diamond.Build.Extensions["x-bake"].(map[string]any)
+	assert.Assert(t, ok)
+	cacheFrom, ok := xbake["cache-from"].([]any)
+	assert.Assert(t, ok)
+	assert.Equal(t, len(cacheFrom), 1)
+}
+
 func TestLoadWithMultipleIncludeConflict(t *testing.T) {
 	// include 2 different services with same name should trigger an error
 	details := buildConfigDetails(`

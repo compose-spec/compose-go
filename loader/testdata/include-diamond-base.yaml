@@ -1,0 +1,8 @@
+services:
+  diamond:
+    image: busybox
+    build:
+      context: .
+      x-bake:
+        cache-from:
+          - type=registry,ref=example/cache:a
