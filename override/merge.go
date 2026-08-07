@@ -224,9 +224,9 @@ func convertIntoSequence(value any) []any {
 	return nil
 }
 
-func mergeUlimit(_ any, o any, p tree.Path) (any, error) {
+func mergeUlimit(c any, o any, p tree.Path) (any, error) {
 	over, ismapping := o.(map[string]any)
-	if base, ok := o.(map[string]any); ok && ismapping {
+	if base, ok := c.(map[string]any); ok && ismapping {
 		return mergeMappings(base, over, p)
 	}
 	return o, nil
