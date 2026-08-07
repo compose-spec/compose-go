@@ -53,9 +53,10 @@ services:
       nofile: 
           soft: 10000
           hard: 40000
-      nproc: 
+      nproc:
           soft: 65535
       locks:
+          soft: 20000
           hard: 65535
 `)
 }
