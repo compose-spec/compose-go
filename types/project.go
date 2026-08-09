@@ -905,13 +905,14 @@ func (p *Project) WithServicesTransform(fn func(name string, s ServiceConfig) (S
 
 // CheckContainerNameUnicity validate project doesn't have services declaring the same container_name
 func (p *Project) CheckContainerNameUnicity() error {
-	names := utils.Set[string]{}
-	for name, s := range p.Services {
+	names := map[string]string{}
+	for _, name := range p.ServiceNames() {
+		s := p.Services[name]
 		if s.ContainerName != "" {
 			if existing, ok := names[s.ContainerName]; ok {
-				return fmt.Errorf(`services.%s: container name %q is already in use by service %s"`, name, s.ContainerName, existing)
+				return fmt.Errorf(`services.%s: container name %q is already in use by service %q`, name, s.ContainerName, existing)
 			}
-			names.Add(s.ContainerName)
+			names[s.ContainerName] = name
 		}
 	}
 	return nil
