@@ -62,6 +62,62 @@ func Test_LoadWithReset(t *testing.T) {
 	})
 }
 
+// Test_LoadWithResetOnKeysNormalizedToSequence is the regression test for
+// docker/compose#11816: when two files contribute the same mapping field
+// (environment, labels, …), merging normalizes it into a "KEY=VALUE" sequence,
+// and a later `!reset` on one of its keys used to be silently ignored.
+func Test_LoadWithResetOnKeysNormalizedToSequence(t *testing.T) {
+	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{
+			{
+				Filename: "base.yml",
+				Content: []byte(`
+ name: test
+ services:
+   foo:
+     image: foo
+     environment:
+       FOO: BAR
+       KEEP: ME
+     labels:
+       com.example.foo: bar
+`),
+			},
+			{
+				Filename: "extra.yml",
+				Content: []byte(`
+ services:
+   foo:
+     environment:
+       - ANOTHER=BAR
+       - PASSTHROUGH
+     labels:
+       com.example.extra: bar
+`),
+			},
+			{
+				Filename: "override.yml",
+				Content: []byte(`
+ services:
+   foo:
+     environment:
+       FOO: !reset
+       ANOTHER: !reset
+       PASSTHROUGH: !reset
+     labels:
+       com.example.foo: !reset
+`),
+			},
+		},
+	}, func(options *Options) {
+		options.SkipNormalization = true
+	})
+	assert.NilError(t, err)
+	me := "ME"
+	assert.DeepEqual(t, p.Services["foo"].Environment, types.MappingWithEquals{"KEEP": &me})
+	assert.DeepEqual(t, p.Services["foo"].Labels, types.Labels{"com.example.extra": "bar"})
+}
+
 func Test_DuplicateReset(t *testing.T) {
 	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
