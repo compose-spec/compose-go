@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `device_cgroup_rules` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#device_cgroup_rules
+//
+// Spec: "`device_cgroup_rules` defines a list of device cgroup rules for this
+// container."
+
 import (
 	"testing"
 

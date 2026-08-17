@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `pids_limit` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pids_limit
+//
+// Spec: "`pids_limit` tunes a container’s PIDs limit."
+
 import (
 	"testing"
 

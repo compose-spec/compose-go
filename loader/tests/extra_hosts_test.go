@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `extra_hosts` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#extra_hosts
+//
+// Spec: "`extra_hosts` adds hostname mappings to the container network
+// interface configuration (`/etc/hosts` for Linux)."
+
 import (
 	"testing"
 

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `runtime` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#runtime
+//
+// Spec: "`runtime` specifies which runtime to use for the service’s
+// containers."
+
 import (
 	"testing"
 

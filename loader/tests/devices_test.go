@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `devices` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#devices
+//
+// Spec: "`devices` defines a list of device mappings for created containers in
+// the form of `HOST_PATH:CONTAINER_PATH[:CGROUP_PERMISSIONS]`."
+
 import (
 	"testing"
 

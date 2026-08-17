@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `group_add` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#group_add
+//
+// Spec: "`group_add` specifies additional groups, by name or number, which the
+// user inside the container must be a member of."
+
 import (
 	"testing"
 

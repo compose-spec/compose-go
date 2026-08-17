@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `volumes`, `volumes (top-level)` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#volumes
+//   https://github.com/compose-spec/compose-spec/blob/main/07-volumes.md
+//
+// Spec: "`volumes` define mount host paths or named volumes that are
+// accessible by service containers."
+
 import (
 	"testing"
 

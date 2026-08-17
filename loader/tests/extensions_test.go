@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `extensions (x-* attributes)` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/11-extension.md
+//
+// Spec: "As with Fragments, Extensions can be used to make your Compose file
+// more efficient and easier to maintain."
+
 import (
 	"testing"
 

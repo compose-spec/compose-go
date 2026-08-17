@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `develop` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/develop.md
+//
+// Spec: "The Compose Develop Specification lets you define development
+// constraints and workflows to enable inner-loop iterations on your Compose
+// application."
+
 import (
 	"context"
 	"testing"

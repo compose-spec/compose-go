@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `gpus` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#gpus
+//
+// Spec: "`gpus` specifies GPU devices to be allocated for container usage."
+
 import (
 	"testing"
 

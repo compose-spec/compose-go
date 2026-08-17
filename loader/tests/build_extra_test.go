@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `build` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/build.md
+//
+// Spec: "A Compose implementation which focuses on running an application on a
+// local machine needs to also support (re)building the application from
+// source."
+
 import (
 	"testing"
 

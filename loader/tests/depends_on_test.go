@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `depends_on` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#depends_on
+//
+// Spec: "`depends_on` expresses startup and shutdown dependencies between
+// services."
+
 import (
 	"testing"
 

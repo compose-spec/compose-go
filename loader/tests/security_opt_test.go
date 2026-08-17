@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `security_opt` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#security_opt
+//
+// Spec: "`security_opt` overrides the default labeling scheme for each
+// container."
+
 import (
 	"testing"
 

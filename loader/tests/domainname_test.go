@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `domainname` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#domainname
+//
+// Spec: "`domainname` declares a custom domain name to use for the service
+// container."
+
 import (
 	"testing"
 

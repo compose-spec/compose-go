@@ -16,6 +16,15 @@
 
 package tests
 
+// The tests in this file lock the `post_start`, `pre_start`, `pre_stop`
+// attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#post_start
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pre_start
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pre_stop
+//
+// Spec: "`post_start` defines a sequence of lifecycle hooks to run after a
+// container has started."
+
 import (
 	"context"
 	"testing"

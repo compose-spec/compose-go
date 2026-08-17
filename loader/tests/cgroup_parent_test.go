@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `cgroup_parent` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cgroup_parent
+//
+// Spec: "`cgroup_parent` specifies an optional parent cgroup for the
+// container."
+
 import (
 	"testing"
 

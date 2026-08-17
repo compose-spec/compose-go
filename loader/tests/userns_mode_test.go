@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `userns_mode` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#userns_mode
+//
+// Spec: "`userns_mode` sets the user namespace for the service."
+
 import (
 	"testing"
 

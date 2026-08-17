@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `privileged` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#privileged
+//
+// Spec: "`privileged` configures the service container to run with elevated
+// privileges."
+
 import (
 	"testing"
 

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `deploy.resources.limits.pids` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/deploy.md#pids
+//
+// Spec: "Defines the tuning for the maximum number of processes allowed for
+// the container."
+
 import (
 	"testing"
 

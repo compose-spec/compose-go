@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `healthcheck` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#healthcheck
+//
+// Spec: "`healthcheck` declares a check that's run to determine whether or not
+// the service containers are "healthy"."
+
 import (
 	"testing"
 	"time"

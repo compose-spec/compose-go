@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `command` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#command
+//
+// Spec: "`command` overrides the default command declared by the container
+// image, for example by Dockerfile's `CMD`."
+
 import (
 	"testing"
 

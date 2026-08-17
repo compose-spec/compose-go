@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `isolation` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#isolation
+//
+// Spec: "`isolation` specifies a container’s isolation technology."
+
 import (
 	"testing"
 

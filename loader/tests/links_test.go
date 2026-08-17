@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `links` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#links
+//
+// Spec: "`links` defines a network link to containers in another service."
+
 import (
 	"testing"
 

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `pull_policy` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pull_policy
+//
+// Spec: "`pull_policy` defines the decisions Compose makes when it starts to
+// pull images."
+
 import (
 	"testing"
 	"time"

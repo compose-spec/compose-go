@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `entrypoint` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#entrypoint
+//
+// Spec: "`entrypoint` declares the default entrypoint for the service
+// container."
+
 import (
 	"testing"
 

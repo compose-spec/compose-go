@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `use_api_socket` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#use_api_socket
+//
+// Spec: "When `use_api_socket` is set, the container is able to interact with
+// the underlying container engine through the API socket."
+
 import (
 	"testing"
 

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `hostname` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#hostname
+//
+// Spec: "`hostname` declares a custom host name to use for the service
+// container."
+
 import (
 	"testing"
 

@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `dns`, `dns_search` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#dns
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#dns_search
+//
+// Spec: "`dns` defines custom DNS servers to set on the container network
+// interface configuration."
+
 import (
 	"testing"
 

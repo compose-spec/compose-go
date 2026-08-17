@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `ports` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#ports
+//
+// Spec: "Exposes container ports."
+
 import (
 	"testing"
 

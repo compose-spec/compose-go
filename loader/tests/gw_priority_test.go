@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `networks.gw_priority` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#gw_priority
+//
+// Spec: "The network with the highest `gw_priority` is selected as the default
+// gateway for the service container. If unspecified, the default value is 0."
+
 import (
 	"testing"
 

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `scale` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#scale
+//
+// Spec: "`scale` specifies the default number of containers to deploy for this
+// service."
+
 import (
 	"testing"
 
