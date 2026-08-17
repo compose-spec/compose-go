@@ -46,8 +46,10 @@ services:
 	expect(jsonP)
 }
 
+// The `host:ip` short syntax must be parsed into the canonical `host=ip`
+// form, grouping repeated hosts (here an IPv4 and an IPv6 address for zulu).
 func TestExtraHostsList(t *testing.T) {
-	p := load(t, `
+	loadsAs(t, `
 name: test
 services:
   foo:
@@ -56,25 +58,36 @@ services:
       - "alpha:50.31.209.229"
       - "zulu:127.0.0.2"
       - "zulu:ff02::1"
+`, `
+name: test
+services:
+  foo:
+    image: alpine
+    extra_hosts:
+      - alpha=50.31.209.229
+      - zulu=127.0.0.2
+      - zulu=ff02::1
 `)
-	assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
-		"alpha": []string{"50.31.209.229"},
-		"zulu":  []string{"127.0.0.2", "ff02::1"},
-	})
 }
 
+// A single `host=ip1,ip2` entry declares one host with several addresses.
 func TestExtraHostsRepeated(t *testing.T) {
-	p := load(t, `
+	loadsAs(t, `
 name: test
 services:
   foo:
     image: alpine
     extra_hosts:
       - "myhost=0.0.0.1,0.0.0.2"
+`, `
+name: test
+services:
+  foo:
+    image: alpine
+    extra_hosts:
+      - myhost=0.0.0.1
+      - myhost=0.0.0.2
 `)
-	assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
-		"myhost": []string{"0.0.0.1", "0.0.0.2"},
-	})
 }
 
 func TestExtraHostsLongSyntax(t *testing.T) {

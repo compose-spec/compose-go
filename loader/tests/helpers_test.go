@@ -22,13 +22,14 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
+	"go.yaml.in/yaml/v4"
 	"gotest.tools/v3/assert"
 )
 
-func load(t *testing.T, yaml string) *types.Project {
+func load(t *testing.T, content string) *types.Project {
 	t.Helper()
 	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
-		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
 		Environment: map[string]string{},
 	}, func(options *loader.Options) {
 		options.SkipConsistencyCheck = true
@@ -38,10 +39,10 @@ func load(t *testing.T, yaml string) *types.Project {
 	return p
 }
 
-func loadWithEnv(t *testing.T, yaml string, env map[string]string) *types.Project {
+func loadWithEnv(t *testing.T, content string, env map[string]string) *types.Project {
 	t.Helper()
 	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
-		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
 		Environment: env,
 	}, func(options *loader.Options) {
 		options.SkipConsistencyCheck = true
@@ -84,4 +85,22 @@ func roundTrip(t *testing.T, p *types.Project) (fromYAML, fromJSON *types.Projec
 
 func ptr[T any](t T) *T {
 	return &t
+}
+
+// loadsAs asserts that the input compose YAML loads into the canonical model
+// expressed as YAML: the input is loaded, marshaled back to YAML, and both
+// documents are compared as YAML trees. The expectation then reads as
+// compose documentation, with no knowledge of types.Project required.
+// Prefer it over field-by-field assertions when the behavior under test is
+// how a syntax is parsed and canonicalized; keep typed assertions for
+// behaviors the canonical form does not surface.
+func loadsAs(t *testing.T, input, canonical string) {
+	t.Helper()
+	p := load(t, input)
+	out, err := p.MarshalYAML()
+	assert.NilError(t, err)
+	var got, want map[string]any
+	assert.NilError(t, yaml.Unmarshal(out, &got))
+	assert.NilError(t, yaml.Unmarshal([]byte(canonical), &want), canonical)
+	assert.DeepEqual(t, got, want)
 }

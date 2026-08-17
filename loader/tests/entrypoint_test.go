@@ -42,13 +42,22 @@ services:
 	expect(jsonP)
 }
 
+// An entrypoint declared as a string must be parsed into its exec form.
 func TestEntrypointString(t *testing.T) {
-	p := load(t, `
+	loadsAs(t, `
 name: test
 services:
   foo:
     image: alpine
     entrypoint: /code/entrypoint.sh -p 3000
+`, `
+name: test
+services:
+  foo:
+    image: alpine
+    entrypoint:
+      - /code/entrypoint.sh
+      - -p
+      - "3000"
 `)
-	assert.DeepEqual(t, p.Services["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
 }
