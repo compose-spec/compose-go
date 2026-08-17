@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `cap_add`, `cap_drop` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cap_add
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cap_drop
+//
+// Spec: "`cap_add` specifies additional container capabilities as strings."
+
 import (
 	"testing"
 

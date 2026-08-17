@@ -16,6 +16,14 @@
 
 package tests
 
+// The tests in this file lock the `ipc`, `uts`, `pid` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#ipc
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#uts
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pid
+//
+// Spec: "`ipc` configures the IPC isolation mode set by the service
+// container."
+
 import (
 	"testing"
 

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `profiles` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#profiles
+//
+// Spec: "`profiles` defines a list of named profiles for the service to be
+// enabled under."
+
 import (
 	"context"
 	"testing"

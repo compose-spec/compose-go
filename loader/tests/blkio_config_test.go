@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `blkio_config` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#blkio_config
+//
+// Spec: "`blkio_config` defines a set of configuration options to set block IO
+// limits for a service."
+
 import (
 	"testing"
 

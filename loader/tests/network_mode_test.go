@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `network_mode` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#network_mode
+//
+// Spec: "`network_mode` sets a service container's network mode."
+
 import (
 	"testing"
 

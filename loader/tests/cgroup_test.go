@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `cgroup` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cgroup
+//
+// Spec: "`cgroup` specifies the cgroup namespace to join. When unset, it is
+// the container runtime's decision to select which cgroup namespace to use, if
+// supported."
+
 import (
 	"testing"
 

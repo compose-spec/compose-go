@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `credential_spec` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#credential_spec
+//
+// Spec: "`credential_spec` configures the credential spec for a managed
+// service account."
+
 import (
 	"testing"
 

@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `annotations` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#annotations
+//
+// Spec: "`annotations` defines annotations for the container."
+
 import (
 	"testing"
 

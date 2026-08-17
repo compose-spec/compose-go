@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `models` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#models
+//
+// Spec: "`models` defines the AI models that the service containers use at
+// runtime, referencing entries under the top-level `models` key"
+
 import (
 	"testing"
 

@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `provider` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#provider
+//
+// Spec: "`provider` can be used to define a service that Compose won't manage
+// directly. Compose will delegate the service lifecycle to a dedicated or
+// third-party component."
+
 import (
 	"testing"
 

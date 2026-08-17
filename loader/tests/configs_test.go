@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `configs`, `configs (top-level)` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#configs
+//   https://github.com/compose-spec/compose-spec/blob/main/08-configs.md
+//
+// Spec: "Configs allow services to adapt their behaviour without the need to
+// rebuild a Docker image."
+
 import (
 	"testing"
 

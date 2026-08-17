@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `labels` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#labels
+//
+// Spec: "`labels` add metadata to containers."
+
 import (
 	"testing"
 

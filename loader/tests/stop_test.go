@@ -16,6 +16,15 @@
 
 package tests
 
+// The tests in this file lock the `stop_grace_period`, `stop_signal`
+// attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#stop_grace_period
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#stop_signal
+//
+// Spec: "`stop_grace_period` specifies how long Compose must wait when
+// attempting to stop a container if it doesn't handle SIGTERM (or whichever
+// stop signal has been specified with `stop_signal`), before sending SIGKILL."
+
 import (
 	"testing"
 	"time"

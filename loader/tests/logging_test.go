@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `logging` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#logging
+//
+// Spec: "`logging` defines the logging configuration for the service."
+
 import (
 	"testing"
 

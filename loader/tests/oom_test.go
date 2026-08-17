@@ -16,6 +16,14 @@
 
 package tests
 
+// The tests in this file lock the `oom_kill_disable`, `oom_score_adj`
+// attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#oom_kill_disable
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#oom_score_adj
+//
+// Spec: "If `oom_kill_disable` is set, Compose configures the platform so it
+// won't kill the container in case of memory starvation."
+
 import (
 	"testing"
 

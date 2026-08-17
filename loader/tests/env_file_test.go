@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `env_file` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#env_file
+//
+// Spec: "`env_file` adds environment variables to the container based on the
+// file content."
+
 import (
 	"testing"
 

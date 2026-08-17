@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `storage_opt` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#storage_opt
+//
+// Spec: "`storage_opt` defines storage driver options for a service."
+
 import (
 	"testing"
 

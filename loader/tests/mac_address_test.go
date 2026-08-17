@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `mac_address` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#mac_address
+//
+// Spec: "`mac_address` sets the MAC address used by the service container when
+// connecting to this particular network."
+
 import (
 	"testing"
 

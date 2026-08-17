@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `init` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#init
+//
+// Spec: "`init` runs an init process (PID 1) inside the container that
+// forwards signals and reaps processes."
+
 import (
 	"testing"
 

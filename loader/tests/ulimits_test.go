@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `ulimits` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#ulimits
+//
+// Spec: "`ulimits` overrides the default ulimits for a container."
+
 import (
 	"testing"
 

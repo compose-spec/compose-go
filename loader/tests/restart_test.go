@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `restart` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#restart
+//
+// Spec: "`restart` defines the policy that the platform applies on container
+// termination."
+
 import (
 	"testing"
 

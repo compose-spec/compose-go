@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `stdin_open`, `tty` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#stdin_open
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#tty
+//
+// Spec: "`stdin_open` configures a service containers to run with an allocated
+// stdin."
+
 import (
 	"testing"
 

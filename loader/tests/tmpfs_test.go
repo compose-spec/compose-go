@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `tmpfs` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#tmpfs
+//
+// Spec: "`tmpfs` mounts a temporary file system inside the container."
+
 import (
 	"testing"
 

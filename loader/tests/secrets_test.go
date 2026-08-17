@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `secrets`, `secrets (top-level)` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#secrets
+//   https://github.com/compose-spec/compose-spec/blob/main/09-secrets.md
+//
+// Spec: "`secrets` grants access to sensitive data defined by secrets on a
+// per-service basis."
+
 import (
 	"testing"
 

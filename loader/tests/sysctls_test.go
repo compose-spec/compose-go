@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `sysctls` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#sysctls
+//
+// Spec: "`sysctls` defines kernel parameters to set in the container."
+
 import (
 	"testing"
 

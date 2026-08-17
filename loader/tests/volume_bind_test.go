@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `volumes (bind mounts, long syntax)`
+// attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#volumes
+//
+// Spec: "`volumes` define mount host paths or named volumes that are
+// accessible by service containers."
+
 import (
 	"testing"
 

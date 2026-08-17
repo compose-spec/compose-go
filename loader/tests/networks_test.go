@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `networks` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#networks
+//
+// Spec: "`networks` defines the networks that service containers are attached
+// to, referencing entries under the top-level `networks` key."
+
 import (
 	"testing"
 

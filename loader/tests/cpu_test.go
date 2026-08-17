@@ -16,6 +16,22 @@
 
 package tests
 
+// The tests in this file lock the `cpus`, `cpu_count`, `cpu_percent`,
+// `cpu_shares`, `cpu_period`, `cpu_quota`, `cpu_rt_runtime`, `cpu_rt_period`,
+// `cpuset` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpus
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpu_count
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpu_percent
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpu_shares
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpu_period
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpu_quota
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpu_rt_runtime
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpu_rt_period
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cpuset
+//
+// Spec: "`cpus` define the number of (potentially virtual) CPUs to allocate to
+// service containers."
+
 import (
 	"testing"
 

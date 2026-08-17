@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `environment` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#environment
+//
+// Spec: "`environment` defines environment variables set in the container."
+
 import (
 	"context"
 	"strings"

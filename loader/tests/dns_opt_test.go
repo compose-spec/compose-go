@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `dns_opt` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#dns_opt
+//
+// Spec: "`dns_opt` list custom DNS options to be passed to the container’s DNS
+// resolver (`/etc/resolv.conf` file on Linux)."
+
 import (
 	"testing"
 

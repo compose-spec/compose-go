@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `user` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#user
+//
+// Spec: "`user` overrides the user used to run the container process."
+
 import (
 	"testing"
 

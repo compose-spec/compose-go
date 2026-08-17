@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `attach` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#attach
+//
+// Spec: "When `attach` is defined and set to `false` Compose does not collect
+// service logs, until you explicitly request it to."
+
 import (
 	"testing"
 

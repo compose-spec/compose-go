@@ -16,6 +16,10 @@
 
 package tests
 
+// The tests in this file lock the `template_driver` attribute of configs
+// and secrets, a Docker Swarm extension not covered by a section of the
+// Compose Specification.
+
 import (
 	"testing"
 
