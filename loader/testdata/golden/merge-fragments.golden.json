@@ -1,0 +1,92 @@
+{
+  "name": "golden",
+  "networks": {
+    "default": {
+      "name": "golden_default",
+      "ipam": {}
+    }
+  },
+  "services": {
+    "api": {
+      "command": [
+        "api"
+      ],
+      "entrypoint": null,
+      "environment": {
+        "EXTRA": "fallback",
+        "LOG_LEVEL": "debug",
+        "REGION": "eu-west-1"
+      },
+      "image": "example/base:latest",
+      "labels": {
+        "com.example.team": "platform"
+      },
+      "networks": {
+        "default": null
+      }
+    },
+    "base": {
+      "profiles": [
+        "never"
+      ],
+      "command": null,
+      "entrypoint": null,
+      "environment": {
+        "LOG_LEVEL": "info",
+        "REGION": "eu-west-1"
+      },
+      "image": "example/base:latest",
+      "labels": {
+        "com.example.team": "platform"
+      },
+      "networks": {
+        "default": null
+      }
+    },
+    "minimal": {
+      "command": null,
+      "entrypoint": null,
+      "image": "busybox",
+      "networks": {
+        "default": null
+      }
+    },
+    "worker": {
+      "command": [
+        "worker"
+      ],
+      "deploy": {
+        "replicas": 3,
+        "resources": {},
+        "placement": {}
+      },
+      "entrypoint": null,
+      "environment": {
+        "EXTRA": "fallback",
+        "LOG_LEVEL": "debug",
+        "REGION": "eu-west-1"
+      },
+      "image": "example/base:latest",
+      "labels": {
+        "com.example.team": "platform"
+      },
+      "networks": {
+        "default": null
+      }
+    }
+  },
+  "x-common-env": {
+    "LOG_LEVEL": "info",
+    "REGION": "eu-west-1"
+  },
+  "x-defaults": {
+    "environment": {
+      "LOG_LEVEL": "info",
+      "REGION": "eu-west-1"
+    },
+    "image": "example/base:latest",
+    "labels": {
+      "com.example.team": "platform"
+    }
+  }
+}

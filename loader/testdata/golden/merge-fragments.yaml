@@ -1,0 +1,38 @@
+name: golden
+
+x-common-env: &common-env
+  LOG_LEVEL: info
+  REGION: eu-west-1
+
+x-defaults: &defaults
+  image: example/base:latest
+  environment: *common-env
+  labels:
+    com.example.team: platform
+
+services:
+  base:
+    <<: *defaults
+    profiles:
+      - never
+
+  api:
+    <<: *defaults
+    command: ["api"]
+    environment:
+      LOG_LEVEL: debug
+      REGION: eu-west-1
+      EXTRA: "${UNDEFINED:-fallback}"
+
+  worker:
+    extends:
+      service: api
+    command: ["worker"]
+    deploy:
+      replicas: 3
+
+  minimal:
+    image: busybox
+    x-custom-metadata:
+      owner: team-a
+      tier: 2

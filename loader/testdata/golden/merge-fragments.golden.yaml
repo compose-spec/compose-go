@@ -1,0 +1,59 @@
+name: golden
+services:
+  api:
+    command:
+      - api
+    environment:
+      EXTRA: fallback
+      LOG_LEVEL: debug
+      REGION: eu-west-1
+    image: example/base:latest
+    labels:
+      com.example.team: platform
+    networks:
+      default: null
+  base:
+    profiles:
+      - never
+    environment:
+      LOG_LEVEL: info
+      REGION: eu-west-1
+    image: example/base:latest
+    labels:
+      com.example.team: platform
+    networks:
+      default: null
+  minimal:
+    image: busybox
+    networks:
+      default: null
+    x-custom-metadata:
+      owner: team-a
+      tier: 2
+  worker:
+    command:
+      - worker
+    deploy:
+      replicas: 3
+    environment:
+      EXTRA: fallback
+      LOG_LEVEL: debug
+      REGION: eu-west-1
+    image: example/base:latest
+    labels:
+      com.example.team: platform
+    networks:
+      default: null
+networks:
+  default:
+    name: golden_default
+x-common-env:
+  LOG_LEVEL: info
+  REGION: eu-west-1
+x-defaults:
+  environment:
+    LOG_LEVEL: info
+    REGION: eu-west-1
+  image: example/base:latest
+  labels:
+    com.example.team: platform
