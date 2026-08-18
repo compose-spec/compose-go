@@ -738,6 +738,90 @@ func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
 	})
 }
 
+func TestWithSelectedJob(t *testing.T) {
+	project := &Project{
+		Services: Services{
+			"db": {
+				Name: "db",
+				ContainerSpec: ContainerSpec{
+					Image: "postgres",
+				},
+			},
+			"redis": {
+				Name: "redis",
+				ContainerSpec: ContainerSpec{
+					Image: "redis",
+				},
+			},
+			"web": {
+				Name:          "web",
+				ContainerSpec: ContainerSpec{Image: "myapp"},
+				WorkloadSpec: WorkloadSpec{DependsOn: DependsOnConfig{
+					"db": {Condition: "service_healthy"},
+				}},
+			},
+		},
+		Jobs: Jobs{
+			"migrate": {
+				Name:          "migrate",
+				ContainerSpec: ContainerSpec{Image: "myapp", Command: ShellCommand{"migrate"}},
+				WorkloadSpec: WorkloadSpec{DependsOn: DependsOnConfig{
+					"db": {Condition: "service_healthy"},
+				}},
+			},
+			"seed": {
+				Name: "seed",
+				ContainerSpec: ContainerSpec{
+					Image: "myapp",
+				},
+			},
+		},
+	}
+
+	t.Run("job with dependencies includes only required services", func(t *testing.T) {
+		result, err := project.WithSelectedJob("migrate")
+		assert.NilError(t, err)
+		assert.Equal(t, len(result.Services), 1)
+		_, hasDB := result.Services["db"]
+		assert.Assert(t, hasDB)
+		_, hasRedis := result.Services["redis"]
+		assert.Assert(t, !hasRedis)
+		_, hasWeb := result.Services["web"]
+		assert.Assert(t, !hasWeb)
+	})
+
+	t.Run("job without dependencies returns empty services", func(t *testing.T) {
+		result, err := project.WithSelectedJob("seed")
+		assert.NilError(t, err)
+		assert.Equal(t, len(result.Services), 0)
+	})
+
+	t.Run("unknown job returns error", func(t *testing.T) {
+		_, err := project.WithSelectedJob("nonexistent")
+		assert.ErrorContains(t, err, "no such job: nonexistent")
+	})
+
+	t.Run("profile-disabled job is enabled when selected", func(t *testing.T) {
+		p := project.deepCopy()
+		p.Jobs["cleanup"] = JobConfig{
+			Name:     "cleanup",
+			Profiles: []string{"maintenance"},
+			ContainerSpec: ContainerSpec{
+				Image: "busybox",
+			},
+		}
+		p, err := p.WithProfiles(nil)
+		assert.NilError(t, err)
+		_, disabled := p.DisabledJobs["cleanup"]
+		assert.Assert(t, disabled)
+
+		result, err := p.WithSelectedJob("cleanup")
+		assert.NilError(t, err)
+		_, enabled := result.Jobs["cleanup"]
+		assert.Assert(t, enabled)
+	})
+}
+
 func ptr[T any](s T) *T {
 	return &s
 }
