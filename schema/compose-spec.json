@@ -1940,46 +1940,21 @@
     },
     "pre_start_hook": {
       "type": "object",
-      "description": "Configuration for a pre_start init container, run to completion before the service container starts.",
+      "description": "Configuration for a pre_start init container, run to completion before the service container starts. Accepts the full container specification; per #656, attributes not set explicitly are inherited from the service: collection attributes are completed by the hook's declarations (which win on conflicts), scalar attributes are replaced.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/container_spec"
+        }
+      ],
+      "unevaluatedProperties": false,
       "properties": {
-        "command": {
-          "$ref": "#/$defs/command",
-          "description": "Command to execute. Optional when the chosen image's entrypoint already runs the intended command."
-        },
-        "image": {
-          "type": "string",
-          "description": "Image used for the ephemeral container. If omitted, the parent service's image is used."
-        },
-        "user": {
-          "type": "string",
-          "description": "User to run the command as. Defaults to the user declared in image (or to the service's user when image is omitted)."
-        },
-        "privileged": {
-          "type": [
-            "boolean",
-            "string"
-          ],
-          "description": "Whether to run the command with extended privileges."
-        },
-        "working_dir": {
-          "type": "string",
-          "description": "Working directory for the command. Defaults to the service's working directory."
-        },
-        "environment": {
-          "$ref": "#/$defs/list_or_dict",
-          "description": "Environment variables for the command. Appended to or overriding the service environment."
-        },
         "per_replica": {
           "type": [
             "boolean",
             "string"
           ],
-          "description": "Whether the hook runs once per service replica (true), or once for the service as a whole before any replica starts (false, the default)."
+          "description": "When true, the hook runs once per service replica instead of once per service."
         }
-      },
-      "additionalProperties": false,
-      "patternProperties": {
-        "^x-": {}
       }
     },
     "env_file": {

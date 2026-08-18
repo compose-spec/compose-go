@@ -45,6 +45,7 @@ func buildInterpolateTypeCastMapping() map[tree.Path]interp.Cast {
 	}
 	containerSpec := []tree.Path{
 		iPath("services", tree.PathMatchAll),
+		iPath("services", tree.PathMatchAll, "pre_start", tree.PathMatchAll),
 	}
 	workloadSpec := []tree.Path{
 		iPath("services", tree.PathMatchAll),

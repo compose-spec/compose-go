@@ -153,7 +153,7 @@ type ServiceConfig struct {
 	ExternalLinks []string               `yaml:"external_links,omitempty" json:"external_links,omitempty"`
 	Links         []string               `yaml:"links,omitempty" json:"links,omitempty"`
 	Net           string                 `yaml:"net,omitempty" json:"net,omitempty"`
-	PreStart      []ServiceHook          `yaml:"pre_start,omitempty" json:"pre_start,omitempty"`
+	PreStart      []PreStartHook         `yaml:"pre_start,omitempty" json:"pre_start,omitempty"`
 	PostStart     []ServiceHook          `yaml:"post_start,omitempty" json:"post_start,omitempty"`
 	PreStop       []ServiceHook          `yaml:"pre_stop,omitempty" json:"pre_stop,omitempty"`
 
