@@ -31,10 +31,10 @@ services:
       owner: team-a
       tier: 2
   worker:
-    command:
-      - worker
     deploy:
       replicas: 3
+    command:
+      - worker
     environment:
       EXTRA: fallback
       LOG_LEVEL: debug

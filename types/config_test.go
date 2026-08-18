@@ -27,24 +27,24 @@ func Test_WithServices(t *testing.T) {
 		Services: Services{
 			"service_1": ServiceConfig{
 				Name: "service_1",
-				DependsOn: map[string]ServiceDependency{
+				WorkloadSpec: WorkloadSpec{DependsOn: map[string]ServiceDependency{
 					"service_3": {
 						Condition: ServiceConditionStarted,
 						Required:  true,
 					},
-				},
+				}},
 			},
 			"service_2": ServiceConfig{
 				Name: "service_2",
 			},
 			"service_3": ServiceConfig{
 				Name: "service_3",
-				DependsOn: map[string]ServiceDependency{
+				WorkloadSpec: WorkloadSpec{DependsOn: map[string]ServiceDependency{
 					"service_2": {
 						Condition: ServiceConditionStarted,
 						Required:  true,
 					},
-				},
+				}},
 			},
 		},
 	}

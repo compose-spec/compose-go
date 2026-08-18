@@ -180,19 +180,23 @@ func strPtr(val string) *string {
 var sampleConfig = types.Config{
 	Services: types.Services{
 		"foo": {
-			Name:        "foo",
-			Image:       "busybox",
-			Environment: map[string]*string{},
-			Networks: map[string]*types.ServiceNetworkConfig{
-				"with_me": nil,
+			Name: "foo",
+			ContainerSpec: types.ContainerSpec{
+				Image:       "busybox",
+				Environment: map[string]*string{},
+				Networks: map[string]*types.ServiceNetworkConfig{
+					"with_me": nil,
+				},
 			},
 		},
 		"bar": {
-			Name:        "bar",
-			Image:       "busybox",
-			Environment: map[string]*string{"FOO": strPtr("1")},
-			Networks: map[string]*types.ServiceNetworkConfig{
-				"with_ipam": nil,
+			Name: "bar",
+			ContainerSpec: types.ContainerSpec{
+				Image:       "busybox",
+				Environment: map[string]*string{"FOO": strPtr("1")},
+				Networks: map[string]*types.ServiceNetworkConfig{
+					"with_ipam": nil,
+				},
 			},
 		},
 	},
@@ -792,23 +796,6 @@ networks:
 		Services: types.Services{
 			"web": {
 				Name: "web",
-				Configs: []types.ServiceConfigObjConfig{
-					{
-						Source: "appconfig",
-						Mode:   ptr(types.FileMode(0o555)),
-					},
-				},
-				Secrets: []types.ServiceSecretConfig{
-					{
-						Source: "super",
-						Target: "/run/secrets/super",
-						Mode:   ptr(types.FileMode(0o555)),
-					},
-				},
-				HealthCheck: &types.HealthCheckConfig{
-					Retries: ptr(uint64(555)),
-					Disable: true,
-				},
 				Deploy: &types.DeployConfig{
 					Replicas: ptr(555),
 					UpdateConfig: &types.UpdateConfig{
@@ -826,22 +813,21 @@ networks:
 						MaxReplicas: 555,
 					},
 				},
-				Ports: []types.ServicePortConfig{
-					{Target: 555, Mode: "ingress", Protocol: "tcp"},
-					{Target: 34567, Mode: "ingress", Protocol: "tcp"},
-					{Target: 555, Mode: "ingress", Protocol: "tcp", Published: "555", Extensions: map[string]interface{}{"x-foo-bar": true}},
-				},
-				Ulimits: map[string]*types.UlimitsConfig{
+				ContainerSpec: types.ContainerSpec{Configs: []types.ServiceConfigObjConfig{
+					{
+						Source: "appconfig",
+						Mode:   ptr(types.FileMode(0o555)),
+					},
+				}, Secrets: []types.ServiceSecretConfig{
+					{
+						Source: "super",
+						Target: "/run/secrets/super",
+						Mode:   ptr(types.FileMode(0o555)),
+					},
+				}, Ulimits: map[string]*types.UlimitsConfig{
 					"nproc":  {Single: 555},
 					"nofile": {Hard: 555, Soft: 555},
-				},
-				Privileged:      true,
-				ReadOnly:        true,
-				ShmSize:         types.UnitBytes(2 * 1024 * 1024 * 1024),
-				StopGracePeriod: &typesDuration,
-				StdinOpen:       true,
-				Tty:             true,
-				Volumes: []types.ServiceVolumeConfig{
+				}, Privileged: true, ReadOnly: true, ShmSize: types.UnitBytes(2 * 1024 * 1024 * 1024), StopGracePeriod: &typesDuration, Volumes: []types.ServiceVolumeConfig{
 					{
 						Source:   "data",
 						Type:     "volume",
@@ -849,8 +835,15 @@ networks:
 						ReadOnly: true,
 						Volume:   &types.ServiceVolumeVolume{NoCopy: true},
 					},
-				},
-				Environment: types.MappingWithEquals{},
+				}, Environment: types.MappingWithEquals{}},
+				WorkloadSpec: types.WorkloadSpec{HealthCheck: &types.HealthCheckConfig{
+					Retries: ptr(uint64(555)),
+					Disable: true,
+				}, Ports: []types.ServicePortConfig{
+					{Target: 555, Mode: "ingress", Protocol: "tcp"},
+					{Target: 34567, Mode: "ingress", Protocol: "tcp"},
+					{Target: 555, Mode: "ingress", Protocol: "tcp", Published: "555", Extensions: map[string]interface{}{"x-foo-bar": true}},
+				}, StdinOpen: true, Tty: true},
 			},
 		},
 		Configs: map[string]types.ConfigObjConfig{
@@ -895,28 +888,32 @@ services:
 		WorkingDir:  workingDir,
 		Services: types.Services{
 			"service_1": {
-				Name:        "service_1",
-				Environment: types.MappingWithEquals{},
-				Labels: types.Labels{
-					"BAR":                   "bar_from_label_file",
-					"BAZ":                   "baz_from_label_file",
-					"FOO":                   "foo_from_label_file",
-					"LABEL.WITH.DOT":        "ok",
-					"LABEL_WITH_UNDERSCORE": "ok",
-				},
-				LabelFiles: []string{
-					filepath.Join(workingDir, "example1.label"),
+				Name: "service_1",
+				ContainerSpec: types.ContainerSpec{
+					Environment: types.MappingWithEquals{},
+					Labels: types.Labels{
+						"BAR":                   "bar_from_label_file",
+						"BAZ":                   "baz_from_label_file",
+						"FOO":                   "foo_from_label_file",
+						"LABEL.WITH.DOT":        "ok",
+						"LABEL_WITH_UNDERSCORE": "ok",
+					},
+					LabelFiles: []string{
+						filepath.Join(workingDir, "example1.label"),
+					},
 				},
 			},
 			"service_2": {
-				Name:        "service_2",
-				Environment: types.MappingWithEquals{},
-				Labels: types.Labels{
-					"BAR": "bar_from_label_file_2",
-					"QUX": "quz_from_label_file_2",
-				},
-				LabelFiles: []string{
-					filepath.Join(workingDir, "example2.label"),
+				Name: "service_2",
+				ContainerSpec: types.ContainerSpec{
+					Environment: types.MappingWithEquals{},
+					Labels: types.Labels{
+						"BAR": "bar_from_label_file_2",
+						"QUX": "quz_from_label_file_2",
+					},
+					LabelFiles: []string{
+						filepath.Join(workingDir, "example2.label"),
+					},
 				},
 			},
 		},
@@ -1599,11 +1596,13 @@ networks:
 		WorkingDir: workingDir,
 		Services: types.Services{
 			"hello-world": {
-				Name:  "hello-world",
-				Image: "redis:alpine",
-				Networks: map[string]*types.ServiceNetworkConfig{
-					"network1": nil,
-					"network3": nil,
+				Name: "hello-world",
+				ContainerSpec: types.ContainerSpec{
+					Image: "redis:alpine",
+					Networks: map[string]*types.ServiceNetworkConfig{
+						"network1": nil,
+						"network3": nil,
+					},
 				},
 			},
 		},
@@ -1661,24 +1660,20 @@ func TestLoadWithExtends(t *testing.T) {
 	expServices := types.Services{
 		"importer": {
 			Name:          "importer",
-			Image:         "nginx",
 			ContainerName: "imported",
-			Environment: types.MappingWithEquals{
+			ContainerSpec: types.ContainerSpec{Image: "nginx", Environment: types.MappingWithEquals{
 				"SOURCE": strPtr("extends"),
-			},
-			EnvFiles: []types.EnvFile{
+			}, EnvFiles: []types.EnvFile{
 				{
 					Path:     expectedEnvFilePath,
 					Required: true,
 				},
-			},
-			Networks: map[string]*types.ServiceNetworkConfig{"default": nil},
-			Volumes: []types.ServiceVolumeConfig{{
+			}, Networks: map[string]*types.ServiceNetworkConfig{"default": nil}, Volumes: []types.ServiceVolumeConfig{{
 				Type:   "bind",
 				Source: "/opt/data",
 				Target: "/var/lib/mysql",
 				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
-			}},
+			}}},
 		},
 	}
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
@@ -1701,13 +1696,12 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 
 	expServices := types.Services{
 		"importer-with-https-url": {
-			Name: "importer-with-https-url",
-			Build: &types.BuildConfig{
+			Name:          "importer-with-https-url",
+			ContainerSpec: types.ContainerSpec{Environment: types.MappingWithEquals{}, Networks: map[string]*types.ServiceNetworkConfig{"default": nil}},
+			WorkloadSpec: types.WorkloadSpec{Build: &types.BuildConfig{
 				Context:    "https://github.com/docker/compose.git",
 				Dockerfile: "Dockerfile",
-			},
-			Environment: types.MappingWithEquals{},
-			Networks:    map[string]*types.ServiceNetworkConfig{"default": nil},
+			}},
 		},
 	}
 	assert.Check(t, is.DeepEqual(expServices, actual.Services))
@@ -1885,8 +1879,10 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 		Services: types.Services{
 			"test": {
 				Name: "test",
-				EnvFiles: []types.EnvFile{
-					{Path: file.Name(), Required: true},
+				ContainerSpec: types.ContainerSpec{
+					EnvFiles: []types.EnvFile{
+						{Path: file.Name(), Required: true},
+					},
 				},
 			},
 		},
@@ -1910,8 +1906,10 @@ func TestLoadServiceWithLabelFile(t *testing.T) {
 		Services: types.Services{
 			"test": {
 				Name: "test",
-				LabelFiles: []string{
-					file.Name(),
+				ContainerSpec: types.ContainerSpec{
+					LabelFiles: []string{
+						file.Name(),
+					},
 				},
 			},
 		},
@@ -1928,8 +1926,10 @@ func TestLoadServiceWithLabelFile_NotExists(t *testing.T) {
 		Services: types.Services{
 			"test": {
 				Name: "test",
-				LabelFiles: []string{
-					"test",
+				ContainerSpec: types.ContainerSpec{
+					LabelFiles: []string{
+						"test",
+					},
 				},
 			},
 		},
@@ -2174,15 +2174,17 @@ volumes:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
 		"foo": {
-			Name:        "foo",
-			Image:       "busybox",
-			Environment: types.MappingWithEquals{},
-			Volumes: []types.ServiceVolumeConfig{
-				{
-					Type:   types.VolumeTypeVolume,
-					Source: "0",
-					Target: "/foo",
-					Volume: &types.ServiceVolumeVolume{},
+			Name: "foo",
+			ContainerSpec: types.ContainerSpec{
+				Image:       "busybox",
+				Environment: types.MappingWithEquals{},
+				Volumes: []types.ServiceVolumeConfig{
+					{
+						Type:   types.VolumeTypeVolume,
+						Source: "0",
+						Target: "/foo",
+						Volume: &types.ServiceVolumeVolume{},
+					},
 				},
 			},
 		},
@@ -2244,30 +2246,27 @@ services:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
 		"foo": {
-			Name:        "foo",
-			Image:       "busybox",
-			Environment: types.MappingWithEquals{},
-			DependsOn:   types.DependsOnConfig{"imported": {Condition: "service_started", Required: true}},
+			Name:          "foo",
+			ContainerSpec: types.ContainerSpec{Image: "busybox", Environment: types.MappingWithEquals{}},
+			WorkloadSpec:  types.WorkloadSpec{DependsOn: types.DependsOnConfig{"imported": {Condition: "service_started", Required: true}}},
 		},
 		"imported": {
 			Name:          "imported",
-			ContainerName: "extends", // as defined by ./testdata/subdir/extra.env
-			Environment:   types.MappingWithEquals{"SOURCE": strPtr("extends")},
-			EnvFiles: []types.EnvFile{
-				{
-					Path:     filepath.Join(workingDir, "testdata", "subdir", "extra.env"),
-					Required: true,
-				},
-			},
-			Image: "nginx",
-			Volumes: []types.ServiceVolumeConfig{
-				{
-					Type:   "bind",
-					Source: "/opt/data",
-					Target: "/var/lib/mysql",
-					Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
-				},
-			},
+			ContainerName: "extends",
+			ContainerSpec: types.ContainerSpec{ // as defined by ./testdata/subdir/extra.env
+				Environment: types.MappingWithEquals{"SOURCE": strPtr("extends")}, EnvFiles: []types.EnvFile{
+					{
+						Path:     filepath.Join(workingDir, "testdata", "subdir", "extra.env"),
+						Required: true,
+					},
+				}, Image: "nginx", Volumes: []types.ServiceVolumeConfig{
+					{
+						Type:   "bind",
+						Source: "/opt/data",
+						Target: "/var/lib/mysql",
+						Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+					},
+				}},
 		},
 	})
 	/* TODO(ndeloof) restore support for include tracking
@@ -2385,14 +2384,13 @@ services:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
 		"foo": {
-			Name:        "foo",
-			Image:       "nginx",
-			Environment: types.MappingWithEquals{},
-			DependsOn: types.DependsOnConfig{
+			Name:          "foo",
+			ContainerSpec: types.ContainerSpec{Image: "nginx", Environment: types.MappingWithEquals{}},
+			WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{
 				"bar": {Condition: types.ServiceConditionStarted, Required: true},
 				"baz": {Condition: types.ServiceConditionHealthy, Required: false},
 				"qux": {Condition: types.ServiceConditionCompletedSuccessfully, Required: true},
-			},
+			}},
 		},
 	})
 }
@@ -2443,21 +2441,23 @@ services:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services, types.Services{
 		"foo": {
-			Name:        "foo",
-			Image:       "foo",
-			Environment: types.MappingWithEquals{"FOO": strPtr("BAR")},
-			EnvFiles: []types.EnvFile{
-				{
-					Path:     filepath.Join(config.WorkingDir, "testdata", "remote", "env"),
-					Required: true,
+			Name: "foo",
+			ContainerSpec: types.ContainerSpec{
+				Image:       "foo",
+				Environment: types.MappingWithEquals{"FOO": strPtr("BAR")},
+				EnvFiles: []types.EnvFile{
+					{
+						Path:     filepath.Join(config.WorkingDir, "testdata", "remote", "env"),
+						Required: true,
+					},
 				},
-			},
-			Volumes: []types.ServiceVolumeConfig{
-				{
-					Type:   types.VolumeTypeBind,
-					Source: filepath.Join(config.WorkingDir, "testdata", "remote"),
-					Target: "/foo",
-					Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Volumes: []types.ServiceVolumeConfig{
+					{
+						Type:   types.VolumeTypeBind,
+						Source: filepath.Join(config.WorkingDir, "testdata", "remote"),
+						Target: "/foo",
+						Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+					},
 				},
 			},
 		},

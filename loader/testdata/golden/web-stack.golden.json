@@ -55,13 +55,6 @@
         "POSTGRES_DB": "app",
         "POSTGRES_PASSWORD_FILE": "/run/secrets/db_password"
       },
-      "healthcheck": {
-        "test": [
-          "CMD-SHELL",
-          "pg_isready -U postgres"
-        ],
-        "interval": "10s"
-      },
       "image": "postgres:16",
       "networks": {
         "default": null
@@ -80,41 +73,19 @@
           "target": "/var/lib/postgresql/data",
           "volume": {}
         }
-      ]
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres"
+        ],
+        "interval": "10s"
+      }
     },
     "web": {
       "profiles": [
         "frontend"
       ],
-      "build": {
-        "context": "./web",
-        "dockerfile": "Dockerfile.prod",
-        "args": {
-          "TAG": "1.2.3"
-        },
-        "labels": {
-          "com.example.stage": "build"
-        },
-        "additional_contexts": {
-          "assets": "./assets"
-        },
-        "target": "runtime"
-      },
-      "command": [
-        "serve",
-        "--port",
-        "8080"
-      ],
-      "depends_on": {
-        "cache": {
-          "condition": "service_started",
-          "required": true
-        },
-        "db": {
-          "condition": "service_healthy",
-          "required": true
-        }
-      },
       "deploy": {
         "replicas": 2,
         "resources": {
@@ -132,27 +103,34 @@
         },
         "placement": {}
       },
+      "restart": "unless-stopped",
+      "scale": 2,
+      "post_start": [
+        {
+          "command": [
+            "./warm-cache.sh"
+          ],
+          "user": "root"
+        }
+      ],
+      "pre_stop": [
+        {
+          "command": [
+            "./drain.sh"
+          ]
+        }
+      ],
+      "command": [
+        "serve",
+        "--port",
+        "8080"
+      ],
       "entrypoint": [
         "/entrypoint.sh"
       ],
       "environment": {
         "DEBUG": null,
         "MODE": "production"
-      },
-      "expose": [
-        "9090"
-      ],
-      "healthcheck": {
-        "test": [
-          "CMD",
-          "curl",
-          "-f",
-          "http://localhost/health"
-        ],
-        "timeout": "5s",
-        "interval": "30s",
-        "retries": 3,
-        "start_period": "10s"
       },
       "image": "example/web:1.2.3",
       "labels": {
@@ -173,22 +151,6 @@
           "priority": 10
         }
       },
-      "ports": [
-        {
-          "mode": "ingress",
-          "target": 80,
-          "published": "8080",
-          "protocol": "tcp"
-        },
-        {
-          "mode": "host",
-          "target": 443,
-          "published": "8443",
-          "protocol": "tcp"
-        }
-      ],
-      "restart": "unless-stopped",
-      "scale": 2,
       "volumes": [
         {
           "type": "bind",
@@ -213,19 +175,57 @@
           }
         }
       ],
-      "post_start": [
-        {
-          "command": [
-            "./warm-cache.sh"
-          ],
-          "user": "root"
+      "build": {
+        "context": "./web",
+        "dockerfile": "Dockerfile.prod",
+        "args": {
+          "TAG": "1.2.3"
+        },
+        "labels": {
+          "com.example.stage": "build"
+        },
+        "additional_contexts": {
+          "assets": "./assets"
+        },
+        "target": "runtime"
+      },
+      "depends_on": {
+        "cache": {
+          "condition": "service_started",
+          "required": true
+        },
+        "db": {
+          "condition": "service_healthy",
+          "required": true
         }
+      },
+      "expose": [
+        "9090"
       ],
-      "pre_stop": [
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost/health"
+        ],
+        "timeout": "5s",
+        "interval": "30s",
+        "retries": 3,
+        "start_period": "10s"
+      },
+      "ports": [
         {
-          "command": [
-            "./drain.sh"
-          ]
+          "mode": "ingress",
+          "target": 80,
+          "published": "8080",
+          "protocol": "tcp"
+        },
+        {
+          "mode": "host",
+          "target": 443,
+          "published": "8443",
+          "protocol": "tcp"
         }
       ]
     }

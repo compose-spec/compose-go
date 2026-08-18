@@ -73,11 +73,11 @@ func Test_WithoutUnresolvedOptionalDependencies(t *testing.T) {
 		Services: Services{
 			"app": {
 				Name: "app",
-				DependsOn: DependsOnConfig{
+				WorkloadSpec: WorkloadSpec{DependsOn: DependsOnConfig{
 					"db":      {Required: true},
 					"debug":   {Required: false},
 					"missing": {Required: true},
-				},
+				}},
 			},
 			"db": {Name: "db"},
 		},
@@ -172,19 +172,19 @@ func makeProject() *Project {
 				Name: "service_1",
 			},
 			"service_2": ServiceConfig{
-				Name:      "service_2",
-				Profiles:  []string{"foo"},
-				DependsOn: map[string]ServiceDependency{"service_1": {Required: true}},
+				Name:         "service_2",
+				Profiles:     []string{"foo"},
+				WorkloadSpec: WorkloadSpec{DependsOn: map[string]ServiceDependency{"service_1": {Required: true}}},
 			},
 			"service_3": ServiceConfig{
-				Name:      "service_3",
-				Profiles:  []string{"bar"},
-				DependsOn: map[string]ServiceDependency{"service_2": {Required: true}},
+				Name:         "service_3",
+				Profiles:     []string{"bar"},
+				WorkloadSpec: WorkloadSpec{DependsOn: map[string]ServiceDependency{"service_2": {Required: true}}},
 			},
 			"service_4": ServiceConfig{
-				Name:      "service_4",
-				Profiles:  []string{"zot"},
-				DependsOn: map[string]ServiceDependency{"service_2": {Required: false}},
+				Name:         "service_4",
+				Profiles:     []string{"zot"},
+				WorkloadSpec: WorkloadSpec{DependsOn: map[string]ServiceDependency{"service_2": {Required: false}}},
 			},
 			"service_5": ServiceConfig{
 				Name:     "service_5",
@@ -252,14 +252,14 @@ func Test_ResolveImages_preStartHooks(t *testing.T) {
 	p := &Project{
 		Services: Services{
 			"service_1": {
-				Name:  "service_1",
-				Image: "alpine:3.20",
+				Name: "service_1",
 				PreStart: []ServiceHook{
 					{Image: "alpine:3.19", Command: ShellCommand{"echo", "init"}},
 					// hook without an explicit image falls back to the service
 					// image at runtime and must be left untouched here
 					{Command: ShellCommand{"echo", "noimage"}},
 				},
+				ContainerSpec: ContainerSpec{Image: "alpine:3.20"},
 			},
 		},
 	}
@@ -281,19 +281,23 @@ func Test_ResolveImages_imageVolumes(t *testing.T) {
 	p := &Project{
 		Services: Services{
 			"builder": {
-				Name:  "builder",
-				Image: "docker.io/library/alpine:latest@" + digested,
+				Name: "builder",
+				ContainerSpec: ContainerSpec{
+					Image: "docker.io/library/alpine:latest@" + digested,
+				},
 			},
 			"service_1": {
-				Name:  "service_1",
-				Image: "alpine:3.20",
-				Volumes: []ServiceVolumeConfig{
-					// external image reference: must be resolved to a digest
-					{Type: VolumeTypeImage, Source: "alpine:3.19", Target: "/data"},
-					// reference to another service: resolved to a local image, left untouched
-					{Type: VolumeTypeImage, Source: "builder", Target: "/from-builder"},
-					// regular named volume: left untouched
-					{Type: VolumeTypeVolume, Source: "vol", Target: "/vol"},
+				Name: "service_1",
+				ContainerSpec: ContainerSpec{
+					Image: "alpine:3.20",
+					Volumes: []ServiceVolumeConfig{
+						// external image reference: must be resolved to a digest
+						{Type: VolumeTypeImage, Source: "alpine:3.19", Target: "/data"},
+						// reference to another service: resolved to a local image, left untouched
+						{Type: VolumeTypeImage, Source: "builder", Target: "/from-builder"},
+						// regular named volume: left untouched
+						{Type: VolumeTypeVolume, Source: "vol", Target: "/vol"},
+					},
 				},
 			},
 		},
@@ -317,11 +321,11 @@ func Test_ResolveImages_preStartHookError(t *testing.T) {
 	p := &Project{
 		Services: Services{
 			"service_1": {
-				Name:  "service_1",
-				Image: "docker.io/library/alpine:3.20@sha256:1234567890123456789012345678901234567890123456789012345678901234",
+				Name: "service_1",
 				PreStart: []ServiceHook{
 					{Image: "alpine:3.19", Command: ShellCommand{"echo", "init"}},
 				},
+				ContainerSpec: ContainerSpec{Image: "docker.io/library/alpine:3.20@sha256:1234567890123456789012345678901234567890123456789012345678901234"},
 			},
 		},
 	}
@@ -341,13 +345,15 @@ func Test_ResolveImages_imageVolumeDisabledService(t *testing.T) {
 		Services: Services{
 			"service_1": {
 				Name: "service_1",
-				Volumes: []ServiceVolumeConfig{
-					{Type: VolumeTypeImage, Source: "Builder", Target: "/from-builder"},
+				ContainerSpec: ContainerSpec{
+					Volumes: []ServiceVolumeConfig{
+						{Type: VolumeTypeImage, Source: "Builder", Target: "/from-builder"},
+					},
 				},
 			},
 		},
 		DisabledServices: Services{
-			"Builder": {Name: "Builder", Image: "alpine:3.19"},
+			"Builder": {Name: "Builder", ContainerSpec: ContainerSpec{Image: "alpine:3.19"}},
 		},
 	}
 
@@ -370,16 +376,15 @@ func Test_ResolveImages_deduplicated(t *testing.T) {
 			// transform (image, hook, volume) — the sequential lookups must
 			// collapse to a single resolver call.
 			"service_1": {
-				Name:     "service_1",
-				Image:    "alpine:3.20",
-				PreStart: []ServiceHook{{Image: "alpine:3.20", Command: ShellCommand{"echo"}}},
-				Volumes:  []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "alpine:3.20", Target: "/data"}},
+				Name:          "service_1",
+				PreStart:      []ServiceHook{{Image: "alpine:3.20", Command: ShellCommand{"echo"}}},
+				ContainerSpec: ContainerSpec{Image: "alpine:3.20", Volumes: []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "alpine:3.20", Target: "/data"}}},
 			},
 			// service_2 shares the same image, resolved from a concurrent
 			// transform — must also be served from the shared cache.
 			"service_2": {
-				Name:  "service_2",
-				Image: "alpine:3.20",
+				Name:          "service_2",
+				ContainerSpec: ContainerSpec{Image: "alpine:3.20"},
 			},
 		},
 	}
@@ -402,7 +407,9 @@ func Test_ResolveImages_concurrent(t *testing.T) {
 	}
 	for i := 0; i < 1000; i++ {
 		p.Services[fmt.Sprintf("service_%d", i)] = ServiceConfig{
-			Image: fmt.Sprintf("image_%d", i),
+			ContainerSpec: ContainerSpec{
+				Image: fmt.Sprintf("image_%d", i),
+			},
 		}
 	}
 	p, err := p.WithImagesResolved(resolver)
@@ -422,7 +429,9 @@ func Test_ResolveImages_concurrent_interrupted(t *testing.T) {
 	}
 	for i := 0; i < 10; i++ {
 		p.Services[fmt.Sprintf("service_%d", i)] = ServiceConfig{
-			Image: fmt.Sprintf("image_%d", i),
+			ContainerSpec: ContainerSpec{
+				Image: fmt.Sprintf("image_%d", i),
+			},
 		}
 	}
 	_, err := p.WithImagesResolved(resolver)
@@ -641,22 +650,26 @@ func TestProject_WithServicesEnvironmentResolved(t *testing.T) {
 	p := &Project{
 		Services: Services{
 			"base": ServiceConfig{
-				Environment: MappingWithEquals{
-					"FOO": ptr("foo_from_environment"),
-					"BAR": ptr("bar_from_environment"),
-					"QIX": nil,
-				},
-				EnvFiles: []EnvFile{
-					{Path: "fixtures/base.env"},
+				ContainerSpec: ContainerSpec{
+					Environment: MappingWithEquals{
+						"FOO": ptr("foo_from_environment"),
+						"BAR": ptr("bar_from_environment"),
+						"QIX": nil,
+					},
+					EnvFiles: []EnvFile{
+						{Path: "fixtures/base.env"},
+					},
 				},
 			},
 			"override": ServiceConfig{
-				Environment: MappingWithEquals{
-					"FOO": ptr("foo_from_environment"),
-				},
-				EnvFiles: []EnvFile{
-					{Path: "fixtures/base.env"},
-					{Path: "fixtures/override.env"},
+				ContainerSpec: ContainerSpec{
+					Environment: MappingWithEquals{
+						"FOO": ptr("foo_from_environment"),
+					},
+					EnvFiles: []EnvFile{
+						{Path: "fixtures/base.env"},
+						{Path: "fixtures/override.env"},
+					},
 				},
 			},
 		},
