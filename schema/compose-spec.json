@@ -78,6 +78,16 @@
       },
       "additionalProperties": false,
       "description": "Configurations that are shared among multiple services."
+    },
+    "jobs": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-zA-Z0-9._-]+$": {
+          "$ref": "#/$defs/job"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Jobs are containers that run to completion."
     }
   },
   "patternProperties": {
@@ -1019,6 +1029,108 @@
         }
       },
       "unevaluatedProperties": false
+    },
+    "job": {
+      "description": "Configuration for a job. Jobs are containers that run to completion.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/container_spec"
+        },
+        {
+          "$ref": "#/$defs/workload_spec"
+        }
+      ],
+      "required": [
+        "triggers"
+      ],
+      "properties": {
+        "profiles": {
+          "$ref": "#/$defs/list_of_strings",
+          "description": "List of profiles for this job. When profiles are specified, the job is only active when the profile is activated."
+        },
+        "triggers": {
+          "type": "object",
+          "description": "Trigger conditions for the job. At least one trigger attribute must be declared. Setting manual to false forbids manual execution by an explicit run command.",
+          "properties": {
+            "manual": {
+              "type": [
+                "boolean",
+                "string"
+              ],
+              "description": "Whether the job can be triggered manually by an explicit run command. Defaults to true; an explicit false forbids manual execution."
+            },
+            "schedule": {
+              "type": "array",
+              "description": "List of schedules for the job.",
+              "items": {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "description": "Crontab expression to schedule the job (e.g. '0 * * * *' for every hour)."
+                  },
+                  {
+                    "$ref": "#/$defs/schedule"
+                  }
+                ]
+              }
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "manual"
+              ]
+            },
+            {
+              "required": [
+                "schedule"
+              ]
+            }
+          ],
+          "additionalProperties": false,
+          "patternProperties": {
+            "^x-": {}
+          }
+        }
+      },
+      "unevaluatedProperties": false
+    },
+    "schedule": {
+      "type": "object",
+      "description": "Schedule configuration for a job trigger.",
+      "required": [
+        "cron"
+      ],
+      "properties": {
+        "cron": {
+          "type": "string",
+          "description": "Crontab expression to schedule the job (e.g. '0 * * * *' for every hour)."
+        },
+        "timezone": {
+          "type": "string",
+          "description": "Timezone used to evaluate the cron expression (e.g. 'Europe/Paris'). Defaults to the platform's local timezone."
+        },
+        "concurrency": {
+          "type": "string",
+          "enum": [
+            "forbid",
+            "queue"
+          ],
+          "description": "Policy applied when the schedule fires while a previous run is still in progress: prevent the new run ('forbid', the default) or queue it ('queue')."
+        },
+        "missed_fires": {
+          "type": "string",
+          "enum": [
+            "one",
+            "skip"
+          ],
+          "description": "Policy applied to fires missed while the platform was unavailable: run a single catch-up ('one', the default) or skip them ('skip')."
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^x-": {}
+      }
     },
     "healthcheck": {
       "type": "object",

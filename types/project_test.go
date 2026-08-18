@@ -47,6 +47,34 @@ func Test_ApplyProfiles(t *testing.T) {
 	assert.DeepEqual(t, p.DisabledServiceNames(), []string{"service_3"})
 }
 
+func Test_ApplyProfilesToJobs(t *testing.T) {
+	p := &Project{
+		Jobs: Jobs{
+			"job_1": {Name: "job_1"},
+			"job_2": {Name: "job_2", Profiles: []string{"foo"}},
+			"job_3": {Name: "job_3", Profiles: []string{"bar"}},
+		},
+	}
+
+	// jobs with a profile are inactive by default
+	p, err := p.WithProfiles(nil)
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Jobs), 1)
+	assert.Equal(t, p.Jobs["job_1"].Name, "job_1")
+	assert.Equal(t, len(p.DisabledJobs), 2)
+
+	p, err = p.WithProfiles([]string{"foo"})
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Jobs), 2)
+	assert.Equal(t, p.Jobs["job_2"].Name, "job_2")
+	assert.Equal(t, len(p.DisabledJobs), 1)
+
+	p, err = p.WithProfiles([]string{"*"})
+	assert.NilError(t, err)
+	assert.Equal(t, len(p.Jobs), 3)
+	assert.Equal(t, len(p.DisabledJobs), 0)
+}
+
 func Test_WithoutUnnecessaryResources(t *testing.T) {
 	p := makeProject()
 	p.Networks["unused"] = NetworkConfig{}

@@ -42,11 +42,26 @@ services:
   string:
     image: alpine
     dns: 8.8.8.8
+jobs:
+  list:
+    triggers:
+      manual: true
+    image: alpine
+    dns:
+      - 8.8.8.8
+      - 9.9.9.9
+  string:
+    triggers:
+      manual: true
+    image: alpine
+    dns: 8.8.8.8
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["list"].DNS, types.StringList{"8.8.8.8", "9.9.9.9"})
 		assert.DeepEqual(t, p.Services["string"].DNS, types.StringList{"8.8.8.8"})
+		assert.DeepEqual(t, p.Jobs["list"].DNS, types.StringList{"8.8.8.8", "9.9.9.9"})
+		assert.DeepEqual(t, p.Jobs["string"].DNS, types.StringList{"8.8.8.8"})
 	}
 	expect(p)
 
@@ -67,11 +82,26 @@ services:
   string:
     image: alpine
     dns_search: example.com
+jobs:
+  list:
+    triggers:
+      manual: true
+    image: alpine
+    dns_search:
+      - dc1.example.com
+      - dc2.example.com
+  string:
+    triggers:
+      manual: true
+    image: alpine
+    dns_search: example.com
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["list"].DNSSearch, types.StringList{"dc1.example.com", "dc2.example.com"})
 		assert.DeepEqual(t, p.Services["string"].DNSSearch, types.StringList{"example.com"})
+		assert.DeepEqual(t, p.Jobs["list"].DNSSearch, types.StringList{"dc1.example.com", "dc2.example.com"})
+		assert.DeepEqual(t, p.Jobs["string"].DNSSearch, types.StringList{"example.com"})
 	}
 	expect(p)
 
@@ -87,6 +117,13 @@ services:
   foo:
     image: alpine
     dns: ${UNSET_VAR}
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    dns: ${UNSET_VAR}
 `)
 	assert.Equal(t, len(p.Services["foo"].DNS), 0)
+	assert.Equal(t, len(p.Jobs["foo"].DNS), 0)
 }
