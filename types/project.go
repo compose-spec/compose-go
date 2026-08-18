@@ -608,6 +608,66 @@ func (p *Project) WithoutUnresolvedOptionalDependencies() *Project {
 	return newProject
 }
 
+// WithSelectedJob returns a new Project containing only the services required
+// by the named job's DependsOn. The job itself is NOT added to Services.
+func (p *Project) WithSelectedJob(name string, options ...DependencyOption) (*Project, error) {
+	job, ok := p.Jobs[name]
+	if !ok {
+		if disabled, exists := p.DisabledJobs[name]; exists {
+			// a profile-disabled job is enabled when explicitly selected,
+			// and its profiles are added to the set of active profiles
+			enabled, err := p.WithProfiles(append(append([]string{}, p.Profiles...), disabled.Profiles...))
+			if err != nil {
+				return nil, err
+			}
+			return enabled.WithSelectedJob(name, options...)
+		}
+		return nil, fmt.Errorf("no such job: %s", name)
+	}
+
+	// a job may depend on another job: walk depends_on transitively to
+	// collect the actual services required to run the selected job. Jobs are
+	// looked up enabled or not — a profile-disabled dependency is still a
+	// job, and treating its name as a service would fail the selection.
+	deps := resolveJobServiceDeps(p.AllJobs(), job, map[string]bool{name: true})
+	sort.Strings(deps)
+
+	if len(deps) == 0 {
+		// Job has no service dependencies: return project with all services disabled
+		newProject := p.deepCopy()
+		for name := range newProject.Services {
+			newProject = newProject.WithServicesDisabled(name)
+		}
+		return newProject, nil
+	}
+
+	return p.WithSelectedServices(deps, options...)
+}
+
+// resolveJobServiceDeps walks a job's DependsOn, following job-typed
+// dependencies transitively, and returns the names of the actual services
+// required to run it. jobs is the full job set (see AllJobs), so a
+// profile-disabled job in the chain is followed like an enabled one. A
+// dependency name matching a job takes precedence over a same-named service
+// — jobs and services share the depends_on namespace, and a job reference is
+// resolved first. seen guards against dependency cycles between jobs and
+// must contain the starting job's name.
+func resolveJobServiceDeps(jobs Jobs, job JobConfig, seen map[string]bool) []string {
+	var services []string
+	for dep := range job.DependsOn {
+		if seen[dep] {
+			continue
+		}
+		seen[dep] = true
+		if depJob, ok := jobs[dep]; ok {
+			services = append(services, resolveJobServiceDeps(jobs, depJob, seen)...)
+			continue
+		}
+		services = append(services, dep)
+	}
+	return services
+}
+
 // WithServicesDisabled removes from the project model the given services and their references in all dependencies
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithServicesDisabled(names ...string) *Project {
