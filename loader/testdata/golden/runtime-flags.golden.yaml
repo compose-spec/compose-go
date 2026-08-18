@@ -1,9 +1,10 @@
 name: golden
 services:
   kitchen-sink:
+    attach: false
+    container_name: sink
     annotations:
       com.example.annotation: value
-    attach: false
     blkio_config:
       weight: 300
       weight_device:
@@ -24,7 +25,6 @@ services:
     cpus: 1.5
     cpuset: 0,1
     cpu_shares: 512
-    container_name: sink
     device_cgroup_rules:
       - c 1:3 mr
     devices:
@@ -68,7 +68,6 @@ services:
     security_opt:
       - label=disable
     shm_size: "67108864"
-    stdin_open: true
     stop_grace_period: 1m30s
     stop_signal: SIGUSR1
     storage_opt:
@@ -78,7 +77,6 @@ services:
     tmpfs:
       - /run
       - /tmp
-    tty: true
     ulimits:
       nofile:
         soft: 20000
@@ -88,20 +86,22 @@ services:
     userns_mode: host
     uts: host
     working_dir: /app
+    stdin_open: true
+    tty: true
   linked:
+    external_links:
+      - legacy:legacy-alias
+    links:
+      - kitchen-sink:sink
+    image: example/linked
+    network_mode: service:kitchen-sink
+    volumes_from:
+      - kitchen-sink
     depends_on:
       kitchen-sink:
         condition: service_started
         restart: true
         required: true
-    external_links:
-      - legacy:legacy-alias
-    image: example/linked
-    links:
-      - kitchen-sink:sink
-    network_mode: service:kitchen-sink
-    volumes_from:
-      - kitchen-sink
 networks:
   default:
     name: golden_default

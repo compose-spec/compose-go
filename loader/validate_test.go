@@ -29,12 +29,14 @@ func TestValidateAnonymousVolume(t *testing.T) {
 	project := &types.Project{
 		Services: types.Services{
 			"myservice": {
-				Name:  "myservice",
-				Image: "my/service",
-				Volumes: []types.ServiceVolumeConfig{
-					{
-						Type:   types.VolumeTypeVolume,
-						Target: "/use/local",
+				Name: "myservice",
+				ContainerSpec: types.ContainerSpec{
+					Image: "my/service",
+					Volumes: []types.ServiceVolumeConfig{
+						{
+							Type:   types.VolumeTypeVolume,
+							Target: "/use/local",
+						},
 					},
 				},
 			},
@@ -48,13 +50,15 @@ func TestValidateNamedVolume(t *testing.T) {
 	project := &types.Project{
 		Services: types.Services{
 			"myservice": {
-				Name:  "myservice",
-				Image: "my/service",
-				Volumes: []types.ServiceVolumeConfig{
-					{
-						Type:   types.VolumeTypeVolume,
-						Source: "myVolume",
-						Target: "/use/local",
+				Name: "myservice",
+				ContainerSpec: types.ContainerSpec{
+					Image: "my/service",
+					Volumes: []types.ServiceVolumeConfig{
+						{
+							Type:   types.VolumeTypeVolume,
+							Source: "myVolume",
+							Target: "/use/local",
+						},
 					},
 				},
 			},
@@ -89,13 +93,15 @@ func TestValidateNetworkMode(t *testing.T) {
 		project := &types.Project{
 			Services: types.Services{
 				"myservice1": {
-					Name:  "myservice1",
-					Image: "scratch",
+					Name:          "myservice1",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 				},
 				"myservice2": {
-					Name:        "myservice2",
-					Image:       "scratch",
-					NetworkMode: "service:myservice1",
+					Name: "myservice2",
+					ContainerSpec: types.ContainerSpec{
+						Image:       "scratch",
+						NetworkMode: "service:myservice1",
+					},
 				},
 			},
 		}
@@ -107,13 +113,15 @@ func TestValidateNetworkMode(t *testing.T) {
 		project := &types.Project{
 			Services: types.Services{
 				"myservice1": {
-					Name:  "myservice1",
-					Image: "scratch",
+					Name:          "myservice1",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 				},
 				"myservice2": {
-					Name:        "myservice2",
-					Image:       "scratch",
-					NetworkMode: "service:nonexistentservice",
+					Name: "myservice2",
+					ContainerSpec: types.ContainerSpec{
+						Image:       "scratch",
+						NetworkMode: "service:nonexistentservice",
+					},
 				},
 			},
 		}
@@ -127,12 +135,14 @@ func TestValidateNetworkMode(t *testing.T) {
 				"myservice1": {
 					Name:          "myservice1",
 					ContainerName: "mycontainer_name",
-					Image:         "scratch",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 				},
 				"myservice2": {
-					Name:        "myservice2",
-					Image:       "scratch",
-					NetworkMode: "container:mycontainer_name",
+					Name: "myservice2",
+					ContainerSpec: types.ContainerSpec{
+						Image:       "scratch",
+						NetworkMode: "container:mycontainer_name",
+					},
 				},
 			},
 		}
@@ -145,11 +155,13 @@ func TestValidateNetworkMode(t *testing.T) {
 			Networks: types.Networks{"mynetwork": types.NetworkConfig{}},
 			Services: types.Services{
 				"myservice1": {
-					Name:        "myservice1",
-					Image:       "scratch",
-					NetworkMode: "host",
-					Networks: map[string]*types.ServiceNetworkConfig{
-						"mynetwork": {},
+					Name: "myservice1",
+					ContainerSpec: types.ContainerSpec{
+						Image:       "scratch",
+						NetworkMode: "host",
+						Networks: map[string]*types.ServiceNetworkConfig{
+							"mynetwork": {},
+						},
 					},
 				},
 			},
@@ -212,11 +224,13 @@ func TestValidateSecret(t *testing.T) {
 			},
 			Services: types.Services{
 				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
-					Secrets: []types.ServiceSecretConfig{
-						{
-							Source: "foo",
+					Name: "myservice",
+					ContainerSpec: types.ContainerSpec{
+						Image: "scratch",
+						Secrets: []types.ServiceSecretConfig{
+							{
+								Source: "foo",
+							},
 						},
 					},
 				},
@@ -230,11 +244,13 @@ func TestValidateSecret(t *testing.T) {
 		project := &types.Project{
 			Services: types.Services{
 				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
-					Secrets: []types.ServiceSecretConfig{
-						{
-							Source: "foo",
+					Name: "myservice",
+					ContainerSpec: types.ContainerSpec{
+						Image: "scratch",
+						Secrets: []types.ServiceSecretConfig{
+							{
+								Source: "foo",
+							},
 						},
 					},
 				},
@@ -249,11 +265,11 @@ func TestValidateDependsOn(t *testing.T) {
 	project := types.Project{
 		Services: types.Services{
 			"myservice": {
-				Name:  "myservice",
-				Image: "scratch",
-				DependsOn: map[string]types.ServiceDependency{
+				Name:          "myservice",
+				ContainerSpec: types.ContainerSpec{Image: "scratch"},
+				WorkloadSpec: types.WorkloadSpec{DependsOn: map[string]types.ServiceDependency{
 					"missingservice": {},
-				},
+				}},
 			},
 		},
 	}
@@ -266,13 +282,13 @@ func TestValidateContainerName(t *testing.T) {
 		Services: types.Services{
 			"myservice": {
 				Name:          "myservice",
-				Image:         "scratch",
 				ContainerName: "mycontainer",
+				ContainerSpec: types.ContainerSpec{Image: "scratch"},
 			},
 			"myservice2": {
 				Name:          "myservice2",
-				Image:         "scratch",
 				ContainerName: "mycontainer",
+				ContainerSpec: types.ContainerSpec{Image: "scratch"},
 			},
 		},
 	}
@@ -285,8 +301,8 @@ func TestValidateWatch(t *testing.T) {
 		project := types.Project{
 			Services: types.Services{
 				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
+					Name:          "myservice",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 					Develop: &types.DevelopConfig{
 						Watch: []types.Trigger{
 							{
@@ -307,8 +323,8 @@ func TestValidateWatch(t *testing.T) {
 		project := types.Project{
 			Services: types.Services{
 				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
+					Name:          "myservice",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 					Develop: &types.DevelopConfig{
 						Watch: []types.Trigger{
 							{
@@ -328,8 +344,8 @@ func TestValidateWatch(t *testing.T) {
 		project := types.Project{
 			Services: types.Services{
 				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
+					Name:          "myservice",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 					Develop: &types.DevelopConfig{
 						Watch: []types.Trigger{
 							{
@@ -349,8 +365,8 @@ func TestValidateWatch(t *testing.T) {
 		project := types.Project{
 			Services: types.Services{
 				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
+					Name:          "myservice",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 					Develop: &types.DevelopConfig{
 						Watch: []types.Trigger{
 							{
@@ -370,18 +386,18 @@ func TestValidateWatch(t *testing.T) {
 		project := types.Project{
 			Services: types.Services{
 				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
-					DependsOn: map[string]types.ServiceDependency{
+					Name:          "myservice",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
+					WorkloadSpec: types.WorkloadSpec{DependsOn: map[string]types.ServiceDependency{
 						"other": {
 							Required: false,
 						},
-					},
+					}},
 				},
 			},
 			DisabledServices: types.Services{
 				"other": {
-					Image: "scratch",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
 				},
 			},
 		}
@@ -393,13 +409,13 @@ func TestValidateWatch(t *testing.T) {
 		project := types.Project{
 			Services: types.Services{
 				"myservice": {
-					Name:  "myservice",
-					Image: "scratch",
-					DependsOn: map[string]types.ServiceDependency{
+					Name:          "myservice",
+					ContainerSpec: types.ContainerSpec{Image: "scratch"},
+					WorkloadSpec: types.WorkloadSpec{DependsOn: map[string]types.ServiceDependency{
 						"other": {
 							Required: false,
 						},
-					},
+					}},
 				},
 			},
 		}
@@ -412,22 +428,24 @@ func TestValidateMountConflict(t *testing.T) {
 	project := &types.Project{
 		Services: types.Services{
 			"myservice": {
-				Name:  "myservice",
-				Image: "scratch",
-				Tmpfs: []string{
-					"/foo",
-					"/conflict:size=64m",
-				},
-				Volumes: []types.ServiceVolumeConfig{
-					{
-						Type:   "bind",
-						Target: "/bar",
-						Source: ".",
+				Name: "myservice",
+				ContainerSpec: types.ContainerSpec{
+					Image: "scratch",
+					Tmpfs: []string{
+						"/foo",
+						"/conflict:size=64m",
 					},
-					{
-						Type:   "bind",
-						Target: "/conflict",
-						Source: ".",
+					Volumes: []types.ServiceVolumeConfig{
+						{
+							Type:   "bind",
+							Target: "/bar",
+							Source: ".",
+						},
+						{
+							Type:   "bind",
+							Target: "/conflict",
+							Source: ".",
+						},
 					},
 				},
 			},
@@ -441,9 +459,9 @@ func TestValidateNegativeScale(t *testing.T) {
 	project := &types.Project{
 		Services: types.Services{
 			"myservice": {
-				Name:  "myservice",
-				Image: "scratch",
-				Scale: ptr(-1),
+				Name:          "myservice",
+				ContainerSpec: types.ContainerSpec{Image: "scratch"},
+				Scale:         ptr(-1),
 			},
 		},
 	}
@@ -453,8 +471,8 @@ func TestValidateNegativeScale(t *testing.T) {
 	project = &types.Project{
 		Services: types.Services{
 			"myservice": {
-				Name:  "myservice",
-				Image: "scratch",
+				Name:          "myservice",
+				ContainerSpec: types.ContainerSpec{Image: "scratch"},
 				Deploy: &types.DeployConfig{
 					Replicas: ptr(-1),
 				},

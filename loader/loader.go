@@ -842,6 +842,7 @@ func Transform(source interface{}, target interface{}) error {
 		),
 		Result:   target,
 		TagName:  "yaml",
+		Squash:   true,
 		Metadata: &data,
 	}
 	decoder, err := mapstructure.NewDecoder(config)

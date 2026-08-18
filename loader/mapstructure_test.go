@@ -30,6 +30,7 @@ func TestDecodeMapStructure(t *testing.T) {
 	config := &mapstructure.DecoderConfig{
 		Result:     &target,
 		TagName:    "yaml",
+		Squash:     true,
 		Metadata:   &data,
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(decoderHook),
 	}

@@ -56,9 +56,11 @@ func Test_LoadWithReset(t *testing.T) {
 	})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services["foo"], types.ServiceConfig{
-		Name:        "foo",
-		Image:       "foo",
-		Environment: types.MappingWithEquals{},
+		Name: "foo",
+		ContainerSpec: types.ContainerSpec{
+			Image:       "foo",
+			Environment: types.MappingWithEquals{},
+		},
 	})
 }
 

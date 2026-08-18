@@ -52,14 +52,14 @@
       }
     },
     "worker": {
-      "command": [
-        "worker"
-      ],
       "deploy": {
         "replicas": 3,
         "resources": {},
         "placement": {}
       },
+      "command": [
+        "worker"
+      ],
       "entrypoint": null,
       "environment": {
         "EXTRA": "fallback",
