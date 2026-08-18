@@ -23,8 +23,10 @@ package tests
 
 import (
 	"encoding/json"
+	"maps"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -138,14 +140,26 @@ func TestEveryServiceAttributeHasADeclaredTest(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "schema", "compose-spec.json"))
 	assert.NilError(t, err)
 	var schema struct {
-		Defs struct {
-			Service struct {
-				Properties map[string]any `json:"properties"`
-			} `json:"service"`
+		Defs map[string]struct {
+			AllOf []struct {
+				Ref string `json:"$ref"`
+			} `json:"allOf"`
+			Properties map[string]any `json:"properties"`
 		} `json:"$defs"`
 	}
 	assert.NilError(t, json.Unmarshal(raw, &schema))
-	properties := schema.Defs.Service.Properties
+	// The service definition composes the shared container/workload specs
+	// through allOf $refs: a service attribute lives either in the service's
+	// own properties or in one of the referenced definitions.
+	service := schema.Defs["service"]
+	properties := map[string]any{}
+	maps.Copy(properties, service.Properties)
+	for _, ref := range service.AllOf {
+		name := strings.TrimPrefix(ref.Ref, "#/$defs/")
+		def, ok := schema.Defs[name]
+		assert.Assert(t, ok, "service allOf references unknown definition %q", ref.Ref)
+		maps.Copy(properties, def.Properties)
+	}
 	assert.Assert(t, len(properties) > 0, "no service properties found in schema")
 
 	for attr := range properties {
