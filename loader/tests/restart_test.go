@@ -17,8 +17,10 @@
 package tests
 
 import (
+	"context"
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
@@ -40,4 +42,21 @@ services:
 	yamlP, jsonP := roundTrip(t, p)
 	expect(yamlP)
 	expect(jsonP)
+}
+
+func TestRestartNotAllowedOnJob(t *testing.T) {
+	// jobs run to completion: a restart policy is a service-only attribute
+	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
+name: test
+jobs:
+  foo:
+    image: alpine
+    restart: always
+    triggers:
+      manual: true
+`)}},
+		Environment: map[string]string{},
+	})
+	assert.ErrorContains(t, err, "restart")
 }

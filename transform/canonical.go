@@ -29,8 +29,8 @@ var transformers = map[tree.Path]Func{}
 
 func init() {
 	// container_spec-level canonicalizations: shared by anything declaring a
-	// container — services and pre_start init containers
-	for _, prefix := range []tree.Path{"services.*", "services.*.pre_start.*"} {
+	// container — services, jobs, and pre_start init containers
+	for _, prefix := range []tree.Path{"services.*", "jobs.*", "services.*.pre_start.*"} {
 		transformers[prefix+".env_file"] = transformEnvFile
 		transformers[prefix+".label_file"] = transformStringOrList
 		transformers[prefix+".gpus"] = transformGpus
@@ -44,7 +44,7 @@ func init() {
 		transformers[prefix+".ulimits.*"] = transformUlimits
 	}
 	// workload_spec and service-level canonicalizations
-	for _, prefix := range []tree.Path{"services"} {
+	for _, prefix := range []tree.Path{"services", "jobs"} {
 		transformers[prefix+".*"] = transformService
 		transformers[prefix+".*.build.secrets.*"] = transformFileMount
 		transformers[prefix+".*.build.provenance"] = transformStringOrX
@@ -57,6 +57,7 @@ func init() {
 		transformers[prefix+".*.build.ssh"] = transformSSH
 		transformers[prefix+".*.build.ulimits.*"] = transformUlimits
 	}
+	transformers["jobs.*.triggers.schedule.*"] = transformSchedule
 	transformers["services.*.develop.watch.*.ignore"] = transformStringOrList
 	transformers["services.*.develop.watch.*.include"] = transformStringOrList
 	transformers["volumes.*"] = transformMaybeExternal

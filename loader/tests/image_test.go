@@ -29,10 +29,16 @@ name: test
 services:
   foo:
     image: redis
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: redis
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Image, "redis")
+		assert.Equal(t, p.Jobs["foo"].Image, "redis")
 	}
 	expect(p)
 

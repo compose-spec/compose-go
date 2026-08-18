@@ -14,37 +14,26 @@
    limitations under the License.
 */
 
-package tests
+package transform
 
 import (
-	"testing"
+	"fmt"
 
-	"github.com/compose-spec/compose-go/v2/types"
-	"gotest.tools/v3/assert"
+	"github.com/compose-spec/compose-go/v2/tree"
 )
 
-func TestNetworkMode(t *testing.T) {
-	p := load(t, `
-name: test
-services:
-  foo:
-    image: alpine
-    network_mode: "container:0cfeab0f748b"
-jobs:
-  foo:
-    triggers:
-      manual: true
-    image: alpine
-    network_mode: "container:0cfeab0f748b"
-`)
-
-	expect := func(p *types.Project) {
-		assert.Equal(t, p.Services["foo"].NetworkMode, "container:0cfeab0f748b")
-		assert.Equal(t, p.Jobs["foo"].NetworkMode, "container:0cfeab0f748b")
+// transformSchedule canonicalizes a job trigger schedule entry: a plain
+// crontab expression (short syntax) becomes a schedule object declaring only
+// `cron`, following the same short/long syntax model as `volumes`.
+func transformSchedule(data any, p tree.Path, _ bool) (any, error) {
+	switch v := data.(type) {
+	case string:
+		return map[string]any{
+			"cron": v,
+		}, nil
+	case map[string]any:
+		return v, nil
+	default:
+		return nil, fmt.Errorf("%s: invalid type %T for schedule entry", p, v)
 	}
-	expect(p)
-
-	yamlP, jsonP := roundTrip(t, p)
-	expect(yamlP)
-	expect(jsonP)
 }

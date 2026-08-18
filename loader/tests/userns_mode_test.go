@@ -30,10 +30,17 @@ services:
   foo:
     image: alpine
     userns_mode: host
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    userns_mode: host
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].UserNSMode, "host")
+		assert.Equal(t, p.Jobs["foo"].UserNSMode, "host")
 	}
 	expect(p)
 

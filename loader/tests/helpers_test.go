@@ -85,3 +85,17 @@ func roundTrip(t *testing.T, p *types.Project) (fromYAML, fromJSON *types.Projec
 func ptr[T any](t T) *T {
 	return &t
 }
+
+// loadErr loads a project expected to be rejected and returns the error.
+func loadErr(t *testing.T, yaml string) error {
+	t.Helper()
+	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
+		Environment: map[string]string{},
+	}, func(options *loader.Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+	})
+	assert.Assert(t, err != nil, "expected loading to fail")
+	return err
+}

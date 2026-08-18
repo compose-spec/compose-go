@@ -45,6 +45,7 @@ type Project struct {
 	Name       string     `yaml:"name,omitempty" json:"name,omitempty"`
 	WorkingDir string     `yaml:"-" json:"-"`
 	Services   Services   `yaml:"services" json:"services"`
+	Jobs       Jobs       `yaml:"jobs,omitempty" json:"jobs,omitempty"`
 	Networks   Networks   `yaml:"networks,omitempty" json:"networks,omitempty"`
 	Volumes    Volumes    `yaml:"volumes,omitempty" json:"volumes,omitempty"`
 	Secrets    Secrets    `yaml:"secrets,omitempty" json:"secrets,omitempty"`
@@ -57,7 +58,9 @@ type Project struct {
 
 	// DisabledServices track services which have been disable as profile is not active
 	DisabledServices Services `yaml:"-" json:"-"`
-	Profiles         []string `yaml:"-" json:"-"`
+	// DisabledJobs track jobs which have been disabled as profile is not active
+	DisabledJobs Jobs     `yaml:"-" json:"-"`
+	Profiles     []string `yaml:"-" json:"-"`
 }
 
 // ServiceNames return names for all services in this Compose config
@@ -263,6 +266,18 @@ func (p *Project) AllServices() Services {
 	return all
 }
 
+// AllJobs returns all the project jobs, enabled or not
+func (p *Project) AllJobs() Jobs {
+	all := Jobs{}
+	for name, job := range p.Jobs {
+		all[name] = job
+	}
+	for name, job := range p.DisabledJobs {
+		all[name] = job
+	}
+	return all
+}
+
 type ServiceFunc func(name string, service *ServiceConfig) error
 
 // ForEachService runs ServiceFunc on each service and dependencies according to DependencyPolicy
@@ -366,14 +381,23 @@ func (p *Project) RelativePath(path string) string {
 
 // HasProfile return true if service has no profile declared or has at least one profile matching
 func (s ServiceConfig) HasProfile(profiles []string) bool {
-	if len(s.Profiles) == 0 {
+	return matchesProfiles(s.Profiles, profiles)
+}
+
+// HasProfile return true if job has no profile declared or has at least one profile matching
+func (j JobConfig) HasProfile(profiles []string) bool {
+	return matchesProfiles(j.Profiles, profiles)
+}
+
+func matchesProfiles(declared, active []string) bool {
+	if len(declared) == 0 {
 		return true
 	}
-	for _, p := range profiles {
+	for _, p := range active {
 		if p == "*" {
 			return true
 		}
-		for _, sp := range s.Profiles {
+		for _, sp := range declared {
 			if sp == p {
 				return true
 			}
@@ -397,6 +421,21 @@ func (p *Project) WithProfiles(profiles []string) (*Project, error) {
 	}
 	newProject.Services = enabled
 	newProject.DisabledServices = disabled
+
+	if newProject.Jobs != nil || newProject.DisabledJobs != nil {
+		enabledJobs := Jobs{}
+		disabledJobs := Jobs{}
+		for name, job := range newProject.AllJobs() {
+			if job.HasProfile(profiles) {
+				enabledJobs[name] = job
+			} else {
+				disabledJobs[name] = job
+			}
+		}
+		newProject.Jobs = enabledJobs
+		newProject.DisabledJobs = disabledJobs
+	}
+
 	newProject.Profiles = profiles
 	return newProject, nil
 }
@@ -756,6 +795,9 @@ func (p *Project) MarshalJSON(options ...func(*marshallOptions)) ([]byte, error)
 	}
 	if len(src.Configs) > 0 {
 		m["configs"] = src.Configs
+	}
+	if len(src.Jobs) > 0 {
+		m["jobs"] = src.Jobs
 	}
 	for k, v := range src.Extensions {
 		m[k] = v

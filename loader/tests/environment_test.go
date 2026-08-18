@@ -39,6 +39,16 @@ services:
       BU: ""
       ZO:
       MEU:
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    environment:
+      FOO: "1"
+      BAR: 2
+      GA: 2.5
+      BU: ""
 `, map[string]string{"MEU": "Shadoks"})
 
 	expect := func(p *types.Project) {
@@ -49,6 +59,11 @@ services:
 		assert.Equal(t, *env["BU"], "")
 		assert.Equal(t, *env["MEU"], "Shadoks")
 		assert.Assert(t, env["ZO"] == nil)
+		jenv := p.Jobs["foo"].Environment
+		assert.Equal(t, *jenv["FOO"], "1")
+		assert.Equal(t, *jenv["BAR"], "2")
+		assert.Equal(t, *jenv["GA"], "2.5")
+		assert.Equal(t, *jenv["BU"], "")
 	}
 	expect(p)
 }
@@ -65,6 +80,15 @@ services:
       - BU=
       - ZO
       - MEU
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    environment:
+      - FOO=1
+      - BAR=2
+      - BU=
 `, map[string]string{"MEU": "Shadoks"})
 
 	expect := func(p *types.Project) {
@@ -74,6 +98,10 @@ services:
 		assert.Equal(t, *env["BU"], "")
 		assert.Equal(t, *env["MEU"], "Shadoks")
 		assert.Assert(t, env["ZO"] == nil)
+		jenv := p.Jobs["foo"].Environment
+		assert.Equal(t, *jenv["FOO"], "1")
+		assert.Equal(t, *jenv["BAR"], "2")
+		assert.Equal(t, *jenv["BU"], "")
 	}
 	expect(p)
 }
@@ -87,9 +115,19 @@ services:
     environment:
       FOO: true
       BAR: false
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    environment:
+      FOO: true
+      BAR: false
 `)
 	assert.Equal(t, *p.Services["foo"].Environment["FOO"], "true")
 	assert.Equal(t, *p.Services["foo"].Environment["BAR"], "false")
+	assert.Equal(t, *p.Jobs["foo"].Environment["FOO"], "true")
+	assert.Equal(t, *p.Jobs["foo"].Environment["BAR"], "false")
 }
 
 func TestEnvironmentInvalidValue(t *testing.T) {

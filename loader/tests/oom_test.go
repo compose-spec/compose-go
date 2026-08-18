@@ -30,10 +30,17 @@ services:
   foo:
     image: alpine
     oom_kill_disable: true
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    oom_kill_disable: true
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].OomKillDisable, true)
+		assert.Equal(t, p.Jobs["foo"].OomKillDisable, true)
 	}
 	expect(p)
 
@@ -49,10 +56,17 @@ services:
   foo:
     image: alpine
     oom_score_adj: 500
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    oom_score_adj: 500
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].OomScoreAdj, int64(500))
+		assert.Equal(t, p.Jobs["foo"].OomScoreAdj, int64(500))
 	}
 	expect(p)
 

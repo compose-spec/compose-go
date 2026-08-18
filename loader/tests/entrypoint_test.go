@@ -30,10 +30,17 @@ services:
   foo:
     image: alpine
     entrypoint: ["/code/entrypoint.sh", "-p", "3000"]
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    entrypoint: ["/code/entrypoint.sh", "-p", "3000"]
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
+		assert.DeepEqual(t, p.Jobs["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
 	}
 	expect(p)
 
@@ -49,6 +56,13 @@ services:
   foo:
     image: alpine
     entrypoint: /code/entrypoint.sh -p 3000
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    entrypoint: /code/entrypoint.sh -p 3000
 `)
 	assert.DeepEqual(t, p.Services["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
+	assert.DeepEqual(t, p.Jobs["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
 }

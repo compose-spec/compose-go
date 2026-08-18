@@ -176,8 +176,8 @@ services:
 }
 
 // Interpolation casts are registered per specification layer: container_spec
-// attributes cast wherever a container is declared — including pre_start
-// hooks, not only services.
+// attributes cast wherever a container is declared — including jobs and
+// pre_start hooks, not only services.
 func TestLayeredInterpolationCasts(t *testing.T) {
 	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
@@ -188,10 +188,18 @@ services:
     pre_start:
       - command: setup
         init: ${INIT}
+jobs:
+  migrate:
+    image: alpine
+    command: migrate
+    cpus: ${CPUS}
+    triggers:
+      manual: true
 `)}},
-		Environment: map[string]string{"INIT": "true"},
+		Environment: map[string]string{"INIT": "true", "CPUS": "1.5"},
 	})
 	assert.NilError(t, err)
 	hook := p.Services["test"].PreStart[0]
 	assert.Assert(t, hook.Init != nil && *hook.Init, "hook init must cast to boolean")
+	assert.Equal(t, p.Jobs["migrate"].CPUS, float32(1.5), "job cpus must cast to float")
 }
