@@ -104,3 +104,17 @@ func loadsAs(t *testing.T, input, canonical string) {
 	assert.NilError(t, yaml.Unmarshal([]byte(canonical), &want), canonical)
 	assert.DeepEqual(t, got, want)
 }
+
+// loadErr loads a project expected to be rejected and returns the error.
+func loadErr(t *testing.T, content string) error {
+	t.Helper()
+	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
+		Environment: map[string]string{},
+	}, func(options *loader.Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+	})
+	assert.Assert(t, err != nil, "expected loading to fail")
+	return err
+}

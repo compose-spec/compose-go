@@ -36,10 +36,17 @@ services:
   foo:
     image: alpine
     command: bundle exec thin -p 3000
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    command: bundle exec thin -p 3000
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
+		assert.DeepEqual(t, p.Jobs["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
 	}
 	expect(p)
 
@@ -55,6 +62,13 @@ services:
   foo:
     image: alpine
     command: ["bundle", "exec", "thin", "-p", "3000"]
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    command: ["bundle", "exec", "thin", "-p", "3000"]
 `)
 	assert.DeepEqual(t, p.Services["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
+	assert.DeepEqual(t, p.Jobs["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
 }

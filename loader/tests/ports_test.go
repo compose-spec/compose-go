@@ -38,6 +38,15 @@ services:
       - "80:8080"
       - "90:8090/udp"
       - 8600
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    ports:
+      - "80:8080"
+      - "90:8090/udp"
+      - 8600
 `)
 	expect := func(p *types.Project) {
 		ports := p.Services["foo"].Ports
@@ -47,6 +56,14 @@ services:
 		assert.Equal(t, ports[1].Target, uint32(8090))
 		assert.Equal(t, ports[1].Protocol, "udp")
 		assert.Equal(t, ports[2].Target, uint32(8600))
+
+		jobPorts := p.Jobs["foo"].Ports
+		assert.Equal(t, len(jobPorts), 3)
+		assert.Equal(t, jobPorts[0].Target, uint32(8080))
+		assert.Equal(t, jobPorts[0].Published, "80")
+		assert.Equal(t, jobPorts[1].Target, uint32(8090))
+		assert.Equal(t, jobPorts[1].Protocol, "udp")
+		assert.Equal(t, jobPorts[2].Target, uint32(8600))
 	}
 	expect(p)
 
@@ -66,6 +83,16 @@ services:
         published: 8080
         protocol: tcp
         mode: host
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    ports:
+      - target: 80
+        published: 8080
+        protocol: tcp
+        mode: host
 `)
 	expect := func(p *types.Project) {
 		ports := p.Services["foo"].Ports
@@ -74,6 +101,13 @@ services:
 		assert.Equal(t, ports[0].Published, "8080")
 		assert.Equal(t, ports[0].Protocol, "tcp")
 		assert.Equal(t, ports[0].Mode, "host")
+
+		jobPorts := p.Jobs["foo"].Ports
+		assert.Equal(t, len(jobPorts), 1)
+		assert.Equal(t, jobPorts[0].Target, uint32(80))
+		assert.Equal(t, jobPorts[0].Published, "8080")
+		assert.Equal(t, jobPorts[0].Protocol, "tcp")
+		assert.Equal(t, jobPorts[0].Mode, "host")
 	}
 	expect(p)
 
@@ -90,6 +124,13 @@ services:
     image: alpine
     ports:
       - "80-82:8080-8082"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    ports:
+      - "80-82:8080-8082"
 `)
 	ports := p.Services["foo"].Ports
 	assert.Equal(t, len(ports), 3)
@@ -99,6 +140,15 @@ services:
 	assert.Equal(t, ports[1].Published, "81")
 	assert.Equal(t, ports[2].Target, uint32(8082))
 	assert.Equal(t, ports[2].Published, "82")
+
+	jobPorts := p.Jobs["foo"].Ports
+	assert.Equal(t, len(jobPorts), 3)
+	assert.Equal(t, jobPorts[0].Target, uint32(8080))
+	assert.Equal(t, jobPorts[0].Published, "80")
+	assert.Equal(t, jobPorts[1].Target, uint32(8081))
+	assert.Equal(t, jobPorts[1].Published, "81")
+	assert.Equal(t, jobPorts[2].Target, uint32(8082))
+	assert.Equal(t, jobPorts[2].Published, "82")
 }
 
 func TestNamedPort(t *testing.T) {
@@ -111,8 +161,18 @@ services:
       - name: http
         published: 8080
         target: 80
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    ports:
+      - name: http
+        published: 8080
+        target: 80
 `)
 	assert.Equal(t, p.Services["foo"].Ports[0].Name, "http")
+	assert.Equal(t, p.Jobs["foo"].Ports[0].Name, "http")
 }
 
 func TestAppProtocol(t *testing.T) {
@@ -126,6 +186,17 @@ services:
         target: 80
         protocol: tcp
         app_protocol: http
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    ports:
+      - published: 8080
+        target: 80
+        protocol: tcp
+        app_protocol: http
 `)
 	assert.Equal(t, p.Services["foo"].Ports[0].AppProtocol, "http")
+	assert.Equal(t, p.Jobs["foo"].Ports[0].AppProtocol, "http")
 }
