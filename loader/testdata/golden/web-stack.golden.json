@@ -1,0 +1,244 @@
+{
+  "configs": {
+    "redis_conf": {
+      "name": "golden_redis_conf",
+      "file": "./redis.conf"
+    }
+  },
+  "name": "golden",
+  "networks": {
+    "backend": {
+      "name": "golden_backend",
+      "driver": "bridge",
+      "ipam": {
+        "config": [
+          {
+            "subnet": "172.28.0.0/16"
+          }
+        ]
+      }
+    },
+    "default": {
+      "name": "golden_default",
+      "ipam": {}
+    },
+    "frontend": {
+      "name": "golden_frontend",
+      "ipam": {}
+    }
+  },
+  "secrets": {
+    "db_password": {
+      "name": "golden_db_password",
+      "file": "./db_password.txt"
+    }
+  },
+  "services": {
+    "cache": {
+      "command": null,
+      "configs": [
+        {
+          "source": "redis_conf",
+          "target": "/etc/redis/redis.conf"
+        }
+      ],
+      "entrypoint": null,
+      "image": "redis:7",
+      "networks": {
+        "default": null
+      }
+    },
+    "db": {
+      "command": null,
+      "entrypoint": null,
+      "environment": {
+        "POSTGRES_DB": "app",
+        "POSTGRES_PASSWORD_FILE": "/run/secrets/db_password"
+      },
+      "healthcheck": {
+        "test": [
+          "CMD-SHELL",
+          "pg_isready -U postgres"
+        ],
+        "interval": "10s"
+      },
+      "image": "postgres:16",
+      "networks": {
+        "default": null
+      },
+      "secrets": [
+        {
+          "source": "db_password",
+          "target": "/run/secrets/db_password",
+          "mode": "0400"
+        }
+      ],
+      "volumes": [
+        {
+          "type": "volume",
+          "source": "db-data",
+          "target": "/var/lib/postgresql/data",
+          "volume": {}
+        }
+      ]
+    },
+    "web": {
+      "profiles": [
+        "frontend"
+      ],
+      "build": {
+        "context": "./web",
+        "dockerfile": "Dockerfile.prod",
+        "args": {
+          "TAG": "1.2.3"
+        },
+        "labels": {
+          "com.example.stage": "build"
+        },
+        "additional_contexts": {
+          "assets": "./assets"
+        },
+        "target": "runtime"
+      },
+      "command": [
+        "serve",
+        "--port",
+        "8080"
+      ],
+      "depends_on": {
+        "cache": {
+          "condition": "service_started",
+          "required": true
+        },
+        "db": {
+          "condition": "service_healthy",
+          "required": true
+        }
+      },
+      "deploy": {
+        "replicas": 2,
+        "resources": {
+          "limits": {
+            "cpus": 0.5,
+            "memory": "268435456"
+          },
+          "reservations": {
+            "memory": "134217728"
+          }
+        },
+        "restart_policy": {
+          "condition": "on-failure",
+          "max_attempts": 3
+        },
+        "placement": {}
+      },
+      "entrypoint": [
+        "/entrypoint.sh"
+      ],
+      "environment": {
+        "DEBUG": null,
+        "MODE": "production"
+      },
+      "expose": [
+        "9090"
+      ],
+      "healthcheck": {
+        "test": [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost/health"
+        ],
+        "timeout": "5s",
+        "interval": "30s",
+        "retries": 3,
+        "start_period": "10s"
+      },
+      "image": "example/web:1.2.3",
+      "labels": {
+        "com.example.app": "web"
+      },
+      "logging": {
+        "driver": "json-file",
+        "options": {
+          "max-size": "10m"
+        }
+      },
+      "networks": {
+        "backend": null,
+        "frontend": {
+          "aliases": [
+            "www"
+          ],
+          "priority": 10
+        }
+      },
+      "ports": [
+        {
+          "mode": "ingress",
+          "target": 80,
+          "published": "8080",
+          "protocol": "tcp"
+        },
+        {
+          "mode": "host",
+          "target": 443,
+          "published": "8443",
+          "protocol": "tcp"
+        }
+      ],
+      "restart": "unless-stopped",
+      "scale": 2,
+      "volumes": [
+        {
+          "type": "bind",
+          "source": "./static",
+          "target": "/usr/share/nginx/html",
+          "read_only": true,
+          "bind": {}
+        },
+        {
+          "type": "volume",
+          "source": "data",
+          "target": "/data",
+          "volume": {
+            "nocopy": true
+          }
+        },
+        {
+          "type": "tmpfs",
+          "target": "/scratch",
+          "tmpfs": {
+            "size": "10485760"
+          }
+        }
+      ],
+      "post_start": [
+        {
+          "command": [
+            "./warm-cache.sh"
+          ],
+          "user": "root"
+        }
+      ],
+      "pre_stop": [
+        {
+          "command": [
+            "./drain.sh"
+          ]
+        }
+      ]
+    }
+  },
+  "volumes": {
+    "data": {
+      "name": "golden_data"
+    },
+    "db-data": {
+      "name": "golden_db-data",
+      "labels": {
+        "com.example.retain": "true"
+      }
+    }
+  }
+}
