@@ -253,11 +253,11 @@ func Test_ResolveImages_preStartHooks(t *testing.T) {
 		Services: Services{
 			"service_1": {
 				Name: "service_1",
-				PreStart: []ServiceHook{
-					{Image: "alpine:3.19", Command: ShellCommand{"echo", "init"}},
+				PreStart: []PreStartHook{
+					{ContainerSpec: ContainerSpec{Image: "alpine:3.19", Command: ShellCommand{"echo", "init"}}},
 					// hook without an explicit image falls back to the service
 					// image at runtime and must be left untouched here
-					{Command: ShellCommand{"echo", "noimage"}},
+					{ContainerSpec: ContainerSpec{Command: ShellCommand{"echo", "noimage"}}},
 				},
 				ContainerSpec: ContainerSpec{Image: "alpine:3.20"},
 			},
@@ -322,8 +322,8 @@ func Test_ResolveImages_preStartHookError(t *testing.T) {
 		Services: Services{
 			"service_1": {
 				Name: "service_1",
-				PreStart: []ServiceHook{
-					{Image: "alpine:3.19", Command: ShellCommand{"echo", "init"}},
+				PreStart: []PreStartHook{
+					{ContainerSpec: ContainerSpec{Image: "alpine:3.19", Command: ShellCommand{"echo", "init"}}},
 				},
 				ContainerSpec: ContainerSpec{Image: "docker.io/library/alpine:3.20@sha256:1234567890123456789012345678901234567890123456789012345678901234"},
 			},
@@ -377,7 +377,7 @@ func Test_ResolveImages_deduplicated(t *testing.T) {
 			// collapse to a single resolver call.
 			"service_1": {
 				Name:          "service_1",
-				PreStart:      []ServiceHook{{Image: "alpine:3.20", Command: ShellCommand{"echo"}}},
+				PreStart:      []PreStartHook{{ContainerSpec: ContainerSpec{Image: "alpine:3.20", Command: ShellCommand{"echo"}}}},
 				ContainerSpec: ContainerSpec{Image: "alpine:3.20", Volumes: []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "alpine:3.20", Target: "/data"}}},
 			},
 			// service_2 shares the same image, resolved from a concurrent
