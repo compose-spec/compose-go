@@ -28,8 +28,9 @@ type Func func(data any, p tree.Path, ignoreParseError bool) (any, error)
 var transformers = map[tree.Path]Func{}
 
 func init() {
-	// container_spec-level canonicalizations
-	for _, prefix := range []tree.Path{"services.*"} {
+	// container_spec-level canonicalizations: shared by anything declaring a
+	// container — services and pre_start init containers
+	for _, prefix := range []tree.Path{"services.*", "services.*.pre_start.*"} {
 		transformers[prefix+".env_file"] = transformEnvFile
 		transformers[prefix+".label_file"] = transformStringOrList
 		transformers[prefix+".gpus"] = transformGpus

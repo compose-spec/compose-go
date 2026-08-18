@@ -42,6 +42,10 @@ func ResolveRelativePaths(project map[string]any, base string, remotes []RemoteR
 		"services.*.extends.file":                r.absExtendsPath,
 		"services.*.develop.watch.*.path":        r.absSymbolicLink,
 		"services.*.volumes.*":                   r.absVolumeMount,
+		// pre_start hooks are full container specifications (compose-spec#656)
+		"services.*.pre_start.*.env_file.*.path": r.absPath,
+		"services.*.pre_start.*.label_file.*":    r.absPath,
+		"services.*.pre_start.*.volumes.*":       r.absVolumeMount,
 		"configs.*.file":                         r.maybeUnixPath,
 		"secrets.*.file":                         r.maybeUnixPath,
 		"include.path":                           r.absPath,
