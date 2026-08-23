@@ -89,7 +89,6 @@ make check_compose_spec
 
 * [compose](https://github.com/docker/compose)
 * [containerd/nerdctl](https://github.com/containerd/nerdctl)
-* [compose-cli](https://github.com/docker/compose-cli)
 * [tilt.dev](https://github.com/tilt-dev/tilt)
 * [kompose](https://github.com/kubernetes/kompose)
 * [kurtosis](https://github.com/kurtosis-tech/kurtosis/)
