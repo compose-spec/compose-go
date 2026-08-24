@@ -444,6 +444,14 @@ func TestWithServicesWithWildcard(t *testing.T) {
 	assert.DeepEqual(t, seen, []string{"service_1", "service_2", "service_3", "service_4", "service_5", "service_6"})
 }
 
+func TestWithServicesTransform_emptyServicesRace(t *testing.T) {
+	p := &Project{Services: Services{}}
+	_, err := p.WithServicesTransform(func(_ string, s ServiceConfig) (ServiceConfig, error) {
+		return s, nil
+	})
+	assert.NilError(t, err)
+}
+
 func TestServicesWithBuild(t *testing.T) {
 	p := makeProject()
 	assert.Equal(t, len(p.ServicesWithBuild()), 0)

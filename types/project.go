@@ -868,6 +868,7 @@ func (p *Project) WithServicesTransform(fn func(name string, s ServiceConfig) (S
 	expect := len(p.Services)
 	resultCh := make(chan result, expect)
 	newProject := p.deepCopy()
+	services := newProject.Services
 
 	eg, ctx := errgroup.WithContext(context.Background())
 	eg.Go(func() error {
@@ -885,7 +886,7 @@ func (p *Project) WithServicesTransform(fn func(name string, s ServiceConfig) (S
 		newProject.Services = s
 		return nil
 	})
-	for n, s := range newProject.Services {
+	for n, s := range services {
 		name := n
 		service := s
 		eg.Go(func() error {
