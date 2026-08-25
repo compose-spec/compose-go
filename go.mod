@@ -11,7 +11,7 @@ require (
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.10.1
 	github.com/xhit/go-str2duration/v2 v2.1.0
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
 	golang.org/x/sync v0.3.0
@@ -20,6 +20,6 @@ require (
 )
 
 require (
-	github.com/stretchr/testify v1.8.4 // indirect
-	golang.org/x/sys v0.12.0 // indirect
+	github.com/stretchr/testify v1.12.1 // indirect
+	golang.org/x/sys v0.13.0 // indirect
 )
