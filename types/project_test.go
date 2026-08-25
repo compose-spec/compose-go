@@ -68,6 +68,39 @@ func Test_WithoutUnnecessaryResources(t *testing.T) {
 	}
 }
 
+func Test_WithoutUnresolvedOptionalDependencies(t *testing.T) {
+	p := &Project{
+		Services: Services{
+			"app": {
+				Name: "app",
+				DependsOn: DependsOnConfig{
+					"db":      {Required: true},
+					"debug":   {Required: false},
+					"missing": {Required: true},
+				},
+			},
+			"db": {Name: "db"},
+		},
+		DisabledServices: Services{
+			"debug": {Name: "debug", Profiles: []string{"debug"}},
+		},
+	}
+
+	derived := p.WithoutUnresolvedOptionalDependencies()
+
+	deps := derived.Services["app"].DependsOn
+	assert.Equal(t, len(deps), 2)
+	_, kept := deps["db"]
+	assert.Check(t, kept)
+	// a required reference to an absent service is kept so consumers can
+	// report a meaningful error
+	_, kept = deps["missing"]
+	assert.Check(t, kept)
+
+	// the original project is unchanged
+	assert.Equal(t, len(p.Services["app"].DependsOn), 3)
+}
+
 func Test_NoProfiles(t *testing.T) {
 	p := makeProject()
 	p, err := p.WithProfiles(nil)

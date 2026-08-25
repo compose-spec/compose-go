@@ -551,6 +551,24 @@ func (p *Project) WithSelectedServices(names []string, options ...DependencyOpti
 	return newProject, nil
 }
 
+// WithoutUnresolvedOptionalDependencies removes from services any optional (required: false)
+// depends_on reference to a service absent from the model — typically disabled by an inactive
+// profile or dropped by service selection. Required references are deliberately kept, so
+// consumers can detect them and report a meaningful error.
+// It returns a new Project instance with the changes and keep the original Project unchanged
+func (p *Project) WithoutUnresolvedOptionalDependencies() *Project {
+	newProject := p.deepCopy()
+	for name, s := range newProject.Services {
+		for dep, cfg := range s.DependsOn {
+			if _, ok := newProject.Services[dep]; !ok && !cfg.Required {
+				delete(s.DependsOn, dep)
+			}
+		}
+		newProject.Services[name] = s
+	}
+	return newProject
+}
+
 // WithServicesDisabled removes from the project model the given services and their references in all dependencies
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithServicesDisabled(names ...string) *Project {
