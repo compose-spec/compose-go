@@ -17,7 +17,6 @@ linters:
     - nolintlint
     - revive
     - staticcheck
-    - testifylint
     - unconvert
     - unparam
     - unused
@@ -27,7 +26,15 @@ linters:
         all:
           deny:
             - pkg: gopkg.in/yaml.v2
-              desc: compose-go uses yaml.v3
+              desc: compose-go uses go.yaml.in/yaml/v4
+            - pkg: gopkg.in/yaml.v3
+              desc: compose-go uses go.yaml.in/yaml/v4
+            - pkg: github.com/stretchr/testify/assert
+              desc: Use "gotest.tools/v3/assert" instead
+            - pkg: github.com/stretchr/testify/require
+              desc: Use "gotest.tools/v3/assert" instead
+            - pkg: github.com/stretchr/testify/suite
+              desc: Do not use
     gocritic:
       disabled-checks:
         - paramTypeCombine
@@ -46,21 +53,6 @@ linters:
                 - fmt
     lll:
       line-length: 200
-    testifylint:
-      enable:
-        - bool-compare
-        - compares
-        - empty
-        - error-is-as
-        - error-nil
-        - expected-actual
-        - len
-        - require-error
-        - suite-dont-use-pkg
-        - suite-extra-assert-call
-      disable:
-        - float-compare
-        - go-require
   exclusions:
     generated: lax
     presets:

@@ -4,8 +4,7 @@ import (
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/template"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"gotest.tools/v3/assert"
 )
 
 var envMap = map[string]string{
@@ -44,7 +43,7 @@ func TestExpandIfEmptyOrUnset(t *testing.T) {
 	for _, expected := range templateResults {
 		t.Run(expected.name, func(t *testing.T) {
 			result, err := expandVariables(expected.input, envMap, notFoundLookup)
-			require.NoError(t, err)
+			assert.NilError(t, err)
 			assert.Equal(t, expected.result, result)
 		})
 	}
@@ -76,7 +75,7 @@ func TestExpandIfUnset(t *testing.T) {
 	for _, expected := range templateResults {
 		t.Run(expected.name, func(t *testing.T) {
 			result, err := expandVariables(expected.input, envMap, notFoundLookup)
-			require.NoError(t, err)
+			assert.NilError(t, err)
 			assert.Equal(t, expected.result, result)
 		})
 	}
@@ -112,7 +111,7 @@ func TestErrorIfEmptyOrUnset(t *testing.T) {
 	for _, expected := range templateResults {
 		t.Run(expected.name, func(t *testing.T) {
 			result, err := expandVariables(expected.input, envMap, notFoundLookup)
-			assert.Equal(t, expected.err, err)
+			assert.DeepEqual(t, expected.err, err)
 			assert.Equal(t, expected.result, result)
 		})
 	}
@@ -148,7 +147,7 @@ func TestErrorIfUnset(t *testing.T) {
 	for _, expected := range templateResults {
 		t.Run(expected.name, func(t *testing.T) {
 			result, err := expandVariables(expected.input, envMap, notFoundLookup)
-			assert.Equal(t, expected.err, err)
+			assert.DeepEqual(t, expected.err, err)
 			assert.Equal(t, expected.result, result)
 		})
 	}
