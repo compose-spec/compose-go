@@ -29,6 +29,26 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+func TestGetPullPolicyRejectsInvalidValue(t *testing.T) {
+	s := ServiceConfig{PullPolicy: "neverxxx"}
+	_, _, err := s.GetPullPolicy()
+	assert.ErrorContains(t, err, `invalid pull_policy "neverxxx"`)
+}
+
+func TestGetPullPolicyDefaultsToMissingWhenUnset(t *testing.T) {
+	s := ServiceConfig{}
+	policy, _, err := s.GetPullPolicy()
+	assert.NilError(t, err)
+	assert.Equal(t, policy, PullPolicyMissing)
+}
+
+func TestGetPullPolicyAcceptsBareRefresh(t *testing.T) {
+	s := ServiceConfig{PullPolicy: PullPolicyRefresh}
+	policy, _, err := s.GetPullPolicy()
+	assert.NilError(t, err)
+	assert.Equal(t, policy, PullPolicyRefresh)
+}
+
 func TestParsePortConfig(t *testing.T) {
 	testCases := []struct {
 		value         string
