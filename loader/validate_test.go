@@ -277,7 +277,7 @@ func TestValidateContainerName(t *testing.T) {
 		},
 	}
 	err := project.CheckContainerNameUnicity()
-	assert.Assert(t, strings.Contains(err.Error(), `container name "mycontainer" is already in use by`))
+	assert.Assert(t, strings.Contains(err.Error(), `container name "mycontainer" is already in use by service "myservice`))
 }
 
 func TestValidateWatch(t *testing.T) {
