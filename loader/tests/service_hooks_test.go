@@ -18,6 +18,7 @@ package tests
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -178,6 +179,71 @@ services:
 // Interpolation casts are registered per specification layer: container_spec
 // attributes cast wherever a container is declared — including jobs and
 // pre_start hooks, not only services.
+// pre_start inheritance is resolved at load time: the model carries hooks
+// already completed with the service's container specification — the hook's
+// declarations win on conflicts, collections merge per the compose rules,
+// and workload/service-only attributes never leak into the hook.
+func TestPreStartResolvedAtLoadTime(t *testing.T) {
+	fullLoad := func(yaml string) *types.Project {
+		t.Helper()
+		p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+			ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
+			Environment: map[string]string{},
+		})
+		assert.NilError(t, err)
+		return p
+	}
+
+	p := fullLoad(`
+name: test
+services:
+  app:
+    image: myapp
+    user: svc-user
+    environment:
+      - COMMON=from-service
+      - OVERRIDDEN=from-service
+    extra_hosts:
+      - "shared:10.0.0.1"
+    volumes:
+      - data:/data
+    ports:
+      - "8080:80"
+    pre_start:
+      - command: ["migrate"]
+        user: root
+        environment:
+          - OVERRIDDEN=from-hook
+        extra_hosts:
+          - "hook-only:10.0.0.2"
+volumes:
+  data: {}
+`)
+
+	expect := func(p *types.Project) {
+		hook := p.Services["app"].PreStart[0]
+		// scalars: inherited when absent, replaced when declared
+		assert.Equal(t, hook.Image, "myapp")
+		assert.Equal(t, hook.User, "root")
+		// collections merge, the hook winning per key
+		assert.Equal(t, *hook.Environment["COMMON"], "from-service")
+		assert.Equal(t, *hook.Environment["OVERRIDDEN"], "from-hook")
+		hosts := hook.ExtraHosts.AsList(":")
+		slices.Sort(hosts)
+		assert.DeepEqual(t, hosts, []string{"hook-only:10.0.0.2", "shared:10.0.0.1"})
+		// volumes inherit at runtime through volumes_from, never in the model
+		assert.Equal(t, len(hook.Volumes), 0)
+	}
+	expect(p)
+
+	// idempotence: reloading the resolved model runs the resolution again
+	// over already-completed hooks — the strictly-identical-entry dedup of
+	// the sequence merge keeps accumulated collections stable
+	out, err := p.MarshalYAML()
+	assert.NilError(t, err)
+	expect(fullLoad(string(out)))
+}
+
 func TestLayeredInterpolationCasts(t *testing.T) {
 	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
