@@ -19,6 +19,7 @@ package override
 import (
 	"cmp"
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -46,7 +47,7 @@ func init() {
 	mergeSpecials["services.*.build"] = mergeBuild
 	mergeSpecials["services.*.build.args"] = mergeToSequence
 	mergeSpecials["services.*.build.additional_contexts"] = mergeToSequence
-	mergeSpecials["services.*.build.extra_hosts"] = mergeExtraHosts
+	mergeSpecials["services.*.build.extra_hosts"] = mergeToSequence
 	mergeSpecials["services.*.build.labels"] = mergeToSequence
 	mergeSpecials["services.*.command"] = override
 	mergeSpecials["services.*.depends_on"] = mergeDependsOn
@@ -58,7 +59,7 @@ func init() {
 	mergeSpecials["services.*.env_file"] = mergeToSequence
 	mergeSpecials["services.*.label_file"] = mergeToSequence
 	mergeSpecials["services.*.environment"] = mergeToSequence
-	mergeSpecials["services.*.extra_hosts"] = mergeExtraHosts
+	mergeSpecials["services.*.extra_hosts"] = mergeToSequence
 	mergeSpecials["services.*.healthcheck.test"] = override
 	mergeSpecials["services.*.labels"] = mergeToSequence
 	mergeSpecials["services.*.volumes.*.volume.labels"] = mergeToSequence
@@ -96,7 +97,7 @@ func MergeYaml(e any, o any, p tree.Path) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("cannot override %s", p)
 		}
-		return append(value, other...), nil
+		return appendWithoutDuplicates(value, other), nil
 	default:
 		return o, nil
 	}
@@ -180,26 +181,28 @@ func mergeAsMapping(config, other any, defaults map[string]any, path tree.Path) 
 	return mergeMappings(right, left, path)
 }
 
-func mergeExtraHosts(config any, other any, _ tree.Path) (any, error) {
-	right := convertIntoSequence(config)
-	left := convertIntoSequence(other)
-	// Rewrite content of left slice to remove duplicate elements
-	i := 0
-	for _, v := range left {
-		if !slices.Contains(right, v) {
-			left[i] = v
-			i++
-		}
-	}
-	// keep only not duplicated elements from left slice
-	left = left[:i]
-	return append(right, left...), nil
-}
-
 func mergeToSequence(config any, other any, _ tree.Path) (any, error) {
 	right := convertIntoSequence(config)
 	left := convertIntoSequence(other)
-	return append(right, left...), nil
+	return appendWithoutDuplicates(right, left), nil
+}
+
+// appendWithoutDuplicates appends override entries to the base sequence,
+// ignoring entries strictly identical (deep equality) to one already
+// present. Two identical entries never carry more meaning than one, while
+// they routinely break things — the same env_file applied twice, a
+// duplicate mount rejected by the engine — and dropping them makes merging
+// a value over an already-merged result idempotent. Entries that differ in
+// form (short vs long syntax of the same thing) are not equal and are kept:
+// the rule is strict identity, not equivalence.
+func appendWithoutDuplicates(base []any, override []any) []any {
+	merged := base
+	for _, v := range override {
+		if !slices.ContainsFunc(merged, func(existing any) bool { return reflect.DeepEqual(existing, v) }) {
+			merged = append(merged, v)
+		}
+	}
+	return merged
 }
 
 func convertIntoSequence(value any) []any {
