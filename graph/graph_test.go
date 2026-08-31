@@ -30,8 +30,8 @@ import (
 
 func TestTraversalWithMultipleParents(t *testing.T) {
 	dependent := types.ServiceConfig{
-		Name:      "dependent",
-		DependsOn: make(types.DependsOnConfig),
+		Name:         "dependent",
+		WorkloadSpec: types.WorkloadSpec{DependsOn: make(types.DependsOnConfig)},
 	}
 
 	project := types.Project{
@@ -118,8 +118,8 @@ func TestBuildGraph(t *testing.T) {
 			desc: "builds graph with single service",
 			services: types.Services{
 				"test": {
-					Name:      "test",
-					DependsOn: types.DependsOnConfig{},
+					Name:         "test",
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{}},
 				},
 			},
 			expectedVertices: map[string]*vertex[types.ServiceConfig]{
@@ -135,12 +135,12 @@ func TestBuildGraph(t *testing.T) {
 			desc: "builds graph with two separate services",
 			services: types.Services{
 				"test": {
-					Name:      "test",
-					DependsOn: types.DependsOnConfig{},
+					Name:         "test",
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{}},
 				},
 				"another": {
-					Name:      "another",
-					DependsOn: types.DependsOnConfig{},
+					Name:         "another",
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{}},
 				},
 			},
 			expectedVertices: map[string]*vertex[types.ServiceConfig]{
@@ -163,13 +163,13 @@ func TestBuildGraph(t *testing.T) {
 			services: types.Services{
 				"test": {
 					Name: "test",
-					DependsOn: types.DependsOnConfig{
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{
 						"another": types.ServiceDependency{},
-					},
+					}},
 				},
 				"another": {
-					Name:      "another",
-					DependsOn: types.DependsOnConfig{},
+					Name:         "another",
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{}},
 				},
 			},
 			expectedVertices: map[string]*vertex[types.ServiceConfig]{
@@ -196,11 +196,11 @@ func TestBuildGraph(t *testing.T) {
 			services: types.Services{
 				"test": {
 					Name: "test",
-					DependsOn: types.DependsOnConfig{
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{
 						"another": types.ServiceDependency{
 							Required: false,
 						},
-					},
+					}},
 				},
 			},
 			expectedVertices: map[string]*vertex[types.ServiceConfig]{
@@ -217,11 +217,11 @@ func TestBuildGraph(t *testing.T) {
 			services: types.Services{
 				"test": {
 					Name: "test",
-					DependsOn: types.DependsOnConfig{
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{
 						"another": types.ServiceDependency{
 							Required: true,
 						},
-					},
+					}},
 				},
 			},
 			expectedError: `service "test" depends on unknown service "another"`,
@@ -231,18 +231,18 @@ func TestBuildGraph(t *testing.T) {
 			services: types.Services{
 				"test": {
 					Name: "test",
-					DependsOn: types.DependsOnConfig{
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{
 						"another": types.ServiceDependency{
 							Required: true,
 						},
-					},
+					}},
 				},
 			},
 			disabled: types.Services{
 				"another": {
-					Name:      "another",
-					Profiles:  []string{"test"},
-					DependsOn: types.DependsOnConfig{},
+					Name:         "another",
+					Profiles:     []string{"test"},
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{}},
 				},
 			},
 			expectedError: `service "another" is required by "test" but is disabled. Can be enabled by profiles [test]`,
@@ -252,19 +252,19 @@ func TestBuildGraph(t *testing.T) {
 			services: types.Services{
 				"test": {
 					Name: "test",
-					DependsOn: types.DependsOnConfig{
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{
 						"another": types.ServiceDependency{},
-					},
+					}},
 				},
 				"another": {
 					Name: "another",
-					DependsOn: types.DependsOnConfig{
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{
 						"another_dep": types.ServiceDependency{},
-					},
+					}},
 				},
 				"another_dep": {
-					Name:      "another_dep",
-					DependsOn: types.DependsOnConfig{},
+					Name:         "another_dep",
+					WorkloadSpec: types.WorkloadSpec{DependsOn: types.DependsOnConfig{}},
 				},
 			},
 			expectedVertices: map[string]*vertex[types.ServiceConfig]{
@@ -434,15 +434,15 @@ func exampleProject() *types.Project {
 		Services: types.Services{
 			"test1": {
 				Name: "test1",
-				DependsOn: map[string]types.ServiceDependency{
+				WorkloadSpec: types.WorkloadSpec{DependsOn: map[string]types.ServiceDependency{
 					"test2": {},
-				},
+				}},
 			},
 			"test2": {
 				Name: "test2",
-				DependsOn: map[string]types.ServiceDependency{
+				WorkloadSpec: types.WorkloadSpec{DependsOn: map[string]types.ServiceDependency{
 					"test3": {},
-				},
+				}},
 			},
 			"test3": {
 				Name: "test3",

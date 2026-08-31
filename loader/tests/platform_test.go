@@ -30,10 +30,17 @@ services:
   foo:
     image: alpine
     platform: linux/amd64
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    platform: linux/amd64
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Platform, "linux/amd64")
+		assert.Equal(t, p.Jobs["foo"].Platform, "linux/amd64")
 	}
 	expect(p)
 

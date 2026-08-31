@@ -1,2 +1,4 @@
 # required for golangci-lint on Windows
 *.go text eol=lf
+# golden files are compared byte-for-byte against marshaled output
+loader/testdata/golden/* text eol=lf

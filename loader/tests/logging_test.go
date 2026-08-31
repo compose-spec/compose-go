@@ -33,6 +33,15 @@ services:
       driver: syslog
       options:
         syslog-address: "tcp://192.168.0.42:123"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "tcp://192.168.0.42:123"
 `)
 	expect := func(p *types.Project) {
 		expected := &types.LoggingConfig{
@@ -40,6 +49,7 @@ services:
 			Options: map[string]string{"syslog-address": "tcp://192.168.0.42:123"},
 		}
 		assert.DeepEqual(t, p.Services["foo"].Logging, expected)
+		assert.DeepEqual(t, p.Jobs["foo"].Logging, expected)
 	}
 	expect(p)
 

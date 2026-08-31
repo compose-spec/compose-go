@@ -409,8 +409,12 @@ services:
     pre_start:
       - command: ["migrate"]
         image: alpine
+        networks:
+          default: null
       - image: busybox
         command: ["chown", "-R", "1000:1000", "/data"]
+        networks:
+          default: null
   builder:
     build:
       context: .
@@ -419,6 +423,8 @@ services:
       default: null
     pre_start:
       - command: ["init"]
+        networks:
+          default: null
   hybrid:
     image: ubuntu
     build:
@@ -429,6 +435,8 @@ services:
     pre_start:
       - command: ["bootstrap"]
         image: ubuntu
+        networks:
+          default: null
 networks:
   default:
     name: myProject_default

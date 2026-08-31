@@ -35,10 +35,22 @@ services:
         target: /container
         bind:
           propagation: rslave
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - type: bind
+        source: /host
+        target: /container
+        bind:
+          propagation: rslave
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Volumes[0].Bind.Propagation, "rslave")
+		assert.Equal(t, p.Jobs["foo"].Volumes[0].Bind.Propagation, "rslave")
 	}
 	expect(p)
 
@@ -59,10 +71,22 @@ services:
         target: /container
         bind:
           selinux: z
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - type: bind
+        source: /host
+        target: /container
+        bind:
+          selinux: z
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Volumes[0].Bind.SELinux, "z")
+		assert.Equal(t, p.Jobs["foo"].Volumes[0].Bind.SELinux, "z")
 	}
 	expect(p)
 
@@ -83,12 +107,24 @@ services:
         target: /data
         volume:
           nocopy: true
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - type: volume
+        source: mydata
+        target: /data
+        volume:
+          nocopy: true
 volumes:
   mydata:
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Volumes[0].Volume.NoCopy, true)
+		assert.Equal(t, p.Jobs["foo"].Volumes[0].Volume.NoCopy, true)
 	}
 	expect(p)
 
@@ -112,7 +148,25 @@ services:
         source: /host
         target: /container
         bind: {}
+jobs:
+  short:
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - /host:/container
+  long:
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - type: bind
+        source: /host
+        target: /container
+        bind: {}
 `)
 	assert.Check(t, p.Services["short"].Volumes[0].Bind.CreateHostPath == true)
 	assert.Check(t, p.Services["long"].Volumes[0].Bind.CreateHostPath == true)
+	assert.Check(t, p.Jobs["short"].Volumes[0].Bind.CreateHostPath == true)
+	assert.Check(t, p.Jobs["long"].Volumes[0].Bind.CreateHostPath == true)
 }

@@ -18,6 +18,7 @@ package tests
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -56,23 +57,29 @@ services:
         environment:
           FOO: BAR
 `)
-	assert.DeepEqual(t, p.Services["test"].PreStart, []types.ServiceHook{
+	assert.DeepEqual(t, p.Services["test"].PreStart, []types.PreStartHook{
 		{
-			Command:    types.ShellCommand{"./manage.py", "migrate"},
-			User:       "root",
-			WorkingDir: "/app",
-			Environment: types.MappingWithEquals{
-				"FOO": ptr("BAR"),
+			ContainerSpec: types.ContainerSpec{
+				Command:    types.ShellCommand{"./manage.py", "migrate"},
+				User:       "root",
+				WorkingDir: "/app",
+				Environment: types.MappingWithEquals{
+					"FOO": ptr("BAR"),
+				},
 			},
 		},
 		{
-			Image:      "busybox",
-			Command:    types.ShellCommand{"sh", "-c", "chown -R 1000:1000 /data"},
-			Privileged: true,
+			ContainerSpec: types.ContainerSpec{
+				Image:      "busybox",
+				Command:    types.ShellCommand{"sh", "-c", "chown -R 1000:1000 /data"},
+				Privileged: true,
+			},
 			PerReplica: true,
 		},
 		{
-			Image: "migrator:latest",
+			ContainerSpec: types.ContainerSpec{
+				Image: "migrator:latest",
+			},
 		},
 	})
 	assert.DeepEqual(t, p.Services["test"].PostStart, []types.ServiceHook{
@@ -116,4 +123,149 @@ services:
 	assert.NilError(t, err)
 	assert.Equal(t, p.Services["test"].PreStart[0].Image, "alpine")
 	assert.Equal(t, p.Services["test"].PreStart[1].Image, "busybox")
+}
+
+// TestPreStartAcceptsContainerSpec locks the compose-spec#656 contract: a
+// pre_start hook is a full container specification, so runtime attributes
+// (volumes, init, networks, …) load into the hook instead of being dropped.
+func TestPreStartAcceptsContainerSpec(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  test:
+    image: myapp
+    volumes:
+      - data:/data:ro
+    pre_start:
+      - image: busybox
+        command: chown -R 1000:1000 /data
+        user: root
+        init: true
+        volumes:
+          - data:/data:rw
+volumes:
+  data: {}
+`)
+	hook := p.Services["test"].PreStart[0]
+	assert.Equal(t, hook.Image, "busybox")
+	assert.Equal(t, hook.User, "root")
+	assert.Assert(t, hook.Init != nil && *hook.Init)
+	assert.Equal(t, len(hook.Volumes), 1)
+	assert.Equal(t, hook.Volumes[0].Source, "data")
+	assert.Equal(t, hook.Volumes[0].Target, "/data")
+	assert.Assert(t, !hook.Volumes[0].ReadOnly, "hook redeclares the volume read-write")
+	// the service's own mount is untouched
+	assert.Assert(t, p.Services["test"].Volumes[0].ReadOnly)
+}
+
+// Exec hooks (post_start/pre_stop) run inside the service container: they
+// take a command, not a container specification.
+func TestPostStartRejectsContainerSpec(t *testing.T) {
+	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
+name: test
+services:
+  test:
+    image: alpine
+    post_start:
+      - image: busybox
+        command: echo hi
+`)}},
+		Environment: map[string]string{},
+	})
+	assert.ErrorContains(t, err, "additional properties 'image' not allowed")
+}
+
+// Interpolation casts are registered per specification layer: container_spec
+// attributes cast wherever a container is declared — including jobs and
+// pre_start hooks, not only services.
+// pre_start inheritance is resolved at load time: the model carries hooks
+// already completed with the service's container specification — the hook's
+// declarations win on conflicts, collections merge per the compose rules,
+// and workload/service-only attributes never leak into the hook.
+func TestPreStartResolvedAtLoadTime(t *testing.T) {
+	fullLoad := func(yaml string) *types.Project {
+		t.Helper()
+		p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+			ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
+			Environment: map[string]string{},
+		})
+		assert.NilError(t, err)
+		return p
+	}
+
+	p := fullLoad(`
+name: test
+services:
+  app:
+    image: myapp
+    user: svc-user
+    environment:
+      - COMMON=from-service
+      - OVERRIDDEN=from-service
+    extra_hosts:
+      - "shared:10.0.0.1"
+    volumes:
+      - data:/data
+    ports:
+      - "8080:80"
+    pre_start:
+      - command: ["migrate"]
+        user: root
+        environment:
+          - OVERRIDDEN=from-hook
+        extra_hosts:
+          - "hook-only:10.0.0.2"
+volumes:
+  data: {}
+`)
+
+	expect := func(p *types.Project) {
+		hook := p.Services["app"].PreStart[0]
+		// scalars: inherited when absent, replaced when declared
+		assert.Equal(t, hook.Image, "myapp")
+		assert.Equal(t, hook.User, "root")
+		// collections merge, the hook winning per key
+		assert.Equal(t, *hook.Environment["COMMON"], "from-service")
+		assert.Equal(t, *hook.Environment["OVERRIDDEN"], "from-hook")
+		hosts := hook.ExtraHosts.AsList(":")
+		slices.Sort(hosts)
+		assert.DeepEqual(t, hosts, []string{"hook-only:10.0.0.2", "shared:10.0.0.1"})
+		// volumes inherit at runtime through volumes_from, never in the model
+		assert.Equal(t, len(hook.Volumes), 0)
+	}
+	expect(p)
+
+	// idempotence: reloading the resolved model runs the resolution again
+	// over already-completed hooks — the strictly-identical-entry dedup of
+	// the sequence merge keeps accumulated collections stable
+	out, err := p.MarshalYAML()
+	assert.NilError(t, err)
+	expect(fullLoad(string(out)))
+}
+
+func TestLayeredInterpolationCasts(t *testing.T) {
+	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
+name: test
+services:
+  test:
+    image: alpine
+    pre_start:
+      - command: setup
+        init: ${INIT}
+jobs:
+  migrate:
+    image: alpine
+    command: migrate
+    cpus: ${CPUS}
+    triggers:
+      manual: true
+`)}},
+		Environment: map[string]string{"INIT": "true", "CPUS": "1.5"},
+	})
+	assert.NilError(t, err)
+	hook := p.Services["test"].PreStart[0]
+	assert.Assert(t, hook.Init != nil && *hook.Init, "hook init must cast to boolean")
+	assert.Equal(t, p.Jobs["migrate"].CPUS, float32(1.5), "job cpus must cast to float")
 }

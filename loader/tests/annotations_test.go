@@ -35,11 +35,26 @@ services:
     image: alpine
     annotations:
       com.example.foo: bar
+jobs:
+  list:
+    triggers:
+      manual: true
+    image: alpine
+    annotations:
+      - com.example.foo=bar
+  map:
+    triggers:
+      manual: true
+    image: alpine
+    annotations:
+      com.example.foo: bar
 `)
 	expect := func(p *types.Project) {
 		expected := types.Mapping{"com.example.foo": "bar"}
 		assert.DeepEqual(t, p.Services["list"].Annotations, expected)
 		assert.DeepEqual(t, p.Services["map"].Annotations, expected)
+		assert.DeepEqual(t, p.Jobs["list"].Annotations, expected)
+		assert.DeepEqual(t, p.Jobs["map"].Annotations, expected)
 	}
 	expect(p)
 

@@ -1,0 +1,148 @@
+{
+  "name": "golden",
+  "networks": {
+    "default": {
+      "name": "golden_default",
+      "ipam": {}
+    }
+  },
+  "services": {
+    "kitchen-sink": {
+      "attach": false,
+      "container_name": "sink",
+      "annotations": {
+        "com.example.annotation": "value"
+      },
+      "blkio_config": {
+        "weight": 300,
+        "weight_device": [
+          {
+            "Path": "/dev/sda",
+            "Weight": 400
+          }
+        ]
+      },
+      "cap_add": [
+        "NET_ADMIN"
+      ],
+      "cap_drop": [
+        "ALL"
+      ],
+      "cgroup_parent": "my-parent",
+      "cgroup": "private",
+      "cpu_count": 2,
+      "cpu_percent": 50,
+      "cpu_period": 100000,
+      "cpu_quota": 50000,
+      "cpu_rt_period": 1000000,
+      "cpu_rt_runtime": 950000,
+      "cpus": 1.5,
+      "cpuset": "0,1",
+      "cpu_shares": 512,
+      "command": null,
+      "device_cgroup_rules": [
+        "c 1:3 mr"
+      ],
+      "devices": [
+        {
+          "source": "/dev/ttyUSB0",
+          "target": "/dev/ttyUSB0",
+          "permissions": "rwm"
+        }
+      ],
+      "dns": [
+        "8.8.8.8"
+      ],
+      "dns_opt": [
+        "use-vc"
+      ],
+      "dns_search": [
+        "example.com"
+      ],
+      "domainname": "example.com",
+      "entrypoint": null,
+      "extra_hosts": [
+        "otherhost=50.31.209.229"
+      ],
+      "group_add": [
+        "mail"
+      ],
+      "hostname": "sink-host",
+      "image": "example/sink:latest",
+      "init": true,
+      "ipc": "shareable",
+      "isolation": "default",
+      "labels": {
+        "com.example.flag": "1"
+      },
+      "mem_limit": "536870912",
+      "mem_reservation": "268435456",
+      "memswap_limit": "1073741824",
+      "mem_swappiness": "60",
+      "mac_address": "02:42:ac:11:00:02",
+      "networks": {
+        "default": null
+      },
+      "oom_kill_disable": true,
+      "oom_score_adj": 500,
+      "pid": "host",
+      "pids_limit": 100,
+      "platform": "linux/amd64",
+      "privileged": true,
+      "pull_policy": "always",
+      "read_only": true,
+      "runtime": "runc",
+      "security_opt": [
+        "label=disable"
+      ],
+      "shm_size": "67108864",
+      "stop_grace_period": "1m30s",
+      "stop_signal": "SIGUSR1",
+      "storage_opt": {
+        "size": "20G"
+      },
+      "sysctls": {
+        "net.core.somaxconn": "1024"
+      },
+      "tmpfs": [
+        "/run",
+        "/tmp"
+      ],
+      "ulimits": {
+        "nofile": {
+          "soft": 20000,
+          "hard": 40000
+        },
+        "nproc": 65535
+      },
+      "user": "1000:1000",
+      "userns_mode": "host",
+      "uts": "host",
+      "working_dir": "/app",
+      "stdin_open": true,
+      "tty": true
+    },
+    "linked": {
+      "external_links": [
+        "legacy:legacy-alias"
+      ],
+      "links": [
+        "kitchen-sink:sink"
+      ],
+      "command": null,
+      "entrypoint": null,
+      "image": "example/linked",
+      "network_mode": "service:kitchen-sink",
+      "volumes_from": [
+        "kitchen-sink"
+      ],
+      "depends_on": {
+        "kitchen-sink": {
+          "condition": "service_started",
+          "restart": true,
+          "required": true
+        }
+      }
+    }
+  }
+}

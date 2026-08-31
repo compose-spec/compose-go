@@ -33,10 +33,20 @@ services:
       cache_to:
         - user/app:cache
         - type=local,dest=path/to/cache
+jobs:
+  foo:
+    triggers:
+      manual: true
+    build:
+      context: .
+      cache_to:
+        - user/app:cache
+        - type=local,dest=path/to/cache
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Build.CacheTo, types.StringList{"user/app:cache", "type=local,dest=path/to/cache"})
+		assert.DeepEqual(t, p.Jobs["foo"].Build.CacheTo, types.StringList{"user/app:cache", "type=local,dest=path/to/cache"})
 	}
 	expect(p)
 
@@ -53,10 +63,18 @@ services:
     build:
       context: .
       no_cache: true
+jobs:
+  foo:
+    triggers:
+      manual: true
+    build:
+      context: .
+      no_cache: true
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Build.NoCache, true)
+		assert.Equal(t, p.Jobs["foo"].Build.NoCache, true)
 	}
 	expect(p)
 
@@ -73,10 +91,18 @@ services:
     build:
       context: .
       pull: true
+jobs:
+  foo:
+    triggers:
+      manual: true
+    build:
+      context: .
+      pull: true
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Build.Pull, true)
+		assert.Equal(t, p.Jobs["foo"].Build.Pull, true)
 	}
 	expect(p)
 
@@ -93,10 +119,18 @@ services:
     build:
       context: .
       shm_size: 128m
+jobs:
+  foo:
+    triggers:
+      manual: true
+    build:
+      context: .
+      shm_size: 128m
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Build.ShmSize, types.UnitBytes(128*1024*1024))
+		assert.Equal(t, p.Jobs["foo"].Build.ShmSize, types.UnitBytes(128*1024*1024))
 	}
 	expect(p)
 
@@ -113,10 +147,18 @@ services:
     build:
       context: .
       isolation: process
+jobs:
+  foo:
+    triggers:
+      manual: true
+    build:
+      context: .
+      isolation: process
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Build.Isolation, "process")
+		assert.Equal(t, p.Jobs["foo"].Build.Isolation, "process")
 	}
 	expect(p)
 
@@ -133,10 +175,18 @@ services:
     build:
       context: .
       privileged: true
+jobs:
+  foo:
+    triggers:
+      manual: true
+    build:
+      context: .
+      privileged: true
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Build.Privileged, true)
+		assert.Equal(t, p.Jobs["foo"].Build.Privileged, true)
 	}
 	expect(p)
 
@@ -155,8 +205,18 @@ services:
       entitlements:
         - network.host
         - security.insecure
+jobs:
+  foo:
+    triggers:
+      manual: true
+    build:
+      context: .
+      entitlements:
+        - network.host
+        - security.insecure
 `)
 	assert.DeepEqual(t, p.Services["foo"].Build.Entitlements, []string{"network.host", "security.insecure"})
+	assert.DeepEqual(t, p.Jobs["foo"].Build.Entitlements, []string{"network.host", "security.insecure"})
 }
 
 func TestBuildAttestations(t *testing.T) {
@@ -168,9 +228,19 @@ services:
       context: .
       provenance: mode=max
       sbom: true
+jobs:
+  foo:
+    triggers:
+      manual: true
+    build:
+      context: .
+      provenance: mode=max
+      sbom: true
 `)
 	assert.Equal(t, p.Services["foo"].Build.Provenance, "mode=max")
 	assert.Equal(t, p.Services["foo"].Build.SBOM, "true")
+	assert.Equal(t, p.Jobs["foo"].Build.Provenance, "mode=max")
+	assert.Equal(t, p.Jobs["foo"].Build.SBOM, "true")
 }
 
 func TestBuildNoCacheFilter(t *testing.T) {
@@ -185,7 +255,22 @@ services:
     build:
       context: .
       no_cache_filter: [foo, bar]
+jobs:
+  string:
+    triggers:
+      manual: true
+    build:
+      context: .
+      no_cache_filter: foo
+  list:
+    triggers:
+      manual: true
+    build:
+      context: .
+      no_cache_filter: [foo, bar]
 `)
 	assert.DeepEqual(t, p.Services["string"].Build.NoCacheFilter, types.StringList{"foo"})
 	assert.DeepEqual(t, p.Services["list"].Build.NoCacheFilter, types.StringList{"foo", "bar"})
+	assert.DeepEqual(t, p.Jobs["string"].Build.NoCacheFilter, types.StringList{"foo"})
+	assert.DeepEqual(t, p.Jobs["list"].Build.NoCacheFilter, types.StringList{"foo", "bar"})
 }

@@ -41,6 +41,25 @@ services:
       net.ipv4.tcp_syncookies: 0
       testing.one.one: ""
       testing.one.two:
+jobs:
+  list:
+    triggers:
+      manual: true
+    image: busybox
+    sysctls:
+      - net.core.somaxconn=1024
+      - net.ipv4.tcp_syncookies=0
+      - testing.one.one=
+      - testing.one.two
+  map:
+    triggers:
+      manual: true
+    image: busybox
+    sysctls:
+      net.core.somaxconn: 1024
+      net.ipv4.tcp_syncookies: 0
+      testing.one.one: ""
+      testing.one.two:
 `)
 
 	expect := func(p *types.Project) {
@@ -52,6 +71,8 @@ services:
 		}
 		assert.DeepEqual(t, p.Services["list"].Sysctls, expected)
 		assert.DeepEqual(t, p.Services["map"].Sysctls, expected)
+		assert.DeepEqual(t, p.Jobs["list"].Sysctls, expected)
+		assert.DeepEqual(t, p.Jobs["map"].Sysctls, expected)
 	}
 	expect(p)
 

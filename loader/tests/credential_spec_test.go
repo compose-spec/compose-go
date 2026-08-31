@@ -31,9 +31,17 @@ services:
     image: alpine
     credential_spec:
       config: "0bt9dmxjvjiqermk6xrop3ekq"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    credential_spec:
+      config: "0bt9dmxjvjiqermk6xrop3ekq"
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].CredentialSpec.Config, "0bt9dmxjvjiqermk6xrop3ekq")
+		assert.Equal(t, p.Jobs["foo"].CredentialSpec.Config, "0bt9dmxjvjiqermk6xrop3ekq")
 	}
 	expect(p)
 
