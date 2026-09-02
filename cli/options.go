@@ -286,6 +286,15 @@ func WithEnvFiles(file ...string) ProjectOptionsFn {
 		if os.IsNotExist(err) {
 			return nil
 		}
+		if os.IsPermission(err) {
+			// The default .env is an implicit convenience, not something the
+			// user asked for: when permissions prevent even probing for it
+			// (say, running with a working directory owned by another user),
+			// warn and move on instead of failing the whole command. An
+			// explicit --env-file still fails hard in WithDotEnv.
+			logrus.Warnf("cannot access %s, ignoring default env file: %v", defaultDotEnv, err)
+			return nil
+		}
 		if err != nil {
 			return err
 		}
