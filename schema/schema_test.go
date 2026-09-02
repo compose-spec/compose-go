@@ -275,6 +275,28 @@ func TestValidateConcurrent(t *testing.T) {
 	wg.Wait()
 }
 
+func TestValidatePullPolicy(t *testing.T) {
+	newConfig := func(pullPolicy string) map[string]any {
+		return map[string]any{
+			"services": map[string]any{
+				"foo": map[string]any{
+					"image":       "busybox",
+					"pull_policy": pullPolicy,
+				},
+			},
+		}
+	}
+
+	for _, valid := range []string{"always", "never", "build", "if_not_present", "missing", "refresh", "daily", "weekly", "every_2d"} {
+		assert.NilError(t, Validate(newConfig(valid)), valid)
+	}
+
+	for _, invalid := range []string{"neverxxx", "xxdailyxx", "garbage-always-garbage", "hourly"} {
+		err := Validate(newConfig(invalid))
+		assert.ErrorContains(t, err, "pull_policy", invalid)
+	}
+}
+
 func TestSchema(t *testing.T) {
 	compiler := jsonschema.NewCompiler()
 	json, err := jsonschema.UnmarshalJSON(strings.NewReader(Schema))

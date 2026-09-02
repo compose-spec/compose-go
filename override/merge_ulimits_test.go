@@ -60,3 +60,47 @@ services:
           hard: 65535
 `)
 }
+
+// Test_mergeYamlUlimitsSyntaxCombinations covers every combination of the
+// short (single limit) and long (soft/hard mapping) ulimit syntaxes between
+// base and override: mappings merge key by key, while a syntax mismatch makes
+// the override value win as a whole.
+func Test_mergeYamlUlimitsSyntaxCombinations(t *testing.T) {
+	assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    ulimits:
+      short_over_short: 100
+      long_over_short: 100
+      short_over_long:
+          soft: 100
+          hard: 200
+      long_over_long:
+          soft: 100
+          hard: 200
+`, `
+services:
+  test:
+    image: foo
+    ulimits:
+      short_over_short: 500
+      long_over_short:
+          soft: 500
+      short_over_long: 500
+      long_over_long:
+          hard: 500
+`, `
+services:
+  test:
+    image: foo
+    ulimits:
+      short_over_short: 500
+      long_over_short:
+          soft: 500
+      short_over_long: 500
+      long_over_long:
+          soft: 100
+          hard: 500
+`)
+}

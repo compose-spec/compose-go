@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -398,4 +399,32 @@ func TestEnvVariablePrecedence(t *testing.T) {
 			assert.DeepEqual(t, test.expected, options.Environment)
 		})
 	}
+}
+
+// The default .env is an implicit convenience: when the working directory
+// denies even probing for it (EACCES on stat), the lookup is skipped with a
+// warning instead of failing the command. An explicit env file keeps failing.
+func TestEnvFilesDefaultUnreadableWorkingDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 0 does not prevent stat on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses permission checks")
+	}
+	dir := t.TempDir()
+	locked := filepath.Join(dir, "locked")
+	assert.NilError(t, os.Mkdir(locked, 0o700))
+	assert.NilError(t, os.WriteFile(filepath.Join(locked, ".env"), []byte("FOO=bar\n"), 0o644))
+	assert.NilError(t, os.Chmod(locked, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+
+	options, err := NewProjectOptions(nil, WithWorkingDirectory(locked), WithEnvFiles(), WithDotEnv)
+	assert.NilError(t, err)
+	assert.Equal(t, len(options.EnvFiles), 0)
+
+	// an explicit env file behind the same permission wall still fails hard
+	_, err = NewProjectOptions(nil,
+		WithWorkingDirectory(locked),
+		WithEnvFiles(filepath.Join(locked, ".env")), WithDotEnv)
+	assert.ErrorContains(t, err, "permission denied")
 }

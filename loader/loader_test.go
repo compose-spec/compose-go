@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -3218,4 +3219,29 @@ volumes:
 	assert.Assert(t, hasFrontNet, "network referenced by web should remain")
 	assert.Assert(t, !hasOrphanNet, "unreferenced network should be pruned")
 	assert.Assert(t, !hasOrphanVol, "unreferenced volume should be pruned")
+}
+
+// TestWarnObsoleteVersionConcurrentLoad guards against a data race on the
+// process-global versionWarning set when files with an obsolete `version`
+// attribute are loaded concurrently (regression test for #918).
+func TestWarnObsoleteVersionConcurrentLoad(t *testing.T) {
+	const numGoroutines = 50
+	const yaml = `
+version: "3.8"
+name: race
+services:
+  test:
+    image: nginx
+`
+
+	var wg sync.WaitGroup
+	for range numGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := loadYAML(yaml)
+			assert.NilError(t, err)
+		}()
+	}
+	wg.Wait()
 }
