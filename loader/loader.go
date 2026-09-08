@@ -100,6 +100,18 @@ type Options struct {
 	// MaxNodeVisits caps total YAML node visits during reset/override resolution.
 	// Zero means use the default. Useful for very large compose files that exceed the default cap.
 	MaxNodeVisits int
+	// SupportedAttributes declares the attribute paths (tree.Path patterns,
+	// e.g. "services.*.image") the calling runtime implements. When
+	// non-empty, every attribute of the merged model matching none of them
+	// is reported through UnsupportedAttribute — the Compose Specification
+	// makes the runtime responsible for warning about attributes it parses
+	// but ignores. schema.AttributePaths returns the full specification
+	// inventory to build this list from (remove what the runtime does not
+	// implement). Extension keys (x-*) are never reported.
+	SupportedAttributes []tree.Path
+	// UnsupportedAttribute is invoked for each attribute reported by the
+	// SupportedAttributes screening; nil defaults to a logrus warning.
+	UnsupportedAttribute func(path tree.Path)
 }
 
 var (
@@ -587,6 +599,18 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 
 	if len(dict) == 0 {
 		return nil, errors.New("empty compose file")
+	}
+
+	if len(opts.SupportedAttributes) > 0 {
+		warn := opts.UnsupportedAttribute
+		if warn == nil {
+			warn = func(path tree.Path) {
+				logrus.Warnf("%s: attribute %s is not supported and will be ignored", mainFile, path.String())
+			}
+		}
+		// screened before normalization: the model still holds only what the
+		// user wrote, not the defaults normalization injects
+		reportUnsupportedAttributes(dict, tree.NewMatcher(opts.SupportedAttributes...), tree.NewPath(), warn)
 	}
 
 	if !opts.SkipValidation && opts.projectName == "" {
