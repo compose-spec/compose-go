@@ -24,19 +24,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func TestSSHConfig(t *testing.T) {
-	ssh, err := transformSSH([]any{
-		"default",
-		"foo=bar",
-	}, tree.NewPath("test"), false)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, ssh, map[string]any{
-		"default": nil,
-		"foo":     "bar",
-	})
-}
-
-func Test_transformSSH_ignoreParseError(t *testing.T) {
+func Test_transformUlimits(t *testing.T) {
 	tests := []struct {
 		name             string
 		yaml             any
@@ -45,33 +33,43 @@ func Test_transformSSH_ignoreParseError(t *testing.T) {
 		wantErr          string
 	}{
 		{
-			name: "unresolved variable, error",
-			yaml: []any{
-				"${SSH_AUTH_SOCK}",
-			},
-			wantErr: `invalid ssh key "${SSH_AUTH_SOCK}"`,
+			name: "int",
+			yaml: 65535,
+			want: 65535,
 		},
 		{
-			name: "unresolved variable, ignored",
-			yaml: []any{
-				"${SSH_AUTH_SOCK}",
+			name: "long syntax",
+			yaml: map[string]any{
+				"soft": 20000,
+				"hard": 40000,
 			},
+			want: map[string]any{
+				"soft": 20000,
+				"hard": 40000,
+			},
+		},
+		{
+			name:    "unresolved variable, error",
+			yaml:    "${NOFILE}",
+			wantErr: `test: invalid type string for ulimits`,
+		},
+		{
+			name:             "unresolved variable, ignored",
+			yaml:             "${NOFILE}",
 			ignoreParseError: true,
-			want: []any{
-				"${SSH_AUTH_SOCK}",
-			},
+			want:             "${NOFILE}",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := transformSSH(tt.yaml, tree.NewPath("test"), tt.ignoreParseError)
+			got, err := transformUlimits(tt.yaml, tree.NewPath("test"), tt.ignoreParseError)
 			if tt.wantErr != "" {
 				assert.Error(t, err, tt.wantErr)
 				return
 			}
 			assert.NilError(t, err)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("transformSSH() got = %v, want %v", got, tt.want)
+				t.Errorf("transformUlimits() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
