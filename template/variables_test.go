@@ -182,6 +182,31 @@ func TestExtractVariables(t *testing.T) {
 			},
 		},
 		{
+			// a plain occurrence must not erase the required flag of another
+			// occurrence, whatever the (map) iteration order
+			// https://github.com/docker/compose/issues/13718
+			name: "required-and-plain-occurrences",
+			dict: map[string]interface{}{
+				"labels": []interface{}{
+					"rule=Host(`${PIHOLE_DOMAIN:?}`)",
+					"regex=^(https://${PIHOLE_DOMAIN})/",
+				},
+			},
+			expected: map[string]Variable{
+				"PIHOLE_DOMAIN": {Name: "PIHOLE_DOMAIN", Required: true},
+			},
+		},
+		{
+			name: "default-and-plain-occurrences",
+			dict: map[string]interface{}{
+				"a": "${SOME_VAR:-value}",
+				"b": "prefix-${SOME_VAR}",
+			},
+			expected: map[string]Variable{
+				"SOME_VAR": {Name: "SOME_VAR", DefaultValue: "value"},
+			},
+		},
+		{
 			name: "nested",
 			dict: map[string]interface{}{
 				"domainname": "${SUBDOMAIN:-$ROOTDOMAIN}",

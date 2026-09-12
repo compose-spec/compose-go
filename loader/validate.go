@@ -86,6 +86,9 @@ func checkConsistency(project *types.Project) error { //nolint:gocyclo
 				if errors.Is(err, errdefs.ErrDisabled) && !cfg.Required {
 					continue
 				}
+				if _, isJob := project.Jobs[dependedService]; isJob {
+					return fmt.Errorf("service %q cannot depend on job %q: services can only depend on other services: %w", s.Name, dependedService, errdefs.ErrInvalid)
+				}
 				return fmt.Errorf("service %q depends on undefined service %q: %w", s.Name, dependedService, errdefs.ErrInvalid)
 			}
 		}
@@ -203,6 +206,33 @@ func checkConsistency(project *types.Project) error { //nolint:gocyclo
 			mounts[volume.Target] = loc
 		}
 
+	}
+
+	// names must be unique across services and jobs so a name always
+	// resolves to exactly one of them (e.g. `docker compose run <name>`),
+	// including profile-disabled ones which may be enabled later
+	for name := range project.AllJobs() {
+		if _, ok := project.Services[name]; ok {
+			return fmt.Errorf("%q is declared both as a service and a job: service and job names must be unique: %w", name, errdefs.ErrInvalid)
+		}
+		if _, ok := project.DisabledServices[name]; ok {
+			return fmt.Errorf("%q is declared both as a service and a job: service and job names must be unique: %w", name, errdefs.ErrInvalid)
+		}
+	}
+
+	for name, j := range project.Jobs {
+		// a job can depend on services and on other jobs
+		for depended, cfg := range j.DependsOn {
+			if _, isJob := project.Jobs[depended]; isJob {
+				continue
+			}
+			if _, err := project.GetService(depended); err != nil {
+				if errors.Is(err, errdefs.ErrDisabled) && !cfg.Required {
+					continue
+				}
+				return fmt.Errorf("job %q depends on undefined service or job %q: %w", name, depended, errdefs.ErrInvalid)
+			}
+		}
 	}
 
 	for name, secret := range project.Secrets {

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `networks.interface_name` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#interface_name
+//
+// Spec: "`interface_name` can be used to declare the network interface name
+// used to connect to a target network."
+
 import (
 	"testing"
 

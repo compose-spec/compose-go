@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `ulimits` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#ulimits
+//
+// Spec: "`ulimits` overrides the default ulimits for a container."
+
 import (
 	"testing"
 
@@ -34,6 +39,16 @@ services:
       nofile:
         soft: 20000
         hard: 40000
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
 `)
 	expect := func(p *types.Project) {
 		expected := map[string]*types.UlimitsConfig{
@@ -44,6 +59,7 @@ services:
 			},
 		}
 		assert.DeepEqual(t, p.Services["foo"].Ulimits, expected)
+		assert.DeepEqual(t, p.Jobs["foo"].Ulimits, expected)
 	}
 	expect(p)
 

@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `network_mode` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#network_mode
+//
+// Spec: "`network_mode` sets a service container's network mode."
+
 import (
 	"testing"
 
@@ -30,10 +35,17 @@ services:
   foo:
     image: alpine
     network_mode: "container:0cfeab0f748b"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    network_mode: "container:0cfeab0f748b"
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].NetworkMode, "container:0cfeab0f748b")
+		assert.Equal(t, p.Jobs["foo"].NetworkMode, "container:0cfeab0f748b")
 	}
 	expect(p)
 

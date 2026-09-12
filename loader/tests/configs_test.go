@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `configs`, `configs (top-level)` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#configs
+//   https://github.com/compose-spec/compose-spec/blob/main/08-configs.md
+//
+// Spec: "Configs allow services to adapt their behaviour without the need to
+// rebuild a Docker image."
+
 import (
 	"testing"
 
@@ -28,6 +35,18 @@ func TestServiceConfigs(t *testing.T) {
 name: test
 services:
   foo:
+    image: alpine
+    configs:
+      - config1
+      - source: config2
+        target: /my_config
+        uid: '103'
+        gid: '103'
+        mode: 0440
+jobs:
+  foo:
+    triggers:
+      manual: true
     image: alpine
     configs:
       - config1
@@ -50,6 +69,15 @@ configs:
 	assert.Equal(t, configs[1].UID, "103")
 	assert.Equal(t, configs[1].GID, "103")
 	assert.Equal(t, *configs[1].Mode, types.FileMode(0o440))
+
+	jobConfigs := p.Jobs["foo"].Configs
+	assert.Equal(t, len(jobConfigs), 2)
+	assert.Equal(t, jobConfigs[0].Source, "config1")
+	assert.Equal(t, jobConfigs[1].Source, "config2")
+	assert.Equal(t, jobConfigs[1].Target, "/my_config")
+	assert.Equal(t, jobConfigs[1].UID, "103")
+	assert.Equal(t, jobConfigs[1].GID, "103")
+	assert.Equal(t, *jobConfigs[1].Mode, types.FileMode(0o440))
 }
 
 func TestTopLevelConfigs(t *testing.T) {
@@ -57,6 +85,11 @@ func TestTopLevelConfigs(t *testing.T) {
 name: test
 services:
   foo:
+    image: alpine
+jobs:
+  foo:
+    triggers:
+      manual: true
     image: alpine
 configs:
   config1:

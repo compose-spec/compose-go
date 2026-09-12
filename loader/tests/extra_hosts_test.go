@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `extra_hosts` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#extra_hosts
+//
+// Spec: "`extra_hosts` adds hostname mappings to the container network
+// interface configuration (`/etc/hosts` for Linux)."
+
 import (
 	"testing"
 
@@ -32,9 +38,21 @@ services:
     extra_hosts:
       alpha: "50.31.209.229"
       zulu: "162.242.195.82"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    extra_hosts:
+      alpha: "50.31.209.229"
+      zulu: "162.242.195.82"
 `)
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
+			"alpha": []string{"50.31.209.229"},
+			"zulu":  []string{"162.242.195.82"},
+		})
+		assert.DeepEqual(t, p.Jobs["foo"].ExtraHosts, types.HostsList{
 			"alpha": []string{"50.31.209.229"},
 			"zulu":  []string{"162.242.195.82"},
 		})
@@ -46,8 +64,10 @@ services:
 	expect(jsonP)
 }
 
+// The `host:ip` short syntax must be parsed into the canonical `host=ip`
+// form, grouping repeated hosts (here an IPv4 and an IPv6 address for zulu).
 func TestExtraHostsList(t *testing.T) {
-	p := load(t, `
+	loadsAs(t, `
 name: test
 services:
   foo:
@@ -56,23 +76,67 @@ services:
       - "alpha:50.31.209.229"
       - "zulu:127.0.0.2"
       - "zulu:ff02::1"
+`, `
+name: test
+services:
+  foo:
+    image: alpine
+    extra_hosts:
+      - alpha=50.31.209.229
+      - zulu=127.0.0.2
+      - zulu=ff02::1
 `)
-	assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
+
+	// jobs share the container specification: same parsing and grouping.
+	p := load(t, `
+name: test
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    extra_hosts:
+      - "alpha:50.31.209.229"
+      - "zulu:127.0.0.2"
+      - "zulu:ff02::1"
+`)
+	assert.DeepEqual(t, p.Jobs["foo"].ExtraHosts, types.HostsList{
 		"alpha": []string{"50.31.209.229"},
 		"zulu":  []string{"127.0.0.2", "ff02::1"},
 	})
 }
 
+// A single `host=ip1,ip2` entry declares one host with several addresses.
 func TestExtraHostsRepeated(t *testing.T) {
-	p := load(t, `
+	loadsAs(t, `
 name: test
 services:
   foo:
     image: alpine
     extra_hosts:
       - "myhost=0.0.0.1,0.0.0.2"
+`, `
+name: test
+services:
+  foo:
+    image: alpine
+    extra_hosts:
+      - myhost=0.0.0.1
+      - myhost=0.0.0.2
 `)
-	assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
+
+	// jobs share the container specification: same parsing and grouping.
+	p := load(t, `
+name: test
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    extra_hosts:
+      - "myhost=0.0.0.1,0.0.0.2"
+`)
+	assert.DeepEqual(t, p.Jobs["foo"].ExtraHosts, types.HostsList{
 		"myhost": []string{"0.0.0.1", "0.0.0.2"},
 	})
 }
@@ -87,8 +151,20 @@ services:
       myhost:
         - "0.0.0.1"
         - "0.0.0.2"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    extra_hosts:
+      myhost:
+        - "0.0.0.1"
+        - "0.0.0.2"
 `)
 	assert.DeepEqual(t, p.Services["foo"].ExtraHosts, types.HostsList{
+		"myhost": []string{"0.0.0.1", "0.0.0.2"},
+	})
+	assert.DeepEqual(t, p.Jobs["foo"].ExtraHosts, types.HostsList{
 		"myhost": []string{"0.0.0.1", "0.0.0.2"},
 	})
 }

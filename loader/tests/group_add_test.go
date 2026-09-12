@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `group_add` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#group_add
+//
+// Spec: "`group_add` specifies additional groups, by name or number, which the
+// user inside the container must be a member of."
+
 import (
 	"testing"
 
@@ -32,10 +38,19 @@ services:
     group_add:
       - mail
       - "0"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    group_add:
+      - mail
+      - "0"
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].GroupAdd, []string{"mail", "0"})
+		assert.DeepEqual(t, p.Jobs["foo"].GroupAdd, []string{"mail", "0"})
 	}
 	expect(p)
 

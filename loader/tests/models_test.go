@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `models` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#models
+//
+// Spec: "`models` defines the AI models that the service containers use at
+// runtime, referencing entries under the top-level `models` key"
+
 import (
 	"testing"
 
@@ -35,6 +41,19 @@ services:
       foo:
         endpoint_var: MODEL_URL
         model_var: MODEL
+jobs:
+  test_array:
+    triggers:
+      manual: true
+    models:
+      - foo
+  test_mapping:
+    triggers:
+      manual: true
+    models:
+      foo:
+        endpoint_var: MODEL_URL
+        model_var: MODEL
 models:
   foo:
     model: ai/model
@@ -50,4 +69,8 @@ models:
 	assert.Assert(t, p.Services["test_array"].Models["foo"] == nil)
 	assert.Equal(t, p.Services["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
 	assert.Equal(t, p.Services["test_mapping"].Models["foo"].ModelVariable, "MODEL")
+
+	assert.Assert(t, p.Jobs["test_array"].Models["foo"] == nil)
+	assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
+	assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].ModelVariable, "MODEL")
 }

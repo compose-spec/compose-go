@@ -147,12 +147,14 @@ func TestValidUnexistentInterpolation(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		result, err := Interpolate(getServiceConfig(testcase.test), Options{})
-		if testcase.errMsg != "" {
-			assert.Assert(t, err != nil, fmt.Sprintf("This should result in an error %q", testcase.errMsg))
-			assert.Equal(t, getFullErrorMsg(testcase.errMsg), err.Error())
-		}
-		assert.Check(t, is.DeepEqual(getServiceConfig(testcase.expected), result))
+		t.Run(testcase.test, func(t *testing.T) {
+			result, err := Interpolate(getServiceConfig(testcase.test), Options{})
+			if testcase.errMsg != "" {
+				assert.Assert(t, err != nil, fmt.Sprintf("This should result in an error %q", testcase.errMsg))
+				assert.Equal(t, getFullErrorMsg(testcase.errMsg), err.Error())
+			}
+			assert.Check(t, is.DeepEqual(getServiceConfig(testcase.expected), result))
+		})
 	}
 }
 
@@ -189,9 +191,11 @@ func TestValidExistentInterpolation(t *testing.T) {
 	}
 
 	for _, testcase := range testcases {
-		result, err := Interpolate(getServiceConfig(testcase.test), Options{LookupValue: defaultMapping})
-		assert.NilError(t, err)
-		assert.Check(t, is.DeepEqual(getServiceConfig(testcase.expected), result))
+		t.Run(testcase.test, func(t *testing.T) {
+			result, err := Interpolate(getServiceConfig(testcase.test), Options{LookupValue: defaultMapping})
+			assert.NilError(t, err)
+			assert.Check(t, is.DeepEqual(getServiceConfig(testcase.expected), result))
+		})
 	}
 }
 
@@ -327,6 +331,8 @@ func TestPathMatches(t *testing.T) {
 		},
 	}
 	for _, testcase := range testcases {
-		assert.Check(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)))
+		t.Run(testcase.doc, func(t *testing.T) {
+			assert.Check(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)))
+		})
 	}
 }

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `external_links` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#external_links
+//
+// Spec: "`external_links` link service containers to services managed outside
+// of your Compose application."
+
 import (
 	"testing"
 

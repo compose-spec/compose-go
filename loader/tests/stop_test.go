@@ -16,6 +16,15 @@
 
 package tests
 
+// The tests in this file lock the `stop_grace_period`, `stop_signal`
+// attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#stop_grace_period
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#stop_signal
+//
+// Spec: "`stop_grace_period` specifies how long Compose must wait when
+// attempting to stop a container if it doesn't handle SIGTERM (or whichever
+// stop signal has been specified with `stop_signal`), before sending SIGKILL."
+
 import (
 	"testing"
 	"time"
@@ -31,9 +40,16 @@ services:
   foo:
     image: alpine
     stop_grace_period: 20s
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    stop_grace_period: 20s
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, *p.Services["foo"].StopGracePeriod, types.Duration(20*time.Second))
+		assert.Equal(t, *p.Jobs["foo"].StopGracePeriod, types.Duration(20*time.Second))
 	}
 	expect(p)
 
@@ -49,9 +65,16 @@ services:
   foo:
     image: alpine
     stop_signal: SIGUSR1
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    stop_signal: SIGUSR1
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].StopSignal, "SIGUSR1")
+		assert.Equal(t, p.Jobs["foo"].StopSignal, "SIGUSR1")
 	}
 	expect(p)
 

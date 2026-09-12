@@ -19,25 +19,29 @@ package utils
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestSet_Has(t *testing.T) {
 	x := NewSet[string]("value")
-	require.True(t, x.Has("value"))
-	require.False(t, x.Has("VALUE"))
+	assert.Assert(t, x.Has("value"))
+	assert.Assert(t, !x.Has("VALUE"))
 }
 
 func TestSet_Diff(t *testing.T) {
 	a := NewSet[int](1, 2)
 	b := NewSet[int](2, 3)
-	require.ElementsMatch(t, []int{1}, a.Diff(b).Elements())
-	require.ElementsMatch(t, []int{3}, b.Diff(a).Elements())
+
+	assert.Check(t, is.DeepEqual(a.Diff(b), NewSet[int](1)))
+	assert.Check(t, is.DeepEqual(b.Diff(a), NewSet[int](3)))
 }
 
 func TestSet_Union(t *testing.T) {
 	a := NewSet[int](1, 2)
 	b := NewSet[int](2, 3)
-	require.ElementsMatch(t, []int{1, 2, 3}, a.Union(b).Elements())
-	require.ElementsMatch(t, []int{1, 2, 3}, b.Union(a).Elements())
+
+	expected := NewSet[int](1, 2, 3)
+	assert.Check(t, is.DeepEqual(a.Union(b), expected))
+	assert.Check(t, is.DeepEqual(b.Union(a), expected))
 }

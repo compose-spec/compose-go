@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `ipam (top-level networks)` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/06-networks.md#ipam
+//
+// Spec: "`ipam` specifies a custom IPAM configuration."
+
 import (
 	"testing"
 

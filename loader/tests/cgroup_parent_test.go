@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `cgroup_parent` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#cgroup_parent
+//
+// Spec: "`cgroup_parent` specifies an optional parent cgroup for the
+// container."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     cgroup_parent: m-executor-abcd
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    cgroup_parent: m-executor-abcd
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].CgroupParent, "m-executor-abcd")
+		assert.Equal(t, p.Jobs["foo"].CgroupParent, "m-executor-abcd")
 	}
 	expect(p)
 

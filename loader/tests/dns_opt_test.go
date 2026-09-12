@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `dns_opt` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#dns_opt
+//
+// Spec: "`dns_opt` list custom DNS options to be passed to the container’s DNS
+// resolver (`/etc/resolv.conf` file on Linux)."
+
 import (
 	"testing"
 
@@ -32,10 +38,19 @@ services:
     dns_opt:
       - use-vc
       - no-tld-query
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    dns_opt:
+      - use-vc
+      - no-tld-query
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].DNSOpts, []string{"use-vc", "no-tld-query"})
+		assert.DeepEqual(t, p.Jobs["foo"].DNSOpts, []string{"use-vc", "no-tld-query"})
 	}
 	expect(p)
 

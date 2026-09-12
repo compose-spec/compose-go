@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `storage_opt` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#storage_opt
+//
+// Spec: "`storage_opt` defines storage driver options for a service."
+
 import (
 	"testing"
 
@@ -31,10 +36,18 @@ services:
     image: alpine
     storage_opt:
       size: "20G"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    storage_opt:
+      size: "20G"
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].StorageOpt, map[string]string{"size": "20G"})
+		assert.DeepEqual(t, p.Jobs["foo"].StorageOpt, map[string]string{"size": "20G"})
 	}
 	expect(p)
 

@@ -26,9 +26,9 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/errdefs"
@@ -40,6 +40,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/transform"
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/sirupsen/logrus"
@@ -99,15 +100,25 @@ type Options struct {
 	// MaxNodeVisits caps total YAML node visits during reset/override resolution.
 	// Zero means use the default. Useful for very large compose files that exceed the default cap.
 	MaxNodeVisits int
+	// UnsupportedAttributesCheck detects caller-supplied patterns identifying
+	// compose-file attributes not honored by the caller's runtime. See
+	// WithUnsupportedAttributesCheck.
+	UnsupportedAttributesCheck *UnsupportedAttributesCheck
 }
 
-var versionWarning []string
+var (
+	versionWarning   = utils.NewSet[string]()
+	versionWarningMu sync.Mutex
+)
 
+// warnObsoleteVersion warns once per file for the process lifetime (kept global so repeated LoadProject calls, e.g. compose watch, don't re-warn).
 func (o *Options) warnObsoleteVersion(file string) {
-	if !slices.Contains(versionWarning, file) {
+	versionWarningMu.Lock()
+	defer versionWarningMu.Unlock()
+	if !versionWarning.Has(file) {
 		logrus.Warning(fmt.Sprintf("%s: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion", file))
+		versionWarning.Add(file)
 	}
-	versionWarning = append(versionWarning, file)
 }
 
 type Listener = func(event string, metadata map[string]any)
@@ -204,6 +215,7 @@ func (o *Options) clone() *Options {
 		ResourceLoaders:            o.ResourceLoaders,
 		KnownExtensions:            o.KnownExtensions,
 		Listeners:                  o.Listeners,
+		UnsupportedAttributesCheck: o.UnsupportedAttributesCheck,
 	}
 }
 
@@ -586,6 +598,14 @@ func load(ctx context.Context, configDetails types.ConfigDetails, opts *Options,
 		return nil, errors.New("project name must not be empty")
 	}
 
+	// runs here, once, on the fully merged model (loadYamlModel recurses once
+	// per `include:`d file): unlike validation.Validate, this is a batch scan
+	// with no per-file/fail-fast need, so it must not ride along on
+	// loadYamlModel's recursive call site or it fires once per included file.
+	if check := opts.UnsupportedAttributesCheck; check != nil && check.Report != nil {
+		check.Report(detectUnsupportedAttributes(dict, check))
+	}
+
 	if !opts.SkipNormalization {
 		dict["name"] = opts.projectName
 		dict, err = Normalize(dict, configDetails.Environment)
@@ -835,6 +855,7 @@ func Transform(source interface{}, target interface{}) error {
 		),
 		Result:   target,
 		TagName:  "yaml",
+		Squash:   true,
 		Metadata: &data,
 	}
 	decoder, err := mapstructure.NewDecoder(config)
@@ -844,9 +865,9 @@ func Transform(source interface{}, target interface{}) error {
 	return decoder.Decode(source)
 }
 
-// nameServices create implicit `name` key for convenience accessing service
+// nameServices create implicit `name` key for convenience accessing service or job
 func nameServices(from reflect.Value, to reflect.Value) (interface{}, error) {
-	if to.Type() == reflect.TypeOf(types.Services{}) {
+	if to.Type() == reflect.TypeOf(types.Services{}) || to.Type() == reflect.TypeOf(types.Jobs{}) {
 		nameK := reflect.ValueOf("name")
 		iter := from.MapRange()
 		for iter.Next() {

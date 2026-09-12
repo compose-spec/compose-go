@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `user` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#user
+//
+// Spec: "`user` overrides the user used to run the container process."
+
 import (
 	"testing"
 
@@ -30,10 +35,17 @@ services:
   foo:
     image: alpine
     user: someone
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    user: someone
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].User, "someone")
+		assert.Equal(t, p.Jobs["foo"].User, "someone")
 	}
 	expect(p)
 

@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `command` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#command
+//
+// Spec: "`command` overrides the default command declared by the container
+// image, for example by Dockerfile's `CMD`."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     command: bundle exec thin -p 3000
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    command: bundle exec thin -p 3000
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
+		assert.DeepEqual(t, p.Jobs["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
 	}
 	expect(p)
 
@@ -49,6 +62,13 @@ services:
   foo:
     image: alpine
     command: ["bundle", "exec", "thin", "-p", "3000"]
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    command: ["bundle", "exec", "thin", "-p", "3000"]
 `)
 	assert.DeepEqual(t, p.Services["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
+	assert.DeepEqual(t, p.Jobs["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
 }

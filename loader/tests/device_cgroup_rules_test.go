@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `device_cgroup_rules` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#device_cgroup_rules
+//
+// Spec: "`device_cgroup_rules` defines a list of device cgroup rules for this
+// container."
+
 import (
 	"testing"
 
@@ -32,10 +38,19 @@ services:
     device_cgroup_rules:
       - "c 1:3 mr"
       - "a 7:* rmw"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    device_cgroup_rules:
+      - "c 1:3 mr"
+      - "a 7:* rmw"
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].DeviceCgroupRules, []string{"c 1:3 mr", "a 7:* rmw"})
+		assert.DeepEqual(t, p.Jobs["foo"].DeviceCgroupRules, []string{"c 1:3 mr", "a 7:* rmw"})
 	}
 	expect(p)
 

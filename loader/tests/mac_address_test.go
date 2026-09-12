@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `mac_address` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#mac_address
+//
+// Spec: "`mac_address` sets the MAC address used by the service container when
+// connecting to this particular network."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     mac_address: "02:42:ac:11:65:43"
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    mac_address: "02:42:ac:11:65:43"
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].MacAddress, "02:42:ac:11:65:43")
+		assert.Equal(t, p.Jobs["foo"].MacAddress, "02:42:ac:11:65:43")
 	}
 	expect(p)
 

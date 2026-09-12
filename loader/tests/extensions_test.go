@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `extensions (x-* attributes)` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/11-extension.md
+//
+// Spec: "As with Fragments, Extensions can be used to make your Compose file
+// more efficient and easier to maintain."
+
 import (
 	"testing"
 
@@ -57,10 +63,19 @@ services:
     image: alpine
     x-bar: baz
     x-foo: bar
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    x-bar: baz
+    x-foo: bar
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Extensions["x-bar"], "baz")
 		assert.Equal(t, p.Services["foo"].Extensions["x-foo"], "bar")
+		assert.Equal(t, p.Jobs["foo"].Extensions["x-bar"], "baz")
+		assert.Equal(t, p.Jobs["foo"].Extensions["x-foo"], "bar")
 	}
 	expect(p)
 

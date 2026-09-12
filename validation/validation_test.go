@@ -129,14 +129,16 @@ published: "1234"
 	}
 
 	for _, tt := range tests {
-		var input map[string]any
-		err := yaml.Unmarshal([]byte(tt.input), &input)
-		assert.NilError(t, err)
-		err = checker(input, tree.NewPath("configs.test.ports[0]"))
-		if tt.err == "" {
+		t.Run(tt.name, func(t *testing.T) {
+			var input map[string]any
+			err := yaml.Unmarshal([]byte(tt.input), &input)
 			assert.NilError(t, err)
-		} else {
-			assert.Equal(t, tt.err, err.Error())
-		}
+			err = checker(input, tree.NewPath("configs.test.ports[0]"))
+			if tt.err == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Equal(t, tt.err, err.Error())
+			}
+		})
 	}
 }

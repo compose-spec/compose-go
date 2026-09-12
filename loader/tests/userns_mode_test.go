@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `userns_mode` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#userns_mode
+//
+// Spec: "`userns_mode` sets the user namespace for the service."
+
 import (
 	"testing"
 
@@ -30,10 +35,17 @@ services:
   foo:
     image: alpine
     userns_mode: host
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    userns_mode: host
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].UserNSMode, "host")
+		assert.Equal(t, p.Jobs["foo"].UserNSMode, "host")
 	}
 	expect(p)
 

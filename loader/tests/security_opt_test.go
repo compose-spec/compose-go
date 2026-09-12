@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `security_opt` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#security_opt
+//
+// Spec: "`security_opt` overrides the default labeling scheme for each
+// container."
+
 import (
 	"testing"
 
@@ -32,11 +38,20 @@ services:
     security_opt:
       - label=level:s0:c100,c200
       - label=type:svirt_apache_t
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    security_opt:
+      - label=level:s0:c100,c200
+      - label=type:svirt_apache_t
 `)
 
 	expect := func(p *types.Project) {
 		expected := []string{"label=level:s0:c100,c200", "label=type:svirt_apache_t"}
 		assert.DeepEqual(t, p.Services["foo"].SecurityOpt, expected)
+		assert.DeepEqual(t, p.Jobs["foo"].SecurityOpt, expected)
 	}
 	expect(p)
 

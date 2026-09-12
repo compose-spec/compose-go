@@ -17,6 +17,7 @@
 package transform
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -33,4 +34,45 @@ func TestSSHConfig(t *testing.T) {
 		"default": nil,
 		"foo":     "bar",
 	})
+}
+
+func Test_transformSSH_ignoreParseError(t *testing.T) {
+	tests := []struct {
+		name             string
+		yaml             any
+		ignoreParseError bool
+		want             any
+		wantErr          string
+	}{
+		{
+			name: "unresolved variable, error",
+			yaml: []any{
+				"${SSH_AUTH_SOCK}",
+			},
+			wantErr: `invalid ssh key "${SSH_AUTH_SOCK}"`,
+		},
+		{
+			name: "unresolved variable, ignored",
+			yaml: []any{
+				"${SSH_AUTH_SOCK}",
+			},
+			ignoreParseError: true,
+			want: []any{
+				"${SSH_AUTH_SOCK}",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := transformSSH(tt.yaml, tree.NewPath("test"), tt.ignoreParseError)
+			if tt.wantErr != "" {
+				assert.Error(t, err, tt.wantErr)
+				return
+			}
+			assert.NilError(t, err)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("transformSSH() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

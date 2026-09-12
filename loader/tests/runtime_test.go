@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `runtime` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#runtime
+//
+// Spec: "`runtime` specifies which runtime to use for the service’s
+// containers."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     runtime: nvidia
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    runtime: nvidia
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Runtime, "nvidia")
+		assert.Equal(t, p.Jobs["foo"].Runtime, "nvidia")
 	}
 	expect(p)
 
