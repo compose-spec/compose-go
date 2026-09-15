@@ -321,7 +321,10 @@ func Test_ResolveImages_imageVolumes(t *testing.T) {
 					Volumes: []ServiceVolumeConfig{
 						// external image reference: must be resolved to a digest
 						{Type: VolumeTypeImage, Source: "alpine:3.19", Target: "/data"},
-						// reference to another service: resolved to a local image, left untouched
+						// a `type: image` source is always a docker image reference,
+						// resolved like any other one — even though a project service
+						// happens to share its name, it is NOT treated as a reference
+						// to that service (there is no such thing in the Compose Spec)
 						{Type: VolumeTypeImage, Source: "builder", Target: "/from-builder"},
 						// regular named volume: left untouched
 						{Type: VolumeTypeVolume, Source: "vol", Target: "/vol"},
@@ -336,7 +339,7 @@ func Test_ResolveImages_imageVolumes(t *testing.T) {
 
 	volumes := p.Services["service_1"].Volumes
 	assert.Equal(t, volumes[0].Source, "docker.io/library/alpine:3.19@"+digested)
-	assert.Equal(t, volumes[1].Source, "builder")
+	assert.Equal(t, volumes[1].Source, "docker.io/library/builder:latest@"+digested)
 	assert.Equal(t, volumes[2].Source, "vol")
 }
 
@@ -362,10 +365,11 @@ func Test_ResolveImages_preStartHookError(t *testing.T) {
 	assert.Error(t, err, "registry unreachable")
 }
 
-func Test_ResolveImages_imageVolumeDisabledService(t *testing.T) {
-	// A `type: image` volume referencing a profile-disabled service is treated as a
-	// service reference: the resolver must never be called for it, and the source is
-	// left unchanged. The uppercase name would also trip reference.ParseDockerRef.
+func Test_ResolveImages_imageVolumeInvalidSourceErrors(t *testing.T) {
+	// A `type: image` source is always a docker image reference: it is resolved
+	// like any other one, even when it happens to match a (possibly
+	// profile-disabled) project service name. An uppercase name is not a valid
+	// docker reference, so resolution fails rather than being silently skipped.
 	resolver := func(named reference.Named) (digest.Digest, error) {
 		return "", fmt.Errorf("resolver must not be called for %s", named)
 	}
@@ -385,9 +389,8 @@ func Test_ResolveImages_imageVolumeDisabledService(t *testing.T) {
 		},
 	}
 
-	p, err := p.WithImagesResolved(resolver)
-	assert.NilError(t, err)
-	assert.Equal(t, p.Services["service_1"].Volumes[0].Source, "Builder")
+	_, err := p.WithImagesResolved(resolver)
+	assert.ErrorContains(t, err, "invalid reference format")
 }
 
 func Test_ResolveImages_deduplicated(t *testing.T) {
