@@ -511,7 +511,15 @@ PATH:
 
 // ReadConfigFiles reads ConfigFiles and populates the content field
 func (o *ProjectOptions) ReadConfigFiles(ctx context.Context, workingDir string, options *ProjectOptions) (*types.ConfigDetails, error) {
-	config, err := loader.LoadConfigFiles(ctx, options.ConfigPaths, workingDir, options.loadOptions...)
+	// workingDir already resolved options.WorkingDir with precedence over any
+	// default (see GetWorkingDir): pass that precedence down explicitly, so a
+	// remote resource loader (git, oci) does not override it with the
+	// directory of its own downloaded copy.
+	explicit := options.WorkingDir != ""
+	loadOptions := append(append([]func(*loader.Options){}, options.loadOptions...), func(o *loader.Options) {
+		o.SetWorkingDirExplicit(explicit)
+	})
+	config, err := loader.LoadConfigFiles(ctx, options.ConfigPaths, workingDir, loadOptions...)
 	if err != nil {
 		return nil, err
 	}
