@@ -81,6 +81,11 @@ type Options struct {
 	projectName string
 	// Indicates when the projectName was imperatively set or guessed from path
 	projectNameImperativelySet bool
+	// Indicates the working dir passed to LoadConfigFiles was explicitly
+	// requested (e.g. --project-directory) rather than defaulted (e.g. the
+	// current directory), so a remote resource loader (git, oci) must not
+	// override it with the downloaded copy's own directory
+	workingDirExplicit bool
 	// Profiles set profiles to enable
 	Profiles []string
 	// SelectedServices restricts the project model to these services (and their dependencies)
@@ -209,6 +214,7 @@ func (o *Options) clone() *Options {
 		discardEnvFiles:            o.discardEnvFiles,
 		projectName:                o.projectName,
 		projectNameImperativelySet: o.projectNameImperativelySet,
+		workingDirExplicit:         o.workingDirExplicit,
 		Profiles:                   o.Profiles,
 		SelectedServices:           o.SelectedServices,
 		PruneUnnecessaryResources:  o.PruneUnnecessaryResources,
@@ -226,6 +232,15 @@ func (o *Options) SetProjectName(name string, imperativelySet bool) {
 
 func (o Options) GetProjectName() (string, bool) {
 	return o.projectName, o.projectNameImperativelySet
+}
+
+// SetWorkingDirExplicit records whether the working dir passed to
+// LoadConfigFiles was explicitly requested by the caller (e.g.
+// --project-directory) rather than defaulted (e.g. the current directory).
+// A remote resource loader (git, oci) must not override an explicit working
+// dir with the directory of its downloaded copy.
+func (o *Options) SetWorkingDirExplicit(explicit bool) {
+	o.workingDirExplicit = explicit
 }
 
 // serviceRef identifies a reference to a service. It's used to detect cyclic
@@ -346,7 +361,7 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 			if err != nil {
 				return nil, err
 			}
-			if config.WorkingDir == "" && !isLocalResourceLoader {
+			if config.WorkingDir == "" && !isLocalResourceLoader && !opts.workingDirExplicit {
 				config.WorkingDir = filepath.Dir(local)
 			}
 			abs, err := filepath.Abs(local)
