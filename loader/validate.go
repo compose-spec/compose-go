@@ -41,6 +41,10 @@ func checkConsistency(project *types.Project) error { //nolint:gocyclo
 			for add, c := range s.Build.AdditionalContexts {
 				if target, ok := strings.CutPrefix(c, types.ServicePrefix); ok {
 					t, err := project.GetService(target)
+					if errors.Is(err, errdefs.ErrDisabled) {
+						t = project.DisabledServices[target]
+						err = nil
+					}
 					if err != nil {
 						return fmt.Errorf("service %q declares unknown service %q as additional contexts %s", name, target, add)
 					}

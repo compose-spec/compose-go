@@ -24,11 +24,61 @@ package tests
 // source."
 
 import (
+	"context"
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
+
+// A service additional context may refer to a build-only service in an inactive
+// profile without enabling that service for execution.
+// https://github.com/compose-spec/compose-spec/blob/main/build.md#additional_contexts
+// Regression: https://github.com/docker/compose/issues/14223.
+func TestBuildAdditionalContextDisabledService(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		base      string
+		wantError string
+	}{
+		{"buildable", "build: .", ""},
+		{"image only", "image: busybox", "non-buildable service"},
+		{"missing", "", "unknown service"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			content := `
+name: test
+services:
+  classroom:
+    profiles: [classroom]
+    build:
+      context: .
+      additional_contexts:
+        base: service:base
+`
+			if tc.base != "" {
+				content += "  base:\n    profiles: [disabled_services]\n    " + tc.base + "\n"
+			}
+			p, err := loader.LoadWithContext(context.Background(), types.ConfigDetails{
+				ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
+			}, func(options *loader.Options) {
+				options.Profiles = []string{"classroom"}
+			})
+			if tc.wantError != "" {
+				assert.ErrorContains(t, err, tc.wantError)
+				assert.ErrorContains(t, err, `service "classroom"`)
+				assert.ErrorContains(t, err, `"base" as additional contexts base`)
+				return
+			}
+			assert.NilError(t, err)
+			assert.Equal(t, len(p.Services), 1)
+			assert.Equal(t, p.Services["classroom"].Build.AdditionalContexts["base"], "service:base")
+			assert.Equal(t, len(p.DisabledServices), 1)
+			assert.Assert(t, p.DisabledServices["base"].Build != nil)
+		})
+	}
+}
 
 func TestBuildConfig(t *testing.T) {
 	p := load(t, `
