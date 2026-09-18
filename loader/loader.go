@@ -79,8 +79,8 @@ type Options struct {
 	discardEnvFiles bool
 	// Set project projectName
 	projectName string
-	// Indicates when the projectName was imperatively set or guessed from path
-	projectNameImperativelySet bool
+	// Indicates when the projectName was explicitly set or guessed from path
+	projectNameExplicit bool
 	// Indicates the working dir passed to LoadConfigFiles was explicitly
 	// requested (e.g. --project-directory) rather than defaulted (e.g. the
 	// current directory), so a remote resource loader (git, oci) must not
@@ -213,7 +213,7 @@ func (o *Options) clone() *Options {
 		Interpolate:                o.Interpolate,
 		discardEnvFiles:            o.discardEnvFiles,
 		projectName:                o.projectName,
-		projectNameImperativelySet: o.projectNameImperativelySet,
+		projectNameExplicit:        o.projectNameExplicit,
 		workingDirExplicit:         o.workingDirExplicit,
 		Profiles:                   o.Profiles,
 		SelectedServices:           o.SelectedServices,
@@ -225,13 +225,13 @@ func (o *Options) clone() *Options {
 	}
 }
 
-func (o *Options) SetProjectName(name string, imperativelySet bool) {
+func (o *Options) SetProjectName(name string, explicit bool) {
 	o.projectName = name
-	o.projectNameImperativelySet = imperativelySet
+	o.projectNameExplicit = explicit
 }
 
 func (o Options) GetProjectName() (string, bool) {
-	return o.projectName, o.projectNameImperativelySet
+	return o.projectName, o.projectNameExplicit
 }
 
 // SetWorkingDirExplicit records whether the working dir passed to
@@ -726,7 +726,7 @@ func projectName(details *types.ConfigDetails, opts *Options) error {
 		details.Environment[consts.ComposeProjectName] = opts.projectName
 	}()
 
-	if opts.projectNameImperativelySet {
+	if opts.projectNameExplicit {
 		if NormalizeProjectName(opts.projectName) != opts.projectName {
 			return InvalidProjectNameErr(opts.projectName)
 		}

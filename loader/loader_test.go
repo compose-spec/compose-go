@@ -2785,20 +2785,20 @@ func TestLoadProjectName(t *testing.T) {
 			wantErr: "project name must not be empty",
 		},
 		{
-			name:    "project name from options, not imperatively set; no env",
+			name:    "project name from options, not explicitly set; no env",
 			options: withProjectName(projectName, false),
 		},
 		{
-			name:    "project name from options, imperatively set; no env",
+			name:    "project name from options, explicitly set; no env",
 			options: withProjectName(projectName, true),
 		},
 		{
-			name:    "project name from options, not imperatively set; empty env",
+			name:    "project name from options, not explicitly set; empty env",
 			env:     map[string]string{},
 			options: withProjectName(projectName, false),
 		},
 		{
-			name:    "project name from options, imperatively set; empty env",
+			name:    "project name from options, explicitly set; empty env",
 			env:     map[string]string{},
 			options: withProjectName(projectName, true),
 		},
@@ -2828,9 +2828,9 @@ services:
 	}
 }
 
-func withProjectName(projectName string, imperativelySet bool) func(*Options) {
+func withProjectName(projectName string, explicit bool) func(*Options) {
 	return func(opts *Options) {
-		opts.SetProjectName(projectName, imperativelySet)
+		opts.SetProjectName(projectName, explicit)
 	}
 }
 
