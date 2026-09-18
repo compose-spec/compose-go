@@ -1572,6 +1572,17 @@ networks:
 	assert.ErrorContains(t, err, "networks.foo: name and external.name conflict; only use name")
 }
 
+func TestLoadNetworkWithInvalidKey(t *testing.T) {
+	_, err := loadYAML(`
+name: load-network-with-invalid-key
+networks:
+  /:
+    driver: bridge
+`)
+
+	assert.ErrorContains(t, err, "networks additional properties '/' not allowed")
+}
+
 func TestLoadNetworkWithName(t *testing.T) {
 	config, err := loadYAML(`
 name: load-network-with-name
