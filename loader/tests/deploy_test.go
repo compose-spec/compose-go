@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `deploy` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/deploy.md
+//
+// Spec: "The Compose Deploy Specification lets you declare additional metadata
+// on services so Compose gets relevant data to allocate adequate resources on
+// the platform and configure them to match your needs."
+
 import (
 	"testing"
 	"time"

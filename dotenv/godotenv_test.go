@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
 	"gotest.tools/v3/assert"
 )
 
@@ -577,8 +576,8 @@ func TestExpandingEnvironmentWithLookup(t *testing.T) {
 		return "NO", false
 	}
 	env, err := ParseWithLookup(strings.NewReader(rawEnvLine), lookupFn)
-	require.NoError(t, err)
-	require.Equal(t, expectedValue, env["TEST"])
+	assert.NilError(t, err)
+	assert.Equal(t, expectedValue, env["TEST"])
 }
 
 func TestSubstitutionsWithEnvFilePrecedence(t *testing.T) {
@@ -677,8 +676,8 @@ func TestUTF8BOM(t *testing.T) {
 	// easy for it to get removed by accident, which would invalidate this
 	// test
 	envFileData, err := os.ReadFile(envFileName)
-	require.NoError(t, err)
-	require.True(t, bytes.HasPrefix(envFileData, []byte("\uFEFF")),
+	assert.NilError(t, err)
+	assert.Assert(t, bytes.HasPrefix(envFileData, []byte("\uFEFF")),
 		"Test fixture file is missing UTF-8 BOM")
 
 	expectedValues := map[string]string{

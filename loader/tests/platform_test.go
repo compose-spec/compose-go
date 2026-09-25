@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `platform` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#platform
+//
+// Spec: "`platform` defines the target platform the containers for the service
+// run on."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     platform: linux/amd64
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    platform: linux/amd64
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Platform, "linux/amd64")
+		assert.Equal(t, p.Jobs["foo"].Platform, "linux/amd64")
 	}
 	expect(p)
 

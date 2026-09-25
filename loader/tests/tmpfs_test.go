@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `tmpfs` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#tmpfs
+//
+// Spec: "`tmpfs` mounts a temporary file system inside the container."
+
 import (
 	"testing"
 
@@ -35,11 +40,26 @@ services:
   string:
     image: alpine
     tmpfs: /run
+jobs:
+  list:
+    triggers:
+      manual: true
+    image: alpine
+    tmpfs:
+      - /run
+      - /tmp
+  string:
+    triggers:
+      manual: true
+    image: alpine
+    tmpfs: /run
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["list"].Tmpfs, types.StringList{"/run", "/tmp"})
 		assert.DeepEqual(t, p.Services["string"].Tmpfs, types.StringList{"/run"})
+		assert.DeepEqual(t, p.Jobs["list"].Tmpfs, types.StringList{"/run", "/tmp"})
+		assert.DeepEqual(t, p.Jobs["string"].Tmpfs, types.StringList{"/run"})
 	}
 	expect(p)
 

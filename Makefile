@@ -30,6 +30,14 @@ test: ## Run tests
 fmt: ## Format go files
 	go fmt ./...
 
+.PHONY: generate
+generate: ## Regenerate derived sources (container-spec attribute list)
+	go run ./internal/generate/containerspec
+
+.PHONY: check-generate
+check-generate: generate ## Fail if derived sources are out of sync
+	git diff --exit-code types/container_spec_attributes.gen.go
+
 .PHONY: deepcopy
 deepcopy: build-validate-image
 	docker run --rm -v .:/go/src $(IMAGE_PREFIX)validate goderive ./types/...

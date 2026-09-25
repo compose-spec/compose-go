@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `attach` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#attach
+//
+// Spec: "When `attach` is defined and set to `false` Compose does not collect
+// service logs, until you explicitly request it to."
+
 import (
 	"testing"
 
@@ -35,6 +41,11 @@ services:
     attach: false
   default:
     image: alpine
+jobs:
+  default:
+    triggers:
+      manual: true
+    image: alpine
 `)
 
 	expect := func(p *types.Project) {
@@ -47,4 +58,25 @@ services:
 	yamlP, jsonP := roundTrip(t, p)
 	expect(yamlP)
 	expect(jsonP)
+}
+
+func TestJobRejectsWorkloadOnlyAttributes(t *testing.T) {
+	// run-to-completion jobs don't accept service-lifecycle attributes
+	for attr, yaml := range map[string]string{
+		"attach":         "    attach: true",
+		"container_name": "    container_name: x",
+		"links":          "    links: [db]",
+		"external_links": "    external_links: [db]",
+		"post_start":     "    post_start:\n      - command: echo done",
+	} {
+		err := loadErr(t, `
+name: test
+jobs:
+  job:
+    triggers:
+      manual: true
+    image: alpine
+`+yaml)
+		assert.ErrorContains(t, err, attr)
+	}
 }

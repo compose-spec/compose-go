@@ -16,6 +16,13 @@
 
 package tests
 
+// The tests in this file lock the `volumes`, `volumes (top-level)` attributes:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#volumes
+//   https://github.com/compose-spec/compose-spec/blob/main/07-volumes.md
+//
+// Spec: "`volumes` define mount host paths or named volumes that are
+// accessible by service containers."
+
 import (
 	"testing"
 
@@ -100,12 +107,29 @@ services:
         target: /mnt/image
         image:
           subpath: /foo
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - type: image
+        source: app/image
+        target: /mnt/image
+        image:
+          subpath: /foo
 `)
 	vol := p.Services["foo"].Volumes[0]
 	assert.Equal(t, vol.Type, "image")
 	assert.Equal(t, vol.Source, "app/image")
 	assert.Equal(t, vol.Target, "/mnt/image")
 	assert.Equal(t, vol.Image.SubPath, "/foo")
+
+	jvol := p.Jobs["foo"].Volumes[0]
+	assert.Equal(t, jvol.Type, "image")
+	assert.Equal(t, jvol.Source, "app/image")
+	assert.Equal(t, jvol.Target, "/mnt/image")
+	assert.Equal(t, jvol.Image.SubPath, "/foo")
 }
 
 func TestNpipeVolume(t *testing.T) {
@@ -118,9 +142,23 @@ services:
       - type: npipe
         source: \\.\pipe\docker_engine
         target: \\.\pipe\docker_engine
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - type: npipe
+        source: \\.\pipe\docker_engine
+        target: \\.\pipe\docker_engine
 `)
 	vol := p.Services["foo"].Volumes[0]
 	assert.Equal(t, vol.Type, "npipe")
 	assert.Equal(t, vol.Source, "\\\\.\\pipe\\docker_engine")
 	assert.Equal(t, vol.Target, "\\\\.\\pipe\\docker_engine")
+
+	jvol := p.Jobs["foo"].Volumes[0]
+	assert.Equal(t, jvol.Type, "npipe")
+	assert.Equal(t, jvol.Source, "\\\\.\\pipe\\docker_engine")
+	assert.Equal(t, jvol.Target, "\\\\.\\pipe\\docker_engine")
 }

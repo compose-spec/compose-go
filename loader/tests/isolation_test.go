@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `isolation` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#isolation
+//
+// Spec: "`isolation` specifies a container’s isolation technology."
+
 import (
 	"testing"
 
@@ -30,10 +35,17 @@ services:
   foo:
     image: alpine
     isolation: process
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    isolation: process
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Isolation, "process")
+		assert.Equal(t, p.Jobs["foo"].Isolation, "process")
 	}
 	expect(p)
 

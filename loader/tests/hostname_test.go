@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `hostname` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#hostname
+//
+// Spec: "`hostname` declares a custom host name to use for the service
+// container."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     hostname: foo
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    hostname: foo
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Hostname, "foo")
+		assert.Equal(t, p.Jobs["foo"].Hostname, "foo")
 	}
 	expect(p)
 

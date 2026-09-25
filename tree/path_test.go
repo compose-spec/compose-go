@@ -64,6 +64,8 @@ func TestPathMatches(t *testing.T) {
 		},
 	}
 	for _, testcase := range testcases {
-		assert.Check(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)))
+		t.Run(testcase.doc, func(t *testing.T) {
+			assert.Check(t, is.Equal(testcase.expected, testcase.path.Matches(testcase.pattern)))
+		})
 	}
 }

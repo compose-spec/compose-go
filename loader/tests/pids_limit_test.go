@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `pids_limit` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pids_limit
+//
+// Spec: "`pids_limit` tunes a container’s PIDs limit."
+
 import (
 	"testing"
 
@@ -30,10 +35,17 @@ services:
   foo:
     image: alpine
     pids_limit: 100
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    pids_limit: 100
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].PidsLimit, int64(100))
+		assert.Equal(t, p.Jobs["foo"].PidsLimit, int64(100))
 	}
 	expect(p)
 

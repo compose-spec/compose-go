@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -398,4 +400,128 @@ func TestEnvVariablePrecedence(t *testing.T) {
 			assert.DeepEqual(t, test.expected, options.Environment)
 		})
 	}
+}
+
+// The default .env is an implicit convenience: when the working directory
+// denies even probing for it (EACCES on stat), the lookup is skipped with a
+// warning instead of failing the command. An explicit env file keeps failing.
+func TestEnvFilesDefaultUnreadableWorkingDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 0 does not prevent stat on Windows")
+	}
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses permission checks")
+	}
+	dir := t.TempDir()
+	locked := filepath.Join(dir, "locked")
+	assert.NilError(t, os.Mkdir(locked, 0o700))
+	assert.NilError(t, os.WriteFile(filepath.Join(locked, ".env"), []byte("FOO=bar\n"), 0o644))
+	assert.NilError(t, os.Chmod(locked, 0o000))
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o700) })
+
+	options, err := NewProjectOptions(nil, WithWorkingDirectory(locked), WithEnvFiles(), WithDotEnv)
+	assert.NilError(t, err)
+	assert.Equal(t, len(options.EnvFiles), 0)
+
+	// an explicit env file behind the same permission wall still fails hard
+	_, err = NewProjectOptions(nil,
+		WithWorkingDirectory(locked),
+		WithEnvFiles(filepath.Join(locked, ".env")), WithDotEnv)
+	assert.ErrorContains(t, err, "permission denied")
+}
+
+type stubRemoteLoader struct {
+	prefix string
+}
+
+func (l stubRemoteLoader) Accept(path string) bool {
+	return strings.HasPrefix(path, l.prefix)
+}
+
+func (l stubRemoteLoader) Load(_ context.Context, _ string) (string, error) {
+	return "", nil
+}
+
+func (l stubRemoteLoader) Dir(_ string) string {
+	return ""
+}
+
+func TestWithConfigFileEnvValidation(t *testing.T) {
+	t.Run("empty entry resolves to working directory", func(t *testing.T) {
+		_, err := NewProjectOptions(nil,
+			WithEnv([]string{"COMPOSE_FILE="}),
+			WithConfigFileEnv)
+		assert.ErrorContains(t, err, `compose file "" set by COMPOSE_FILE environment variable is invalid`)
+		assert.ErrorContains(t, err, "is a directory")
+	})
+
+	t.Run("entry is a directory", func(t *testing.T) {
+		dir := t.TempDir()
+		_, err := NewProjectOptions(nil,
+			WithEnv([]string{"COMPOSE_FILE=" + dir}),
+			WithConfigFileEnv)
+		assert.ErrorContains(t, err, fmt.Sprintf("compose file %q set by COMPOSE_FILE environment variable is invalid", dir))
+		assert.ErrorContains(t, err, "is a directory")
+	})
+
+	t.Run("entry does not exist", func(t *testing.T) {
+		missing := filepath.Join(t.TempDir(), "missing.yaml")
+		_, err := NewProjectOptions(nil,
+			WithEnv([]string{"COMPOSE_FILE=" + missing}),
+			WithConfigFileEnv)
+		assert.ErrorContains(t, err, fmt.Sprintf("compose file %q set by COMPOSE_FILE environment variable is invalid", missing))
+	})
+
+	t.Run("empty entry within a list", func(t *testing.T) {
+		file := filepath.Join(t.TempDir(), "compose.yaml")
+		assert.NilError(t, os.WriteFile(file, []byte("services: {}"), 0o600))
+		_, err := NewProjectOptions(nil,
+			WithEnv([]string{"COMPOSE_FILE=" + file + string(os.PathListSeparator)}),
+			WithConfigFileEnv)
+		assert.ErrorContains(t, err, `compose file "" set by COMPOSE_FILE environment variable is invalid`)
+	})
+
+	t.Run("valid entries", func(t *testing.T) {
+		dir := t.TempDir()
+		file := filepath.Join(dir, "compose.yaml")
+		override := filepath.Join(dir, "override.yaml")
+		assert.NilError(t, os.WriteFile(file, []byte("services: {}"), 0o600))
+		assert.NilError(t, os.WriteFile(override, []byte("services: {}"), 0o600))
+		opts, err := NewProjectOptions(nil,
+			WithEnv([]string{"COMPOSE_FILE=" + file + string(os.PathListSeparator) + override}),
+			WithConfigFileEnv)
+		assert.NilError(t, err)
+		assert.DeepEqual(t, opts.ConfigPaths, []string{file, override})
+	})
+
+	t.Run("stdin entry", func(t *testing.T) {
+		opts, err := NewProjectOptions(nil,
+			WithEnv([]string{"COMPOSE_FILE=-"}),
+			WithConfigFileEnv)
+		assert.NilError(t, err)
+		assert.DeepEqual(t, opts.ConfigPaths, []string{"-"})
+	})
+
+	t.Run("remote entry is not checked as a local file", func(t *testing.T) {
+		opts, err := NewProjectOptions(nil,
+			WithResourceLoader(stubRemoteLoader{prefix: "oci://"}),
+			// the default ":" separator conflicts with remote references, so
+			// using them in COMPOSE_FILE requires an explicit COMPOSE_PATH_SEPARATOR
+			WithEnv([]string{
+				"COMPOSE_PATH_SEPARATOR=;",
+				"COMPOSE_FILE=oci://example.org/compose:latest",
+			}),
+			WithConfigFileEnv)
+		assert.NilError(t, err)
+		assert.DeepEqual(t, opts.ConfigPaths, []string{"oci://example.org/compose:latest"})
+	})
+}
+
+func TestConfigPathIsDirectory(t *testing.T) {
+	dir := t.TempDir()
+	opts, err := NewProjectOptions([]string{dir})
+	assert.NilError(t, err)
+	_, err = ProjectFromOptions(context.TODO(), opts)
+	assert.ErrorContains(t, err, fmt.Sprintf("compose file %q is invalid", dir))
+	assert.ErrorContains(t, err, "is a directory")
 }

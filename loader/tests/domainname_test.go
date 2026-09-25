@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `domainname` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#domainname
+//
+// Spec: "`domainname` declares a custom domain name to use for the service
+// container."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     domainname: foo.com
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    domainname: foo.com
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].DomainName, "foo.com")
+		assert.Equal(t, p.Jobs["foo"].DomainName, "foo.com")
 	}
 	expect(p)
 

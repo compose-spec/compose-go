@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `entrypoint` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#entrypoint
+//
+// Spec: "`entrypoint` declares the default entrypoint for the service
+// container."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     entrypoint: ["/code/entrypoint.sh", "-p", "3000"]
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    entrypoint: ["/code/entrypoint.sh", "-p", "3000"]
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
+		assert.DeepEqual(t, p.Jobs["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
 	}
 	expect(p)
 
@@ -42,13 +55,35 @@ services:
 	expect(jsonP)
 }
 
+// An entrypoint declared as a string must be parsed into its exec form.
 func TestEntrypointString(t *testing.T) {
-	p := load(t, `
+	loadsAs(t, `
 name: test
 services:
   foo:
     image: alpine
     entrypoint: /code/entrypoint.sh -p 3000
+`, `
+name: test
+services:
+  foo:
+    image: alpine
+    entrypoint:
+      - /code/entrypoint.sh
+      - -p
+      - "3000"
 `)
-	assert.DeepEqual(t, p.Services["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
+
+	// jobs share the container specification: the same string form parses
+	// into exec form there too.
+	p := load(t, `
+name: test
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    entrypoint: /code/entrypoint.sh -p 3000
+`)
+	assert.DeepEqual(t, p.Jobs["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
 }

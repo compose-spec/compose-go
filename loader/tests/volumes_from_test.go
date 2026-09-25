@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `volumes_from` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#volumes_from
+//
+// Spec: "`volumes_from` mounts all of the volumes from another service or
+// container."
+
 import (
 	"testing"
 
@@ -34,10 +40,23 @@ services:
       - bar:ro
   bar:
     image: alpine
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    volumes_from:
+      - bar
+      - bar:ro
+  bar:
+    triggers:
+      manual: true
+    image: alpine
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].VolumesFrom, []string{"bar", "bar:ro"})
+		assert.DeepEqual(t, p.Jobs["foo"].VolumesFrom, []string{"bar", "bar:ro"})
 	}
 	expect(p)
 

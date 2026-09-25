@@ -20,9 +20,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v4"
+	"gotest.tools/v3/assert"
 )
 
 func TestUnitBytesUnmarshalJSON(t *testing.T) {
@@ -43,7 +42,7 @@ func TestUnitBytesUnmarshalJSON(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var result UnitBytes
 			err := json.Unmarshal([]byte(tt.input), &result)
-			require.NoError(t, err)
+			assert.NilError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -52,7 +51,7 @@ func TestUnitBytesUnmarshalJSON(t *testing.T) {
 func TestUnitBytesUnmarshalJSON_Invalid(t *testing.T) {
 	var result UnitBytes
 	err := json.Unmarshal([]byte(`"invalid"`), &result)
-	assert.Error(t, err)
+	assert.ErrorContains(t, err, "invalid size: 'invalid'")
 }
 
 func TestUnitBytesUnmarshalYAML(t *testing.T) {
@@ -71,7 +70,7 @@ func TestUnitBytesUnmarshalYAML(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var result UnitBytes
 			err := yaml.Unmarshal([]byte(tt.input), &result)
-			require.NoError(t, err)
+			assert.NilError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
@@ -80,28 +79,28 @@ func TestUnitBytesUnmarshalYAML(t *testing.T) {
 func TestUnitBytesUnmarshalYAML_Invalid(t *testing.T) {
 	var result UnitBytes
 	err := yaml.Unmarshal([]byte(`"invalid"`), &result)
-	assert.Error(t, err)
+	assert.ErrorContains(t, err, "invalid size: 'invalid'")
 }
 
 func TestUnitBytesJSONRoundTrip(t *testing.T) {
 	original := UnitBytes(655360)
 	data, err := json.Marshal(original)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	var result UnitBytes
 	err = json.Unmarshal(data, &result)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	assert.Equal(t, original, result)
 }
 
 func TestUnitBytesYAMLRoundTrip(t *testing.T) {
 	original := UnitBytes(655360)
 	data, err := yaml.Marshal(original)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	var result UnitBytes
 	err = yaml.Unmarshal(data, &result)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	assert.Equal(t, original, result)
 }
 
@@ -112,17 +111,17 @@ func TestUnitBytesJSONRoundTripViaUntypedMap(t *testing.T) {
 	original := wrapper{Size: UnitBytes(655360)}
 
 	data, err := json.Marshal(original)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	var untyped map[string]interface{}
 	err = json.Unmarshal(data, &untyped)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	data2, err := json.Marshal(untyped)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	var result wrapper
 	err = json.Unmarshal(data2, &result)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	assert.Equal(t, original, result)
 }

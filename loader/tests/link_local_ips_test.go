@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `networks.link_local_ips` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#link_local_ips
+//
+// Spec: "`link_local_ips` specifies a list of link-local IPs."
+
 import (
 	"testing"
 

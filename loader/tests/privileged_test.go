@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `privileged` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#privileged
+//
+// Spec: "`privileged` configures the service container to run with elevated
+// privileges."
+
 import (
 	"testing"
 
@@ -31,11 +37,20 @@ services:
     image: alpine
     privileged: true
     read_only: true
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    privileged: true
+    read_only: true
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Privileged, true)
 		assert.Equal(t, p.Services["foo"].ReadOnly, true)
+		assert.Equal(t, p.Jobs["foo"].Privileged, true)
+		assert.Equal(t, p.Jobs["foo"].ReadOnly, true)
 	}
 	expect(p)
 

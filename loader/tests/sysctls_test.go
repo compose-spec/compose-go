@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `sysctls` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#sysctls
+//
+// Spec: "`sysctls` defines kernel parameters to set in the container."
+
 import (
 	"testing"
 
@@ -41,6 +46,25 @@ services:
       net.ipv4.tcp_syncookies: 0
       testing.one.one: ""
       testing.one.two:
+jobs:
+  list:
+    triggers:
+      manual: true
+    image: busybox
+    sysctls:
+      - net.core.somaxconn=1024
+      - net.ipv4.tcp_syncookies=0
+      - testing.one.one=
+      - testing.one.two
+  map:
+    triggers:
+      manual: true
+    image: busybox
+    sysctls:
+      net.core.somaxconn: 1024
+      net.ipv4.tcp_syncookies: 0
+      testing.one.one: ""
+      testing.one.two:
 `)
 
 	expect := func(p *types.Project) {
@@ -52,6 +76,8 @@ services:
 		}
 		assert.DeepEqual(t, p.Services["list"].Sysctls, expected)
 		assert.DeepEqual(t, p.Services["map"].Sysctls, expected)
+		assert.DeepEqual(t, p.Jobs["list"].Sysctls, expected)
+		assert.DeepEqual(t, p.Jobs["map"].Sysctls, expected)
 	}
 	expect(p)
 

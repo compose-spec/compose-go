@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `working_dir` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#working_dir
+//
+// Spec: "`working_dir` overrides the container's working directory which is
+// specified by the image, for example Dockerfile's `WORKDIR`."
+
 import (
 	"testing"
 
@@ -30,10 +36,17 @@ services:
   foo:
     image: alpine
     working_dir: /code
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    working_dir: /code
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].WorkingDir, "/code")
+		assert.Equal(t, p.Jobs["foo"].WorkingDir, "/code")
 	}
 	expect(p)
 

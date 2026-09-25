@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `image` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#image
+//
+// Spec: "`image` specifies the image to start the container from."
+
 import (
 	"testing"
 
@@ -29,10 +34,16 @@ name: test
 services:
   foo:
     image: redis
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: redis
 `)
 
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].Image, "redis")
+		assert.Equal(t, p.Jobs["foo"].Image, "redis")
 	}
 	expect(p)
 

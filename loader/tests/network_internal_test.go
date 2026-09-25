@@ -16,6 +16,11 @@
 
 package tests
 
+// The tests in this file lock the `internal (top-level networks)` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/06-networks.md#internal
+//
+// Spec: "By default, Compose provides external connectivity to networks."
+
 import (
 	"testing"
 

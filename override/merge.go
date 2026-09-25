@@ -19,6 +19,7 @@ package override
 import (
 	"cmp"
 	"fmt"
+	"reflect"
 	"slices"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -42,32 +43,34 @@ func init() {
 	mergeSpecials["networks.*.ipam.config"] = mergeIPAMConfig
 	mergeSpecials["networks.*.labels"] = mergeToSequence
 	mergeSpecials["volumes.*.labels"] = mergeToSequence
-	mergeSpecials["services.*.annotations"] = mergeToSequence
-	mergeSpecials["services.*.build"] = mergeBuild
-	mergeSpecials["services.*.build.args"] = mergeToSequence
-	mergeSpecials["services.*.build.additional_contexts"] = mergeToSequence
-	mergeSpecials["services.*.build.extra_hosts"] = mergeExtraHosts
-	mergeSpecials["services.*.build.labels"] = mergeToSequence
-	mergeSpecials["services.*.command"] = override
-	mergeSpecials["services.*.depends_on"] = mergeDependsOn
+	for _, prefix := range []tree.Path{"services", "jobs"} {
+		mergeSpecials[prefix+".*.annotations"] = mergeToSequence
+		mergeSpecials[prefix+".*.build"] = mergeBuild
+		mergeSpecials[prefix+".*.build.args"] = mergeToSequence
+		mergeSpecials[prefix+".*.build.additional_contexts"] = mergeToSequence
+		mergeSpecials[prefix+".*.build.extra_hosts"] = mergeToSequence
+		mergeSpecials[prefix+".*.build.labels"] = mergeToSequence
+		mergeSpecials[prefix+".*.command"] = override
+		mergeSpecials[prefix+".*.depends_on"] = mergeDependsOn
+		mergeSpecials[prefix+".*.dns"] = mergeToSequence
+		mergeSpecials[prefix+".*.dns_opt"] = mergeToSequence
+		mergeSpecials[prefix+".*.dns_search"] = mergeToSequence
+		mergeSpecials[prefix+".*.entrypoint"] = override
+		mergeSpecials[prefix+".*.env_file"] = mergeToSequence
+		mergeSpecials[prefix+".*.label_file"] = mergeToSequence
+		mergeSpecials[prefix+".*.environment"] = mergeToSequence
+		mergeSpecials[prefix+".*.extra_hosts"] = mergeToSequence
+		mergeSpecials[prefix+".*.healthcheck.test"] = override
+		mergeSpecials[prefix+".*.labels"] = mergeToSequence
+		mergeSpecials[prefix+".*.volumes.*.volume.labels"] = mergeToSequence
+		mergeSpecials[prefix+".*.logging"] = mergeLogging
+		mergeSpecials[prefix+".*.models"] = mergeModels
+		mergeSpecials[prefix+".*.networks"] = mergeNetworks
+		mergeSpecials[prefix+".*.sysctls"] = mergeToSequence
+		mergeSpecials[prefix+".*.tmpfs"] = mergeToSequence
+		mergeSpecials[prefix+".*.ulimits.*"] = mergeUlimit
+	}
 	mergeSpecials["services.*.deploy.labels"] = mergeToSequence
-	mergeSpecials["services.*.dns"] = mergeToSequence
-	mergeSpecials["services.*.dns_opt"] = mergeToSequence
-	mergeSpecials["services.*.dns_search"] = mergeToSequence
-	mergeSpecials["services.*.entrypoint"] = override
-	mergeSpecials["services.*.env_file"] = mergeToSequence
-	mergeSpecials["services.*.label_file"] = mergeToSequence
-	mergeSpecials["services.*.environment"] = mergeToSequence
-	mergeSpecials["services.*.extra_hosts"] = mergeExtraHosts
-	mergeSpecials["services.*.healthcheck.test"] = override
-	mergeSpecials["services.*.labels"] = mergeToSequence
-	mergeSpecials["services.*.volumes.*.volume.labels"] = mergeToSequence
-	mergeSpecials["services.*.logging"] = mergeLogging
-	mergeSpecials["services.*.models"] = mergeModels
-	mergeSpecials["services.*.networks"] = mergeNetworks
-	mergeSpecials["services.*.sysctls"] = mergeToSequence
-	mergeSpecials["services.*.tmpfs"] = mergeToSequence
-	mergeSpecials["services.*.ulimits.*"] = mergeUlimit
 }
 
 // MergeYaml merges map[string]any yaml trees handling special rules
@@ -96,7 +99,7 @@ func MergeYaml(e any, o any, p tree.Path) (any, error) {
 		if !ok {
 			return nil, fmt.Errorf("cannot override %s", p)
 		}
-		return append(value, other...), nil
+		return appendWithoutDuplicates(value, other), nil
 	default:
 		return o, nil
 	}
@@ -180,26 +183,28 @@ func mergeAsMapping(config, other any, defaults map[string]any, path tree.Path) 
 	return mergeMappings(right, left, path)
 }
 
-func mergeExtraHosts(config any, other any, _ tree.Path) (any, error) {
-	right := convertIntoSequence(config)
-	left := convertIntoSequence(other)
-	// Rewrite content of left slice to remove duplicate elements
-	i := 0
-	for _, v := range left {
-		if !slices.Contains(right, v) {
-			left[i] = v
-			i++
-		}
-	}
-	// keep only not duplicated elements from left slice
-	left = left[:i]
-	return append(right, left...), nil
-}
-
 func mergeToSequence(config any, other any, _ tree.Path) (any, error) {
 	right := convertIntoSequence(config)
 	left := convertIntoSequence(other)
-	return append(right, left...), nil
+	return appendWithoutDuplicates(right, left), nil
+}
+
+// appendWithoutDuplicates appends override entries to the base sequence,
+// ignoring entries strictly identical (deep equality) to one already
+// present. Two identical entries never carry more meaning than one, while
+// they routinely break things — the same env_file applied twice, a
+// duplicate mount rejected by the engine — and dropping them makes merging
+// a value over an already-merged result idempotent. Entries that differ in
+// form (short vs long syntax of the same thing) are not equal and are kept:
+// the rule is strict identity, not equivalence.
+func appendWithoutDuplicates(base []any, override []any) []any {
+	merged := base
+	for _, v := range override {
+		if !slices.ContainsFunc(merged, func(existing any) bool { return reflect.DeepEqual(existing, v) }) {
+			merged = append(merged, v)
+		}
+	}
+	return merged
 }
 
 func convertIntoSequence(value any) []any {

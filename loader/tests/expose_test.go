@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `expose` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#expose
+//
+// Spec: "`expose` defines the (incoming) port or a range of ports that Compose
+// exposes from the container."
+
 import (
 	"testing"
 
@@ -32,10 +38,19 @@ services:
     expose:
       - "3000"
       - 8000
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    expose:
+      - "3000"
+      - 8000
 `)
 
 	expect := func(p *types.Project) {
 		assert.DeepEqual(t, p.Services["foo"].Expose, types.StringOrNumberList{"3000", "8000"})
+		assert.DeepEqual(t, p.Jobs["foo"].Expose, types.StringOrNumberList{"3000", "8000"})
 	}
 	expect(p)
 

@@ -1,0 +1,96 @@
+name: golden
+services:
+  kitchen-sink:
+    image: example/sink:latest
+    annotations:
+      com.example.annotation: value
+    attach: false
+    blkio_config:
+      weight: 300
+      weight_device:
+        - path: /dev/sda
+          weight: 400
+    cap_add:
+      - NET_ADMIN
+    cap_drop:
+      - ALL
+    cgroup: private
+    cgroup_parent: my-parent
+    cpu_count: 2
+    cpu_percent: 50
+    cpu_period: 100000
+    cpu_quota: 50000
+    cpu_rt_period: 1000000
+    cpu_rt_runtime: 950000
+    cpu_shares: 512
+    cpus: 1.5
+    cpuset: "0,1"
+    container_name: sink
+    device_cgroup_rules:
+      - "c 1:3 mr"
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+    dns:
+      - 8.8.8.8
+    dns_opt:
+      - use-vc
+    dns_search:
+      - example.com
+    domainname: example.com
+    extra_hosts:
+      - "otherhost:50.31.209.229"
+    group_add:
+      - mail
+    hostname: sink-host
+    init: true
+    ipc: shareable
+    isolation: default
+    labels:
+      - com.example.flag=1
+    mac_address: 02:42:ac:11:00:02
+    mem_limit: 512m
+    mem_reservation: 256m
+    mem_swappiness: 60
+    memswap_limit: 1g
+    oom_kill_disable: true
+    oom_score_adj: 500
+    pid: host
+    pids_limit: 100
+    platform: linux/amd64
+    privileged: true
+    pull_policy: always
+    read_only: true
+    runtime: runc
+    security_opt:
+      - label=disable
+    shm_size: 64m
+    stdin_open: true
+    stop_grace_period: 1m30s
+    stop_signal: SIGUSR1
+    storage_opt:
+      size: 20G
+    sysctls:
+      net.core.somaxconn: 1024
+    tmpfs:
+      - /run
+      - /tmp
+    tty: true
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+    user: "1000:1000"
+    userns_mode: host
+    uts: host
+    working_dir: /app
+
+  linked:
+    image: example/linked
+    links:
+      - kitchen-sink:sink
+    external_links:
+      - legacy:legacy-alias
+    volumes_from:
+      - kitchen-sink
+    network_mode: "service:kitchen-sink"

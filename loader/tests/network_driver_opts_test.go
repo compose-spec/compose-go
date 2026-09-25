@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `networks.driver_opts` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#driver_opts
+//
+// Spec: "`driver_opts` specifies a list of options as key-value pairs to pass
+// to the driver."
+
 import (
 	"testing"
 

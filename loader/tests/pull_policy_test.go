@@ -16,6 +16,12 @@
 
 package tests
 
+// The tests in this file lock the `pull_policy` attribute:
+//   https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pull_policy
+//
+// Spec: "`pull_policy` defines the decisions Compose makes when it starts to
+// pull images."
+
 import (
 	"testing"
 	"time"
@@ -31,9 +37,16 @@ services:
   foo:
     image: alpine
     pull_policy: always
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    pull_policy: always
 `)
 	expect := func(p *types.Project) {
 		assert.Equal(t, p.Services["foo"].PullPolicy, "always")
+		assert.Equal(t, p.Jobs["foo"].PullPolicy, "always")
 	}
 	expect(p)
 
@@ -49,9 +62,16 @@ services:
   test:
     image: alpine
     pull_policy: every_2d
+jobs:
+  test:
+    triggers:
+      manual: true
+    image: alpine
+    pull_policy: every_2d
 `)
 	policy, duration, err := p.Services["test"].GetPullPolicy()
 	assert.NilError(t, err)
 	assert.Equal(t, policy, types.PullPolicyRefresh)
 	assert.Equal(t, duration, 2*24*time.Hour)
+	assert.Equal(t, p.Jobs["test"].PullPolicy, "every_2d")
 }

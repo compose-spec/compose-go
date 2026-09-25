@@ -68,6 +68,11 @@ func TestExternalLegacy(t *testing.T) {
 	})
 }
 
+func TestExternalNonMapping(t *testing.T) {
+	_, err := transformMaybeExternal(1, tree.NewPath("resources.test"), false)
+	assert.Error(t, err, "resources.test: must be a mapping")
+}
+
 func TestExternalLegacyNamed(t *testing.T) {
 	ssh, err := transformMaybeExternal(map[string]any{
 		"external": map[string]any{
