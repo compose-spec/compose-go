@@ -65,7 +65,7 @@ func promoteAliases(value any, p tree.Path) error {
 				v[alias.to] = ext
 				continue
 			}
-			merged, err := override.MergeYaml(cloneYaml(ext), v[alias.to], p.Next(alias.to))
+			merged, err := override.MergeYaml(deepClone(ext), v[alias.to], p.Next(alias.to))
 			if err != nil {
 				return err
 			}
@@ -90,24 +90,6 @@ func promoteAliases(value any, p tree.Path) error {
 		}
 	}
 	return nil
-}
-
-func cloneYaml(value any) any {
-	switch v := value.(type) {
-	case map[string]any:
-		c := make(map[string]any, len(v))
-		for k, e := range v {
-			c[k] = cloneYaml(e)
-		}
-		return c
-	case []any:
-		c := make([]any, len(v))
-		for i, e := range v {
-			c[i] = cloneYaml(e)
-		}
-		return c
-	}
-	return value
 }
 
 // resolveAliasPath returns path with each extension declared in
