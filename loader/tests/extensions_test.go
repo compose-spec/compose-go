@@ -118,7 +118,7 @@ services:
 `)
 	})
 
-	t.Run("official attribute wins and alias stays an extension", func(t *testing.T) {
+	t.Run("official attribute wins over the alias", func(t *testing.T) {
 		loadsAs(t, `
 name: test
 services:
@@ -142,8 +142,84 @@ services:
           action: sync
           target: /app
           initial_sync: true
-          x-initialSync: false
 `)
+	})
+
+	t.Run("alias and attribute set on the same service are merged", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+    x-develop:
+      watch:
+        - path: other
+          action: rebuild
+`, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: other
+          action: rebuild
+        - path: src
+          action: sync
+          target: /app
+`)
+	})
+
+	t.Run("aliases nested in merged lists are promoted", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+          x-initialSync: true
+    x-develop:
+      watch:
+        - path: other
+          action: rebuild
+          x-initialSync: true
+`, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: other
+          action: rebuild
+          initial_sync: true
+        - path: src
+          action: sync
+          target: /app
+          initial_sync: true
+`)
+	})
+
+	t.Run("alias of another type than the attribute is a conflict", func(t *testing.T) {
+		err := loadErr(t, `
+name: test
+services:
+  web:
+    image: app
+    develop: not-an-object
+    x-develop:
+      watch: []
+`)
+		assert.ErrorContains(t, err, "cannot override services.web.develop")
 	})
 
 	t.Run("alias is only promoted where the attribute exists", func(t *testing.T) {
