@@ -41,15 +41,17 @@ var mergeSpecials = map[tree.Path]merger{}
 
 func init() {
 	mergeSpecials["networks.*.ipam.config"] = mergeIPAMConfig
-	mergeSpecials["networks.*.labels"] = mergeToSequence
-	mergeSpecials["volumes.*.labels"] = mergeToSequence
+	mergeSpecials["networks.*.labels"] = mergeKeyValueSequence
+	mergeSpecials["volumes.*.labels"] = mergeKeyValueSequence
+	mergeSpecials["secrets.*.labels"] = mergeKeyValueSequence
+	mergeSpecials["configs.*.labels"] = mergeKeyValueSequence
 	for _, prefix := range []tree.Path{"services", "jobs"} {
-		mergeSpecials[prefix+".*.annotations"] = mergeToSequence
+		mergeSpecials[prefix+".*.annotations"] = mergeKeyValueSequence
 		mergeSpecials[prefix+".*.build"] = mergeBuild
-		mergeSpecials[prefix+".*.build.args"] = mergeToSequence
-		mergeSpecials[prefix+".*.build.additional_contexts"] = mergeToSequence
+		mergeSpecials[prefix+".*.build.args"] = mergeKeyValueSequence
+		mergeSpecials[prefix+".*.build.additional_contexts"] = mergeKeyValueSequence
 		mergeSpecials[prefix+".*.build.extra_hosts"] = mergeToSequence
-		mergeSpecials[prefix+".*.build.labels"] = mergeToSequence
+		mergeSpecials[prefix+".*.build.labels"] = mergeKeyValueSequence
 		mergeSpecials[prefix+".*.command"] = override
 		mergeSpecials[prefix+".*.depends_on"] = mergeDependsOn
 		mergeSpecials[prefix+".*.dns"] = mergeToSequence
@@ -58,19 +60,19 @@ func init() {
 		mergeSpecials[prefix+".*.entrypoint"] = override
 		mergeSpecials[prefix+".*.env_file"] = mergeToSequence
 		mergeSpecials[prefix+".*.label_file"] = mergeToSequence
-		mergeSpecials[prefix+".*.environment"] = mergeToSequence
+		mergeSpecials[prefix+".*.environment"] = mergeKeyValueSequence
 		mergeSpecials[prefix+".*.extra_hosts"] = mergeToSequence
 		mergeSpecials[prefix+".*.healthcheck.test"] = override
-		mergeSpecials[prefix+".*.labels"] = mergeToSequence
-		mergeSpecials[prefix+".*.volumes.*.volume.labels"] = mergeToSequence
+		mergeSpecials[prefix+".*.labels"] = mergeKeyValueSequence
+		mergeSpecials[prefix+".*.volumes.*.volume.labels"] = mergeKeyValueSequence
 		mergeSpecials[prefix+".*.logging"] = mergeLogging
 		mergeSpecials[prefix+".*.models"] = mergeModels
 		mergeSpecials[prefix+".*.networks"] = mergeNetworks
-		mergeSpecials[prefix+".*.sysctls"] = mergeToSequence
+		mergeSpecials[prefix+".*.sysctls"] = mergeKeyValueSequence
 		mergeSpecials[prefix+".*.tmpfs"] = mergeToSequence
 		mergeSpecials[prefix+".*.ulimits.*"] = mergeUlimit
 	}
-	mergeSpecials["services.*.deploy.labels"] = mergeToSequence
+	mergeSpecials["services.*.deploy.labels"] = mergeKeyValueSequence
 }
 
 // MergeYaml merges map[string]any yaml trees handling special rules
@@ -205,6 +207,36 @@ func appendWithoutDuplicates(base []any, override []any) []any {
 		}
 	}
 	return merged
+}
+
+// mergeKeyValueSequence merges KEY=VALUE lists by key: an override entry
+// replaces the base entry of the same key in place, new keys are appended. The
+// last entry for a key takes effect, so an override repeating a base entry
+// after another value for the same key (`[MODE=debug, MODE=release]` over
+// `[MODE=release]`) must end on the repeated one, not drop it as a duplicate.
+func mergeKeyValueSequence(config any, other any, path tree.Path) (any, error) {
+	merged := slices.Clone(convertIntoSequence(config))
+	keys := map[string]int{}
+	for i, entry := range merged {
+		key, err := keyValueIndexer(entry, path)
+		if err != nil {
+			return nil, err
+		}
+		keys[key] = i
+	}
+	for _, entry := range convertIntoSequence(other) {
+		key, err := keyValueIndexer(entry, path)
+		if err != nil {
+			return nil, err
+		}
+		if i, ok := keys[key]; ok {
+			merged[i] = entry
+			continue
+		}
+		keys[key] = len(merged)
+		merged = append(merged, entry)
+	}
+	return merged, nil
 }
 
 func convertIntoSequence(value any) []any {
