@@ -19,6 +19,7 @@ package loader
 import (
 	"strconv"
 
+	"github.com/compose-spec/compose-go/v2/override"
 	"github.com/compose-spec/compose-go/v2/tree"
 )
 
@@ -46,9 +47,9 @@ var aliasParents = func() *tree.Matcher {
 }()
 
 // promoteAliases renames in place the extensions declared in extensionAliases
-// to the attribute they stand for, unless the mapping already sets a value for
-// it.
-func promoteAliases(value any, p tree.Path) {
+// to the attribute they stand for. When the mapping already sets a value for
+// the attribute, the extension is merged under it, so that the attribute wins.
+func promoteAliases(value any, p tree.Path) error {
 	switch v := value.(type) {
 	case map[string]any:
 		for _, alias := range extensionAliases {
@@ -56,25 +57,57 @@ func promoteAliases(value any, p tree.Path) {
 				continue
 			}
 			ext, ok := v[alias.from]
-			if ok && v[alias.to] == nil {
-				v[alias.to] = ext
-				delete(v, alias.from)
+			if !ok {
+				continue
 			}
+			delete(v, alias.from)
+			if v[alias.to] == nil {
+				v[alias.to] = ext
+				continue
+			}
+			merged, err := override.MergeYaml(cloneYaml(ext), v[alias.to], p.Next(alias.to))
+			if err != nil {
+				return err
+			}
+			v[alias.to] = merged
 		}
 		for key, e := range v {
 			next := p.Next(key)
 			if aliasParents.Matches(next) || aliasParents.MayContain(next) {
-				promoteAliases(e, next)
+				if err := promoteAliases(e, next); err != nil {
+					return err
+				}
 			}
 		}
 	case []any:
 		next := p.Next(tree.PathMatchList)
 		if aliasParents.Matches(next) || aliasParents.MayContain(next) {
 			for _, e := range v {
-				promoteAliases(e, next)
+				if err := promoteAliases(e, next); err != nil {
+					return err
+				}
 			}
 		}
 	}
+	return nil
+}
+
+func cloneYaml(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		c := make(map[string]any, len(v))
+		for k, e := range v {
+			c[k] = cloneYaml(e)
+		}
+		return c
+	case []any:
+		c := make([]any, len(v))
+		for i, e := range v {
+			c[i] = cloneYaml(e)
+		}
+		return c
+	}
+	return value
 }
 
 // resolveAliasPath returns path with each extension declared in
