@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/schema"
+	"github.com/compose-spec/compose-go/v2/tree"
 	"gotest.tools/v3/assert"
 )
 
@@ -34,6 +35,33 @@ func TestExtensionAliasesTargetSpecificationAttributes(t *testing.T) {
 			assert.Assert(t, strings.HasPrefix(alias.from, "x-"), "%q is not an extension", alias.from)
 			target := alias.parent.Next(alias.to)
 			assert.Assert(t, slices.Contains(attributes, target), "%s is not a specification attribute", target)
+		})
+	}
+}
+
+// The path recorded for a !reset or !override tag must be resolved to the
+// attribute an extension stands for, at any depth and through list items.
+func TestResolveAliasPath(t *testing.T) {
+	tests := []struct {
+		name string
+		path tree.Path
+		want tree.Path
+	}{
+		{"service attribute", "services.web.x-develop", "services.web.develop"},
+		{
+			"nested extensions through a list item",
+			"services.web.x-develop.watch.0.x-initialSync",
+			"services.web.develop.watch.0.initial_sync",
+		},
+		{"nested extension only", "services.web.develop.watch.1.x-initialSync", "services.web.develop.watch.1.initial_sync"},
+		{"service named after an extension", "services.x-develop.image", "services.x-develop.image"},
+		{"extension outside its parent", "x-develop", "x-develop"},
+		{"other extension", "services.web.x-other", "services.web.x-other"},
+		{"attribute", "services.web.develop.watch.0.initial_sync", "services.web.develop.watch.0.initial_sync"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, resolveAliasPath(tt.path), tt.want)
 		})
 	}
 }

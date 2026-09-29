@@ -307,3 +307,51 @@ services:
           action: rebuild
 `)
 }
+
+// !reset and !override written on such an extension act on what earlier files
+// declared under the name of the attribute.
+func TestExtensionAliasWithMergeTags(t *testing.T) {
+	base := `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+`
+	t.Run("!reset removes the attribute declared by an earlier file", func(t *testing.T) {
+		loadFilesAs(t, []string{base, `
+services:
+  web:
+    x-develop: !reset null
+`}, `
+name: test
+services:
+  web:
+    image: app
+`)
+	})
+
+	t.Run("!override replaces the attribute declared by an earlier file", func(t *testing.T) {
+		loadFilesAs(t, []string{base, `
+services:
+  web:
+    x-develop: !override
+      watch:
+        - path: other
+          action: rebuild
+`}, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: other
+          action: rebuild
+`)
+	})
+}
