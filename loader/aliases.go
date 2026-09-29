@@ -1,0 +1,76 @@
+/*
+   Copyright 2020 The Compose Specification Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
+package loader
+
+import (
+	"github.com/compose-spec/compose-go/v2/tree"
+)
+
+// extensionAlias declares that the specification attribute `to` was used as
+// the x-* extension `from` before being adopted.
+type extensionAlias struct {
+	// parent is the path of the mapping holding the attribute.
+	parent tree.Path
+	from   string
+	to     string
+}
+
+// extensionAliases is ordered from the outermost to the innermost attribute.
+var extensionAliases = []extensionAlias{
+	{parent: "services.*", from: "x-develop", to: "develop"},
+	{parent: "services.*.develop.watch.[]", from: "x-initialSync", to: "initial_sync"},
+}
+
+var aliasParents = func() *tree.Matcher {
+	parents := make([]tree.Path, len(extensionAliases))
+	for i, alias := range extensionAliases {
+		parents[i] = alias.parent
+	}
+	return tree.NewMatcher(parents...)
+}()
+
+// promoteAliases renames in place the extensions declared in extensionAliases
+// to the attribute they stand for, unless the mapping already sets a value for
+// it.
+func promoteAliases(value any, p tree.Path) {
+	switch v := value.(type) {
+	case map[string]any:
+		for _, alias := range extensionAliases {
+			if !p.Matches(alias.parent) {
+				continue
+			}
+			ext, ok := v[alias.from]
+			if ok && v[alias.to] == nil {
+				v[alias.to] = ext
+				delete(v, alias.from)
+			}
+		}
+		for key, e := range v {
+			next := p.Next(key)
+			if aliasParents.Matches(next) || aliasParents.MayContain(next) {
+				promoteAliases(e, next)
+			}
+		}
+	case []any:
+		next := p.Next(tree.PathMatchList)
+		if aliasParents.Matches(next) || aliasParents.MayContain(next) {
+			for _, e := range v {
+				promoteAliases(e, next)
+			}
+		}
+	}
+}
