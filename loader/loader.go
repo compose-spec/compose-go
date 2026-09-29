@@ -510,6 +510,8 @@ func loadYamlFile(ctx context.Context,
 
 		fixEmptyNotNull(cfg)
 
+		promoteAliases(cfg, tree.NewPath())
+
 		// Process includes first so that extended services have all merged attributes
 		if !opts.SkipInclude {
 			included = append(included, file.Filename)

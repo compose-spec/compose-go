@@ -18,6 +18,7 @@ package tests
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -117,4 +118,36 @@ func loadErr(t *testing.T, content string) error {
 	})
 	assert.Assert(t, err != nil, "expected loading to fail")
 	return err
+}
+
+// loadFilesMap loads a multi-file project, merging the files in order, and
+// returns the resulting model as a YAML tree.
+func loadFilesMap(t *testing.T, files []string) map[string]any {
+	t.Helper()
+	var configFiles []types.ConfigFile
+	for i, content := range files {
+		configFiles = append(configFiles, types.ConfigFile{Filename: fmt.Sprintf("compose-%d.yml", i), Content: []byte(content)})
+	}
+	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		ConfigFiles: configFiles,
+		Environment: map[string]string{},
+	}, func(options *loader.Options) {
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+	})
+	assert.NilError(t, err)
+	out, err := p.MarshalYAML()
+	assert.NilError(t, err)
+	var got map[string]any
+	assert.NilError(t, yaml.Unmarshal(out, &got))
+	return got
+}
+
+// loadFilesAs is loadsAs for a multi-file project: the files are merged in
+// order and the result is compared, as YAML, with the canonical document.
+func loadFilesAs(t *testing.T, files []string, canonical string) {
+	t.Helper()
+	var want map[string]any
+	assert.NilError(t, yaml.Unmarshal([]byte(canonical), &want), canonical)
+	assert.DeepEqual(t, loadFilesMap(t, files), want)
 }
