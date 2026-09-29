@@ -217,6 +217,44 @@ func TestExtractVariables(t *testing.T) {
 			},
 		},
 		{
+			// Nested interpolations include ${VARIABLE?$FOO}. Substitute
+			// expands the message; ExtractVariables must report it too.
+			// https://github.com/compose-spec/compose-spec/blob/main/12-interpolation.md
+			// https://github.com/compose-spec/compose-go/issues/934
+			name: "nested-in-required-error-braced",
+			dict: map[string]interface{}{
+				"foo": "${U:?${B}}",
+			},
+			expected: map[string]Variable{
+				"U": {Name: "U", Required: true},
+				"B": {Name: "B"},
+			},
+		},
+		{
+			// Unbraced form of the same required-error nest (${U?$B}).
+			// https://github.com/compose-spec/compose-go/issues/934
+			name: "nested-in-required-error-unbraced",
+			dict: map[string]interface{}{
+				"foo": "${U?$B}",
+			},
+			expected: map[string]Variable{
+				"U": {Name: "U", Required: true},
+				"B": {Name: "B"},
+			},
+		},
+		{
+			// Nested default inside a required-error message still reports
+			// the inner variable's default, matching ${U:-${B:-fallback}}.
+			name: "nested-default-in-required-error",
+			dict: map[string]interface{}{
+				"foo": "${U:?${B:-fallback}}",
+			},
+			expected: map[string]Variable{
+				"U": {Name: "U", Required: true},
+				"B": {Name: "B", DefaultValue: "fallback"},
+			},
+		},
+		{
 			name: "nested-array-of-maps",
 			dict: map[string]interface{}{
 				"volumes": []interface{}{
