@@ -18,6 +18,8 @@ package override
 
 import (
 	"testing"
+
+	"gotest.tools/v3/assert"
 )
 
 // An override setting a list-or-mapping attribute to null is a valid document
@@ -87,4 +89,23 @@ services:
 `)
 		})
 	}
+}
+
+// A null item of ipam.config is invalid and must be rejected, not read as an
+// empty item that would silently drop the subnet of the base: null only stands
+// for an empty value on networks, models and depends_on.
+func Test_mergeYamlNullIPAMConfigItem(t *testing.T) {
+	_, err := Merge(unmarshal(t, `
+networks:
+  test:
+    ipam:
+      config:
+        - subnet: 10.0.0.0/24
+`), unmarshal(t, `
+networks:
+  test:
+    ipam:
+      config: [null]
+`))
+	assert.ErrorContains(t, err, "networks.test.ipam.config: cannot convert <nil> into a mapping")
 }
