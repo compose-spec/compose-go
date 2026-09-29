@@ -229,3 +229,39 @@ secrets:
 		})
 	}
 }
+
+// With interpolation disabled the merge sees raw strings, and keys are read up
+// to the first `=` as EnforceUnicity does: entries with the same text collapse,
+// while entries that could only resolve to the same key once interpolated are
+// kept side by side, in order, so the last one still wins after interpolation.
+// Jobs are used because EnforceUnicity does not cover them and would hide it.
+func Test_mergeYamlKeyValueSequenceOfUninterpolatedEntries(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     string
+		override string
+		want     string
+	}{
+		{name: "same variable key", base: `"${K}=1"`, override: `"${K}=2"`, want: `"${K}=2"`},
+		{name: "default containing an equal sign", base: `"${A:-x=1}"`, override: `"${A:-x=2}"`, want: `"${A:-x=2}"`},
+		{name: "different variable keys", base: `"${K1}=1"`, override: `"${K2}=2"`, want: `"${K1}=1", "${K2}=2"`},
+		{name: "entry that is a bare variable", base: `"${ENTRY}"`, override: `"K=2"`, want: `"${ENTRY}", "K=2"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertMergeYaml(t, `
+jobs:
+  test:
+    labels: [`+tt.base+`]
+`, `
+jobs:
+  test:
+    labels: [`+tt.override+`]
+`, `
+jobs:
+  test:
+    labels: [`+tt.want+`]
+`)
+		})
+	}
+}
