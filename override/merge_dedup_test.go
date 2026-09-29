@@ -171,3 +171,61 @@ services:
 		})
 	}
 }
+
+// A file may repeat a key with different values (`[MODE=debug, MODE=release]`
+// is a valid list, the last entry takes effect). Merging must compact those
+// repeats before applying the override, otherwise the override replaces only
+// the last one and leaves two identical entries, which the schema rejects.
+// Jobs are used because EnforceUnicity does not cover them and would hide it.
+func Test_mergeYamlKeyValueSequenceCompactsRepeatedBaseKeys(t *testing.T) {
+	assertMergeYaml(t, `
+jobs:
+  test:
+    image: foo
+    labels:
+      - MODE=debug
+      - MODE=release
+`, `
+jobs:
+  test:
+    labels:
+      - MODE=debug
+`, `
+jobs:
+  test:
+    image: foo
+    labels:
+      - MODE=debug
+`)
+}
+
+// Merging two empty KEY=VALUE lists yields an empty list, not a nil one: a nil
+// list is not a valid `labels` value for the schema. Secrets are used because
+// EnforceUnicity does not cover them and would rebuild the list, hiding it.
+func Test_mergeYamlKeyValueSequenceOfEmptyLists(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     string
+		override string
+	}{
+		{name: "empty list over empty list", base: "[]", override: "[]"},
+		{name: "empty mapping over empty mapping", base: "{}", override: "{}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertMergeYaml(t, `
+secrets:
+  test:
+    labels: `+tt.base+`
+`, `
+secrets:
+  test:
+    labels: `+tt.override+`
+`, `
+secrets:
+  test:
+    labels: []
+`)
+		})
+	}
+}

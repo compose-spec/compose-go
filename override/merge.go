@@ -214,27 +214,24 @@ func appendWithoutDuplicates(base []any, override []any) []any {
 // last entry for a key takes effect, so an override repeating a base entry
 // after another value for the same key (`[MODE=debug, MODE=release]` over
 // `[MODE=release]`) must end on the repeated one, not drop it as a duplicate.
+// Keys repeated in the base collapse the same way, so that the override never
+// leaves two identical entries behind.
 func mergeKeyValueSequence(config any, other any, path tree.Path) (any, error) {
-	merged := slices.Clone(convertIntoSequence(config))
+	merged := []any{}
 	keys := map[string]int{}
-	for i, entry := range merged {
-		key, err := keyValueIndexer(entry, path)
-		if err != nil {
-			return nil, err
+	for _, seq := range [][]any{convertIntoSequence(config), convertIntoSequence(other)} {
+		for _, entry := range seq {
+			key, err := keyValueIndexer(entry, path)
+			if err != nil {
+				return nil, err
+			}
+			if i, ok := keys[key]; ok {
+				merged[i] = entry
+				continue
+			}
+			keys[key] = len(merged)
+			merged = append(merged, entry)
 		}
-		keys[key] = i
-	}
-	for _, entry := range convertIntoSequence(other) {
-		key, err := keyValueIndexer(entry, path)
-		if err != nil {
-			return nil, err
-		}
-		if i, ok := keys[key]; ok {
-			merged[i] = entry
-			continue
-		}
-		keys[key] = len(merged)
-		merged = append(merged, entry)
 	}
 	return merged, nil
 }
