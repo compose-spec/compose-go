@@ -232,9 +232,10 @@ secrets:
 
 // With interpolation disabled the merge sees raw strings, and keys are read up
 // to the first `=` as EnforceUnicity does: entries with the same text collapse,
-// while entries that could only resolve to the same key once interpolated are
-// kept side by side, in order, so the last one still wins after interpolation.
-// Jobs are used because EnforceUnicity does not cover them and would hide it.
+// at the position of the first one. Entries that could only resolve to the same
+// key once interpolated are not reconciled and stay side by side, so which of
+// them wins after interpolation depends on their position, as it already does
+// for services. Jobs are used because EnforceUnicity does not cover them.
 func Test_mergeYamlKeyValueSequenceOfUninterpolatedEntries(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -246,6 +247,7 @@ func Test_mergeYamlKeyValueSequenceOfUninterpolatedEntries(t *testing.T) {
 		{name: "default containing an equal sign", base: `"${A:-x=1}"`, override: `"${A:-x=2}"`, want: `"${A:-x=2}"`},
 		{name: "different variable keys", base: `"${K1}=1"`, override: `"${K2}=2"`, want: `"${K1}=1", "${K2}=2"`},
 		{name: "entry that is a bare variable", base: `"${ENTRY}"`, override: `"K=2"`, want: `"${ENTRY}", "K=2"`},
+		{name: "replaced at the position of the first entry", base: `"${K1}=1", "${K2}=2"`, override: `"${K1}=3"`, want: `"${K1}=3", "${K2}=2"`},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

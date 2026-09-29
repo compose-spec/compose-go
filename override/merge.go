@@ -174,11 +174,11 @@ func mergeNetworks(config any, other any, path tree.Path) (any, error) {
 }
 
 func mergeAsMapping(config, other any, defaults map[string]any, path tree.Path) (any, error) {
-	right, err := convertIntoMapping(config, defaults, path)
+	right, err := convertIntoMapping(nullAsEmpty(config), defaults, path)
 	if err != nil {
 		return nil, err
 	}
-	left, err := convertIntoMapping(other, defaults, path)
+	left, err := convertIntoMapping(nullAsEmpty(other), defaults, path)
 	if err != nil {
 		return nil, err
 	}
@@ -217,23 +217,7 @@ func appendWithoutDuplicates(base []any, override []any) []any {
 // Keys repeated in the base collapse the same way, so that the override never
 // leaves two identical entries behind.
 func mergeKeyValueSequence(config any, other any, path tree.Path) (any, error) {
-	merged := []any{}
-	keys := map[string]int{}
-	for _, seq := range [][]any{convertIntoSequence(config), convertIntoSequence(other)} {
-		for _, entry := range seq {
-			key, err := keyValueIndexer(entry, path)
-			if err != nil {
-				return nil, err
-			}
-			if i, ok := keys[key]; ok {
-				merged[i] = entry
-				continue
-			}
-			keys[key] = len(merged)
-			merged = append(merged, entry)
-		}
-	}
-	return merged, nil
+	return uniqueEntries(slices.Concat(convertIntoSequence(config), convertIntoSequence(other)), keyValueIndexer, path)
 }
 
 func convertIntoSequence(value any) []any {
@@ -324,10 +308,17 @@ func mergeIPAMConfig(config any, other any, path tree.Path) (any, error) {
 	return ipamConfigs, nil
 }
 
+// nullAsEmpty reads a null value as an empty mapping. An empty one rather than
+// nil, as merging into a nil map panics.
+func nullAsEmpty(value any) any {
+	if value == nil {
+		return map[string]any{}
+	}
+	return value
+}
+
 func convertIntoMapping(a any, defaultValue map[string]any, path tree.Path) (map[string]any, error) {
 	switch v := a.(type) {
-	case nil:
-		return map[string]any{}, nil
 	case map[string]any:
 		return v, nil
 	case string:
