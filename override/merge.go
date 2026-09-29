@@ -297,6 +297,8 @@ func mergeIPAMConfig(config any, other any, path tree.Path) (any, error) {
 
 func convertIntoMapping(a any, defaultValue map[string]any, path tree.Path) (map[string]any, error) {
 	switch v := a.(type) {
+	case nil:
+		return map[string]any{}, nil
 	case map[string]any:
 		return v, nil
 	case string:
