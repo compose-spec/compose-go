@@ -17,6 +17,8 @@
 package loader
 
 import (
+	"strconv"
+
 	"github.com/compose-spec/compose-go/v2/tree"
 )
 
@@ -73,4 +75,32 @@ func promoteAliases(value any, p tree.Path) {
 			}
 		}
 	}
+}
+
+// resolveAliasPath returns path with each extension declared in
+// extensionAliases replaced by the attribute it stands for. List indexes in
+// path match the tree.PathMatchList component of alias parents.
+func resolveAliasPath(path tree.Path) tree.Path {
+	parts := path.Parts()
+	for _, alias := range extensionAliases {
+		depth := len(alias.parent.Parts())
+		if len(parts) <= depth || parts[depth] != alias.from {
+			continue
+		}
+		if tree.NewPath(withListItems(parts[:depth])...).Matches(alias.parent) {
+			parts[depth] = alias.to
+		}
+	}
+	return tree.NewPath(parts...)
+}
+
+func withListItems(parts []string) []string {
+	normalized := make([]string, len(parts))
+	for i, part := range parts {
+		normalized[i] = part
+		if _, err := strconv.Atoi(part); err == nil {
+			normalized[i] = tree.PathMatchList
+		}
+	}
+	return normalized
 }
