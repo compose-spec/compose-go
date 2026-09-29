@@ -208,6 +208,62 @@ services:
     develop:`+watch)
 	})
 
+	const other = `
+      watch:
+        - path: other
+          action: rebuild
+`
+	const merged = `
+      watch:
+        - path: src
+          action: sync
+          target: /app
+        - path: other
+          action: rebuild
+`
+
+	t.Run("extends with the extension on the extending service", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  base:
+    image: app
+    develop:`+watch+`
+  web:
+    extends:
+      service: base
+    x-develop:`+other, `
+name: test
+services:
+  base:
+    image: app
+    develop:`+watch+`
+  web:
+    image: app
+    develop:`+merged)
+	})
+
+	t.Run("extends with the extension on the base service", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  base:
+    image: app
+    x-develop:`+watch+`
+  web:
+    extends:
+      service: base
+    develop:`+other, `
+name: test
+services:
+  base:
+    image: app
+    develop:`+watch+`
+  web:
+    image: app
+    develop:`+merged)
+	})
+
 	t.Run("include", func(t *testing.T) {
 		dir := t.TempDir()
 		assert.NilError(t, os.WriteFile(filepath.Join(dir, "included.yml"), []byte(`
