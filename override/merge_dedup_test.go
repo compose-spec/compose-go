@@ -128,3 +128,46 @@ services:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, once, twice)
 }
+
+// In a KEY=VALUE list the last entry for a key takes effect, so an override
+// that repeats a base entry after another value for the same key must still
+// win: the repeated entry is not a duplicate to drop, it is the final word.
+// Regression of v2.15.0, reported by docker/buildx#4117.
+func Test_mergeYamlKeyValueSequenceLastEntryWins(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "environment", path: "environment"},
+		{name: "labels", path: "labels"},
+		{name: "build args", path: "build:\n      args"},
+		{name: "build labels", path: "build:\n      labels"},
+		{name: "annotations", path: "annotations"},
+		{name: "sysctls", path: "sysctls"},
+		{name: "build additional contexts", path: "build:\n      additional_contexts"},
+		{name: "deploy labels", path: "deploy:\n      labels"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    `+tt.path+`:
+      - MODE=release
+`, `
+services:
+  test:
+    `+tt.path+`:
+      - MODE=debug
+      - MODE=release
+`, `
+services:
+  test:
+    image: foo
+    `+tt.path+`:
+      - MODE=release
+`)
+		})
+	}
+}
