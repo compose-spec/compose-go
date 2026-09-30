@@ -122,6 +122,7 @@ func extractVariable(value interface{}, pattern *regexp.Regexp) ([]Variable, boo
 		name := val
 		var defaultValue string
 		var presenceValue string
+		var requiredMessage string
 		var required bool
 		i := strings.IndexFunc(val, func(r rune) bool {
 			if r >= 'a' && r <= 'z' {
@@ -145,8 +146,10 @@ func extractVariable(value interface{}, pattern *regexp.Regexp) ([]Variable, boo
 			switch {
 			case strings.HasPrefix(rest, ":?"):
 				required = true
+				requiredMessage = rest[2:]
 			case strings.HasPrefix(rest, "?"):
 				required = true
+				requiredMessage = rest[1:]
 			case strings.HasPrefix(rest, ":-"):
 				defaultValue = rest[2:]
 			case strings.HasPrefix(rest, "-"):
@@ -165,13 +168,14 @@ func extractVariable(value interface{}, pattern *regexp.Regexp) ([]Variable, boo
 			Required:      required,
 		})
 
-		if defaultValue != "" {
-			if v, b := extractVariable(defaultValue, pattern); b {
-				values = append(values, v...)
+		// Nested interpolations in default, presence, and required-error
+		// operands are themselves variables. Substitute already expands them
+		// (including ${VAR:?${MSG}} / ${VAR?$MSG}); ExtractVariables must too.
+		for _, nested := range []string{defaultValue, presenceValue, requiredMessage} {
+			if nested == "" {
+				continue
 			}
-		}
-		if presenceValue != "" {
-			if v, b := extractVariable(presenceValue, pattern); b {
+			if v, b := extractVariable(nested, pattern); b {
 				values = append(values, v...)
 			}
 		}
