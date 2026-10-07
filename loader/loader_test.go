@@ -1905,6 +1905,61 @@ func TestLoadServiceWithEnvFile(t *testing.T) {
 	assert.Equal(t, "YES", *service.Environment["HALLO"])
 }
 
+func TestLoadPreStartHookEnvironmentResolved(t *testing.T) {
+	dir := t.TempDir()
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, "service.env"), []byte("FROM_SERVICE_FILE=service\nSHARED=service_file\n"), 0o600))
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, "hook.env"), []byte("FROM_HOOK_FILE=hook\nSHARED=hook_file\n"), 0o600))
+
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+			Content: []byte(`
+services:
+  src:
+    image: alpine
+    env_file: service.env
+    environment:
+      FROM_SERVICE_ENV: service
+    pre_start:
+      - command: echo hook
+        env_file: hook.env
+        environment:
+          FROM_HOOK_ENV: hook
+      - command: echo inherit
+`),
+		}},
+		Environment: map[string]string{},
+	}, func(o *Options) { o.SetProjectName("test", true) })
+	assert.NilError(t, err)
+
+	service, err := p.GetService("src")
+	assert.NilError(t, err)
+	assert.Equal(t, len(service.PreStart), 2)
+
+	// a hook environment merges the service one with its own declarations
+	assert.DeepEqual(t, service.PreStart[0].Environment, types.MappingWithEquals{
+		"FROM_SERVICE_ENV":  ptr("service"),
+		"FROM_SERVICE_FILE": ptr("service"),
+		"FROM_HOOK_ENV":     ptr("hook"),
+		"FROM_HOOK_FILE":    ptr("hook"),
+		// env_file declared by the hook overrides the service one
+		"SHARED": ptr("hook_file"),
+	})
+	// a hook declaring nothing inherits the service environment as is
+	assert.DeepEqual(t, service.PreStart[1].Environment, types.MappingWithEquals{
+		"FROM_SERVICE_ENV":  ptr("service"),
+		"FROM_SERVICE_FILE": ptr("service"),
+		"SHARED":            ptr("service_file"),
+	})
+	// the service itself is unchanged
+	assert.DeepEqual(t, service.Environment, types.MappingWithEquals{
+		"FROM_SERVICE_ENV":  ptr("service"),
+		"FROM_SERVICE_FILE": ptr("service"),
+		"SHARED":            ptr("service_file"),
+	})
+}
+
 func TestLoadServiceWithLabelFile(t *testing.T) {
 	file, err := os.CreateTemp("", "test-compose-go")
 	assert.NilError(t, err)
