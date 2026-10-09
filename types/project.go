@@ -698,8 +698,8 @@ func (p *Project) WithServicesDisabled(names ...string) *Project {
 // It returns a new Project instance with the changes and keep the original Project unchanged.
 // Besides the service image, this also resolves the images services depend on:
 //   - pre_start hook images, which run as ephemeral init containers with their own image
-//   - `type: image` volume sources, unless they reference another service by name (those are
-//     resolved to a locally built image rather than a registry digest)
+//   - `type: image` volume sources — source is always a docker image reference, not
+//     a reference to another service (there is no such thing in the Compose Spec)
 func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godigest.Digest, error)) (*Project, error) {
 	// Deduplicate resolutions per raw image string across the whole call, on two axes:
 	//   - cache (sync.Map) memoizes results for the whole call, so images resolved at
@@ -750,12 +750,6 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 
 		for i, vol := range service.Volumes {
 			if vol.Type != VolumeTypeImage {
-				continue
-			}
-			if _, ok := p.Services[vol.Source]; ok {
-				continue
-			}
-			if _, ok := p.DisabledServices[vol.Source]; ok {
 				continue
 			}
 			image, err := resolve(vol.Source)

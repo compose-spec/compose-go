@@ -23,8 +23,10 @@ package tests
 // runtime, referencing entries under the top-level `models` key"
 
 import (
+	"context"
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
@@ -73,4 +75,17 @@ models:
 	assert.Assert(t, p.Jobs["test_array"].Models["foo"] == nil)
 	assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
 	assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].ModelVariable, "MODEL")
+}
+
+func TestModelsWithInvalidKey(t *testing.T) {
+	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
+name: test
+models:
+  /:
+    model: ai/model
+`)}},
+		Environment: map[string]string{},
+	})
+	assert.ErrorContains(t, err, "models additional properties '/' not allowed")
 }
