@@ -33,9 +33,9 @@ func TestMatcherMatches(t *testing.T) {
 	assert.Check(t, m.Matches("services.web.ports.[].target"))
 	assert.Check(t, m.Matches("services.web.environment.DEBUG"))
 
-	assert.Check(t, !(m.Matches("services.web.command")), "undeclared sibling")
-	assert.Check(t, !(m.Matches("services.web.image.tag")), "matching is exact, not subtree")
-	assert.Check(t, !(m.Matches("services.web")), "ancestor of a pattern is not a match")
+	assert.Check(t, !m.Matches("services.web.command"), "undeclared sibling")
+	assert.Check(t, !m.Matches("services.web.image.tag"), "matching is exact, not subtree")
+	assert.Check(t, !m.Matches("services.web"), "ancestor of a pattern is not a match")
 }
 
 func TestMatcherMayContain(t *testing.T) {
@@ -45,6 +45,6 @@ func TestMatcherMayContain(t *testing.T) {
 	assert.Check(t, m.MayContain("services.web.deploy"))
 	assert.Check(t, m.MayContain("services.web.deploy.update_config"))
 
-	assert.Check(t, !(m.MayContain("services.web.deploy.update_config.delay")), "a full match is not a strict ancestor")
-	assert.Check(t, !(m.MayContain("services.web.build")))
+	assert.Check(t, !m.MayContain("services.web.deploy.update_config.delay"), "a full match is not a strict ancestor")
+	assert.Check(t, !m.MayContain("services.web.build"))
 }

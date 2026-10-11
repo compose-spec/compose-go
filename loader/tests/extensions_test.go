@@ -23,8 +23,12 @@ package tests
 // more efficient and easier to maintain."
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
@@ -81,4 +85,405 @@ jobs:
 
 	yamlP, _ := roundTrip(t, p)
 	expect(yamlP)
+}
+
+// An x-* extension that the specification later adopted as an attribute is
+// promoted to that attribute when the latter is absent, so that files written
+// before the adoption keep working.
+
+func TestExtensionAliasIsPromoted(t *testing.T) {
+	t.Run("service attribute and nested attribute", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  web:
+    image: app
+    x-develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+          x-initialSync: true
+`, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+          initial_sync: true
+`)
+	})
+
+	t.Run("official attribute wins over the alias", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+          initial_sync: true
+          x-initialSync: false
+`, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+          initial_sync: true
+`)
+	})
+
+	t.Run("alias and attribute set on the same service are merged", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+    x-develop:
+      watch:
+        - path: other
+          action: rebuild
+`, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: other
+          action: rebuild
+        - path: src
+          action: sync
+          target: /app
+`)
+	})
+
+	t.Run("aliases nested in merged lists are promoted", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+          x-initialSync: true
+    x-develop:
+      watch:
+        - path: other
+          action: rebuild
+          x-initialSync: true
+`, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: other
+          action: rebuild
+          initial_sync: true
+        - path: src
+          action: sync
+          target: /app
+          initial_sync: true
+`)
+	})
+
+	t.Run("alias of another type than the attribute is a conflict", func(t *testing.T) {
+		err := loadErr(t, `
+name: test
+services:
+  web:
+    image: app
+    develop: not-an-object
+    x-develop:
+      watch: []
+`)
+		assert.ErrorContains(t, err, "cannot override services.web.develop")
+	})
+
+	t.Run("alias is only promoted where the attribute exists", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  web:
+    image: app
+    x-initialSync: true
+x-develop:
+  watch: []
+`, `
+name: test
+services:
+  web:
+    image: app
+    x-initialSync: true
+x-develop:
+  watch: []
+`)
+	})
+
+	t.Run("promoted value is validated as the attribute", func(t *testing.T) {
+		err := loadErr(t, `
+name: test
+services:
+  web:
+    image: app
+    x-develop: not-an-object
+`)
+		assert.ErrorContains(t, err, "services.web.develop")
+	})
+}
+
+// Extensions are promoted before include and extends read the file, and
+// sharing them through YAML anchors across services does not link the services.
+func TestExtensionAliasWithReuse(t *testing.T) {
+	watch := `
+      watch:
+        - path: src
+          action: sync
+          target: /app
+`
+	t.Run("extends", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  base:
+    image: app
+    x-develop:`+watch+`
+  web:
+    extends:
+      service: base
+`, `
+name: test
+services:
+  base:
+    image: app
+    develop:`+watch+`
+  web:
+    image: app
+    develop:`+watch)
+	})
+
+	const other = `
+      watch:
+        - path: other
+          action: rebuild
+`
+	const merged = `
+      watch:
+        - path: src
+          action: sync
+          target: /app
+        - path: other
+          action: rebuild
+`
+
+	t.Run("extends with the extension on the extending service", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  base:
+    image: app
+    develop:`+watch+`
+  web:
+    extends:
+      service: base
+    x-develop:`+other, `
+name: test
+services:
+  base:
+    image: app
+    develop:`+watch+`
+  web:
+    image: app
+    develop:`+merged)
+	})
+
+	t.Run("extends with the extension on the base service", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  base:
+    image: app
+    x-develop:`+watch+`
+  web:
+    extends:
+      service: base
+    develop:`+other, `
+name: test
+services:
+  base:
+    image: app
+    develop:`+watch+`
+  web:
+    image: app
+    develop:`+merged)
+	})
+
+	t.Run("include", func(t *testing.T) {
+		dir := t.TempDir()
+		assert.NilError(t, os.WriteFile(filepath.Join(dir, "included.yml"), []byte(`
+services:
+  base:
+    image: app
+    x-develop:`+watch), 0o600))
+		p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+			WorkingDir: dir,
+			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yml"), Content: []byte(`
+name: test
+include:
+  - included.yml
+`)}},
+			Environment: map[string]string{},
+		}, func(options *loader.Options) {
+			options.SkipConsistencyCheck = true
+			options.SkipNormalization = true
+		})
+		assert.NilError(t, err)
+		assert.Assert(t, p.Services["base"].Develop != nil)
+		assert.Equal(t, len(p.Services["base"].Develop.Watch), 1)
+	})
+
+	t.Run("YAML anchor shared by services", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+x-shared: &shared
+  x-develop:`+watch+`
+services:
+  a:
+    <<: *shared
+    image: app
+  b:
+    <<: *shared
+    image: app
+`, `
+name: test
+x-shared:
+  x-develop:`+watch+`
+services:
+  a:
+    image: app
+    develop:`+watch+`
+  b:
+    image: app
+    develop:`+watch)
+	})
+
+	t.Run("attribute set to null does not hide the extension", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+    x-develop:`+watch, `
+name: test
+services:
+  web:
+    image: app
+    develop:`+watch)
+	})
+}
+
+// Each file of a multi-file project is promoted on its own, so that an
+// override written with the extension still overrides the base file.
+func TestExtensionAliasIsPromotedPerFile(t *testing.T) {
+	loadFilesAs(t, []string{`
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+`, `
+services:
+  web:
+    x-develop:
+      watch:
+        - path: other
+          action: rebuild
+`}, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+        - path: other
+          action: rebuild
+`)
+}
+
+// !reset and !override written on such an extension act on what earlier files
+// declared under the name of the attribute.
+func TestExtensionAliasWithMergeTags(t *testing.T) {
+	base := `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: src
+          action: sync
+          target: /app
+`
+	t.Run("!reset removes the attribute declared by an earlier file", func(t *testing.T) {
+		loadFilesAs(t, []string{base, `
+services:
+  web:
+    x-develop: !reset null
+`}, `
+name: test
+services:
+  web:
+    image: app
+`)
+	})
+
+	t.Run("!override replaces the attribute declared by an earlier file", func(t *testing.T) {
+		loadFilesAs(t, []string{base, `
+services:
+  web:
+    x-develop: !override
+      watch:
+        - path: other
+          action: rebuild
+`}, `
+name: test
+services:
+  web:
+    image: app
+    develop:
+      watch:
+        - path: other
+          action: rebuild
+`)
+	})
 }

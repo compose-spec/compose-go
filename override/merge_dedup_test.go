@@ -128,3 +128,142 @@ services:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, once, twice)
 }
+
+// In a KEY=VALUE list the last entry for a key takes effect, so an override
+// that repeats a base entry after another value for the same key must still
+// win: the repeated entry is not a duplicate to drop, it is the final word.
+// Regression of v2.15.0, reported by docker/buildx#4117.
+func Test_mergeYamlKeyValueSequenceLastEntryWins(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "environment", path: "environment"},
+		{name: "labels", path: "labels"},
+		{name: "build args", path: "build:\n      args"},
+		{name: "build labels", path: "build:\n      labels"},
+		{name: "annotations", path: "annotations"},
+		{name: "sysctls", path: "sysctls"},
+		{name: "build additional contexts", path: "build:\n      additional_contexts"},
+		{name: "deploy labels", path: "deploy:\n      labels"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertMergeYaml(t, `
+services:
+  test:
+    image: foo
+    `+tt.path+`:
+      - MODE=release
+`, `
+services:
+  test:
+    `+tt.path+`:
+      - MODE=debug
+      - MODE=release
+`, `
+services:
+  test:
+    image: foo
+    `+tt.path+`:
+      - MODE=release
+`)
+		})
+	}
+}
+
+// A file may repeat a key with different values (`[MODE=debug, MODE=release]`
+// is a valid list, the last entry takes effect). Merging must compact those
+// repeats before applying the override, otherwise the override replaces only
+// the last one and leaves two identical entries, which the schema rejects.
+// Jobs are used because EnforceUnicity does not cover them and would hide it.
+func Test_mergeYamlKeyValueSequenceCompactsRepeatedBaseKeys(t *testing.T) {
+	assertMergeYaml(t, `
+jobs:
+  test:
+    image: foo
+    labels:
+      - MODE=debug
+      - MODE=release
+`, `
+jobs:
+  test:
+    labels:
+      - MODE=debug
+`, `
+jobs:
+  test:
+    image: foo
+    labels:
+      - MODE=debug
+`)
+}
+
+// Merging two empty KEY=VALUE lists yields an empty list, not a nil one: a nil
+// list is not a valid `labels` value for the schema. Secrets are used because
+// EnforceUnicity does not cover them and would rebuild the list, hiding it.
+func Test_mergeYamlKeyValueSequenceOfEmptyLists(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     string
+		override string
+	}{
+		{name: "empty list over empty list", base: "[]", override: "[]"},
+		{name: "empty mapping over empty mapping", base: "{}", override: "{}"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertMergeYaml(t, `
+secrets:
+  test:
+    labels: `+tt.base+`
+`, `
+secrets:
+  test:
+    labels: `+tt.override+`
+`, `
+secrets:
+  test:
+    labels: []
+`)
+		})
+	}
+}
+
+// With interpolation disabled the merge sees raw strings, and keys are read up
+// to the first `=` as EnforceUnicity does: entries with the same text collapse,
+// at the position of the first one. Entries that could only resolve to the same
+// key once interpolated are not reconciled and stay side by side, so which of
+// them wins after interpolation depends on their position, as it already does
+// for services. Jobs are used because EnforceUnicity does not cover them.
+func Test_mergeYamlKeyValueSequenceOfUninterpolatedEntries(t *testing.T) {
+	tests := []struct {
+		name     string
+		base     string
+		override string
+		want     string
+	}{
+		{name: "same variable key", base: `"${K}=1"`, override: `"${K}=2"`, want: `"${K}=2"`},
+		{name: "default containing an equal sign", base: `"${A:-x=1}"`, override: `"${A:-x=2}"`, want: `"${A:-x=2}"`},
+		{name: "different variable keys", base: `"${K1}=1"`, override: `"${K2}=2"`, want: `"${K1}=1", "${K2}=2"`},
+		{name: "entry that is a bare variable", base: `"${ENTRY}"`, override: `"K=2"`, want: `"${ENTRY}", "K=2"`},
+		{name: "replaced at the position of the first entry", base: `"${K1}=1", "${K2}=2"`, override: `"${K1}=3"`, want: `"${K1}=3", "${K2}=2"`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertMergeYaml(t, `
+jobs:
+  test:
+    labels: [`+tt.base+`]
+`, `
+jobs:
+  test:
+    labels: [`+tt.override+`]
+`, `
+jobs:
+  test:
+    labels: [`+tt.want+`]
+`)
+		})
+	}
+}
