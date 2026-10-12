@@ -914,42 +914,59 @@ func resolveEnvironment(spec *ContainerSpec, projectEnv Mapping, discardEnvFiles
 	return nil
 }
 
-// WithServicesLabelsResolved parses label_files set for services to resolve the actual label map for services
+// WithServicesLabelsResolved parses label_files set for services, and for their pre_start hooks, to resolve
+// the actual label map for services and hooks
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p Project) WithServicesLabelsResolved(discardLabelFiles bool) (*Project, error) {
 	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
-		labels := MappingWithEquals{}
-		// resolve variables based on other files we already parsed
-		var resolve dotenv.LookupFn = func(s string) (string, bool) {
-			v, ok := labels[s]
-			if ok && v != nil {
-				return *v, ok
-			}
-			return "", false
+		if err := resolveLabels(&service.ContainerSpec, discardLabelFiles); err != nil {
+			return nil, err
 		}
-
-		for _, labelFile := range service.LabelFiles {
-			vars, err := loadLabelFile(labelFile, resolve)
-			if err != nil {
+		// pre_start hooks inherit the service labels and label_files at load time, so each one carries
+		// the merged declarations and has to be resolved exactly like a service
+		for j := range service.PreStart {
+			if err := resolveLabels(&service.PreStart[j].ContainerSpec, discardLabelFiles); err != nil {
 				return nil, err
 			}
-			labels.OverrideBy(vars.ToMappingWithEquals())
-		}
-
-		labels = labels.OverrideBy(service.Labels.ToMappingWithEquals())
-		if len(labels) == 0 {
-			labels = nil
-		} else {
-			service.Labels = NewLabelsFromMappingWithEquals(labels)
-		}
-
-		if discardLabelFiles {
-			service.LabelFiles = nil
 		}
 		newProject.Services[i] = service
 	}
 	return newProject, nil
+}
+
+// resolveLabels resolves the labels of a container specification: label_files are loaded and overridden by the
+// explicit labels
+func resolveLabels(spec *ContainerSpec, discardLabelFiles bool) error {
+	labels := MappingWithEquals{}
+	// resolve variables based on other files we already parsed
+	var resolve dotenv.LookupFn = func(s string) (string, bool) {
+		v, ok := labels[s]
+		if ok && v != nil {
+			return *v, ok
+		}
+		return "", false
+	}
+
+	for _, labelFile := range spec.LabelFiles {
+		vars, err := loadLabelFile(labelFile, resolve)
+		if err != nil {
+			return err
+		}
+		labels.OverrideBy(vars.ToMappingWithEquals())
+	}
+
+	labels = labels.OverrideBy(spec.Labels.ToMappingWithEquals())
+	if len(labels) == 0 {
+		labels = nil
+	} else {
+		spec.Labels = NewLabelsFromMappingWithEquals(labels)
+	}
+
+	if discardLabelFiles {
+		spec.LabelFiles = nil
+	}
+	return nil
 }
 
 func loadEnvFile(envFile EnvFile, environment Mapping, resolve dotenv.LookupFn) error {

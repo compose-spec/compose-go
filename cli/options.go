@@ -453,7 +453,7 @@ func WithoutEnvironmentResolution(o *ProjectOptions) error {
 	return nil
 }
 
-// WithoutLabelsResolution disable resolution of `label_file` into service labels.
+// WithoutLabelsResolution disable resolution of `label_file` into service and `pre_start` hook labels.
 // When set, service `labels` may be incomplete: `label_file` entries are left
 // unresolved, so callers must not treat `labels` as authoritative.
 func WithoutLabelsResolution(o *ProjectOptions) error {
