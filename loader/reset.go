@@ -18,9 +18,11 @@ package loader
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
+	"github.com/compose-spec/compose-go/v2/override"
 	"github.com/compose-spec/compose-go/v2/tree"
 	"go.yaml.in/yaml/v4"
 )
@@ -35,11 +37,18 @@ const defaultMaxNodeVisits = 100_000
 type nodeCache struct {
 	node          *yaml.Node
 	relativePaths []tree.Path
+	relativeMerge []tree.Path
 }
+
+// positionalMergePaths is the curated list of attributes accepting the `!merge`
+// tag, which merges a sequence element by element instead of appending to it.
+// Any other use of the tag is rejected rather than silently ignored.
+var positionalMergePaths = []tree.Path{"services.*.pre_start"}
 
 type ResetProcessor struct {
 	target        any
 	paths         []tree.Path
+	mergePaths    []tree.Path
 	visitedNodes  map[*yaml.Node][]tree.Path
 	resolvedNodes map[*yaml.Node]nodeCache
 	visitCount    int
@@ -100,6 +109,12 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 		p.paths = append(p.paths, path)
 		return node, nil
 	}
+	if node.Tag == "!merge" {
+		if err := p.recordMerge(node, path); err != nil {
+			return nil, err
+		}
+		return p.cachedResolve(node, path)
+	}
 
 	// If the node is an alias, process the alias target via the cache so each anchor is
 	// processed at most once.
@@ -117,6 +132,11 @@ func (p *ResetProcessor) resolveReset(node *yaml.Node, path tree.Path) (*yaml.No
 		if target.Tag == "!override" {
 			p.paths = append(p.paths, path)
 			return target, nil
+		}
+		if target.Tag == "!merge" {
+			if err := p.recordMerge(target, path); err != nil {
+				return nil, err
+			}
 		}
 		return p.cachedResolve(target, path)
 	}
@@ -138,10 +158,14 @@ func (p *ResetProcessor) cachedResolve(node *yaml.Node, path tree.Path) (*yaml.N
 		for _, rel := range cached.relativePaths {
 			p.paths = append(p.paths, joinPath(path, rel))
 		}
+		for _, rel := range cached.relativeMerge {
+			p.mergePaths = append(p.mergePaths, joinPath(path, rel))
+		}
 		return cached.node, nil
 	}
 
 	startIdx := len(p.paths)
+	startMerge := len(p.mergePaths)
 	resolved, err := p.resolveContainer(node, path)
 	if err != nil {
 		return nil, err
@@ -155,7 +179,15 @@ func (p *ResetProcessor) cachedResolve(node *yaml.Node, path tree.Path) (*yaml.N
 		}
 		relPaths = append(relPaths, rel)
 	}
-	p.resolvedNodes[node] = nodeCache{node: resolved, relativePaths: relPaths}
+	var relMerge []tree.Path
+	for _, addedPath := range p.mergePaths[startMerge:] {
+		rel, err := subPath(addedPath, path)
+		if err != nil {
+			return nil, err
+		}
+		relMerge = append(relMerge, rel)
+	}
+	p.resolvedNodes[node] = nodeCache{node: resolved, relativePaths: relPaths, relativeMerge: relMerge}
 	return resolved, nil
 }
 
@@ -184,6 +216,9 @@ func (p *ResetProcessor) resolveContainer(node *yaml.Node, path tree.Path) (*yam
 		}
 		node.Content = nodes
 	case yaml.MappingNode:
+		if err := rejectMergeWithExtends(node, path); err != nil {
+			return nil, err
+		}
 		keys := map[string]int{}
 		var key string
 		var nodes []*yaml.Node
@@ -249,6 +284,92 @@ func joinPath(base, rel tree.Path) tree.Path {
 		return rel
 	}
 	return tree.Path(string(base) + "." + string(rel))
+}
+
+// recordMerge registers a `!merge` tagged sequence, rejecting the tag anywhere
+// it is not supported so it can never be silently ignored.
+func (p *ResetProcessor) recordMerge(node *yaml.Node, path tree.Path) error {
+	supported := slices.ContainsFunc(positionalMergePaths, func(pattern tree.Path) bool { return path.Matches(pattern) })
+	if !supported || node.Kind != yaml.SequenceNode {
+		return fmt.Errorf("%s: !merge is only supported on a sequence at %s", path, positionalMergePaths)
+	}
+	p.mergePaths = append(p.mergePaths, path)
+	return nil
+}
+
+// hasMergeUnder reports whether a `!merge` tagged sequence was recorded in the
+// resource declared as `key.name` (e.g. services.app).
+func (p *ResetProcessor) hasMergeUnder(key, name string) bool {
+	prefix := string(tree.NewPath(key).Next(name)) + "."
+	return slices.ContainsFunc(p.mergePaths, func(path tree.Path) bool {
+		return strings.HasPrefix(string(path), prefix)
+	})
+}
+
+// rejectMergeWithExtends fails when a service combines `extends` with a `!merge`
+// tagged attribute: the tag aligns the sequence with the previous compose files,
+// which is ambiguous once the service has also been merged with its extended base.
+func rejectMergeWithExtends(node *yaml.Node, path tree.Path) error {
+	if !path.Matches("services.*") {
+		return nil
+	}
+	var extends, merged bool
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		value := node.Content[i+1]
+		if value.Kind == yaml.AliasNode {
+			value = value.Alias
+		}
+		extends = extends || node.Content[i].Value == "extends"
+		merged = merged || value.Tag == "!merge"
+	}
+	if extends && merged {
+		return fmt.Errorf("%s: !merge cannot be combined with extends", path)
+	}
+	return nil
+}
+
+// ApplyPositionalMerge handles the sequences tagged `!merge` in the processed
+// document (override side): they are merged by index with the same sequence in
+// base, then substituted to both so the regular merge simply picks the result.
+func (p *ResetProcessor) ApplyPositionalMerge(base, over map[string]any) error {
+	for _, path := range p.mergePaths {
+		parts := path.Parts()
+		for i := range parts {
+			parts[i] = strings.ReplaceAll(parts[i], "👻", ".")
+		}
+		key := parts[len(parts)-1]
+		baseParent, ok := lookupMapping(base, parts[:len(parts)-1])
+		if !ok {
+			continue
+		}
+		overParent, ok := lookupMapping(over, parts[:len(parts)-1])
+		if !ok {
+			continue
+		}
+		baseSeq, ok := baseParent[key]
+		if !ok {
+			continue
+		}
+		merged, err := override.MergePositional(baseSeq, overParent[key], path)
+		if err != nil {
+			return err
+		}
+		delete(baseParent, key)
+		overParent[key] = merged
+	}
+	return nil
+}
+
+func lookupMapping(root map[string]any, parts []string) (map[string]any, bool) {
+	current := root
+	for _, part := range parts {
+		next, ok := current[part].(map[string]any)
+		if !ok {
+			return nil, false
+		}
+		current = next
+	}
+	return current, true
 }
 
 // Apply finds the go attributes matching recorded paths and reset them to zero value

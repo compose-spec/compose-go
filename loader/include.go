@@ -256,6 +256,9 @@ func importResource(source map[string]any, target map[string]any, key string, pr
 				// duplicate entries to list-valued fields.
 				continue
 			}
+			if rp, ok := processor.(*ResetProcessor); ok && rp.hasMergeUnder(key, name) {
+				return fmt.Errorf("!merge cannot be applied to %s.%s, which is also declared by an included file", key, name)
+			}
 			err := processor.Apply(map[string]any{
 				key: map[string]any{
 					name: a,

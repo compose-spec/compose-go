@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 
 	"github.com/compose-spec/compose-go/v2/tree"
 )
@@ -73,6 +74,10 @@ func init() {
 		mergeSpecials[prefix+".*.ulimits.*"] = mergeUlimit
 	}
 	mergeSpecials["services.*.deploy.labels"] = mergeKeyValueSequence
+	// pre_start hooks are only merged field by field when the loader aligns
+	// them by index (see MergePositional): by default they are appended.
+	mergeSpecials["services.*.pre_start.*.command"] = override
+	mergeSpecials["services.*.pre_start.*.environment"] = mergeKeyValueSequence
 }
 
 // MergeYaml merges map[string]any yaml trees handling special rules
@@ -105,6 +110,55 @@ func MergeYaml(e any, o any, p tree.Path) (any, error) {
 	default:
 		return o, nil
 	}
+}
+
+// MergePositional merges two sequences element by element, by index, instead
+// of appending. Per index i:
+//
+//   - override shorter than base at i: base[i] is kept
+//   - base shorter than override at i: override[i] is added (the sequence is extended)
+//   - override[i] is a no-op (null or empty mapping): base[i] is kept
+//   - otherwise override[i] is merged into base[i] with the usual rules
+//
+// It is not part of the default merge: the loader only calls it for the
+// attributes explicitly tagged `!merge` by the user (see loader.ResetProcessor).
+func MergePositional(e any, o any, p tree.Path) (any, error) {
+	base, ok := e.([]any)
+	if !ok {
+		return nil, fmt.Errorf("%s: cannot merge positionally: base is not a sequence", p)
+	}
+	over, ok := o.([]any)
+	if !ok {
+		return nil, fmt.Errorf("%s: cannot merge positionally: override is not a sequence", p)
+	}
+	merged := make([]any, 0, max(len(base), len(over)))
+	for i := range max(len(base), len(over)) {
+		switch {
+		case i >= len(over):
+			merged = append(merged, base[i])
+		case i >= len(base):
+			merged = append(merged, over[i])
+		case isNoOp(over[i]):
+			merged = append(merged, base[i])
+		default:
+			m, err := MergeYaml(base[i], over[i], p.Next(strconv.Itoa(i)))
+			if err != nil {
+				return nil, err
+			}
+			merged = append(merged, m)
+		}
+	}
+	return merged, nil
+}
+
+func isNoOp(v any) bool {
+	switch x := v.(type) {
+	case nil:
+		return true
+	case map[string]any:
+		return len(x) == 0
+	}
+	return false
 }
 
 func mergeMappings(mapping map[string]any, other map[string]any, p tree.Path) (map[string]any, error) {
