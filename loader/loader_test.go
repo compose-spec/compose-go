@@ -2004,6 +2004,80 @@ func TestLoadServiceWithLabelFile_NotExists(t *testing.T) {
 	assert.ErrorContains(t, err, "label file test not found")
 }
 
+// A pre_start hook inherits the service labels and label_files at load time: its label_files must be loaded into
+// its labels exactly like a service's, the hook's own declarations winning over the inherited ones.
+// https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pre_start
+func TestLoadPreStartHookLabelsResolved(t *testing.T) {
+	dir := t.TempDir()
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, "service.label"), []byte("FROM_SERVICE_FILE=service\nSHARED=service_file\nOVERRIDDEN=service_file\n"), 0o600))
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, "hook.label"), []byte("FROM_HOOK_FILE=hook\nSHARED=hook_file\nOVERRIDDEN=hook_file\n"), 0o600))
+
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
+		WorkingDir: dir,
+		ConfigFiles: []types.ConfigFile{{
+			Filename: filepath.Join(dir, "compose.yaml"),
+			Content: []byte(`
+services:
+  src:
+    image: alpine
+    label_file: service.label
+    labels:
+      FROM_SERVICE_LABEL: service
+      OVERRIDDEN: service_label
+    pre_start:
+      - command: echo hook
+        label_file: hook.label
+        labels:
+          FROM_HOOK_LABEL: hook
+      - command: echo inherit
+`),
+		}},
+		Environment: map[string]string{},
+	}, func(o *Options) { o.SetProjectName("test", true) })
+	assert.NilError(t, err)
+
+	service, err := p.GetService("src")
+	assert.NilError(t, err)
+	assert.Equal(t, len(service.PreStart), 2)
+
+	assert.DeepEqual(t, service.Labels, types.Labels{
+		"FROM_SERVICE_LABEL": "service",
+		"FROM_SERVICE_FILE":  "service",
+		"SHARED":             "service_file",
+		"OVERRIDDEN":         "service_label",
+	})
+	assert.DeepEqual(t, service.PreStart[0].Labels, types.Labels{
+		"FROM_SERVICE_LABEL": "service",
+		"FROM_SERVICE_FILE":  "service",
+		"FROM_HOOK_LABEL":    "hook",
+		"FROM_HOOK_FILE":     "hook",
+		// label_file declared by the hook overrides the service one
+		"SHARED": "hook_file",
+		// as for a service, labels still take precedence over label_file once merged
+		"OVERRIDDEN": "service_label",
+	})
+	assert.DeepEqual(t, service.PreStart[1].Labels, service.Labels)
+	// label_files are kept unless discarding is requested: the inherited service entry and the hook's own
+	assert.Equal(t, len(service.PreStart[0].LabelFiles), 2)
+
+	discarded, err := p.WithServicesLabelsResolved(true)
+	assert.NilError(t, err)
+	assert.Equal(t, len(discarded.Services["src"].PreStart[0].LabelFiles), 0)
+}
+
+// A pre_start hook whose own label_file does not exist fails the load, like a service's would.
+func TestLoadPreStartHookLabelFile_NotExists(t *testing.T) {
+	_, err := LoadWithContext(t.Context(), buildConfigDetails(`
+services:
+  src:
+    image: alpine
+    pre_start:
+      - command: echo hook
+        label_file: missing.label
+`, nil), withProjectName("test", true))
+	assert.ErrorContains(t, err, "missing.label not found")
+}
+
 func TestLoadNoSSHInBuildConfig(t *testing.T) {
 	actual, err := loadYAML(`
 name: load-no-ssh-in-build-config

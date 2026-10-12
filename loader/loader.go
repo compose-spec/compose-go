@@ -67,7 +67,7 @@ type Options struct {
 	SkipInclude bool
 	// SkipResolveEnvironment will ignore computing `environment` for services
 	SkipResolveEnvironment bool
-	// SkipResolveLabels will ignore resolving `label_file` into `labels` for services.
+	// SkipResolveLabels will ignore resolving `label_file` into `labels` for services and their `pre_start` hooks.
 	// When set, service `labels` may be incomplete: `label_file` entries are left unresolved,
 	// so callers must not treat `labels` as authoritative.
 	SkipResolveLabels bool
