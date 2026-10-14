@@ -479,6 +479,13 @@ type ServiceNetworkConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
+// ServiceNameAliasEnabled tells whether the service name is registered as an
+// alias on the network: true unless use_service_name_alias is explicitly false.
+// It is safe to call on a nil receiver, which the short `networks` syntax yields.
+func (n *ServiceNetworkConfig) ServiceNameAliasEnabled() bool {
+	return n == nil || n.UseServiceNameAlias == nil || *n.UseServiceNameAlias
+}
+
 // ServicePortConfig is the port configuration for a service
 type ServicePortConfig struct {
 	Name        string `yaml:"name,omitempty" json:"name,omitempty"`
