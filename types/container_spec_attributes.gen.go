@@ -74,6 +74,7 @@ var ContainerSpecAttributes = []string{
 	"sysctls",
 	"tmpfs",
 	"ulimits",
+	"umask",
 	"use_api_socket",
 	"user",
 	"userns_mode",

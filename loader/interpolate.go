@@ -79,6 +79,7 @@ func buildInterpolateTypeCastMapping() map[tree.Path]interp.Cast {
 	add(containerSpec, toInt64, "pids_limit")
 	add(containerSpec, toBoolean, "privileged")
 	add(containerSpec, toBoolean, "read_only")
+	add(containerSpec, toUmask, "umask")
 	add(containerSpec, toInt, "ulimits", tree.PathMatchAll)
 	add(containerSpec, toInt, "ulimits", tree.PathMatchAll, "hard")
 	add(containerSpec, toInt, "ulimits", tree.PathMatchAll, "soft")
@@ -115,6 +116,13 @@ func toInt(value string) (interface{}, error) {
 
 func toInt64(value string) (interface{}, error) {
 	return strconv.ParseInt(value, 10, 64)
+}
+
+// toUmask parses an umask the way a YAML integer is written: a leading 0, or
+// a 0o prefix, makes it octal, so `077` and `0o77` are the octal umask 077
+// while `77` is the decimal value 77.
+func toUmask(value string) (interface{}, error) {
+	return strconv.ParseUint(value, 0, 32)
 }
 
 func toFloat(value string) (interface{}, error) {

@@ -920,6 +920,12 @@ func deriveDeepCopy_12(dst, src *ContainerSpec) {
 	} else {
 		dst.Ulimits = nil
 	}
+	if src.Umask == nil {
+		dst.Umask = nil
+	} else {
+		dst.Umask = new(uint32)
+		*dst.Umask = *src.Umask
+	}
 	dst.UseAPISocket = src.UseAPISocket
 	dst.User = src.User
 	dst.UserNSMode = src.UserNSMode
