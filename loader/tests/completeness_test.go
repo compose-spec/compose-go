@@ -115,6 +115,7 @@ var coveredBy = map[string]string{
 	"tmpfs":               "loader/tests/tmpfs_test.go",
 	"tty":                 "loader/tests/stdin_tty_test.go",
 	"ulimits":             "loader/tests/ulimits_test.go",
+	"umask":               "loader/tests/umask_test.go",
 	"use_api_socket":      "loader/tests/use_api_socket_test.go",
 	"user":                "loader/tests/user_test.go",
 	"userns_mode":         "loader/tests/userns_mode_test.go",
