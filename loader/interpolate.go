@@ -74,6 +74,7 @@ func buildInterpolateTypeCastMapping() map[tree.Path]interp.Cast {
 	add(containerSpec, toFloat32, "cpus")
 	add(containerSpec, toInt64, "cpu_shares")
 	add(containerSpec, toBoolean, "init")
+	add(containerSpec, toBoolean, "networks", tree.PathMatchAll, "use_service_name_alias")
 	add(containerSpec, toBoolean, "oom_kill_disable")
 	add(containerSpec, toInt64, "oom_score_adj")
 	add(containerSpec, toInt64, "pids_limit")

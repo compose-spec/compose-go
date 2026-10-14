@@ -559,6 +559,13 @@
                         "gw_priority": {
                           "type": "number",
                           "description": "Specify the gateway priority for the network connection."
+                        },
+                        "use_service_name_alias": {
+                          "type": [
+                            "boolean",
+                            "string"
+                          ],
+                          "description": "Register the service name as an alias on this network. Defaults to true."
                         }
                       },
                       "additionalProperties": false,

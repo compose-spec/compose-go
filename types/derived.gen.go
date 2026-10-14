@@ -2324,6 +2324,12 @@ func deriveDeepCopy_55(dst, src *ServiceNetworkConfig) {
 	}
 	dst.MacAddress = src.MacAddress
 	dst.Priority = src.Priority
+	if src.UseServiceNameAlias == nil {
+		dst.UseServiceNameAlias = nil
+	} else {
+		dst.UseServiceNameAlias = new(bool)
+		*dst.UseServiceNameAlias = *src.UseServiceNameAlias
+	}
 	if src.Extensions != nil {
 		dst.Extensions = make(map[string]any, len(src.Extensions))
 		src.Extensions.DeepCopy(dst.Extensions)
