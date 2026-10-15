@@ -112,6 +112,7 @@ type ContainerSpec struct {
 	Sysctls          Mapping                          `yaml:"sysctls,omitempty" json:"sysctls,omitempty"`
 	Tmpfs            StringList                       `yaml:"tmpfs,omitempty" json:"tmpfs,omitempty"`
 	Ulimits          map[string]*UlimitsConfig        `yaml:"ulimits,omitempty" json:"ulimits,omitempty"`
+	Umask            *uint32                          `yaml:"umask,omitempty" json:"umask,omitempty"`
 	UseAPISocket     bool                             `yaml:"use_api_socket,omitempty" json:"use_api_socket,omitempty"`
 	User             string                           `yaml:"user,omitempty" json:"user,omitempty"`
 	UserNSMode       string                           `yaml:"userns_mode,omitempty" json:"userns_mode,omitempty"`
