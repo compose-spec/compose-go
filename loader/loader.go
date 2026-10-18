@@ -536,6 +536,12 @@ func loadYamlFile(ctx context.Context,
 
 		}
 
+		if rp, ok := processor.(*ResetProcessor); ok {
+			if err := rp.ApplyPositionalMerge(dict, cfg); err != nil {
+				return err
+			}
+		}
+
 		dict, err = override.Merge(dict, cfg)
 		if err != nil {
 			return err
