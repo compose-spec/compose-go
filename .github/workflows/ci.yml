@@ -93,7 +93,7 @@ jobs:
   test:
     strategy:
       matrix:
-        go-version: ['1.24', '1.25']
+        go-version: ['1.26', '1.27']
         platform: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 10
