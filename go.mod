@@ -1,6 +1,6 @@
 module github.com/compose-spec/compose-go/v2
 
-go 1.24
+go 1.26
 
 require (
 	github.com/distribution/reference v0.5.0
