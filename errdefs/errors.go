@@ -54,3 +54,8 @@ func IsUnsupportedError(err error) bool {
 func IsIncompatibleError(err error) bool {
 	return errors.Is(err, ErrIncompatible)
 }
+
+// IsDisabledError returns true if the unwrapped error is ErrDisabled
+func IsDisabledError(err error) bool {
+	return errors.Is(err, ErrDisabled)
+}
