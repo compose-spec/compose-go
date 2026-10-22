@@ -108,3 +108,57 @@ jobs:
         cache: true
     - name: Test
       run: go test ./...
+
+  static-checks:
+    name: static checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: stable
+      - name: Vet
+        # stdmethods is disabled on purpose: (*types.Project).MarshalJSON takes
+        # marshalling options, so it does not have the json.Marshaler signature
+        # the analyzer expects. It is public API used by consumers, changing it
+        # would be a breaking change. encoding/json never calls it, which is
+        # what the analyzer warns about. All other analyzers stay enabled.
+        run: go vet -stdmethods=false ./...
+      - name: Check go.mod and go.sum are tidy
+        run: go mod tidy -diff
+
+  vulncheck:
+    name: vulnerability check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Informative only: findings come from an external advisory database that
+    # evolves independently of the pull request, so they must not block it. The
+    # report goes to the job summary and a warning.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          # the tool itself requires a recent Go, whatever go.mod declares
+          go-version: stable
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
+      - name: Look for known vulnerabilities
+        run: |
+          status=0
+          govulncheck ./... > govulncheck.txt 2>&1 || status=$?
+          cat govulncheck.txt
+          {
+            echo '### Known vulnerabilities (govulncheck)'
+            echo '```'
+            cat govulncheck.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning title=govulncheck::govulncheck reports vulnerabilities or failed, see the job summary"
+          fi
