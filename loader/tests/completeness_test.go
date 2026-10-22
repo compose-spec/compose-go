@@ -130,11 +130,13 @@ var coveredBy = map[string]string{
 	"profiles":            "loader/tests/profiles_test.go",
 	"provider":            "loader/tests/provider_test.go",
 	"pull_policy":         "loader/tests/pull_policy_test.go",
+	"read_only":           "loader/tests/read_only_test.go",
 	"restart":             "loader/tests/restart_test.go",
 	"runtime":             "loader/tests/runtime_test.go",
 	"scale":               "loader/tests/scale_test.go",
 	"secrets":             "loader/tests/secrets_test.go",
 	"security_opt":        "loader/tests/security_opt_test.go",
+	"shm_size":            "loader/tests/shm_size_test.go",
 	"stdin_open":          "loader/tests/stdin_tty_test.go",
 	"stop_grace_period":   "loader/tests/stop_test.go",
 	"stop_signal":         "loader/tests/stop_test.go",
@@ -157,9 +159,8 @@ var coveredBy = map[string]string{
 // yet, with the reason. Shrinking this list is welcome; growing it is a
 // reviewed decision.
 var knownGaps = map[string]string{
-	"pull_refresh_after": "no dedicated conformance test yet",
-	"read_only":          "no dedicated conformance test yet",
-	"shm_size":           "no dedicated conformance test yet",
+	"pull_refresh_after": "declared by the schema but absent from the specification text, and not interpreted by compose-go: " +
+		"the value is a string passed through as is (pull_policy `every_<duration>` is what drives GetPullPolicy), so there is no behavior to lock yet",
 }
 
 // topLevelCoveredBy declares, for every top-level element of the schema, the
