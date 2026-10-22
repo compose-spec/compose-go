@@ -31,6 +31,7 @@ var sentinels = map[string]error{
 	"ErrInvalid":      ErrInvalid,
 	"ErrUnsupported":  ErrUnsupported,
 	"ErrIncompatible": ErrIncompatible,
+	"ErrDisabled":     ErrDisabled,
 }
 
 // helpers pairs each Is*Error helper with the sentinel it must recognise.
@@ -42,6 +43,7 @@ var helpers = map[string]struct {
 	"IsInvalidError":      {IsInvalidError, "ErrInvalid"},
 	"IsUnsupportedError":  {IsUnsupportedError, "ErrUnsupported"},
 	"IsIncompatibleError": {IsIncompatibleError, "ErrIncompatible"},
+	"IsDisabledError":     {IsDisabledError, "ErrDisabled"},
 }
 
 // TestIsHelpers locks the contract of the Is*Error helpers: each one reports
@@ -100,6 +102,7 @@ func TestSentinelMessages(t *testing.T) {
 		"ErrInvalid":      "invalid compose project",
 		"ErrUnsupported":  "unsupported attribute",
 		"ErrIncompatible": "incompatible attribute",
+		"ErrDisabled":     "disabled",
 	} {
 		t.Run(name, func(t *testing.T) {
 			assert.Error(t, sentinels[name], want)
