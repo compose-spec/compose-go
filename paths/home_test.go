@@ -37,7 +37,9 @@ func setHome(t *testing.T, dir string) {
 // A leading "~" is the user's home directory: the spec lets bind mount
 // sources, env files... be written "~/something", and the resolved value must
 // be rooted in $HOME so the engine never sees a literal "~".
-// Anything that does not *start* with "~" is left untouched.
+// Anything that does not *start* with "~", or where "~" is followed by a name
+// (the home directory of another user, which is not looked up), is left
+// untouched.
 func TestExpandUser(t *testing.T) {
 	home := t.TempDir()
 	setHome(t, home)
@@ -54,6 +56,10 @@ func TestExpandUser(t *testing.T) {
 		{name: "relative path is untouched", input: "./data", want: "./data"},
 		{name: "tilde in the middle is untouched", input: "data/~/db", want: "data/~/db"},
 		{name: "empty string is untouched", input: "", want: ""},
+		{name: "another user's home is untouched", input: "~user/data", want: "~user/data"},
+		{name: "another user's home alone is untouched", input: "~user", want: "~user"},
+		{name: "tilde followed by a tilde is untouched", input: "~~/data", want: "~~/data"},
+		{name: "path below home with the OS separator", input: "~" + string(filepath.Separator) + "data", want: filepath.Join(home, "data")},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -463,6 +463,30 @@ volumes:
 `)
 }
 
+// Only "~" alone or followed by a separator is the home directory. A "~"
+// followed by a name is another user's home, which is not looked up: the value
+// is a relative path like any other, and is not expanded to the current
+// user's home.
+func TestResolveTildeFollowedByName(t *testing.T) {
+	resolvesAs(t, nil, `
+services:
+  web:
+    build:
+      context: ~bob/app
+      ssh:
+        key: ~bob/id_ed25519
+        mine: ~/id_ed25519
+`, `
+services:
+  web:
+    build:
+      context: <wd>/~bob/app
+      ssh:
+        key: <wd>/~bob/id_ed25519
+        mine: <home>/id_ed25519
+`)
+}
+
 // Long-syntax bind mounts get an absolute source; every other mount type
 // keeps its source (a volume name or nothing); short syntax is left to the
 // later normalization.
