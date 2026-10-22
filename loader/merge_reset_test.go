@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -25,7 +24,7 @@ import (
 )
 
 func Test_LoadWithReset(t *testing.T) {
-	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "base.yml",
@@ -65,7 +64,7 @@ func Test_LoadWithReset(t *testing.T) {
 }
 
 func Test_DuplicateReset(t *testing.T) {
-	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "duplicate.yml",

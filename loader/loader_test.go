@@ -67,12 +67,12 @@ func buildConfigFiles(yamls []string) []types.ConfigFile {
 	return configFiles
 }
 
-func loadYAML(yaml string) (*types.Project, error) {
-	return loadYAMLWithEnv(yaml, nil)
+func loadYAML(ctx context.Context, yaml string) (*types.Project, error) {
+	return loadYAMLWithEnv(ctx, yaml, nil)
 }
 
-func loadYAMLWithEnv(yaml string, env map[string]string) (*types.Project, error) {
-	return LoadWithContext(context.TODO(), buildConfigDetails(yaml, env), func(options *Options) {
+func loadYAMLWithEnv(ctx context.Context, yaml string, env map[string]string) (*types.Project, error) {
+	return LoadWithContext(ctx, buildConfigDetails(yaml, env), func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 		options.ResolvePaths = true
@@ -232,7 +232,7 @@ var sampleConfig = types.Config{
 }
 
 func TestLoad(t *testing.T) {
-	actual, err := LoadWithContext(context.TODO(), buildConfigDetails(sampleYAML, nil), func(options *Options) {
+	actual, err := LoadWithContext(t.Context(), buildConfigDetails(sampleYAML, nil), func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 	})
@@ -252,7 +252,7 @@ func TestLoadFromFile(t *testing.T) {
 	if err := os.WriteFile(tmpPath, []byte(sampleYAML), 0o444); err != nil {
 		t.Fatalf("failed to write temporary file: %s", err)
 	}
-	actual, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	actual, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: workingDir,
 		ConfigFiles: []types.ConfigFile{{
 			Filename: tmpPath,
@@ -269,7 +269,7 @@ func TestLoadFromFile(t *testing.T) {
 }
 
 func TestLoadExtensions(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-extensions
 x-project: project
 
@@ -319,7 +319,7 @@ services:
 }
 
 func TestLoadExtends(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-extends
 services:
   foo:
@@ -337,7 +337,7 @@ services:
 }
 
 func TestLoadExtendsOverrideCommand(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: override-command
 services:
   foo:
@@ -395,7 +395,7 @@ services:
 `
 	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
 
-	actual, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	actual, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: tmpdir,
 		ConfigFiles: []types.ConfigFile{{
 			Filename: filepath.Join(tmpdir, "compose.yaml"),
@@ -419,7 +419,7 @@ services:
 }
 
 func TestLoadExtendsWihReset(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-extends
 services:
   foo:
@@ -440,7 +440,7 @@ services:
 }
 
 func TestLoadCredentialSpec(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-credential-spec
 services:
   foo:
@@ -454,7 +454,7 @@ services:
 }
 
 func TestParseAndLoad(t *testing.T) {
-	actual, err := loadYAML(sampleYAML)
+	actual, err := loadYAML(t.Context(), sampleYAML)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(sampleConfig.Services, actual.Services))
 	assert.Check(t, is.DeepEqual(sampleConfig.Networks, actual.Networks))
@@ -462,25 +462,25 @@ func TestParseAndLoad(t *testing.T) {
 }
 
 func TestInvalidTopLevelObjectType(t *testing.T) {
-	_, err := loadYAML("1")
+	_, err := loadYAML(t.Context(), "1")
 	assert.ErrorContains(t, err, "top-level object must be a mapping")
 
-	_, err = loadYAML("\"hello\"")
+	_, err = loadYAML(t.Context(), "\"hello\"")
 	assert.ErrorContains(t, err, "top-level object must be a mapping")
 
-	_, err = loadYAML("[\"hello\"]")
+	_, err = loadYAML(t.Context(), "[\"hello\"]")
 	assert.ErrorContains(t, err, "top-level object must be a mapping")
 }
 
 func TestNonStringKeys(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 123:
   foo:
     image: busybox
 `)
 	assert.ErrorContains(t, err, "non-string key at top level: 123")
 
-	_, err = loadYAML(`
+	_, err = loadYAML(t.Context(), `
 services:
   foo:
     image: busybox
@@ -489,7 +489,7 @@ services:
 `)
 	assert.ErrorContains(t, err, "non-string key in services: 123")
 
-	_, err = loadYAML(`
+	_, err = loadYAML(t.Context(), `
 services:
   foo:
     image: busybox
@@ -501,7 +501,7 @@ networks:
 `)
 	assert.ErrorContains(t, err, "non-string key in networks.default.ipam.config[0]: 123")
 
-	_, err = loadYAML(`
+	_, err = loadYAML(t.Context(), `
 services:
   dict-env:
     image: busybox
@@ -512,7 +512,7 @@ services:
 }
 
 func TestV1Unsupported(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 foo:
   image: busybox
 `)
@@ -520,7 +520,7 @@ foo:
 }
 
 func TestNonMappingObject(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: non-mapping-object
 services:
   - foo:
@@ -528,14 +528,14 @@ services:
 `)
 	assert.ErrorContains(t, err, "services must be a mapping")
 
-	_, err = loadYAML(`
+	_, err = loadYAML(t.Context(), `
 name: non-mapping-object
 services:
   foo: busybox
 `)
 	assert.ErrorContains(t, err, "services.foo must be a mapping")
 
-	_, err = loadYAML(`
+	_, err = loadYAML(t.Context(), `
 name: non-mapping-object
 networks:
   - default:
@@ -543,14 +543,14 @@ networks:
 `)
 	assert.ErrorContains(t, err, "networks must be a mapping")
 
-	_, err = loadYAML(`
+	_, err = loadYAML(t.Context(), `
 name: non-mapping-object
 networks:
   default: bridge
 `)
 	assert.ErrorContains(t, err, "networks.default must be a mapping")
 
-	_, err = loadYAML(`
+	_, err = loadYAML(t.Context(), `
 name: non-mapping-object
 volumes:
   - data:
@@ -558,7 +558,7 @@ volumes:
 `)
 	assert.ErrorContains(t, err, "volumes must be a mapping")
 
-	_, err = loadYAML(`
+	_, err = loadYAML(t.Context(), `
 name: non-mapping-object
 volumes:
   data: local
@@ -567,7 +567,7 @@ volumes:
 }
 
 func TestNonStringImage(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: non-mapping-object
 services:
   foo:
@@ -577,7 +577,7 @@ services:
 }
 
 func TestLoadWithEnvironment(t *testing.T) {
-	config, err := loadYAMLWithEnv(`
+	config, err := loadYAMLWithEnv(t.Context(), `
 name: load-with-environment
 services:
   dict-env:
@@ -618,7 +618,7 @@ services:
 }
 
 func TestLoadEnvironmentWithBoolean(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-environment-with-boolean
 services:
   dict-env:
@@ -642,7 +642,7 @@ services:
 }
 
 func TestInvalidEnvironmentValue(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: invalid-environment-value
 services:
   dict-env:
@@ -654,7 +654,7 @@ services:
 }
 
 func TestInvalidEnvironmentObject(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: invalid-environment-object
 services:
   dict-env:
@@ -666,7 +666,7 @@ services:
 
 func TestLoadWithEnvironmentInterpolation(t *testing.T) {
 	home := "/home/foo"
-	config, err := loadYAMLWithEnv(`
+	config, err := loadYAMLWithEnv(t.Context(), `
 # This is a comment, so using variable syntax here ${SHOULD_NOT_BREAK} parsing
 name: load-with-environment-interpolation
 services:
@@ -777,7 +777,7 @@ networks:
 		"thesize":     "2gb",
 	}
 
-	config, err := LoadWithContext(context.TODO(), buildConfigDetails(dict, env), func(options *Options) {
+	config, err := LoadWithContext(t.Context(), buildConfigDetails(dict, env), func(options *Options) {
 		options.SkipNormalization = true
 		options.SkipConsistencyCheck = true
 	})
@@ -871,7 +871,7 @@ networks:
 func TestLoadWithLabelFile(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-label-file
 services:
   service_1:
@@ -939,7 +939,7 @@ services:
 `
 	configDetails := buildConfigDetails(dict, nil)
 
-	_, err := LoadWithContext(context.TODO(), configDetails)
+	_, err := LoadWithContext(t.Context(), configDetails)
 	assert.NilError(t, err)
 }
 
@@ -964,7 +964,7 @@ services:
 	configDetails := buildConfigDetails(dict, nil)
 
 	// Default behavior keeps the `env_file` entries
-	configWithEnvFiles, err := LoadWithContext(context.TODO(), configDetails, func(options *Options) {
+	configWithEnvFiles, err := LoadWithContext(t.Context(), configDetails, func(options *Options) {
 		options.SkipNormalization = true
 		options.ResolvePaths = false
 	})
@@ -982,7 +982,7 @@ services:
 	assert.DeepEqual(t, configWithEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
 
 	// Custom behavior removes the `env_file` entries
-	configWithoutEnvFiles, err := LoadWithContext(context.TODO(), configDetails, WithDiscardEnvFiles)
+	configWithoutEnvFiles, err := LoadWithContext(t.Context(), configDetails, WithDiscardEnvFiles)
 	assert.NilError(t, err)
 	assert.Equal(t, len(configWithoutEnvFiles.Services["web"].EnvFiles), 0)
 	assert.DeepEqual(t, configWithoutEnvFiles.Services["web"].Environment, expectedEnvironmentMap)
@@ -992,7 +992,7 @@ func TestDecodeErrors(t *testing.T) {
 	dict := "name: test\nservices:\n  web:\n    image: nginx\n\tbuild: ."
 
 	configDetails := buildConfigDetails(dict, nil)
-	_, err := LoadWithContext(context.TODO(), configDetails)
+	_, err := LoadWithContext(t.Context(), configDetails)
 	assert.ErrorContains(t, err, "found a tab character that violates indentation")
 }
 
@@ -1012,7 +1012,7 @@ services:
      shm_size: 2gb
 `
 	configDetails := buildConfigDetails(dict, nil)
-	actual, err := LoadWithContext(context.TODO(), configDetails)
+	actual, err := LoadWithContext(t.Context(), configDetails)
 	assert.NilError(t, err)
 
 	wd, _ := os.Getwd()
@@ -1042,12 +1042,12 @@ services:
 `
 	configDetails := buildConfigDetails(dict, nil)
 
-	_, err := LoadWithContext(context.TODO(), configDetails)
+	_, err := LoadWithContext(t.Context(), configDetails)
 	assert.NilError(t, err)
 }
 
 func TestInvalidResource(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
         name: test
         services:
           foo:
@@ -1061,7 +1061,7 @@ func TestInvalidResource(t *testing.T) {
 }
 
 func TestInvalidExternalAndDriverCombination(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: invalid-external-and-driver-combination
 volumes:
   external_volume:
@@ -1073,7 +1073,7 @@ volumes:
 }
 
 func TestInvalidExternalAndDirverOptsCombination(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: invalid-external-and-driver-opts-combination
 volumes:
   external_volume:
@@ -1086,7 +1086,7 @@ volumes:
 }
 
 func TestInvalidExternalAndLabelsCombination(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: invalid-external-and-labels-combination
 volumes:
   external_volume:
@@ -1099,7 +1099,7 @@ volumes:
 }
 
 func TestLoadVolumeInvalidExternalNameAndNameCombination(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: invalid-external-and-labels-combination
 volumes:
   external_volume:
@@ -1112,7 +1112,7 @@ volumes:
 }
 
 func TestInterpolateInt(t *testing.T) {
-	project, err := loadYAMLWithEnv(`
+	project, err := loadYAMLWithEnv(t.Context(), `
 name: interpolate-int
 services:
   foo:
@@ -1142,7 +1142,7 @@ services:
       tmpfs:
         size: %s
 `, size)
-		config, err := loadYAML(yaml)
+		config, err := loadYAML(t.Context(), yaml)
 		assert.NilError(t, err)
 
 		expected := types.ServiceVolumeConfig{
@@ -1160,7 +1160,7 @@ services:
 }
 
 func TestLoadTmpfsVolumeAdditionalPropertyNotAllowed(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: load-tmpfs-volume-additional-property-not-allowed
 services:
   tmpfs:
@@ -1175,7 +1175,7 @@ services:
 }
 
 func TestLoadBindMountSourceMustNotBeEmpty(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: load-bind-mount-source-must-not-be-empty
 services:
   tmpfs:
@@ -1253,7 +1253,7 @@ services:
 
 	for _, tc := range tests {
 		t.Run(tc.doc, func(t *testing.T) {
-			config, err := loadYAML(tc.yaml)
+			config, err := loadYAML(t.Context(), tc.yaml)
 			assert.NilError(t, err)
 			assert.Check(t, is.Len(config.Services["test"].Volumes, 1))
 			assert.Check(t, is.DeepEqual(tc.expected, config.Services["test"].Volumes[0]))
@@ -1262,7 +1262,7 @@ services:
 }
 
 func TestLoadBindMountWithSource(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-bind-mount-with-source
 services:
   bind:
@@ -1289,7 +1289,7 @@ services:
 }
 
 func TestLoadTmpfsVolumeSizeCanBeZero(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-tmpfs-volume-size-can-be-zero
 services:
   tmpfs:
@@ -1314,7 +1314,7 @@ services:
 }
 
 func TestLoadTmpfsVolumeSizeMustBeGTEQZero(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: load-tmpfs-volume-size-must-be-gt-eq-zero
 services:
   tmpfs:
@@ -1329,7 +1329,7 @@ services:
 }
 
 func TestLoadTmpfsVolumeSizeMustBeInteger(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: tmpfs-volume-size-must-be-integer
 services:
   tmpfs:
@@ -1344,7 +1344,7 @@ services:
 }
 
 func TestLoadVolumeSubpath(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-volume-subpath
 services:
   test:
@@ -1361,7 +1361,7 @@ services:
 }
 
 func TestLoadExpandedPortFormat(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-expanded-port-format
 services:
   web:
@@ -1385,7 +1385,7 @@ services:
 }
 
 func TestLoadExpandedMountFormat(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-expanded-mount-format
 services:
   web:
@@ -1413,7 +1413,7 @@ volumes:
 }
 
 func TestLoadExtraHostsMap(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-extra-hosts-map
 services:
   web:
@@ -1434,7 +1434,7 @@ services:
 }
 
 func TestLoadExtraHostsList(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-extra-hosts-list
 services:
   web:
@@ -1459,7 +1459,7 @@ func TestLoadVolumesWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	project, err := loadYAML(`
+	project, err := loadYAML(t.Context(), `
 name: test-warn-on-deprecated-external-name
 volumes:
   foo:
@@ -1486,7 +1486,7 @@ func patchLogrus() (*bytes.Buffer, func()) {
 
 func TestLoadInvalidIsolation(t *testing.T) {
 	// validation should be done only on the daemon side
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-invalid-isolation
 services:
   foo:
@@ -1502,7 +1502,7 @@ configs:
 }
 
 func TestLoadSecretInvalidExternalNameAndNameCombination(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: load-secret-invalid-external-name-and-name-combination
 secrets:
   external_secret:
@@ -1518,7 +1518,7 @@ func TestLoadSecretsWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	project, err := loadYAML(`
+	project, err := loadYAML(t.Context(), `
 name: test-warn-on-deprecated-external-name
 secrets:
   foo:
@@ -1540,7 +1540,7 @@ func TestLoadNetworksWarnOnDeprecatedExternalName(t *testing.T) {
 	buf, cleanup := patchLogrus()
 	defer cleanup()
 
-	project, err := loadYAML(`
+	project, err := loadYAML(t.Context(), `
 name: test-warn-on-deprecated-external-name
 networks:
   foo:
@@ -1560,7 +1560,7 @@ networks:
 }
 
 func TestLoadNetworkInvalidExternalNameAndNameCombination(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: load-network-invalid-external-name-and-name-combination
 networks:
   foo:
@@ -1573,7 +1573,7 @@ networks:
 }
 
 func TestLoadNetworkWithInvalidKey(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: load-network-with-invalid-key
 networks:
   /:
@@ -1584,7 +1584,7 @@ networks:
 }
 
 func TestLoadNetworkWithName(t *testing.T) {
-	config, err := loadYAML(`
+	config, err := loadYAML(t.Context(), `
 name: load-network-with-name
 services:
   hello-world:
@@ -1639,7 +1639,7 @@ func TestComposeFileWithVersion(t *testing.T) {
 	homeDir, err := os.UserHomeDir()
 	assert.NilError(t, err)
 	env := map[string]string{"HOME": homeDir, "QUX": "qux_from_environment"}
-	config, err := loadYAMLWithEnv(string(b), env)
+	config, err := loadYAMLWithEnv(t.Context(), string(b), env)
 	assert.NilError(t, err)
 
 	expectedConfig := withVersionExampleConfig()
@@ -1661,7 +1661,7 @@ func TestLoadWithExtends(t *testing.T) {
 		Environment: map[string]string{},
 	}
 
-	actual, err := LoadWithContext(context.TODO(), configDetails)
+	actual, err := LoadWithContext(t.Context(), configDetails)
 	assert.NilError(t, err)
 
 	extendsDir := filepath.Join("testdata", "subdir")
@@ -1702,7 +1702,7 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 		Environment: map[string]string{},
 	}
 
-	actual, err := LoadWithContext(context.TODO(), configDetails)
+	actual, err := LoadWithContext(t.Context(), configDetails)
 	assert.NilError(t, err)
 
 	expServices := types.Services{
@@ -1719,7 +1719,7 @@ func TestLoadWithExtendsWithContextUrl(t *testing.T) {
 }
 
 func TestServiceDeviceRequestCountIntegerType(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: service-device-request-count
 services:
   hello-world:
@@ -1736,7 +1736,7 @@ services:
 }
 
 func TestServiceDeviceRequestCountStringType(t *testing.T) {
-	project, err := loadYAML(`
+	project, err := loadYAML(t.Context(), `
 name: service-device-request-count
 services:
   hello-world:
@@ -1754,7 +1754,7 @@ services:
 }
 
 func TestServiceDeviceRequestCountIntegerAsStringType(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: service-device-request-count-type
 services:
   hello-world:
@@ -1771,7 +1771,7 @@ services:
 }
 
 func TestServiceDeviceRequestWithoutCountAndDeviceIdsType(t *testing.T) {
-	project, err := loadYAML(`
+	project, err := loadYAML(t.Context(), `
 name: service-device-request-count-type
 services:
   hello-world:
@@ -1788,7 +1788,7 @@ services:
 }
 
 func TestServiceDeviceRequestCountInvalidStringType(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: service-device-request-count-type
 services:
   hello-world:
@@ -1805,7 +1805,7 @@ services:
 }
 
 func TestServiceDeviceRequestCountAndDeviceIdsExclusive(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: service-device-request-count-type
 services:
   hello-world:
@@ -1823,7 +1823,7 @@ services:
 }
 
 func TestServiceDeviceRequestCapabilitiesMandatory(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: service-device-request-count-type
 services:
   hello-world:
@@ -1839,7 +1839,7 @@ services:
 }
 
 func TestServicePullPolicy(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: service-pull-policy
 services:
   hello-world:
@@ -1853,7 +1853,7 @@ services:
 }
 
 func TestEmptyList(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: empty-list
 services:
   test:
@@ -1864,7 +1864,7 @@ services:
 }
 
 func TestEmptyFile(t *testing.T) {
-	_, err := LoadWithContext(context.TODO(),
+	_, err := LoadWithContext(t.Context(),
 		types.ConfigDetails{
 			ConfigFiles: []types.ConfigFile{
 				{
@@ -2079,7 +2079,7 @@ services:
 }
 
 func TestLoadNoSSHInBuildConfig(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-no-ssh-in-build-config
 services:
   test:
@@ -2093,7 +2093,7 @@ services:
 }
 
 func TestLoadSSHWithoutValueInBuildConfig(t *testing.T) {
-	_, err := loadYAML(`
+	_, err := loadYAML(t.Context(), `
 name: load-ssh-without-value-in-build-config
 services:
   test:
@@ -2105,7 +2105,7 @@ services:
 }
 
 func TestLoadLegacyBoolean(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-legacy-boolean
 services:
   test:
@@ -2116,7 +2116,7 @@ services:
 }
 
 func TestLoadSSHWithDefaultValueInBuildConfig(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-ssh-with-default-value-in-build-config
 services:
   test:
@@ -2133,7 +2133,7 @@ services:
 }
 
 func TestLoadSSHWithKeyValueInBuildConfig(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-ssh-with-key-value-in-build-config
 services:
   test:
@@ -2151,7 +2151,7 @@ services:
 }
 
 func TestLoadSSHWithKeysValuesInBuildConfig(t *testing.T) {
-	actual, err := loadYAML(`
+	actual, err := loadYAML(t.Context(), `
 name: load-ssh-with-keys-values-in-build-config
 services:
   test:
@@ -2190,7 +2190,7 @@ services:
 `
 		configDetails := buildConfigDetails(yaml, map[string]string{})
 
-		actual, err := LoadWithContext(context.TODO(), configDetails)
+		actual, err := LoadWithContext(t.Context(), configDetails)
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)
@@ -2220,7 +2220,7 @@ services:
 `
 		configDetails := buildConfigDetailsMultipleFiles(map[string]string{}, yaml1, yaml2, yaml3)
 
-		actual, err := LoadWithContext(context.TODO(), configDetails)
+		actual, err := LoadWithContext(t.Context(), configDetails)
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)
@@ -2245,7 +2245,7 @@ services:
 `
 		configDetails := buildConfigDetails(yaml, map[string]string{})
 
-		actual, err := LoadWithContext(context.TODO(), configDetails, withProjectName("interpolated", true))
+		actual, err := LoadWithContext(t.Context(), configDetails, withProjectName("interpolated", true))
 		assert.NilError(t, err)
 		svc, err := actual.GetService("web")
 		assert.NilError(t, err)
@@ -2271,7 +2271,7 @@ volumes:
 `
 	configDetails := buildConfigDetails(dict, nil)
 
-	project, err := LoadWithContext(context.TODO(), configDetails)
+	project, err := LoadWithContext(t.Context(), configDetails)
 	assert.NilError(t, err)
 	path := project.Volumes["data"].DriverOpts["device"]
 	assert.Check(t, filepath.IsAbs(path))
@@ -2287,20 +2287,20 @@ services:
 `
 	configDetails := buildConfigDetails(dict, nil)
 
-	project, err := LoadWithContext(context.TODO(), configDetails)
+	project, err := LoadWithContext(t.Context(), configDetails)
 	assert.NilError(t, err)
 	assert.Equal(t, project.Services["extension"].Name, "extension")
 	assert.Equal(t, project.Services["extension"].Extensions["x-foo"], "bar")
 }
 
 func TestInvalidProjectNameType(t *testing.T) {
-	p, err := loadYAML(`name: 123`)
+	p, err := loadYAML(t.Context(), `name: 123`)
 	assert.Error(t, err, "validating filename0.yml: name must be a string")
 	assert.Assert(t, is.Nil(p))
 }
 
 func TestNumericIDs(t *testing.T) {
-	p, err := loadYAML(`
+	p, err := loadYAML(t.Context(), `
 name: 'test-numeric-ids'
 services:
   foo:
@@ -2332,7 +2332,7 @@ volumes:
 }
 
 func TestXService(t *testing.T) {
-	p, err := loadYAML(`
+	p, err := loadYAML(t.Context(), `
 name: 'test-x-service'
 services:
   x-foo:
@@ -2367,7 +2367,7 @@ configs:
 func TestLoadWithInclude(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	p, err := LoadWithContext(context.TODO(), buildConfigDetails(`
+	p, err := LoadWithContext(t.Context(), buildConfigDetails(`
 name: 'test-include'
 
 include:
@@ -2421,7 +2421,7 @@ services:
 	})
 	*/
 
-	p, err = LoadWithContext(context.TODO(), buildConfigDetails(`
+	p, err = LoadWithContext(t.Context(), buildConfigDetails(`
 name: 'test-include'
 
 include:
@@ -2446,7 +2446,7 @@ services:
 func TestLoadWithIncludeCycle(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	_, err = LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err = LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: filepath.Join(workingDir, "testdata"),
 		ConfigFiles: []types.ConfigFile{
 			{
@@ -2458,7 +2458,7 @@ func TestLoadWithIncludeCycle(t *testing.T) {
 }
 
 func TestLoadWithIncludeOverride(t *testing.T) {
-	p, err := LoadWithContext(context.TODO(), buildConfigDetailsMultipleFiles(nil, `
+	p, err := LoadWithContext(t.Context(), buildConfigDetailsMultipleFiles(nil, `
 name: 'test-include-override'
 
 include:
@@ -2480,7 +2480,7 @@ services:
 func TestLoadDependsOnCycle(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err = LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: filepath.Join(workingDir, "testdata"),
 		ConfigFiles: []types.ConfigFile{
 			{
@@ -2494,7 +2494,7 @@ func TestLoadDependsOnCycle(t *testing.T) {
 func TestLoadDependsOnSelf(t *testing.T) {
 	workingDir, err := os.Getwd()
 	assert.NilError(t, err)
-	_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err = LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: filepath.Join(workingDir, "testdata"),
 		ConfigFiles: []types.ConfigFile{
 			{
@@ -2506,7 +2506,7 @@ func TestLoadDependsOnSelf(t *testing.T) {
 }
 
 func TestLoadWithDependsOn(t *testing.T) {
-	p, err := loadYAML(`
+	p, err := loadYAML(t.Context(), `
 name: test-depends-on
 services:
   foo:
@@ -2570,7 +2570,7 @@ services:
       service: foo
 
 `, nil)
-	p, err := LoadWithContext(context.Background(), config, func(options *Options) {
+	p, err := LoadWithContext(t.Context(), config, func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 		options.ResolvePaths = true
@@ -2614,7 +2614,7 @@ services:
       service: foo
 
 `, nil)
-	_, err := LoadWithContext(context.Background(), config, func(options *Options) {
+	_, err := LoadWithContext(t.Context(), config, func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 		options.ResolvePaths = true
@@ -2631,7 +2631,7 @@ name: test-nested-resources
 include:
   - remote:nested/compose.yaml
 `, nil)
-	_, err := LoadWithContext(context.Background(), config, func(options *Options) {
+	_, err := LoadWithContext(t.Context(), config, func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 		options.ResolvePaths = true
@@ -2652,7 +2652,7 @@ services:
       service: foo
 
 `, nil)
-	_, err := LoadWithContext(context.Background(), config, func(options *Options) {
+	_, err := LoadWithContext(t.Context(), config, func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 		options.ResolvePaths = true
@@ -2664,7 +2664,7 @@ services:
 }
 
 func TestLoadMulmtiDocumentYaml(t *testing.T) {
-	project, err := loadYAML(`
+	project, err := loadYAML(t.Context(), `
 name: load-multi-docs
 services:
   test:
@@ -2680,7 +2680,7 @@ services:
 }
 
 func TestLoadDevelopConfig(t *testing.T) {
-	project, err := LoadWithContext(context.TODO(), buildConfigDetails(`
+	project, err := LoadWithContext(t.Context(), buildConfigDetails(`
 name: load-develop
 services:
   frontend:
@@ -2755,7 +2755,7 @@ services:
 }
 
 func TestBadDevelopConfig(t *testing.T) {
-	_, err := LoadWithContext(context.TODO(), buildConfigDetails(`
+	_, err := LoadWithContext(t.Context(), buildConfigDetails(`
 name: load-develop
 services:
   frontend:
@@ -2787,7 +2787,7 @@ networks:
   gratheon:
     name: scratch_gratheon
 `
-	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content: []byte(yaml),
@@ -2806,7 +2806,7 @@ services:
 	if err := os.WriteFile(tmpPath, []byte(yaml), 0o644); err != nil {
 		t.Fatalf("failed to write temporary file: %s", err)
 	}
-	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: tmpPath,
@@ -2827,7 +2827,7 @@ services:
 	if err := os.WriteFile(tmpPath, []byte(yaml), 0o644); err != nil {
 		t.Fatalf("failed to write temporary file: %s", err)
 	}
-	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: tmpPath,
@@ -2838,7 +2838,7 @@ services:
 }
 
 func TestLoadUnitBytes(t *testing.T) {
-	project, err := loadYAML(`
+	project, err := loadYAML(t.Context(), `
 name: load-unit-bytes
 services:
   test1:
@@ -2870,7 +2870,7 @@ services:
           soft: 20000
           hard: 40000
 `
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content: []byte(yaml),
@@ -2894,7 +2894,7 @@ services:
     ports:
       - "5432"
 `
-	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content: []byte(yaml),
@@ -2946,7 +2946,7 @@ func TestLoadProjectName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			project, err := LoadWithContext(context.Background(), types.ConfigDetails{
+			project, err := LoadWithContext(t.Context(), types.ConfigDetails{
 				ConfigFiles: []types.ConfigFile{{
 					Content: []byte(`
 services:
@@ -2987,7 +2987,7 @@ services:
 		Foo string
 	}
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content: []byte(yaml),
@@ -3013,7 +3013,7 @@ services:
     image: foo
 `
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "(inlined)",
@@ -3041,7 +3041,7 @@ services:
     image: busybox
 `
 	t.Run("empty list keeps all services", func(t *testing.T) {
-		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 			WithSelectedServices(nil),
 		)
 		assert.NilError(t, err)
@@ -3052,7 +3052,7 @@ services:
 	})
 
 	t.Run("restricts project to selected services", func(t *testing.T) {
-		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 			WithSelectedServices([]string{"web"}),
 		)
 		assert.NilError(t, err)
@@ -3077,7 +3077,7 @@ services:
   worker:
     image: busybox
 `
-		p, err := LoadWithContext(context.Background(), buildConfigDetails(yamlWithDeps, nil),
+		p, err := LoadWithContext(t.Context(), buildConfigDetails(yamlWithDeps, nil),
 			WithSelectedServices([]string{"web"}),
 		)
 		assert.NilError(t, err)
@@ -3104,7 +3104,7 @@ services:
     profiles:
       - debug
 `
-		p, err := LoadWithContext(context.Background(), buildConfigDetails(yamlWithProfile, nil),
+		p, err := LoadWithContext(t.Context(), buildConfigDetails(yamlWithProfile, nil),
 			WithSelectedServices([]string{"debug"}),
 		)
 		assert.NilError(t, err)
@@ -3132,12 +3132,12 @@ services:
         required: true
 `
 	t.Run("loading without selection fails on missing env_file", func(t *testing.T) {
-		_, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil))
+		_, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil))
 		assert.ErrorContains(t, err, "this-file-does-not-exist.env")
 	})
 
 	t.Run("loading with selection ignores env_file of unselected services", func(t *testing.T) {
-		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 			WithSelectedServices([]string{"web"}),
 		)
 		assert.NilError(t, err)
@@ -3160,12 +3160,12 @@ services:
     label_file: this-file-does-not-exist.labels
 `
 	t.Run("loading fails on missing label_file by default", func(t *testing.T) {
-		_, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil))
+		_, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil))
 		assert.ErrorContains(t, err, "this-file-does-not-exist.labels")
 	})
 
 	t.Run("loading succeeds when label resolution is skipped", func(t *testing.T) {
-		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 			func(options *Options) {
 				options.SkipResolveLabels = true
 			},
@@ -3191,7 +3191,7 @@ services:
     image: alpine
     label_file: this-file-does-not-exist.labels
 `
-	p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+	p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 		WithSelectedServices([]string{"web"}),
 	)
 	assert.NilError(t, err)
@@ -3212,7 +3212,7 @@ services:
     image: nginx
     label_file: ./example1.label
 `
-	p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil), WithDiscardEnvFiles)
+	p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil), WithDiscardEnvFiles)
 	assert.NilError(t, err)
 	web, err := p.GetService("web")
 	assert.NilError(t, err)
@@ -3244,7 +3244,7 @@ volumes:
   tmp:
 `
 	t.Run("keeps all resources without pruning", func(t *testing.T) {
-		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 			WithSelectedServices([]string{"web"}),
 		)
 		assert.NilError(t, err)
@@ -3255,7 +3255,7 @@ volumes:
 	})
 
 	t.Run("drops resources unreferenced by selected services", func(t *testing.T) {
-		p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 			WithSelectedServices([]string{"web"}),
 			WithoutUnnecessaryResources,
 		)
@@ -3310,7 +3310,7 @@ models:
   unused_model:
     model: ai/unused-model
 `
-	p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+	p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 		WithSelectedServices([]string{"web"}),
 		WithoutUnnecessaryResources,
 	)
@@ -3349,7 +3349,7 @@ networks:
 volumes:
   orphan_vol:
 `
-	p, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+	p, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 		WithoutUnnecessaryResources,
 	)
 	assert.NilError(t, err)
@@ -3379,7 +3379,7 @@ services:
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := loadYAML(yaml)
+			_, err := loadYAML(t.Context(), yaml)
 			assert.NilError(t, err)
 		}()
 	}

@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -28,7 +27,7 @@ import (
 )
 
 func TestLoadIncludeExtendsCombined(t *testing.T) {
-	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: "testdata/combined",
 		ConfigFiles: []types.ConfigFile{
 			{
@@ -56,7 +55,7 @@ services:
       - imported
 `, map[string]string{"SOURCE": "override"})
 
-	p, err := LoadWithContext(context.TODO(), details, func(options *Options) {
+	p, err := LoadWithContext(t.Context(), details, func(options *Options) {
 		options.SkipNormalization = true
 		options.ResolvePaths = true
 	})
@@ -78,7 +77,7 @@ include:
   - path: ./testdata/include-diamond-right.yaml
 `, nil)
 
-	p, err := LoadWithContext(context.TODO(), details, func(options *Options) {
+	p, err := LoadWithContext(t.Context(), details, func(options *Options) {
 		options.SkipNormalization = true
 		options.ResolvePaths = true
 	})
@@ -110,7 +109,7 @@ services:
     environment: !override
       - ZOT=QIX
 `, map[string]string{"SOURCE": "override"})
-	p, err := LoadWithContext(context.TODO(), details, func(options *Options) {
+	p, err := LoadWithContext(t.Context(), details, func(options *Options) {
 		options.SkipNormalization = true
 		options.ResolvePaths = true
 	})
@@ -129,7 +128,7 @@ services:
 func TestIncludeRelative(t *testing.T) {
 	wd, err := filepath.Abs(filepath.Join("testdata", "include"))
 	assert.NilError(t, err)
-	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: filepath.Join("testdata", "include", "compose.yaml"),
@@ -176,7 +175,7 @@ services:
       - VAR_NAME`
 	createFileSubDir(t, tmpdir, "module", yaml, fileName)
 
-	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: tmpdir,
 		ConfigFiles: []types.ConfigFile{{
 			Filename: path,
@@ -204,7 +203,7 @@ func TestIncludeWithProjectDirectory(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		envs = map[string]string{"COMPOSE_CONVERT_WINDOWS_PATHS": "1"}
 	}
-	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir:  "testdata/include",
 		Environment: envs,
 		ConfigFiles: []types.ConfigFile{
@@ -244,7 +243,7 @@ services:
     image: alpine
 `
 	createFile(t, filepath.Join(tmpdir, "dir"), yaml, "extended.yaml")
-	p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: tmpdir,
 		ConfigFiles: []types.ConfigFile{{
 			Filename: path,

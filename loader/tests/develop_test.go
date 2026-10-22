@@ -24,7 +24,6 @@ package tests
 // application."
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -33,7 +32,7 @@ import (
 )
 
 func TestDevelopWatch(t *testing.T) {
-	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 services:
@@ -80,7 +79,7 @@ services:
 }
 
 func TestDevelopMissingAction(t *testing.T) {
-	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 services:

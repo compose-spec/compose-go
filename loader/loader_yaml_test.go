@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -25,7 +24,7 @@ import (
 )
 
 func TestParseYAMLFiles(t *testing.T) {
-	model, err := loadYamlModel(context.TODO(), types.ConfigDetails{
+	model, err := loadYamlModel(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "test.yaml",
@@ -72,7 +71,7 @@ services:
 }
 
 func TestParseYAMLFilesMergeOverride(t *testing.T) {
-	model, err := loadYamlModel(context.TODO(), types.ConfigDetails{
+	model, err := loadYamlModel(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "override.yaml",

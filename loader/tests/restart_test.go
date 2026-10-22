@@ -23,7 +23,6 @@ package tests
 // termination."
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -52,7 +51,7 @@ services:
 
 func TestRestartNotAllowedOnJob(t *testing.T) {
 	// jobs run to completion: a restart policy is a service-only attribute
-	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 jobs:

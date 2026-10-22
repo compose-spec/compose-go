@@ -26,7 +26,6 @@ package tests
 // container has started."
 
 import (
-	"context"
 	"slices"
 	"testing"
 
@@ -125,7 +124,7 @@ services:
       - image: busybox
         command: ["echo", "hi"]
 `
-	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
 		Environment: map[string]string{},
 	})
@@ -170,7 +169,7 @@ volumes:
 // Exec hooks (post_start/pre_stop) run inside the service container: they
 // take a command, not a container specification.
 func TestPostStartRejectsContainerSpec(t *testing.T) {
-	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 services:
@@ -195,7 +194,7 @@ services:
 func TestPreStartResolvedAtLoadTime(t *testing.T) {
 	fullLoad := func(yaml string) *types.Project {
 		t.Helper()
-		p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 			ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
 			Environment: map[string]string{},
 		})
@@ -254,7 +253,7 @@ volumes:
 }
 
 func TestLayeredInterpolationCasts(t *testing.T) {
-	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 services:

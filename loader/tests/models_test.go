@@ -23,7 +23,6 @@ package tests
 // runtime, referencing entries under the top-level `models` key"
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -78,7 +77,7 @@ models:
 }
 
 func TestModelsWithInvalidKey(t *testing.T) {
-	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 models:

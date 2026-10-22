@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,7 +52,7 @@ services:
 	assert.NilError(t, err)
 
 	extendsCount := 0
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content:  []byte(yaml),
@@ -93,7 +92,7 @@ services:
 	abs, err := filepath.Abs(".")
 	assert.NilError(t, err)
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content:  []byte(yaml),
@@ -118,7 +117,7 @@ services:
 	abs, err := filepath.Abs(".")
 	assert.NilError(t, err)
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content:  []byte(yaml),
@@ -143,7 +142,7 @@ services:
 	abs, err := filepath.Abs(".")
 	assert.NilError(t, err)
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content:  []byte(yaml),
@@ -171,7 +170,7 @@ services:
 	abs, err := filepath.Abs(".")
 	assert.NilError(t, err)
 
-	_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err = LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content:  []byte(yaml),
@@ -198,7 +197,7 @@ services:
 	abs, err := filepath.Abs(".")
 	assert.NilError(t, err)
 
-	_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err = LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content:  []byte(yaml),
@@ -222,7 +221,7 @@ include:
 	abs, err := filepath.Abs(".")
 	assert.NilError(t, err)
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Content:  []byte(yaml),
@@ -250,7 +249,7 @@ services:
 	abs, err := filepath.Abs(".")
 	assert.NilError(t, err)
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "testdata/extends/ports.yaml",
@@ -302,7 +301,7 @@ services:
 	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
 
 	extendsCount := 0
-	actual, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	actual, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: tmpdir,
 		ConfigFiles: []types.ConfigFile{{
 			Filename: filepath.Join(tmpdir, "compose.yaml"),
@@ -394,7 +393,7 @@ services:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+			_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 				ConfigFiles: []types.ConfigFile{{
 					Content: []byte(tt.yaml),
 				}},
@@ -405,7 +404,7 @@ services:
 			}
 			assert.ErrorContains(t, err, tt.wantErr)
 			// Do the same but with a local `zot` service matching the imported reference
-			_, err = LoadWithContext(context.Background(), types.ConfigDetails{
+			_, err = LoadWithContext(t.Context(), types.ConfigDetails{
 				ConfigFiles: []types.ConfigFile{{
 					Content: []byte(tt.yaml + `
   zot:
@@ -434,7 +433,7 @@ services:
 
   service_c:
     image: c`
-	p, err := loadYAML(yaml)
+	p, err := loadYAML(t.Context(), yaml)
 	assert.NilError(t, err)
 	assert.DeepEqual(t, p.Services["service_b"].DependsOn, types.DependsOnConfig{
 		"service_a": types.ServiceDependency{Condition: types.ServiceConditionStarted, Required: true},
@@ -458,7 +457,7 @@ func TestLoadExtendsListener(t *testing.T) {
     last:
       image: python`
 	extendsCount := 0
-	_, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil), func(options *Options) {
+	_, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil), func(options *Options) {
 		options.SkipConsistencyCheck = true
 		options.SkipNormalization = true
 		options.ResolvePaths = true
@@ -500,7 +499,7 @@ services:
 	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
 
 	extendsCount := 0
-	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: tmpdir,
 		ConfigFiles: []types.ConfigFile{{
 			Filename: filepath.Join(tmpdir, "compose.yaml"),
@@ -533,7 +532,7 @@ services:
       file: testdata/extends/reset.yaml
       service: base
 `
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{
 			Content:  []byte(yaml),
 			Filename: "-",
@@ -550,7 +549,7 @@ services:
   test:
     extends: { file: testdata/extends/interpolated.yaml, service: foo }
 `
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{
 			Content:  []byte(yaml),
 			Filename: "-",

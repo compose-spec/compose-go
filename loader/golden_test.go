@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -54,7 +53,7 @@ func TestGoldenFiles(t *testing.T) {
 			content, err := os.ReadFile(input)
 			assert.NilError(t, err)
 
-			p, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+			p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 				WorkingDir:  filepath.Join("testdata", "golden"),
 				ConfigFiles: []types.ConfigFile{{Filename: "compose.yaml", Content: content}},
 				Environment: map[string]string{

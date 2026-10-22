@@ -24,7 +24,6 @@ package tests
 // source."
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -60,7 +59,7 @@ services:
 			if tc.base != "" {
 				content += "  base:\n    profiles: [disabled_services]\n    " + tc.base + "\n"
 			}
-			p, err := loader.LoadWithContext(context.Background(), types.ConfigDetails{
+			p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 				ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
 			}, func(options *loader.Options) {
 				options.Profiles = []string{"classroom"}

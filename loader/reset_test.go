@@ -45,7 +45,7 @@ func loadResetYAML(ctx context.Context, configs ...string) (*types.Project, erro
 }
 
 func TestResetRemove(t *testing.T) {
-	p, err := loadResetYAML(context.TODO(), `
+	p, err := loadResetYAML(t.Context(), `
 name: test-reset
 networks:
   test:
@@ -61,7 +61,7 @@ networks:
 }
 
 func TestOverrideReplace(t *testing.T) {
-	p, err := loadResetYAML(context.TODO(), `
+	p, err := loadResetYAML(t.Context(), `
 name: test-override
 networks:
   test:
@@ -173,7 +173,7 @@ x-healthcheck: &healthcheck
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := loadResetYAML(context.TODO(), tt.config)
+			_, err := loadResetYAML(t.Context(), tt.config)
 			if tt.expectError {
 				assert.ErrorContains(t, err, tt.errorMsg)
 			} else {
@@ -235,7 +235,7 @@ services:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
 			_, err := loadResetYAML(ctx, tt.config)
 			if err != nil || tt.errorRequired {
@@ -259,7 +259,7 @@ func TestVisitCounterLimit(t *testing.T) {
 	for i := 0; i < half; i++ {
 		fmt.Fprintf(&sb, "  k%d: v\n", i)
 	}
-	_, err := loadResetYAML(context.TODO(), sb.String())
+	_, err := loadResetYAML(t.Context(), sb.String())
 	assert.ErrorContains(t, err, "exceeds maximum node visit limit")
 }
 
@@ -276,7 +276,7 @@ func TestVisitCounterLimitOverride(t *testing.T) {
 	for i := 0; i < half; i++ {
 		fmt.Fprintf(&sb, "  k%d: v\n", i)
 	}
-	_, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "(inline)", Content: []byte(sb.String())}},
 	}, func(options *Options) {
 		options.SkipNormalization = true
@@ -297,14 +297,14 @@ func TestLargeLegitimateFile(t *testing.T) {
 			fmt.Fprintf(&sb, "      KEY_%d: val\n", e)
 		}
 	}
-	_, err := loadResetYAML(context.TODO(), sb.String())
+	_, err := loadResetYAML(t.Context(), sb.String())
 	assert.NilError(t, err)
 }
 
 // TestResetTagWithSharedAlias verifies that a !reset tag inside an anchor is correctly applied
 // at every call site when the anchor is referenced by multiple services.
 func TestResetTagWithSharedAlias(t *testing.T) {
-	p, err := loadResetYAML(context.TODO(), `
+	p, err := loadResetYAML(t.Context(), `
 name: test
 services:
   svc1:
@@ -333,7 +333,7 @@ services:
 // TestOverrideTagWithSharedAlias verifies that a !override tag inside a shared anchor is
 // correctly applied at every call site (exercises the non-nil cached node path in cachedResolve).
 func TestOverrideTagWithSharedAlias(t *testing.T) {
-	p, err := loadResetYAML(context.TODO(), `
+	p, err := loadResetYAML(t.Context(), `
 name: test
 networks:
   net1:
@@ -357,7 +357,7 @@ networks:
 // TestNestedAliasReset verifies that !reset tags propagate correctly through multiple levels
 // of alias indirection, testing transitive subPath computation in the cache relay logic.
 func TestNestedAliasReset(t *testing.T) {
-	p, err := loadResetYAML(context.TODO(), `
+	p, err := loadResetYAML(t.Context(), `
 name: test
 services:
   svc:
@@ -382,7 +382,7 @@ services:
 // TestAliasNodePreservation is a regression-prevention pinning test (B=9, N=8 alias levels).
 // The test must return an aliasing error. A nil error indicates a regression.
 func TestAliasNodePreservation(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	_, err := loadResetYAML(ctx, `
 name: test
@@ -405,7 +405,7 @@ services:
 // TestDirectAliasWithReset verifies that a !reset anchor used via direct alias assignment
 // (not << merge key) is correctly applied at every call site.
 func TestDirectAliasWithReset(t *testing.T) {
-	p, err := loadResetYAML(context.TODO(), `
+	p, err := loadResetYAML(t.Context(), `
 name: test
 services:
   svc1:
@@ -491,7 +491,7 @@ services:
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := loadResetYAML(context.TODO(), tt.config)
+			_, err := loadResetYAML(t.Context(), tt.config)
 			assert.NilError(t, err)
 		})
 	}
@@ -501,7 +501,7 @@ services:
 // resolves to a scalar (neither mapping nor sequence of mappings) is still
 // rejected. Guards against the fix making the parser too permissive.
 func TestMergeKeyAliasToScalarRejected(t *testing.T) {
-	_, err := loadResetYAML(context.TODO(), `
+	_, err := loadResetYAML(t.Context(), `
 name: test
 x-scalar: &s "not-a-map"
 services:

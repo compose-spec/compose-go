@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"slices"
 	"strings"
 	"testing"
@@ -183,7 +182,7 @@ services:
 
 	t.Run("reports findings from the loaded model", func(t *testing.T) {
 		var reported []UnsupportedAttribute
-		_, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		_, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 			WithUnsupportedAttributesCheck(patterns, func(findings []UnsupportedAttribute) {
 				reported = findings
 			}),
@@ -196,7 +195,7 @@ services:
 	t.Run("callback with no patterns runs but finds nothing", func(t *testing.T) {
 		var reported []UnsupportedAttribute
 		called := false
-		_, err := LoadWithContext(context.Background(), buildConfigDetails(yaml, nil),
+		_, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil),
 			WithUnsupportedAttributesCheck(nil, func(findings []UnsupportedAttribute) {
 				called = true
 				reported = findings
@@ -229,7 +228,7 @@ services:
 
 		var calls int
 		var reported []UnsupportedAttribute
-		_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 			WorkingDir:  tmpdir,
 			ConfigFiles: []types.ConfigFile{{Filename: path}},
 		},
@@ -257,7 +256,7 @@ func TestDetectUnsupportedAttributes_SupportedAllowlist(t *testing.T) {
 	})
 
 	var reported []UnsupportedAttribute
-	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yaml", Content: []byte(`
 services:
   app:
@@ -334,7 +333,7 @@ func TestDetectUnsupportedAttributes_CombinedRules(t *testing.T) {
 // allowlist introduces no false positives on canonical forms.
 func TestDetectUnsupportedAttributes_AllowlistNoFalsePositives(t *testing.T) {
 	var reported []UnsupportedAttribute
-	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yaml", Content: []byte(`
 services:
   db:
