@@ -310,7 +310,7 @@ func TestBuildGraph(t *testing.T) {
 				return
 			}
 
-			assert.NilError(t, err, fmt.Sprintf("failed to build graph for: %s", tC.desc))
+			assert.NilError(t, err, "failed to build graph for: "+tC.desc)
 			for k, vertex := range graph.vertices {
 				expected, ok := tC.expectedVertices[k]
 				assert.Equal(t, true, ok)
