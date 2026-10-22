@@ -140,7 +140,7 @@ func (r *relativePathsResolver) absVolumeMount(a any) (any, error) {
 			return vol, nil
 		}
 		src, ok := vol["source"]
-		if !ok {
+		if !ok || src == "" {
 			return nil, errors.New(`invalid mount config for type "bind": field Source must not be empty`)
 		}
 		abs, err := r.maybeUnixPath(src.(string))

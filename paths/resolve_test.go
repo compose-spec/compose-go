@@ -412,6 +412,57 @@ services:
 `)
 }
 
+// An empty key path stays empty, like a null one, rather than becoming the
+// working directory: an empty path is not a key to find, and the working
+// directory is no key at all.
+func TestResolveBuildSSHEmptyPath(t *testing.T) {
+	resolvesAs(t, nil, `
+services:
+  web:
+    build:
+      context: .
+      ssh:
+        default: ""
+        key: ./id_ed25519
+`, `
+services:
+  web:
+    build:
+      context: <wd>
+      ssh:
+        default: ""
+        key: <wd>/id_ed25519
+`)
+}
+
+// The other attributes resolved as a path that may be Unix or Windows keep an
+// empty value empty too, whatever the attribute.
+func TestResolveEmptyUnixPathIsKept(t *testing.T) {
+	resolvesAs(t, nil, `
+configs:
+  from_file:
+    file: ""
+secrets:
+  from_file:
+    file: ""
+volumes:
+  bind:
+    driver: local
+    driver_opts: {type: none, o: bind, device: ""}
+`, `
+configs:
+  from_file:
+    file: ""
+secrets:
+  from_file:
+    file: ""
+volumes:
+  bind:
+    driver: local
+    driver_opts: {type: none, o: bind, device: ""}
+`)
+}
+
 // Long-syntax bind mounts get an absolute source; every other mount type
 // keeps its source (a volume name or nothing); short syntax is left to the
 // later normalization.
@@ -498,17 +549,19 @@ jobs:
 `)
 }
 
-// A bind mount without a source can not be resolved: the error carries the
-// same message as the engine's for the same mistake.
+// A bind mount without a source, or with an empty one, can not be resolved:
+// the error carries the same message as the engine's for the same mistake. An
+// empty source is not the working directory.
 func TestResolveBindMountWithoutSource(t *testing.T) {
-	err := resolveFails(t, `
-services:
-  web:
-    volumes:
-      - type: bind
-        target: /data
-`)
-	assert.ErrorContains(t, err, `invalid mount config for type "bind": field Source must not be empty`)
+	for name, mount := range map[string]string{
+		"no source":    "- type: bind\n        target: /data",
+		"empty source": "- type: bind\n        source: \"\"\n        target: /data",
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := resolveFails(t, "services:\n  web:\n    volumes:\n      "+mount+"\n")
+			assert.ErrorContains(t, err, `invalid mount config for type "bind": field Source must not be empty`)
+		})
+	}
 }
 
 // A local volume declared as a bind mount through driver_opts
