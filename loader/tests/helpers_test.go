@@ -17,7 +17,6 @@
 package tests
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -29,7 +28,7 @@ import (
 
 func load(t *testing.T, content string) *types.Project {
 	t.Helper()
-	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
 		Environment: map[string]string{},
 	}, func(options *loader.Options) {
@@ -42,7 +41,7 @@ func load(t *testing.T, content string) *types.Project {
 
 func loadWithEnv(t *testing.T, content string, env map[string]string) *types.Project {
 	t.Helper()
-	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
 		Environment: env,
 	}, func(options *loader.Options) {
@@ -57,7 +56,7 @@ func loadWithEnv(t *testing.T, content string, env map[string]string) *types.Pro
 // marshaled output may not match schema exactly (e.g. missing yaml tags on some structs).
 func loadRoundTrip(t *testing.T, content string) *types.Project {
 	t.Helper()
-	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
 		Environment: map[string]string{},
 	}, func(options *loader.Options) {
@@ -109,7 +108,7 @@ func loadsAs(t *testing.T, input, canonical string) {
 // loadErr loads a project expected to be rejected and returns the error.
 func loadErr(t *testing.T, content string) error {
 	t.Helper()
-	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
 		Environment: map[string]string{},
 	}, func(options *loader.Options) {
@@ -128,7 +127,7 @@ func loadFilesMap(t *testing.T, files []string) map[string]any {
 	for i, content := range files {
 		configFiles = append(configFiles, types.ConfigFile{Filename: fmt.Sprintf("compose-%d.yml", i), Content: []byte(content)})
 	}
-	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: configFiles,
 		Environment: map[string]string{},
 	}, func(options *loader.Options) {

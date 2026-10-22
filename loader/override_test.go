@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -49,7 +48,7 @@ services:
           - alias1
           - alias2
 `
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "base",
@@ -79,7 +78,7 @@ services:
     build:
       context: src
 `
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "base",
@@ -115,7 +114,7 @@ services:
         condition: service_healthy
         required: false
 `
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "base",
@@ -153,7 +152,7 @@ services:
         # This is invalid according to json schema as condition is required
         required: false
 `
-	_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "base",
@@ -184,7 +183,7 @@ services:
     volumes:
       - ./src:/src
 `
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "base",
@@ -247,7 +246,7 @@ networks:
 `), 0o700)
 	assert.NilError(t, err)
 
-	project, err := LoadWithContext(context.TODO(), types.ConfigDetails{
+	project, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir: pwd,
 		ConfigFiles: []types.ConfigFile{
 			{Filename: compose},
@@ -307,7 +306,7 @@ services:
     depends_on:
       - depend_base
 `
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{
 			{
 				Filename: "-",

@@ -17,7 +17,6 @@
 package cli
 
 import (
-	"context"
 	"os"
 	"testing"
 
@@ -32,7 +31,7 @@ func TestConvertWithEnvVar(t *testing.T) {
 		WithWorkingDirectory("C:\\project-dir\\"),
 		WithResolvedPaths(true))
 
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 
 	assert.NilError(t, err)
 	volumes := p.Services["test"].Volumes

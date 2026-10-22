@@ -28,7 +28,6 @@ package tests
 // mask. [...] `umask: 0` masks no permission bits."
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -165,7 +164,7 @@ func TestUmaskInvalid(t *testing.T) {
 func TestUmaskPreStartInheritance(t *testing.T) {
 	fullLoad := func(yaml string) *types.Project {
 		t.Helper()
-		p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 			ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
 			Environment: map[string]string{},
 		})

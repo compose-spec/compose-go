@@ -22,7 +22,6 @@ package tests
 // Spec: "`environment` defines environment variables set in the container."
 
 import (
-	"context"
 	"strings"
 	"testing"
 
@@ -136,7 +135,7 @@ jobs:
 }
 
 func TestEnvironmentInvalidValue(t *testing.T) {
-	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 services:
@@ -151,7 +150,7 @@ services:
 }
 
 func TestEnvironmentInvalidObject(t *testing.T) {
-	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 services:
@@ -165,7 +164,7 @@ services:
 }
 
 func TestEnvironmentWhitespace(t *testing.T) {
-	_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(`
 name: test
 services:

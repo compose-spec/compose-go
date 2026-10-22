@@ -17,7 +17,6 @@
 package tests
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -133,7 +132,7 @@ jobs:
 	assert.DeepEqual(t, p.DisabledJobs["seed"].Profiles, []string{"debug"})
 
 	// activating the profile enables the job
-	p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
 		Environment: map[string]string{},
 	}, func(options *loader.Options) {
@@ -149,7 +148,7 @@ jobs:
 func TestTriggersScheduleInvalid(t *testing.T) {
 	// cron is required on the schedule object form
 	loadErr := func(yaml string) error {
-		_, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 			ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
 			Environment: map[string]string{},
 		})

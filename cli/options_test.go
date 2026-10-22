@@ -36,7 +36,7 @@ func TestProjectName(t *testing.T) {
 	t.Run("by name", func(t *testing.T) {
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("my_project"))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "my_project")
 	})
@@ -44,7 +44,7 @@ func TestProjectName(t *testing.T) {
 	t.Run("by name start with number", func(t *testing.T) {
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithName("42my_project_num"))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "42my_project_num")
 
@@ -52,7 +52,7 @@ func TestProjectName(t *testing.T) {
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "42my_project_env"),
 		}))
 		assert.NilError(t, err)
-		p, err = ProjectFromOptions(context.TODO(), opts)
+		p, err = ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "42my_project_env")
 	})
@@ -63,7 +63,7 @@ func TestProjectName(t *testing.T) {
 			WithName(""),
 		)
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "simple")
 	})
@@ -75,7 +75,7 @@ func TestProjectName(t *testing.T) {
 			WithWorkingDirectory("/path/to/proj"),
 		)
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "proj")
 	})
@@ -84,7 +84,7 @@ func TestProjectName(t *testing.T) {
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"},
 			WithWorkingDirectory("/"))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 
 		// root directory will resolve to an empty project name since there
 		// IS no directory name!
@@ -100,7 +100,7 @@ func TestProjectName(t *testing.T) {
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "-my_project"),
 		}))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.ErrorContains(t, err, `invalid project name "-my_project"`)
 		assert.Assert(t, p == nil)
 	})
@@ -113,7 +113,7 @@ func TestProjectName(t *testing.T) {
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "_my_project"),
 		}))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.ErrorContains(t, err, `invalid project name "_my_project"`)
 		assert.Assert(t, p == nil)
 	})
@@ -126,7 +126,7 @@ func TestProjectName(t *testing.T) {
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "www.my.project"),
 		}))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.ErrorContains(t, err, `invalid project name "www.my.project"`)
 		assert.Assert(t, p == nil)
 	})
@@ -139,7 +139,7 @@ func TestProjectName(t *testing.T) {
 			fmt.Sprintf("%s=%s", consts.ComposeProjectName, "MY_PROJECT"),
 		}))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.ErrorContains(t, err, `invalid project name "MY_PROJECT"`)
 		assert.Assert(t, p == nil)
 	})
@@ -147,7 +147,7 @@ func TestProjectName(t *testing.T) {
 	t.Run("by working dir", func(t *testing.T) {
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithWorkingDirectory("."))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "cli")
 	})
@@ -155,7 +155,7 @@ func TestProjectName(t *testing.T) {
 	t.Run("by compose file parent dir", func(t *testing.T) {
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"})
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "simple")
 	})
@@ -163,7 +163,7 @@ func TestProjectName(t *testing.T) {
 	t.Run("by compose file parent dir special", func(t *testing.T) {
 		opts, err := NewProjectOptions([]string{"testdata/UNNORMALIZED PATH/compose.yaml"})
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "unnormalizedpath")
 	})
@@ -174,7 +174,7 @@ func TestProjectName(t *testing.T) {
 		defer os.Unsetenv("COMPOSE_PROJECT_NAME")
 		opts, err := NewProjectOptions([]string{"testdata/simple/compose.yaml"}, WithOsEnv)
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "my_project_from_env")
 	})
@@ -188,7 +188,7 @@ func TestProjectName(t *testing.T) {
 
 		opts, err := NewProjectOptions(nil, WithEnvFiles(), WithDotEnv, WithConfigFileEnv)
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "my_project_from_dot_env")
 	})
@@ -198,7 +198,7 @@ func TestProjectName(t *testing.T) {
 			"TEST=expected",
 		}))
 		assert.NilError(t, err)
-		p, err := ProjectFromOptions(context.TODO(), opts)
+		p, err := ProjectFromOptions(t.Context(), opts)
 		assert.NilError(t, err)
 		assert.Equal(t, p.Name, "test-expected-test")
 	})
@@ -210,7 +210,7 @@ func TestProjectFromSetOfFiles(t *testing.T) {
 		"testdata/simple/compose-with-overrides.yaml",
 	}, WithName("my_project"))
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
@@ -224,7 +224,7 @@ func TestProjectComposefilesFromSetOfFiles(t *testing.T) {
 		WithDefaultConfigPath,
 	)
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 	assert.NilError(t, err)
 	absPath, _ := filepath.Abs(filepath.Join("testdata", "simple", "compose.yaml"))
 	assert.DeepEqual(t, p.ComposeFiles, []string{absPath})
@@ -236,7 +236,7 @@ func TestProjectComposefilesFromWorkingDir(t *testing.T) {
 		"testdata/simple/compose-with-overrides.yaml",
 	}, WithName("my_project"))
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 	assert.NilError(t, err)
 	currentDir, _ := os.Getwd()
 	assert.DeepEqual(t, p.ComposeFiles, []string{
@@ -268,7 +268,7 @@ services:
 		}, WithName("my_project"),
 	)
 	assert.NilError(t, err)
-	p, err := opts.LoadProject(context.TODO())
+	p, err := opts.LoadProject(t.Context())
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
@@ -286,7 +286,7 @@ func TestProjectWithDotEnv(t *testing.T) {
 		"compose-with-variables.yaml",
 	}, WithName("my_project"), WithEnvFiles(), WithDotEnv)
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
@@ -299,7 +299,7 @@ func TestProjectWithDiscardEnvFile(t *testing.T) {
 	}, WithDiscardEnvFile)
 
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
@@ -316,7 +316,7 @@ func TestProjectWithoutLabelsResolution(t *testing.T) {
 	}, WithoutLabelsResolution)
 
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
@@ -331,7 +331,7 @@ func TestProjectWithMultipleEnvFile(t *testing.T) {
 		WithDotEnv)
 
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 	assert.NilError(t, err)
 	service, err := p.GetService("simple")
 	assert.NilError(t, err)
@@ -345,7 +345,7 @@ func TestProjectNameFromWorkingDir(t *testing.T) {
 		"testdata/env-file/compose-with-env-file.yaml",
 	})
 	assert.NilError(t, err)
-	p, err := ProjectFromOptions(context.TODO(), opts)
+	p, err := ProjectFromOptions(t.Context(), opts)
 	assert.NilError(t, err)
 	assert.Equal(t, p.Name, "env-file")
 }
@@ -521,7 +521,7 @@ func TestConfigPathIsDirectory(t *testing.T) {
 	dir := t.TempDir()
 	opts, err := NewProjectOptions([]string{dir})
 	assert.NilError(t, err)
-	_, err = ProjectFromOptions(context.TODO(), opts)
+	_, err = ProjectFromOptions(t.Context(), opts)
 	assert.ErrorContains(t, err, fmt.Sprintf("compose file %q is invalid", dir))
 	assert.ErrorContains(t, err, "is a directory")
 }

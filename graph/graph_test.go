@@ -46,8 +46,7 @@ func TestTraversalWithMultipleParents(t *testing.T) {
 		project.Services[name] = svc
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	ctx := t.Context()
 
 	svc := make(chan string, 10)
 	seen := make(map[string]int)
@@ -74,8 +73,7 @@ func TestTraversalWithMultipleParents(t *testing.T) {
 }
 
 func TestInDependencyUpCommandOrder(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	ctx := t.Context()
 
 	var order []string
 	result, err := CollectInDependencyOrder(ctx, exampleProject(),
@@ -93,8 +91,7 @@ func TestInDependencyUpCommandOrder(t *testing.T) {
 }
 
 func TestInDependencyReverseDownCommandOrder(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	ctx := t.Context()
 
 	var order []string
 	fn := func(_ context.Context, name string, _ types.ServiceConfig) error {
@@ -375,7 +372,7 @@ func TestWith_RootNodesAndUp(t *testing.T) {
 				return nil, nil
 			})
 			WithRootNodesAndDown(tt.nodes)(gt.Options)
-			err := walk(context.TODO(), graph, gt)
+			err := walk(t.Context(), graph, gt)
 			assert.NilError(t, err)
 			sort.Strings(visited)
 			assert.DeepEqual(t, tt.want, visited)

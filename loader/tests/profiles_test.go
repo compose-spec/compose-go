@@ -23,7 +23,6 @@ package tests
 // enabled under."
 
 import (
-	"context"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -50,7 +49,7 @@ services:
 	assert.Equal(t, p.Services["bar"].Image, "alpine")
 
 	// With matching profile, "foo" is enabled
-	p2, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+	p2, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
 		Environment: map[string]string{},
 	}, func(options *loader.Options) {

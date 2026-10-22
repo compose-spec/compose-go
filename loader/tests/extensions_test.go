@@ -23,7 +23,6 @@ package tests
 // more efficient and easier to maintain."
 
 import (
-	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -347,7 +346,7 @@ services:
   base:
     image: app
     x-develop:`+watch), 0o600))
-		p, err := loader.LoadWithContext(context.TODO(), types.ConfigDetails{
+		p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 			WorkingDir: dir,
 			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yml"), Content: []byte(`
 name: test

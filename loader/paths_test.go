@@ -56,7 +56,7 @@ services:
       context: ./testdata
       dockerfile: Dockerfile-sample
 `
-	project, err := loadYAML(yaml)
+	project, err := loadYAML(t.Context(), yaml)
 	assert.NilError(t, err)
 
 	wd, err := os.Getwd()
@@ -86,7 +86,7 @@ services:
         github:   github.com/compose-spec/compose-go
         rel_path: ./testdata
 `, abs)
-	project, err := loadYAML(yaml)
+	project, err := loadYAML(t.Context(), yaml)
 	assert.NilError(t, err)
 
 	wd, err := os.Getwd()

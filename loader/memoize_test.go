@@ -17,7 +17,6 @@
 package loader
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -71,7 +70,7 @@ func TestIncludeDiamondDedup(t *testing.T) {
 
 	done := make(chan result, 1)
 	go func() {
-		p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 			WorkingDir:  dir,
 			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "level0.yaml")}},
 		}, func(options *Options) {
@@ -142,7 +141,7 @@ services:
 	}
 
 	includeCount, extendsCount := 0, 0
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir:  dir,
 		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
 	}, func(options *Options) {
@@ -199,7 +198,7 @@ services:
 		assert.NilError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
 	}
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir:  dir,
 		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
 	}, func(options *Options) {
@@ -248,7 +247,7 @@ services:
 	root += extraServices.String()
 	assert.NilError(t, os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(root), 0o600))
 
-	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 		WorkingDir:  dir,
 		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
 	}, func(options *Options) {
@@ -279,7 +278,7 @@ services:
 `
 	assert.NilError(t, os.WriteFile(filepath.Join(dir, "base.yaml"), []byte(base), 0o600))
 
-	ctx := withExtendsCache(context.Background())
+	ctx := withExtendsCache(t.Context())
 	opts := &Options{
 		SkipInterpolation: true,
 		ResourceLoaders:   []ResourceLoader{localResourceLoader{WorkingDir: dir}},
@@ -304,7 +303,7 @@ func BenchmarkIncludeDiamond(b *testing.B) {
 	writeDiamondInclude(b, dir, 16)
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		_, err := LoadWithContext(b.Context(), types.ConfigDetails{
 			WorkingDir:  dir,
 			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "level0.yaml")}},
 		}, func(options *Options) {
@@ -345,7 +344,7 @@ services:
 	}
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, err := LoadWithContext(context.Background(), types.ConfigDetails{
+		_, err := LoadWithContext(b.Context(), types.ConfigDetails{
 			WorkingDir:  dir,
 			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
 		}, func(options *Options) {

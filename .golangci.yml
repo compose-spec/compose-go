@@ -6,6 +6,7 @@ linters:
     - depguard
     - errcheck
     - errorlint
+    - forbidigo
     - gocritic
     - gocyclo
     - gomodguard
@@ -36,6 +37,15 @@ linters:
               desc: Use "gotest.tools/v3/assert" instead
             - pkg: github.com/stretchr/testify/suite
               desc: Do not use
+    forbidigo:
+      analyze-types: true
+      forbid:
+        - pattern: 'context\.Background'
+          pkg: '^context$'
+          msg: "in tests, use t.Context() instead of context.Background()"
+        - pattern: 'context\.TODO'
+          pkg: '^context$'
+          msg: "in tests, use t.Context() instead of context.TODO()"
     gocritic:
       disabled-checks:
         - paramTypeCombine
@@ -56,6 +66,10 @@ linters:
       line-length: 200
   exclusions:
     generated: lax
+    rules:
+      - path-except: '_test\.go'
+        linters:
+          - forbidigo
     presets:
       - comments
       - common-false-positives

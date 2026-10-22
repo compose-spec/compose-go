@@ -58,7 +58,7 @@ func TestLoadConfigFilesHonorsExplicitWorkingDir(t *testing.T) {
 
 	t.Run("explicit working dir is preserved", func(t *testing.T) {
 		explicitDir := t.TempDir()
-		config, err := LoadConfigFiles(context.Background(), []string{"remote://ref"}, explicitDir,
+		config, err := LoadConfigFiles(t.Context(), []string{"remote://ref"}, explicitDir,
 			func(o *Options) { o.ResourceLoaders = []ResourceLoader{remote} },
 			func(o *Options) { o.SetWorkingDirExplicit(true) },
 		)
@@ -68,7 +68,7 @@ func TestLoadConfigFilesHonorsExplicitWorkingDir(t *testing.T) {
 
 	t.Run("defaulted working dir still falls back to the downloaded copy's directory", func(t *testing.T) {
 		defaultedDir := t.TempDir()
-		config, err := LoadConfigFiles(context.Background(), []string{"remote://ref"}, defaultedDir,
+		config, err := LoadConfigFiles(t.Context(), []string{"remote://ref"}, defaultedDir,
 			func(o *Options) { o.ResourceLoaders = []ResourceLoader{remote} },
 		)
 		assert.NilError(t, err)
