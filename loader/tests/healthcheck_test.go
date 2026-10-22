@@ -78,3 +78,56 @@ jobs:
 	expect(yamlP)
 	expect(jsonP)
 }
+
+// The healthcheck set by the image can be disabled, either by `test: [NONE]` or
+// by `disable: true`, which the specification gives as the alternative.
+// https://github.com/compose-spec/compose-spec/blob/main/workload_spec.md#healthcheck
+//
+// Spec: "`NONE` disables the healthcheck [...]. Alternatively, the healthcheck
+// set by the image can be disabled by setting `disable: true`".
+func TestHealthcheckDisable(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  by_flag:
+    image: alpine
+    healthcheck:
+      disable: true
+  by_test:
+    image: alpine
+    healthcheck:
+      test: ["NONE"]
+jobs:
+  by_flag:
+    image: alpine
+    triggers:
+      manual: true
+    healthcheck:
+      disable: true
+`)
+	expect := func(p *types.Project) {
+		assert.Assert(t, p.Services["by_flag"].HealthCheck.Disable)
+		assert.Assert(t, !p.Services["by_test"].HealthCheck.Disable)
+		assert.DeepEqual(t, p.Services["by_test"].HealthCheck.Test, types.HealthCheckTest{"NONE"})
+		assert.Assert(t, p.Jobs["by_flag"].HealthCheck.Disable)
+	}
+	expect(p)
+
+	yamlP, jsonP := roundTrip(t, p)
+	expect(yamlP)
+	expect(jsonP)
+}
+
+// `disable` is a boolean: anything else is rejected, with the attribute in the
+// error.
+func TestHealthcheckDisableInvalid(t *testing.T) {
+	err := loadErr(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    healthcheck:
+      disable: [true]
+`)
+	assert.ErrorContains(t, err, "services.foo.healthcheck.disable")
+}

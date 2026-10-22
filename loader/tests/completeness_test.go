@@ -173,15 +173,14 @@ var topLevelCoveredBy = map[string]string{
 	"name":     "loader/loader_test.go",
 	"networks": "loader/tests/networks_test.go",
 	"secrets":  "loader/tests/secrets_test.go",
+	"services": "loader/tests/services_test.go",
+	"version":  "loader/tests/version_test.go",
 	"volumes":  "loader/tests/volumes_test.go",
 }
 
 // topLevelKnownGaps lists top-level elements that have no dedicated
 // conformance test yet, with the reason.
-var topLevelKnownGaps = map[string]string{
-	"services": "every service attribute has its own file, but the `services` map itself (service names, an empty or missing map) has no dedicated test",
-	"version":  "obsolete and ignored by the specification: the only test loads it to check a concurrency regression, not the warning the specification describes",
-}
+var topLevelKnownGaps = map[string]string{}
 
 // subStructure declares the test files of the properties of a schema
 // definition: each property must be used as a YAML key by one of the files,
@@ -206,9 +205,7 @@ var subStructures = []subStructure{
 	{def: "include", files: []string{"loader/include_test.go"}},
 	{def: "job", files: []string{"loader/tests/triggers_test.go", "loader/tests/profiles_test.go", "loader/extends_test.go"}},
 	{def: "schedule", files: []string{"loader/tests/triggers_test.go"}},
-	{def: "healthcheck", files: []string{"loader/tests/healthcheck_test.go"}, gaps: map[string]string{
-		"disable": "no test yet for `disable: true`, the alternative to `test: [NONE]` documented by the specification",
-	}},
+	{def: "healthcheck", files: []string{"loader/tests/healthcheck_test.go"}},
 }
 
 // schemaDefinitions is the part of the JSON schema this test reads.
