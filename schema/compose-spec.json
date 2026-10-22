@@ -1067,6 +1067,31 @@
           "$ref": "#/$defs/list_of_strings",
           "description": "List of profiles for this job. When profiles are specified, the job is only active when the profile is activated."
         },
+        "extends": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "service": {
+                  "type": "string",
+                  "description": "The name of the job to extend."
+                },
+                "file": {
+                  "type": "string",
+                  "description": "The file path where the job to extend is defined."
+                }
+              },
+              "required": [
+                "service"
+              ],
+              "additionalProperties": false
+            }
+          ],
+          "description": "Extend another job, in the current file or another file."
+        },
         "triggers": {
           "type": "object",
           "description": "Trigger conditions for the job. At least one trigger attribute must be declared. Setting manual to false forbids manual execution by an explicit run command.",

@@ -204,7 +204,7 @@ var subStructures = []subStructure{
 	{def: "config", files: []string{"loader/tests/configs_test.go", "loader/tests/template_driver_test.go"}},
 	{def: "model", files: []string{"loader/tests/models_test.go"}},
 	{def: "include", files: []string{"loader/include_test.go"}},
-	{def: "job", files: []string{"loader/tests/triggers_test.go", "loader/tests/profiles_test.go"}},
+	{def: "job", files: []string{"loader/tests/triggers_test.go", "loader/tests/profiles_test.go", "loader/extends_test.go"}},
 	{def: "schedule", files: []string{"loader/tests/triggers_test.go"}},
 	{def: "healthcheck", files: []string{"loader/tests/healthcheck_test.go"}, gaps: map[string]string{
 		"disable": "no test yet for `disable: true`, the alternative to `test: [NONE]` documented by the specification",

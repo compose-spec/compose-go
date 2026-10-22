@@ -283,9 +283,9 @@ services:
 		SkipInterpolation: true,
 		ResourceLoaders:   []ResourceLoader{localResourceLoader{WorkingDir: dir}},
 	}
-	first, _, err := getExtendsBaseFromFile(ctx, "svc", "base", "compose.yaml", "base.yaml", opts, &cycleTracker{})
+	first, _, err := getExtendsBaseFromFile(ctx, "services", "svc", "base", "compose.yaml", "base.yaml", opts, &cycleTracker{})
 	assert.NilError(t, err)
-	second, _, err := getExtendsBaseFromFile(ctx, "svc", "base", "compose.yaml", "base.yaml", opts, &cycleTracker{})
+	second, _, err := getExtendsBaseFromFile(ctx, "services", "svc", "base", "compose.yaml", "base.yaml", opts, &cycleTracker{})
 	assert.NilError(t, err)
 	assert.DeepEqual(t, first, second)
 
@@ -293,7 +293,7 @@ services:
 	first["base"].(map[string]any)["image"] = "mutated"
 	assert.Equal(t, second["base"].(map[string]any)["image"], "busybox")
 
-	third, _, err := getExtendsBaseFromFile(ctx, "svc", "base", "compose.yaml", "base.yaml", opts, &cycleTracker{})
+	third, _, err := getExtendsBaseFromFile(ctx, "services", "svc", "base", "compose.yaml", "base.yaml", opts, &cycleTracker{})
 	assert.NilError(t, err)
 	assert.Equal(t, third["base"].(map[string]any)["image"], "busybox")
 }
