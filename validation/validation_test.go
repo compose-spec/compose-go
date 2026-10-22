@@ -17,6 +17,7 @@
 package validation
 
 import (
+	"math"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -138,6 +139,78 @@ published: "1234"
 				assert.NilError(t, err)
 			} else {
 				assert.Equal(t, tt.err, err.Error())
+			}
+		})
+	}
+}
+
+// mem_swappiness is a percentage: the specification restricts it to 0 to 100,
+// and the type that models it would accept any amount, in any byte unit. -1, the
+// Docker CLI default read by the engine as unset, is accepted as it always was.
+func TestValidateMemSwappiness(t *testing.T) {
+	checker := checks["services.*.mem_swappiness"]
+	tests := []struct {
+		name  string
+		value any
+		err   string
+	}{
+		{name: "turned off", value: 0},
+		{name: "a percentage", value: 60},
+		{name: "all pages swappable", value: 100},
+		{name: "a numeric string", value: "60"},
+		{name: "the default of the Docker CLI", value: -1},
+		{name: "the default of the Docker CLI, as a string", value: "-1"},
+		{name: "an integer written as a float", value: 1e1},
+		{name: "unset", value: nil},
+		{
+			name:  "above 100",
+			value: 101,
+			err:   "services.foo.mem_swappiness: invalid value 101: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+		{
+			name:  "below -1",
+			value: -2,
+			err:   "services.foo.mem_swappiness: invalid value -2: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+		{
+			name:  "a byte value",
+			value: "1g",
+			err:   "services.foo.mem_swappiness: invalid value 1g: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+		{
+			name:  "text",
+			value: "abc",
+			err:   "services.foo.mem_swappiness: invalid value abc: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+		{
+			name:  "a fraction",
+			value: 0.5,
+			err:   "services.foo.mem_swappiness: invalid value 0.5: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+		{
+			name:  "a float beyond 100",
+			value: 1e3,
+			err:   "services.foo.mem_swappiness: invalid value 1000: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+		{
+			name:  "an integer beyond 64 bits",
+			value: uint64(math.MaxInt64) + 1,
+			err:   "services.foo.mem_swappiness: invalid value 9223372036854775808: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+		{
+			name:  "a boolean",
+			value: true,
+			err:   "services.foo.mem_swappiness: invalid value true: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checker(tt.value, tree.NewPath("services.foo.mem_swappiness"))
+			if tt.err == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tt.err)
 			}
 		})
 	}

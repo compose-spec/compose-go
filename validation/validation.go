@@ -18,7 +18,9 @@ package validation
 
 import (
 	"fmt"
+	"math"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/tree"
@@ -31,6 +33,8 @@ var checks = map[tree.Path]checkerFunc{
 	"configs.*":                       checkFileObject("file", "environment", "content"),
 	"secrets.*":                       checkFileObject("file", "environment"),
 	"services.*.ports.*":              checkIPAddress,
+	"services.*.mem_swappiness":       checkMemSwappiness,
+	"jobs.*.mem_swappiness":           checkMemSwappiness,
 	"services.*.develop.watch.*.path": checkPath,
 	"services.*.deploy.resources.reservations.devices.*": checkDeviceRequest,
 	"services.*.gpus.*": checkDeviceRequest,
@@ -116,4 +120,47 @@ func checkIPAddress(value any, p tree.Path) error {
 		}
 	}
 	return nil
+}
+
+// checkMemSwappiness checks mem_swappiness is a percentage, as the specification
+// requires. The attribute is modeled as a UnitBytes, which would otherwise accept
+// any amount, in any byte unit.
+//
+// -1 is accepted although the specification only documents 0 to 100: it is the
+// default of the Docker CLI (--memory-swappiness), which the engine reads as
+// "not set", and files that spell it out have always been accepted.
+func checkMemSwappiness(value any, p tree.Path) error {
+	var swappiness int64
+	switch v := value.(type) {
+	case nil:
+		return nil
+	case int:
+		swappiness = int64(v)
+	case int64:
+		swappiness = v
+	case uint64:
+		swappiness = math.MaxInt64
+	case float64:
+		// the schema types the attribute as an integer, which 1e2 is
+		if v != math.Trunc(v) || v < -1 || v > 100 {
+			return invalidMemSwappiness(p, value)
+		}
+		swappiness = int64(v)
+	case string:
+		n, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return invalidMemSwappiness(p, value)
+		}
+		swappiness = n
+	default:
+		return invalidMemSwappiness(p, value)
+	}
+	if swappiness < -1 || swappiness > 100 {
+		return invalidMemSwappiness(p, value)
+	}
+	return nil
+}
+
+func invalidMemSwappiness(p tree.Path, value any) error {
+	return fmt.Errorf("%s: invalid value %v: mem_swappiness must be a percentage, an integer between 0 and 100", p, value)
 }
