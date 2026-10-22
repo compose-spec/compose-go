@@ -1,14 +1,22 @@
 version: "2"
 linters:
   default: none
+  disable:
+    # gocognit deliberately replaced gocyclo, as in docker/compose — do not
+    # re-enable. Cyclomatic complexity charges a flat guard clause the same as
+    # a nested branch, so a fail-fast style ends up suppressed with //nolint on
+    # functions that are long but flat. Cognitive complexity penalizes nesting
+    # and barely charges early returns, keeping the signal on genuinely
+    # tangled code.
+    - gocyclo
   enable:
     - copyloopvar
     - depguard
     - errcheck
     - errorlint
     - forbidigo
+    - gocognit
     - gocritic
-    - gocyclo
     - gomodguard_v2
     - govet
     - ineffassign
@@ -27,6 +35,12 @@ linters:
       rules:
         all:
           deny:
+            - pkg: io/ioutil
+              desc: io/ioutil package has been deprecated
+            - pkg: golang.org/x/exp/maps
+              desc: use stdlib maps package
+            - pkg: golang.org/x/exp/slices
+              desc: use stdlib slices package
             - pkg: gopkg.in/yaml.v2
               desc: compose-go uses go.yaml.in/yaml/v4
             - pkg: gopkg.in/yaml.v3
@@ -46,6 +60,8 @@ linters:
         - pattern: 'context\.TODO'
           pkg: '^context$'
           msg: "in tests, use t.Context() instead of context.TODO()"
+    gocognit:
+      min-complexity: 30
     gocritic:
       disabled-checks:
         - paramTypeCombine
@@ -65,15 +81,49 @@ linters:
       line-length: 200
   exclusions:
     generated: lax
-    rules:
-      - path-except: '_test\.go'
-        linters:
-          - forbidigo
     presets:
       - comments
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      - path-except: '_test\.go'
+        linters:
+          - forbidigo
+      # Known gocognit debt: functions above the cognitive complexity threshold
+      # that predate it. This is a list to shrink, not a license: refactor a
+      # function and delete its entry. New code must stay under the threshold.
+      - linters: [gocognit]
+        path: loader/aliases\.go
+        text: 'of func `promoteAliases`'
+      - linters: [gocognit]
+        path: loader/loader\.go
+        text: 'of func `processExtensions`'
+      - linters: [gocognit]
+        # right at the threshold: 30 for recent gocognit, 32 for older ones
+        path: loader/loader\.go
+        text: 'of func `convertToStringKeysRecursive`'
+      - linters: [gocognit]
+        path: loader/reset\.go
+        text: 'of func `\(\*ResetProcessor\)\.resolveContainer`'
+      - linters: [gocognit]
+        path: loader/validate\.go
+        text: 'of func `checkConsistency`'
+      - linters: [gocognit]
+        path: schema/paths\.go
+        text: 'of func `\(\*pathCollector\)\.walk`'
+      - linters: [gocognit]
+        path: template/variables\.go
+        text: 'of func `extractVariable`'
+      - linters: [gocognit]
+        path: transform/defaults_test\.go
+        text: 'of func `exampleEnhancedPortDefaults`'
+      - linters: [gocognit]
+        path: transform/ports\.go
+        text: 'of func `transformPorts`'
+      - linters: [gocognit]
+        path: types/project\.go
+        text: 'of func `\(\*Project\)\.WithoutUnnecessaryResources`'
     paths:
       - third_party$
       - builtin$
