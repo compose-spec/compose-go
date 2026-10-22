@@ -19,6 +19,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/docker/go-units"
@@ -79,12 +80,36 @@ func (u *UnitBytes) UnmarshalYAML(value *yaml.Node) error {
 	return u.parseString(s)
 }
 
+// DecodeMapstructure decodes a byte value from the YAML model: a number of
+// bytes, or a string with an optional unit. A number that is not a whole
+// number of bytes, or does not fit, is an error rather than a silent 0.
 func (u *UnitBytes) DecodeMapstructure(value interface{}) error {
 	switch v := value.(type) {
+	case nil:
+		return nil
 	case int:
+		*u = UnitBytes(v)
+	case int64:
+		*u = UnitBytes(v)
+	case uint64:
+		if v > math.MaxInt64 {
+			return fmt.Errorf("invalid size: '%d': out of range, must fit in a signed 64 bits integer", v)
+		}
+		*u = UnitBytes(v)
+	case float64:
+		// the schema types these attributes as a number, and a number such as
+		// 1e3 or 1024.0 has an integer value
+		if v != math.Trunc(v) {
+			return fmt.Errorf("invalid size: '%s': a number of bytes must be an integer", strconv.FormatFloat(v, 'g', -1, 64))
+		}
+		if v >= float64(1<<63) || v < -float64(1<<63) {
+			return fmt.Errorf("invalid size: '%s': out of range, must fit in a signed 64 bits integer", strconv.FormatFloat(v, 'g', -1, 64))
+		}
 		*u = UnitBytes(v)
 	case string:
 		return u.parseString(v)
+	default:
+		return fmt.Errorf("unexpected value type %T for a byte value", value)
 	}
 	return nil
 }

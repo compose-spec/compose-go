@@ -197,3 +197,41 @@ func loadConsistent(t *testing.T, content string) (*types.Project, error) {
 		Environment: map[string]string{},
 	})
 }
+
+// loadsIntegerValuedNumbers asserts that the byte value attribute attr accepts
+// a YAML number whose value is an integer, whatever its notation (the schema
+// types these attributes as a number, and 1e3 or 1024.0 are integers), and
+// canonicalizes it into a decimal number of bytes.
+func loadsIntegerValuedNumbers(t *testing.T, attr string) {
+	t.Helper()
+	for _, tc := range []struct{ name, notation, bytes string }{
+		{"an exponent", `1e3`, "1000"},
+		{"a decimal point", `1024.0`, "1024"},
+		{"an exponent and a fraction", `2.5e3`, "2500"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			loadsAs(t, serviceWith(attr, tc.notation), serviceWith(attr, `"`+tc.bytes+`"`))
+		})
+	}
+}
+
+// rejectsUnrepresentableNumbers asserts that the byte value attribute attr
+// rejects, instead of silently turning them into a different amount (0, the
+// unset value, for instance), the YAML numbers that are not a number of bytes
+// fitting in a signed 64 bits integer.
+func rejectsUnrepresentableNumbers(t *testing.T, attr string) {
+	t.Helper()
+	for _, tc := range []struct{ name, value, message string }{
+		{"a fraction", `1.5`, "a number of bytes must be an integer"},
+		{"a fraction below one", `0.5`, "a number of bytes must be an integer"},
+		{"a fraction with an exponent", `1.5e-3`, "a number of bytes must be an integer"},
+		{"a number beyond 64 bits", `9223372036854775808`, "out of range"},
+		{"an exponent beyond 64 bits", `1e19`, "out of range"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := loadErr(t, serviceWith(attr, tc.value))
+			assert.ErrorContains(t, err, attr)
+			assert.ErrorContains(t, err, tc.message)
+		})
+	}
+}

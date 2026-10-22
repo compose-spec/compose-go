@@ -66,6 +66,28 @@ func TestMemReservationByteValues(t *testing.T) {
 	loadsByteValueNotations(t, "mem_reservation")
 }
 
+// The schema types mem_reservation as an integer or a string: a number with an
+// integer value is a number of bytes whatever its notation, and one that does
+// not fit in 64 bits is rejected rather than silently read as 0, which would
+// leave the amount unset.
+func TestMemReservationNumbers(t *testing.T) {
+	t.Run("an integer value", func(t *testing.T) {
+		loadsIntegerValuedNumbers(t, "mem_reservation")
+	})
+
+	t.Run("a number beyond 64 bits", func(t *testing.T) {
+		err := loadErr(t, serviceWith("mem_reservation", "9223372036854775808"))
+		assert.ErrorContains(t, err, "mem_reservation")
+		assert.ErrorContains(t, err, "out of range")
+	})
+
+	t.Run("a fraction", func(t *testing.T) {
+		err := loadErr(t, serviceWith("mem_reservation", "1.5"))
+		assert.ErrorContains(t, err, "mem_reservation")
+		assert.ErrorContains(t, err, "must be a integer or string")
+	})
+}
+
 // The value is subject to interpolation like any other, whatever its notation.
 func TestMemReservationInterpolation(t *testing.T) {
 	for name, tc := range map[string]struct {
