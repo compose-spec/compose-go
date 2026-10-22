@@ -26,9 +26,15 @@ One file per compose attribute, named after it (`pull_policy_test.go`,
   marshal/reload), so the attribute is locked end to end.
 
 The completeness test (`loader/tests/completeness_test.go`) walks the JSON
-schema and fails when a service attribute has no declared test file: adding a
-property to the schema forces either a conformance test or an explicit,
-reviewed entry in the known-gaps list.
+schema and fails when a service attribute, a top-level element (`networks`,
+`volumes`, `secrets`...) or a property of the main definitions (`network`,
+`volume`, `healthcheck`, `job`...) has no declared test file, or when the
+declared file does not use it as a YAML key: adding a property to the schema
+forces either a conformance test or an explicit, reviewed entry, with its
+reason, in the matching known-gaps list. It does not descend into deeper
+structures (`deploy`, `build`, the entries of `ports` or `volumes`...), and it
+guards against a stale declaration rather than proving that a test exercises
+the attribute.
 
 ### YAML-in / YAML-out — `override/`, and `loadsAs` in `loader/tests/`
 
