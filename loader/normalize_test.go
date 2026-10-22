@@ -452,3 +452,167 @@ networks:
 	assert.NilError(t, err)
 	assert.DeepEqual(t, expect, model)
 }
+
+// normalizesTo asserts that Normalize turns the input compose model into the
+// expected one, both expressed as YAML.
+func normalizesTo(t *testing.T, env types.Mapping, input, expected string) {
+	t.Helper()
+	var model map[string]any
+	assert.NilError(t, yaml.Unmarshal([]byte(input), &model))
+	model, err := Normalize(model, env)
+	assert.NilError(t, err)
+
+	var expect map[string]any
+	assert.NilError(t, yaml.Unmarshal([]byte(expected), &expect))
+	assert.DeepEqual(t, expect, model)
+}
+
+// Normalize must rewrite the deprecated `if_not_present` pull policy to its
+// canonical `missing` spelling and leave the other policies untouched.
+// https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pull_policy
+func TestNormalizePullPolicy(t *testing.T) {
+	normalizesTo(t, nil, `
+name: myProject
+services:
+  legacy:
+    image: foo
+    pull_policy: if_not_present
+  always:
+    image: foo
+    pull_policy: always
+`, `
+name: myProject
+services:
+  legacy:
+    image: foo
+    pull_policy: missing
+    networks:
+      default: null
+  always:
+    image: foo
+    pull_policy: always
+    networks:
+      default: null
+networks:
+  default:
+    name: myProject_default
+`)
+}
+
+// Normalize applies the same container-level rules to `jobs` as to
+// `services`: build defaults, environment resolution, implicit dependencies
+// (links, shared namespaces, volumes_from) and volume target cleaning, with
+// every implicit dependency sharing a single depends_on map.
+// https://github.com/compose-spec/compose-spec/blob/main/05-services.md#depends_on
+func TestNormalizeContainerRulesApplyToJobs(t *testing.T) {
+	normalizesTo(t, types.Mapping{"FROM_ENV": "resolved", "ARG_FROM_ENV": "built"}, `
+name: myProject
+services:
+  db:
+    image: postgres
+  data:
+    image: data
+  base:
+    image: base
+jobs:
+  migrate:
+    build:
+      args:
+        ARG_FROM_ENV: null
+        ARG_UNSET: null
+    environment:
+      FROM_ENV: null
+      UNSET: null
+    links:
+      - "db:database"
+      - data
+    network_mode: "service:base"
+    ipc: "service:base"
+    volumes:
+      - type: bind
+        source: /src
+        target: /app//data/
+    volumes_from:
+      - data:ro
+      - "container:external"
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: false
+        required: false
+`, `
+name: myProject
+services:
+  db:
+    image: postgres
+    networks:
+      default: null
+  data:
+    image: data
+    networks:
+      default: null
+  base:
+    image: base
+    networks:
+      default: null
+jobs:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ARG_FROM_ENV: built
+    environment:
+      FROM_ENV: resolved
+      UNSET: null
+    links:
+      - "db:database"
+      - data
+    network_mode: "service:base"
+    ipc: "service:base"
+    volumes:
+      - type: bind
+        source: /src
+        target: /app/data
+    volumes_from:
+      - data:ro
+      - "container:external"
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: false
+        required: false
+      data:
+        condition: service_started
+        restart: true
+        required: true
+      base:
+        condition: service_started
+        restart: true
+        required: true
+networks:
+  default:
+    name: myProject_default
+`)
+}
+
+// A pre_start hook whose declarations cannot be merged with the service's own
+// container specification must fail the normalization, reporting the hook
+// resolution.
+// https://github.com/compose-spec/compose-spec/blob/main/05-services.md#pre_start
+func TestNormalizePreStartMergeError(t *testing.T) {
+	var model map[string]any
+	assert.NilError(t, yaml.Unmarshal([]byte(`
+name: myProject
+services:
+  app:
+    image: alpine
+    logging:
+      driver: json-file
+    pre_start:
+      - command: ["migrate"]
+        logging: not-a-mapping
+`), &model))
+	_, err := Normalize(model, nil)
+	assert.ErrorContains(t, err, "resolving pre_start hook specification: services.hook.logging: cannot merge logging")
+}
