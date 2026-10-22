@@ -9,7 +9,7 @@ linters:
     - forbidigo
     - gocritic
     - gocyclo
-    - gomodguard
+    - gomodguard_v2
     - govet
     - ineffassign
     - lll
@@ -55,13 +55,12 @@ linters:
         - diagnostic
         - opinionated
         - style
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/pkg/errors:
-              recommendations:
-                - errors
-                - fmt
+        - module: github.com/pkg/errors
+          recommendations:
+            - errors
+            - fmt
     lll:
       line-length: 200
   exclusions:
