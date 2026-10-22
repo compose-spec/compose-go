@@ -23,7 +23,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/compose-spec/compose-go/v2/internal/warn"
+	"github.com/compose-spec/compose-go/v2/logging"
 )
 
 const (
@@ -92,6 +93,7 @@ type Config struct {
 	substituteFunc  SubstituteFunc
 	replacementFunc ReplacementFunc
 	logging         bool
+	logger          logging.Logger
 }
 
 type Option func(*Config)
@@ -116,6 +118,15 @@ func WithReplacementFunction(replacementFunc ReplacementFunc) Option {
 
 func WithoutLogging(cfg *Config) {
 	cfg.logging = false
+}
+
+// WithLogger sends the warnings emitted during substitution (a variable that
+// is not set) to l instead of the standard logrus logger. It has no effect
+// when combined with WithoutLogging.
+func WithLogger(l logging.Logger) Option {
+	return func(cfg *Config) {
+		cfg.logger = l
+	}
 }
 
 // SubstituteWithOptions substitute variables in the string with their values.
@@ -163,7 +174,11 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 	pattern := cfg.pattern
 	subsFunc := cfg.substituteFunc
 	if subsFunc == nil {
-		_, subsFunc = getSubstitutionFunctionForTemplate(substring)
+		// nested substitutions (default values, error messages) report to the
+		// same logger as this one
+		_, subsFunc = substitutionFunctionForTemplate(substring, func(t string, m Mapping) (string, error) {
+			return SubstituteWithOptions(t, m, WithLogger(cfg.logger))
+		})
 	}
 
 	closingBraceIndex := getFirstBraceClosingIndex(substring)
@@ -196,7 +211,7 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 			return "", false, err
 		}
 		if applied {
-			interpolatedNested, err := SubstituteWith(rest, mapping, pattern)
+			interpolatedNested, err := SubstituteWithOptions(rest, mapping, WithPattern(pattern), WithLogger(cfg.logger))
 			if err != nil {
 				return "", false, err
 			}
@@ -206,7 +221,7 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 
 	value, ok := mapping(substitution)
 	if !ok && cfg.logging {
-		logrus.Warnf("The %q variable is not set. Defaulting to a blank string.", substitution)
+		warn.Warnf(cfg.logger, "The %q variable is not set. Defaulting to a blank string.", substitution)
 	}
 
 	return value, ok, nil
@@ -226,16 +241,23 @@ func SubstituteWith(template string, mapping Mapping, pattern *regexp.Regexp, su
 }
 
 func getSubstitutionFunctionForTemplate(template string) (string, SubstituteFunc) {
+	return substitutionFunctionForTemplate(template, Substitute)
+}
+
+// substitutionFunctionForTemplate selects the substitution function matching
+// the operator found first in template. nested is used to substitute the
+// default value or error message the operator carries.
+func substitutionFunctionForTemplate(template string, nested nestedSubstitute) (string, SubstituteFunc) {
 	interpolationMapping := []struct {
 		string
 		SubstituteFunc
 	}{
-		{":?", requiredErrorWhenEmptyOrUnset},
-		{"?", requiredErrorWhenUnset},
-		{":-", defaultWhenEmptyOrUnset},
-		{"-", defaultWhenUnset},
-		{":+", defaultWhenNotEmpty},
-		{"+", defaultWhenSet},
+		{":?", requiredErrorWhenEmptyOrUnset(nested)},
+		{"?", requiredErrorWhenUnset(nested)},
+		{":-", defaultWhenEmptyOrUnset(nested)},
+		{"-", defaultWhenUnset(nested)},
+		{":+", defaultWhenNotEmpty(nested)},
+		{"+", defaultWhenSet(nested)},
 	}
 	sort.Slice(interpolationMapping, func(i, j int) bool {
 		idxI := strings.Index(template, interpolationMapping[i].string)
@@ -274,33 +296,49 @@ func Substitute(template string, mapping Mapping) (string, error) {
 	return SubstituteWith(template, mapping, DefaultPattern)
 }
 
+// nestedSubstitute substitutes the variables found in a default value or an
+// error message.
+type nestedSubstitute func(string, Mapping) (string, error)
+
 // Soft default (fall back if unset or empty)
-func defaultWhenEmptyOrUnset(substitution string, mapping Mapping) (string, bool, error) {
-	return withDefaultWhenAbsence(substitution, mapping, true)
+func defaultWhenEmptyOrUnset(nested nestedSubstitute) SubstituteFunc {
+	return func(substitution string, mapping Mapping) (string, bool, error) {
+		return withDefaultWhenAbsence(substitution, mapping, true, nested)
+	}
 }
 
 // Hard default (fall back if-and-only-if empty)
-func defaultWhenUnset(substitution string, mapping Mapping) (string, bool, error) {
-	return withDefaultWhenAbsence(substitution, mapping, false)
+func defaultWhenUnset(nested nestedSubstitute) SubstituteFunc {
+	return func(substitution string, mapping Mapping) (string, bool, error) {
+		return withDefaultWhenAbsence(substitution, mapping, false, nested)
+	}
 }
 
-func defaultWhenNotEmpty(substitution string, mapping Mapping) (string, bool, error) {
-	return withDefaultWhenPresence(substitution, mapping, true)
+func defaultWhenNotEmpty(nested nestedSubstitute) SubstituteFunc {
+	return func(substitution string, mapping Mapping) (string, bool, error) {
+		return withDefaultWhenPresence(substitution, mapping, true, nested)
+	}
 }
 
-func defaultWhenSet(substitution string, mapping Mapping) (string, bool, error) {
-	return withDefaultWhenPresence(substitution, mapping, false)
+func defaultWhenSet(nested nestedSubstitute) SubstituteFunc {
+	return func(substitution string, mapping Mapping) (string, bool, error) {
+		return withDefaultWhenPresence(substitution, mapping, false, nested)
+	}
 }
 
-func requiredErrorWhenEmptyOrUnset(substitution string, mapping Mapping) (string, bool, error) {
-	return withRequired(substitution, mapping, ":?", func(v string) bool { return v != "" })
+func requiredErrorWhenEmptyOrUnset(nested nestedSubstitute) SubstituteFunc {
+	return func(substitution string, mapping Mapping) (string, bool, error) {
+		return withRequired(substitution, mapping, ":?", func(v string) bool { return v != "" }, nested)
+	}
 }
 
-func requiredErrorWhenUnset(substitution string, mapping Mapping) (string, bool, error) {
-	return withRequired(substitution, mapping, "?", func(_ string) bool { return true })
+func requiredErrorWhenUnset(nested nestedSubstitute) SubstituteFunc {
+	return func(substitution string, mapping Mapping) (string, bool, error) {
+		return withRequired(substitution, mapping, "?", func(_ string) bool { return true }, nested)
+	}
 }
 
-func withDefaultWhenPresence(substitution string, mapping Mapping, notEmpty bool) (string, bool, error) {
+func withDefaultWhenPresence(substitution string, mapping Mapping, notEmpty bool, nested nestedSubstitute) (string, bool, error) {
 	sep := "+"
 	if notEmpty {
 		sep = ":+"
@@ -311,7 +349,7 @@ func withDefaultWhenPresence(substitution string, mapping Mapping, notEmpty bool
 	name, defaultValue := partition(substitution, sep)
 	value, ok := mapping(name)
 	if ok && (!notEmpty || (notEmpty && value != "")) {
-		defaultValue, err := Substitute(defaultValue, mapping)
+		defaultValue, err := nested(defaultValue, mapping)
 		if err != nil {
 			return "", false, err
 		}
@@ -320,7 +358,7 @@ func withDefaultWhenPresence(substitution string, mapping Mapping, notEmpty bool
 	return value, true, nil
 }
 
-func withDefaultWhenAbsence(substitution string, mapping Mapping, emptyOrUnset bool) (string, bool, error) {
+func withDefaultWhenAbsence(substitution string, mapping Mapping, emptyOrUnset bool, nested nestedSubstitute) (string, bool, error) {
 	sep := "-"
 	if emptyOrUnset {
 		sep = ":-"
@@ -331,7 +369,7 @@ func withDefaultWhenAbsence(substitution string, mapping Mapping, emptyOrUnset b
 	name, defaultValue := partition(substitution, sep)
 	value, ok := mapping(name)
 	if !ok || (emptyOrUnset && value == "") {
-		defaultValue, err := Substitute(defaultValue, mapping)
+		defaultValue, err := nested(defaultValue, mapping)
 		if err != nil {
 			return "", false, err
 		}
@@ -340,14 +378,14 @@ func withDefaultWhenAbsence(substitution string, mapping Mapping, emptyOrUnset b
 	return value, true, nil
 }
 
-func withRequired(substitution string, mapping Mapping, sep string, valid func(string) bool) (string, bool, error) {
+func withRequired(substitution string, mapping Mapping, sep string, valid func(string) bool, nested nestedSubstitute) (string, bool, error) {
 	if !strings.Contains(substitution, sep) {
 		return "", false, nil
 	}
 	name, errorMessage := partition(substitution, sep)
 	value, ok := mapping(name)
 	if !ok || !valid(value) {
-		errorMessage, err := Substitute(errorMessage, mapping)
+		errorMessage, err := nested(errorMessage, mapping)
 		if err != nil {
 			return "", false, err
 		}
