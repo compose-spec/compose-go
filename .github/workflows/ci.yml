@@ -162,3 +162,25 @@ jobs:
           if [ "$status" -ne 0 ]; then
             echo "::warning title=govulncheck::govulncheck reports vulnerabilities or failed, see the job summary"
           fi
+
+  # Single required check for branch protection: it fails if any gating job
+  # failed, was cancelled or was skipped. Adding, renaming or splitting a job
+  # (or changing the Go versions of the test matrix) then needs no change to
+  # the repository settings. api-compat and vulncheck are left out on purpose:
+  # they are informational and never block a merge.
+  ci-ok:
+    if: always()
+    runs-on: ubuntu-latest
+    permissions: {}
+    needs:
+      - validate
+      - lint
+      - static-checks
+      - test
+    steps:
+      - name: Check the result of the required jobs
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          echo "$NEEDS" | jq -e 'to_entries | all(.[]; .value.result == "success")' > /dev/null
