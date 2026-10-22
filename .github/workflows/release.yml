@@ -6,7 +6,13 @@ on:
   workflow_dispatch:
 
 jobs:
+  ci:
+    # a tag must not publish anything unless the full CI is green on it
+    uses: ./.github/workflows/ci.yml
+
   binary:
+    needs:
+      - ci
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -51,6 +57,9 @@ jobs:
         with:
           path: bin/
           merge-multiple: true
+      -
+        name: Checksums
+        run: cd bin && sha256sum compose-spec-* > SHA256SUMS
       -
         name: GitHub Release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1

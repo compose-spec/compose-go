@@ -1,4 +1,7 @@
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_call: # reused by the release workflow as a gate
 name: Continuous integration
 
 permissions:
@@ -14,12 +17,20 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
       - name: Check license
         run: DOCKER_BUILDKIT=1 make check-license
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
       - name: Check deepcopy
         run: |
           make deepcopy
           if [ -n "$(git status --porcelain)" ]; then
             echo >&2 'ERROR: DeepCopy is not up to date with code. Please run "make deepcopy"'
+            git status --porcelain >&2
+            exit 1
           fi
+      - name: Check generated sources
+        run: make check-generate
 
   test:
     strategy:
