@@ -1,6 +1,6 @@
 module github.com/compose-spec/compose-go/v2
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/distribution/reference v0.5.0
@@ -14,12 +14,12 @@ require (
 	github.com/sirupsen/logrus v1.10.1
 	github.com/xhit/go-str2duration/v2 v2.1.0
 	go.yaml.in/yaml/v4 v4.0.0-rc.4
-	golang.org/x/sync v0.3.0
-	golang.org/x/text v0.14.0
+	golang.org/x/sync v0.24.0
+	golang.org/x/text v0.41.0
 	gotest.tools/v3 v3.5.2
 )
 
 require (
 	github.com/stretchr/testify v1.12.1 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
 )
