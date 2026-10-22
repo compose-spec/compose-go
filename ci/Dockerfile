@@ -12,11 +12,13 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+ARG GOLANGCILINT_VERSION=v2.15.0
+FROM golangci/golangci-lint:${GOLANGCILINT_VERSION} AS golangci-lint
+
 FROM golang:1.26
 
 WORKDIR /go/src
 
-ARG GOLANGCILINT_VERSION=v2.15.0
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin ${GOLANGCILINT_VERSION}
+COPY --from=golangci-lint /usr/bin/golangci-lint /go/bin/golangci-lint
 RUN go install github.com/awalterschulze/goderive@v0.5.1
 RUN go install github.com/containerd/ltag@v0.3.0
