@@ -16,16 +16,40 @@
 
 package tests
 
-// This test keeps the conformance matrix complete by construction: every
-// service attribute of the JSON schema must either have a declared test file
-// or be an explicit, reviewed entry in the known-gaps list. Adding an
-// attribute to the schema without deciding where it is tested fails here.
+// This test keeps the conformance matrix complete by construction. For each
+// of the following parts of the JSON schema, every element must either have a
+// declared test file or be an explicit, reviewed entry in a known-gaps list.
+// Adding an element to the schema without deciding where it is tested fails
+// here.
+//
+//   - the service attributes (the `service` definition and the definitions it
+//     composes), declared in coveredBy and knownGaps;
+//   - the top-level elements (`services`, `networks`, `volumes`, `secrets`,
+//     `configs`, `models`, `jobs`, `include`, `name`, `version`), declared in
+//     topLevelCoveredBy and topLevelKnownGaps;
+//   - the properties of the structured definitions the matrix relies on
+//     (`network`, `volume`, `secret`, `config`, `model`, `healthcheck`, `job`,
+//     `include`...), declared in subStructures.
+//
+// Declaring a file is not enough: the file must also use the element as a
+// YAML key (see usesYAMLKey), so that a declaration cannot silently outlive
+// the test it points at. The check is deliberately shallow, as a guard
+// against a typo, a moved file or a copy-pasted entry; it does not prove that
+// an assertion exercises the element, and review remains the judge of that.
+//
+// Limits: the check stops at the properties of the definitions listed in
+// subStructures. It does not descend into the deeper structures (the
+// `deploy` resources, the `build` object, the entries of `ports` or
+// `volumes`...), whose files are free to be as detailed as their spec
+// section demands without a matrix entry for each key.
 
 import (
 	"encoding/json"
 	"maps"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -126,68 +150,225 @@ var coveredBy = map[string]string{
 }
 
 // knownGaps lists service attributes that have no dedicated conformance test
-// yet. Shrinking this list is welcome; growing it is a reviewed decision.
-var knownGaps = map[string]bool{
-	"mem_limit":          true,
-	"mem_reservation":    true,
-	"mem_swappiness":     true,
-	"memswap_limit":      true,
-	"pull_refresh_after": true,
-	"read_only":          true,
-	"shm_size":           true,
+// yet, with the reason. Shrinking this list is welcome; growing it is a
+// reviewed decision.
+var knownGaps = map[string]string{
+	"mem_limit":          "no dedicated conformance test yet",
+	"mem_reservation":    "no dedicated conformance test yet",
+	"mem_swappiness":     "no dedicated conformance test yet",
+	"memswap_limit":      "no dedicated conformance test yet",
+	"pull_refresh_after": "no dedicated conformance test yet",
+	"read_only":          "no dedicated conformance test yet",
+	"shm_size":           "no dedicated conformance test yet",
 }
 
-func TestEveryServiceAttributeHasADeclaredTest(t *testing.T) {
+// topLevelCoveredBy declares, for every top-level element of the schema, the
+// test file locking its behavior. Paths are relative to the repository root.
+var topLevelCoveredBy = map[string]string{
+	"configs":  "loader/tests/configs_test.go",
+	"include":  "loader/include_test.go",
+	"jobs":     "loader/tests/triggers_test.go",
+	"models":   "loader/tests/models_test.go",
+	"name":     "loader/loader_test.go",
+	"networks": "loader/tests/networks_test.go",
+	"secrets":  "loader/tests/secrets_test.go",
+	"volumes":  "loader/tests/volumes_test.go",
+}
+
+// topLevelKnownGaps lists top-level elements that have no dedicated
+// conformance test yet, with the reason.
+var topLevelKnownGaps = map[string]string{
+	"services": "every service attribute has its own file, but the `services` map itself (service names, an empty or missing map) has no dedicated test",
+	"version":  "obsolete and ignored by the specification: the only test loads it to check a concurrency regression, not the warning the specification describes",
+}
+
+// subStructure declares the test files of the properties of a schema
+// definition: each property must be used as a YAML key by one of the files,
+// unless it is listed in gaps, with the reason.
+type subStructure struct {
+	def   string
+	files []string
+	gaps  map[string]string
+}
+
+var subStructures = []subStructure{
+	{def: "network", files: []string{
+		"loader/tests/networks_test.go",
+		"loader/tests/network_driver_opts_test.go",
+		"loader/tests/network_internal_test.go",
+		"loader/tests/network_ipam_test.go",
+	}},
+	{def: "volume", files: []string{"loader/tests/volumes_test.go"}},
+	{def: "secret", files: []string{"loader/tests/secrets_test.go", "loader/tests/template_driver_test.go"}},
+	{def: "config", files: []string{"loader/tests/configs_test.go", "loader/tests/template_driver_test.go"}},
+	{def: "model", files: []string{"loader/tests/models_test.go"}},
+	{def: "include", files: []string{"loader/include_test.go"}},
+	{def: "job", files: []string{"loader/tests/triggers_test.go", "loader/tests/profiles_test.go"}},
+	{def: "schedule", files: []string{"loader/tests/triggers_test.go"}},
+	{def: "healthcheck", files: []string{"loader/tests/healthcheck_test.go"}, gaps: map[string]string{
+		"disable": "no test yet for `disable: true`, the alternative to `test: [NONE]` documented by the specification",
+	}},
+}
+
+// schemaDefinitions is the part of the JSON schema this test reads.
+type schemaDefinitions struct {
+	Properties map[string]any              `json:"properties"`
+	Defs       map[string]schemaDefinition `json:"$defs"`
+}
+
+type schemaDefinition struct {
+	AllOf      []schemaRef    `json:"allOf"`
+	OneOf      []schemaObject `json:"oneOf"`
+	Properties map[string]any `json:"properties"`
+}
+
+type schemaRef struct {
+	Ref string `json:"$ref"`
+}
+
+type schemaObject struct {
+	Properties map[string]any `json:"properties"`
+}
+
+// properties returns the property names of a definition: its own and those of
+// its oneOf alternatives. With composed, also those of the definitions it
+// composes through allOf $refs, which is how a service gets the attributes of
+// the container and workload specs.
+func (s schemaDefinitions) properties(t *testing.T, def string, composed bool) []string {
+	t.Helper()
+	d, ok := s.Defs[def]
+	assert.Assert(t, ok, "unknown schema definition %q", def)
+	names := map[string]bool{}
+	for name := range d.Properties {
+		names[name] = true
+	}
+	for _, alternative := range d.OneOf {
+		for name := range alternative.Properties {
+			names[name] = true
+		}
+	}
+	for _, ref := range d.AllOf {
+		if !composed {
+			break
+		}
+		for _, name := range s.properties(t, strings.TrimPrefix(ref.Ref, "#/$defs/"), true) {
+			names[name] = true
+		}
+	}
+	assert.Assert(t, len(names) > 0, "no properties found for schema definition %q", def)
+	return slices.Sorted(maps.Keys(names))
+}
+
+func readSchema(t *testing.T) schemaDefinitions {
+	t.Helper()
 	raw, err := os.ReadFile(filepath.Join("..", "..", "schema", "compose-spec.json"))
 	assert.NilError(t, err)
-	var schema struct {
-		Defs map[string]struct {
-			AllOf []struct {
-				Ref string `json:"$ref"`
-			} `json:"allOf"`
-			Properties map[string]any `json:"properties"`
-		} `json:"$defs"`
-	}
+	var schema schemaDefinitions
 	assert.NilError(t, json.Unmarshal(raw, &schema))
-	// The service definition composes the shared container/workload specs
-	// through allOf $refs: a service attribute lives either in the service's
-	// own properties or in one of the referenced definitions.
-	service := schema.Defs["service"]
-	properties := map[string]any{}
-	maps.Copy(properties, service.Properties)
-	for _, ref := range service.AllOf {
-		name := strings.TrimPrefix(ref.Ref, "#/$defs/")
-		def, ok := schema.Defs[name]
-		assert.Assert(t, ok, "service allOf references unknown definition %q", ref.Ref)
-		maps.Copy(properties, def.Properties)
-	}
-	assert.Assert(t, len(properties) > 0, "no service properties found in schema")
+	return schema
+}
 
-	for attr := range properties {
-		file, covered := coveredBy[attr]
-		gap := knownGaps[attr]
+// usesYAMLKey reports whether the Go test source uses name as a YAML (or JSON)
+// key, which is how a conformance test exercises an attribute: its inline
+// compose documents declare it. For a top-level element the key must start a
+// line of the document, or the document itself, so that `name` is not
+// satisfied by every `name:` nested in the file; for the others any
+// indentation will do.
+func usesYAMLKey(source, name string, topLevel bool) bool {
+	// \n: a key following a "\n" escape in an interpreted Go string
+	boundary := `(?:^|\\n|[^\w.-])`
+	if topLevel {
+		boundary = "(?:^|\\\\n|[\"`])"
+	}
+	return regexp.MustCompile("(?m)" + boundary + `"?` + regexp.QuoteMeta(name) + `"?\s*:`).MatchString(source)
+}
+
+// assertDeclared checks every element against its declarations: it is either
+// covered by a file that uses it as a YAML key, or a known gap, never both;
+// and no declaration refers to an element the schema does not have.
+func assertDeclared(t *testing.T, kind string, elements []string, coveredBy map[string]string, gaps map[string]string, topLevel bool) {
+	t.Helper()
+	for _, element := range elements {
+		file, covered := coveredBy[element]
+		_, gap := gaps[element]
 		switch {
 		case covered && gap:
-			t.Errorf("attribute %q is both covered and a known gap: remove it from knownGaps", attr)
+			t.Errorf("%s %q is both covered and a known gap: remove it from the known gaps", kind, element)
 		case covered:
-			if _, err := os.Stat(filepath.Join("..", "..", file)); err != nil {
-				t.Errorf("attribute %q declares test file %s, which does not exist", attr, file)
-			}
+			assertFileUses(t, kind, element, []string{file}, topLevel)
 		case gap:
 			// tracked, nothing to check
 		default:
-			t.Errorf("schema attribute %q has no declared test: add a conformance test in loader/tests/ (see TESTING.md) or a reviewed knownGaps entry", attr)
+			t.Errorf("schema %s %q has no declared test: add a conformance test in loader/tests/ (see TESTING.md) or a reviewed known-gaps entry", kind, element)
 		}
 	}
-	// stale entries: attributes removed from the schema must not linger here
-	for attr := range coveredBy {
-		if _, ok := properties[attr]; !ok {
-			t.Errorf("coveredBy entry %q is not a schema service attribute anymore", attr)
+	// stale entries: elements removed from the schema must not linger here
+	for element := range coveredBy {
+		if !slices.Contains(elements, element) {
+			t.Errorf("covered entry %q is not a schema %s anymore", element, kind)
 		}
 	}
-	for attr := range knownGaps {
-		if _, ok := properties[attr]; !ok {
-			t.Errorf("knownGaps entry %q is not a schema service attribute anymore", attr)
+	for element := range gaps {
+		if !slices.Contains(elements, element) {
+			t.Errorf("known-gaps entry %q is not a schema %s anymore", element, kind)
 		}
+	}
+}
+
+// assertFileUses fails unless one of the files exists and uses the element as
+// a YAML key.
+func assertFileUses(t *testing.T, kind, element string, files []string, topLevel bool) {
+	t.Helper()
+	for _, file := range files {
+		source, err := os.ReadFile(filepath.Join("..", "..", file))
+		if err != nil {
+			t.Errorf("%s %q declares test file %s, which cannot be read: %v", kind, element, file, err)
+			return
+		}
+		if usesYAMLKey(string(source), element, topLevel) {
+			return
+		}
+	}
+	t.Errorf("%s %q declares %s, but no such file uses it as a YAML key: the declaration is stale or points at the wrong file", kind, element, strings.Join(files, ", "))
+}
+
+func TestEveryServiceAttributeHasADeclaredTest(t *testing.T) {
+	schema := readSchema(t)
+	assertDeclared(t, "service attribute", schema.properties(t, "service", true), coveredBy, knownGaps, false)
+}
+
+func TestEveryTopLevelElementHasADeclaredTest(t *testing.T) {
+	schema := readSchema(t)
+	elements := slices.Sorted(maps.Keys(schema.Properties))
+	assert.Assert(t, len(elements) > 0, "no top-level element found in schema")
+	assertDeclared(t, "top-level element", elements, topLevelCoveredBy, topLevelKnownGaps, true)
+}
+
+func TestEverySubStructurePropertyHasADeclaredTest(t *testing.T) {
+	schema := readSchema(t)
+	for _, sub := range subStructures {
+		t.Run(sub.def, func(t *testing.T) {
+			properties := schema.properties(t, sub.def, false)
+			for _, property := range properties {
+				if _, gap := sub.gaps[property]; gap {
+					continue
+				}
+				assertFileUses(t, sub.def+" property", property, sub.files, false)
+			}
+			var sources strings.Builder
+			for _, file := range sub.files {
+				content, err := os.ReadFile(filepath.Join("..", "..", file))
+				assert.NilError(t, err)
+				sources.Write(content)
+			}
+			for property := range sub.gaps {
+				if !slices.Contains(properties, property) {
+					t.Errorf("known-gaps entry %q is not a property of the schema definition %q anymore", property, sub.def)
+				}
+				if usesYAMLKey(sources.String(), property, false) {
+					t.Errorf("%s property %q is a known gap but its files use it: remove it from the gaps", sub.def, property)
+				}
+			}
+		})
 	}
 }
