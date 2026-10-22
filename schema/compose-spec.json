@@ -436,7 +436,7 @@
         },
         "mem_limit": {
           "type": [
-            "number",
+            "integer",
             "string"
           ],
           "description": "Memory limit for the container. A string value can use suffix like '2g' for 2 gigabytes."
@@ -457,7 +457,7 @@
         },
         "memswap_limit": {
           "type": [
-            "number",
+            "integer",
             "string"
           ],
           "description": "Amount of memory the container is allowed to swap to disk. Set to -1 to enable unlimited swap."
@@ -659,7 +659,7 @@
         },
         "shm_size": {
           "type": [
-            "number",
+            "integer",
             "string"
           ],
           "description": "Size of /dev/shm. A string value can use suffix like '2g' for 2 gigabytes."
