@@ -258,10 +258,8 @@ services:
 	assert.DeepEqual(t, model, expected)
 }
 
-// The include stack grows with every document of a multi-document file: the
-// file is pushed once per document, and the include cycle report shows it
-// that many times. This locks the current report, not an obligation of the
-// spec.
+// A multi-document file is on the include stack once, whatever its number of
+// documents: the include cycle report shows it once.
 // https://github.com/compose-spec/compose-spec/blob/main/14-include.md
 func TestLoadYamlFileMultiDocumentIncludeStack(t *testing.T) {
 	dir := t.TempDir()
@@ -274,5 +272,5 @@ func TestLoadYamlFileMultiDocumentIncludeStack(t *testing.T) {
 		WorkingDir:  dir,
 		ConfigFiles: []types.ConfigFile{{Filename: a}},
 	}, withProjectName("multi-doc", true))
-	assert.Error(t, err, fmt.Sprintf("include cycle detected:\n%s\n include %s\n include %s\n include %s", a, a, b, a))
+	assert.Error(t, err, fmt.Sprintf("include cycle detected:\n%s\n include %s\n include %s", a, b, a))
 }

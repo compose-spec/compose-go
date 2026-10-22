@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -522,6 +523,10 @@ func loadYamlFile(ctx context.Context,
 		dict:        dict,
 		included:    included,
 	}
+	if !opts.SkipInclude {
+		// the file is on the include stack once, whatever its number of documents
+		l.included = append(slices.Clip(included), file.Filename)
+	}
 
 	if file.Config != nil {
 		if err := l.loadDocument(ctx, file.Config, NoopPostProcessor{}); err != nil {
@@ -549,8 +554,8 @@ type yamlFileLoader struct {
 	ct          *cycleTracker
 	// dict is the model accumulated from the config files loaded so far
 	dict map[string]interface{}
-	// included is the stack of files being included. The file is pushed on it
-	// each time one of its documents is loaded, so it appears once per document.
+	// included is the stack of files being included, ending with this file
+	// (unless includes are skipped)
 	included []string
 }
 
@@ -631,7 +636,6 @@ func (l *yamlFileLoader) prepare(raw interface{}) (map[string]interface{}, error
 // attributes, then extended services
 func (l *yamlFileLoader) expand(ctx context.Context, cfg map[string]interface{}, processor PostProcessor) error {
 	if !l.opts.SkipInclude {
-		l.included = append(l.included, l.file.Filename)
 		err := ApplyInclude(ctx, l.workingDir, l.environment, cfg, l.opts, l.included, processor)
 		if err != nil {
 			return err
