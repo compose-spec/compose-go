@@ -21,18 +21,19 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/compose-spec/compose-go/v2/internal/warn"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
+	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/sirupsen/logrus"
 )
-
-var interpolateTypeCastMapping = buildInterpolateTypeCastMapping()
 
 // buildInterpolateTypeCastMapping registers numeric/boolean casts per layer of
 // the specification: container_spec attributes apply wherever a container is
 // declared (services, jobs, pre_start init containers), workload_spec
 // attributes to services and jobs, service-only attributes to services.
-func buildInterpolateTypeCastMapping() map[tree.Path]interp.Cast {
+// toBoolean is the cast applied to boolean attributes, so that its warnings
+// can be routed to the logger of the load.
+func buildInterpolateTypeCastMapping(toBoolean interp.Cast) map[tree.Path]interp.Cast {
 	casts := map[tree.Path]interp.Cast{
 		iPath("networks", tree.PathMatchAll, "external"):    toBoolean,
 		iPath("networks", tree.PathMatchAll, "internal"):    toBoolean,
@@ -138,18 +139,25 @@ func toFloat32(value string) (interface{}, error) {
 	return float32(f), nil
 }
 
+// toBoolean casts a boolean the way the load options are configured to report
+// its warnings: to o.Logger, or to logrus when none is set. The logger is read
+// when the cast runs, so it may be set after the Options are created.
+func (o *Options) toBoolean(value string) (interface{}, error) {
+	return parseBoolean(value, o.Logger)
+}
+
 // should match http://yaml.org/type/bool.html
-func toBoolean(value string) (interface{}, error) {
+func parseBoolean(value string, l logging.Logger) (interface{}, error) {
 	switch strings.ToLower(value) {
 	case "true":
 		return true, nil
 	case "false":
 		return false, nil
 	case "y", "yes", "on":
-		logrus.Warnf("%q for boolean is not supported by YAML 1.2, please use `true`", value)
+		warn.Warnf(l, "%q for boolean is not supported by YAML 1.2, please use `true`", value)
 		return true, nil
 	case "n", "no", "off":
-		logrus.Warnf("%q for boolean is not supported by YAML 1.2, please use `false`", value)
+		warn.Warnf(l, "%q for boolean is not supported by YAML 1.2, please use `false`", value)
 		return false, nil
 	default:
 		return nil, fmt.Errorf("invalid boolean: %s", value)

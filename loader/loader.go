@@ -32,7 +32,9 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/errdefs"
+	"github.com/compose-spec/compose-go/v2/internal/warn"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
+	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/override"
 	"github.com/compose-spec/compose-go/v2/paths"
 	"github.com/compose-spec/compose-go/v2/schema"
@@ -43,7 +45,6 @@ import (
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/go-viper/mapstructure/v2"
-	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -109,6 +110,19 @@ type Options struct {
 	// compose-file attributes not honored by the caller's runtime. See
 	// WithUnsupportedAttributesCheck.
 	UnsupportedAttributesCheck *UnsupportedAttributesCheck
+	// Logger receives the warnings raised while loading: obsolete `version`,
+	// YAML 1.1 booleans, unset variables, misconfigured resource loaders. When
+	// nil, they are written through the standard logrus logger.
+	//
+	// It applies to the warnings of this package and to the interpolation
+	// performed by the Interpolate options built by ToOptions: an Interpolate
+	// value supplied by the caller reports wherever its Substitute and
+	// TypeCastMapping functions are written to report. Those functions read
+	// the Logger of the Options returned by ToOptions, not of a copy of it.
+	//
+	// The obsolete `version` warning is emitted once per file for the whole
+	// process, whichever Logger the first load used.
+	Logger logging.Logger
 }
 
 var (
@@ -121,7 +135,7 @@ func (o *Options) warnObsoleteVersion(file string) {
 	versionWarningMu.Lock()
 	defer versionWarningMu.Unlock()
 	if !versionWarning.Has(file) {
-		logrus.Warning(file + ": the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion")
+		warn.Warnf(o.Logger, "%s: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion", file)
 		versionWarning.Add(file)
 	}
 }
@@ -151,7 +165,7 @@ func (o Options) RemoteResourceLoaders() []ResourceLoader {
 	for i, loader := range o.ResourceLoaders {
 		if _, ok := loader.(localResourceLoader); ok {
 			if i != len(o.ResourceLoaders)-1 {
-				logrus.Warning("misconfiguration of ResourceLoaders: localResourceLoader should be last")
+				warn.Warnf(o.Logger, "misconfiguration of ResourceLoaders: localResourceLoader should be last")
 			}
 			continue
 		}
@@ -222,6 +236,7 @@ func (o *Options) clone() *Options {
 		KnownExtensions:            o.KnownExtensions,
 		Listeners:                  o.Listeners,
 		UnsupportedAttributesCheck: o.UnsupportedAttributesCheck,
+		Logger:                     o.Logger,
 	}
 }
 
@@ -411,13 +426,14 @@ func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetail
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
-	opts := &Options{
-		Interpolate: &interp.Options{
-			Substitute:      template.Substitute,
-			LookupValue:     configDetails.LookupEnv,
-			TypeCastMapping: interpolateTypeCastMapping,
+	opts := &Options{ResolvePaths: true}
+	opts.Interpolate = &interp.Options{
+		// bound to opts so that the Logger, set by the options below, is honored
+		Substitute: func(value string, mapping template.Mapping) (string, error) {
+			return template.SubstituteWithOptions(value, mapping, template.WithLogger(opts.Logger))
 		},
-		ResolvePaths: true,
+		LookupValue:     configDetails.LookupEnv,
+		TypeCastMapping: buildInterpolateTypeCastMapping(opts.toBoolean),
 	}
 
 	for _, op := range options {
@@ -651,7 +667,7 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 		return nil, err
 	}
 
-	err = Transform(dict, project)
+	err = transformWithLogger(dict, project, opts.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -864,12 +880,17 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 // Transform converts the source into the target struct with compose types transformer
 // and the specified transformers if any.
 func Transform(source interface{}, target interface{}) error {
+	return transformWithLogger(source, target, nil)
+}
+
+// transformWithLogger is Transform reporting its warnings to l, or to logrus when nil.
+func transformWithLogger(source interface{}, target interface{}, l logging.Logger) error {
 	data := mapstructure.Metadata{}
 	config := &mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			nameServices,
 			decoderHook,
-			cast,
+			castHook(l),
 			secretConfigDecoderHook,
 		),
 		Result:   target,
