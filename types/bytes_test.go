@@ -18,6 +18,7 @@ package types
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 
 	"go.yaml.in/yaml/v4"
@@ -124,4 +125,51 @@ func TestUnitBytesJSONRoundTripViaUntypedMap(t *testing.T) {
 	err = json.Unmarshal(data2, &result)
 	assert.NilError(t, err)
 	assert.Equal(t, original, result)
+}
+
+// A byte value decoded from the YAML model is a whole number of bytes: a
+// number with an integer value is accepted whatever its notation, and any
+// other number is an error instead of a silent 0.
+func TestUnitBytesDecodeMapstructureNumbers(t *testing.T) {
+	accepted := []struct {
+		name     string
+		input    any
+		expected UnitBytes
+	}{
+		{"int", 1024, 1024},
+		{"int64", int64(1024), 1024},
+		{"uint64", uint64(1024), 1024},
+		{"negative int", -1, -1},
+		{"float with an integer value", 1024.0, 1024},
+		{"float with an exponent", 1e3, 1000},
+		{"negative float with an integer value", -1.0, -1},
+		{"largest uint64 that fits", uint64(math.MaxInt64), math.MaxInt64},
+	}
+	for _, tt := range accepted {
+		t.Run(tt.name, func(t *testing.T) {
+			var result UnitBytes
+			assert.NilError(t, result.DecodeMapstructure(tt.input))
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+
+	rejected := []struct {
+		name    string
+		input   any
+		message string
+	}{
+		{"fraction", 1.5, "invalid size: '1.5': a number of bytes must be an integer"},
+		{"fraction below one", 0.5, "invalid size: '0.5': a number of bytes must be an integer"},
+		{"not a number", math.NaN(), "invalid size: 'NaN'"},
+		{"float beyond 64 bits", 1e19, "invalid size: '1e+19': out of range"},
+		{"infinity", math.Inf(1), "invalid size: '+Inf': out of range"},
+		{"uint64 beyond 64 bits", uint64(math.MaxInt64) + 1, "invalid size: '9223372036854775808': out of range"},
+		{"boolean", true, "unexpected value type bool for a byte value"},
+	}
+	for _, tt := range rejected {
+		t.Run(tt.name, func(t *testing.T) {
+			var result UnitBytes
+			assert.ErrorContains(t, result.DecodeMapstructure(tt.input), tt.message)
+		})
+	}
 }

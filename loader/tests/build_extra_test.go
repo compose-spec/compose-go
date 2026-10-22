@@ -146,6 +146,31 @@ jobs:
 	expect(jsonP)
 }
 
+// build.shm_size is a byte value like the service attribute of the same name:
+// a number with an integer value is a number of bytes, and a number that is
+// not (or does not fit in 64 bits) is rejected rather than silently read as 0.
+func TestBuildShmSizeNumbers(t *testing.T) {
+	build := func(value string) string {
+		return "name: test\nservices:\n  foo:\n    build:\n      context: .\n      shm_size: " + value + "\n"
+	}
+
+	t.Run("an integer value", func(t *testing.T) {
+		loadsAs(t, build("1e3"), build(`"1000"`))
+	})
+
+	t.Run("a fraction", func(t *testing.T) {
+		err := loadErr(t, build("1.5"))
+		assert.ErrorContains(t, err, "build.shm_size")
+		assert.ErrorContains(t, err, "must be a integer or string")
+	})
+
+	t.Run("a number beyond 64 bits", func(t *testing.T) {
+		err := loadErr(t, build("9223372036854775808"))
+		assert.ErrorContains(t, err, "build.shm_size")
+		assert.ErrorContains(t, err, "out of range")
+	})
+}
+
 func TestBuildIsolation(t *testing.T) {
 	p := load(t, `
 name: test

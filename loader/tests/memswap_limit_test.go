@@ -70,6 +70,18 @@ func TestMemSwapLimitByteValues(t *testing.T) {
 	loadsByteValueNotations(t, "memswap_limit")
 }
 
+// The schema types memswap_limit as a number or a string: a number with an integer
+// value is a number of bytes whatever its notation, any other number is
+// rejected rather than silently read as 0, which would leave the amount unset.
+func TestMemSwapLimitNumbers(t *testing.T) {
+	t.Run("an integer value", func(t *testing.T) {
+		loadsIntegerValuedNumbers(t, "memswap_limit")
+	})
+	t.Run("not a number of bytes", func(t *testing.T) {
+		rejectsUnrepresentableNumbers(t, "memswap_limit")
+	})
+}
+
 // The value is subject to interpolation like any other, whatever its notation.
 func TestMemSwapLimitInterpolation(t *testing.T) {
 	for name, tc := range map[string]struct {
