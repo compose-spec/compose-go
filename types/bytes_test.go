@@ -139,6 +139,11 @@ func TestUnitBytesDecodeMapstructureNumbers(t *testing.T) {
 		{"int", 1024, 1024},
 		{"int64", int64(1024), 1024},
 		{"uint64", uint64(1024), 1024},
+		{"int32", int32(1024), 1024},
+		{"uint8", uint8(255), 255},
+		{"float32", float32(1024), 1024},
+		{"UnitBytes", UnitBytes(1024), 1024},
+		{"nil", nil, 0},
 		{"negative int", -1, -1},
 		{"float with an integer value", 1024.0, 1024},
 		{"float with an exponent", 1e3, 1000},
@@ -172,4 +177,94 @@ func TestUnitBytesDecodeMapstructureNumbers(t *testing.T) {
 			assert.ErrorContains(t, result.DecodeMapstructure(tt.input), tt.message)
 		})
 	}
+}
+
+// A byte value written as a string is {amount}{unit}, as documented by
+// https://github.com/compose-spec/compose-spec/blob/main/11-extension.md#specifying-byte-values
+// Amounts that cannot be a size, or that do not fit in 64 bits, are rejected
+// instead of being silently truncated, clamped or turned into -1.
+func TestUnitBytesParseString(t *testing.T) {
+	accepted := []struct {
+		input    string
+		expected UnitBytes
+	}{
+		{"0", 0},
+		{"-1", -1},
+		{"2b", 2},
+		{"2B", 2},
+		{"2k", 2048},
+		{"2kb", 2048},
+		{"2KiB", 2048},
+		{"2 g", 2 << 30},
+		{"1t", 1 << 40},
+		{"1p", 1 << 50},
+		{"1.5g", 1610612736},
+		{"1.1g", 1181116006},
+		{".5m", 524288},
+		{"1.", 1},
+		{"1e3", 1000},
+		{"9223372036854775807", math.MaxInt64},
+		{"7p", 7 << 50},
+	}
+	for _, tt := range accepted {
+		t.Run("accepts "+tt.input, func(t *testing.T) {
+			var result UnitBytes
+			assert.NilError(t, result.parseString(tt.input))
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+
+	rejected := []struct{ input, message string }{
+		{"", "invalid size: ''"},
+		{"abc", "invalid size: 'abc'"},
+		{"-1g", "invalid size: '-1g'"},
+		{"+1g", "invalid size: '+1g'"},
+		{"0x10", "invalid size: '0x10'"},
+		{"0x1p3", "invalid size: '0x1p3'"},
+		{"1_000", "invalid size: '1_000'"},
+		{"inf", "invalid size: 'inf'"},
+		{"NaN", "invalid size: 'NaN'"},
+		{" 1g", "invalid size: ' 1g'"},
+		{"1x", "invalid suffix: 'x'"},
+		{"1ib", "invalid suffix: 'ib'"},
+		{"1bb", "invalid suffix: 'bb'"},
+		{"1kx", "invalid suffix: 'kx'"},
+		{"0.5", "a number of bytes must be an integer"},
+		{"1.5b", "a number of bytes must be an integer"},
+		{"1e-1", "a number of bytes must be an integer"},
+		{"9223372036854775808", "out of range"},
+		{"9999999999g", "out of range"},
+		{"8192p", "out of range"},
+		{"8e", "invalid suffix: 'e'"},
+		{"1e999", "invalid size: '1e999'"},
+	}
+	for _, tt := range rejected {
+		t.Run("rejects "+tt.input, func(t *testing.T) {
+			var result UnitBytes
+			assert.ErrorContains(t, result.parseString(tt.input), tt.message)
+		})
+	}
+}
+
+// A JSON number that is not an integer literal is a byte value when its value
+// is a whole number of bytes (as 1e3), and an error otherwise.
+func TestUnitBytesUnmarshalJSONNumbers(t *testing.T) {
+	var result UnitBytes
+	assert.NilError(t, json.Unmarshal([]byte(`1e3`), &result))
+	assert.Equal(t, UnitBytes(1000), result)
+
+	assert.ErrorContains(t, json.Unmarshal([]byte(`1.5`), &result), "a number of bytes must be an integer")
+	assert.ErrorContains(t, json.Unmarshal([]byte(`1e19`), &result), "out of range")
+	assert.ErrorContains(t, json.Unmarshal([]byte(`true`), &result), "cannot unmarshal")
+}
+
+// A YAML number that is not an integer is a byte value when its value is a
+// whole number of bytes (as 1e3), and an error otherwise.
+func TestUnitBytesUnmarshalYAMLNumbers(t *testing.T) {
+	var result UnitBytes
+	assert.NilError(t, yaml.Unmarshal([]byte(`1e3`), &result))
+	assert.Equal(t, UnitBytes(1000), result)
+
+	assert.ErrorContains(t, yaml.Unmarshal([]byte(`1.5`), &result), "a number of bytes must be an integer")
+	assert.ErrorContains(t, yaml.Unmarshal([]byte(`9223372036854775808`), &result), "out of range")
 }

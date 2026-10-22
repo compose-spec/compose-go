@@ -78,6 +78,18 @@ func TestMemLimitNumbers(t *testing.T) {
 	})
 }
 
+// A fraction of a unit larger than the byte is a whole number of bytes, rounded
+// down. A value that is not a whole number of bytes, or does not fit in 64 bits,
+// is rejected rather than silently turned into another amount.
+func TestMemLimitAmounts(t *testing.T) {
+	t.Run("a fraction of a unit", func(t *testing.T) {
+		loadsFractionsOfUnits(t, "mem_limit")
+	})
+	t.Run("not representable", func(t *testing.T) {
+		rejectsUnrepresentableByteStrings(t, "mem_limit")
+	})
+}
+
 // The value is subject to interpolation like any other, whatever its notation.
 func TestMemLimitInterpolation(t *testing.T) {
 	for name, tc := range map[string]struct {

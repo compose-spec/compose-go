@@ -235,3 +235,46 @@ func rejectsUnrepresentableNumbers(t *testing.T, attr string) {
 		})
 	}
 }
+
+// rejectsUnrepresentableByteStrings asserts that the byte value attribute attr
+// rejects the strings that used to be silently turned into a different amount:
+// a fraction of a byte (rounded down, to 0 below one), an amount beyond 64 bits
+// (clamped to the largest amount), and the notations of floating point numbers
+// that do not describe a size.
+func rejectsUnrepresentableByteStrings(t *testing.T, attr string) {
+	t.Helper()
+	for _, tc := range []struct{ name, value, message string }{
+		{"a fraction of a byte", `"0.5"`, "a number of bytes must be an integer"},
+		{"a fraction of a byte with the b unit", `"1.5b"`, "a number of bytes must be an integer"},
+		{"an amount beyond 64 bits", `"9223372036854775808"`, "out of range"},
+		{"an amount beyond 64 bits with a unit", `9999999999g`, "out of range"},
+		{"an exponent beyond 64 bits", `"1e19"`, "out of range"},
+		{"a hexadecimal float", `"0x1p3"`, "invalid size"},
+		{"an infinite amount", `"inf"`, "invalid size"},
+		{"not a number", `"NaN"`, "invalid size"},
+		{"a sign before a unit", `"+1g"`, "invalid size"},
+		{"digit separators", `"1_000"`, "invalid size"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := loadErr(t, serviceWith(attr, tc.value))
+			assert.ErrorContains(t, err, attr)
+			assert.ErrorContains(t, err, tc.message)
+		})
+	}
+}
+
+// loadsFractionsOfUnits asserts that the byte value attribute attr accepts a
+// fraction of a unit larger than the byte, as Docker does, rounded down to a
+// whole number of bytes.
+func loadsFractionsOfUnits(t *testing.T, attr string) {
+	t.Helper()
+	for _, tc := range []struct{ name, notation, bytes string }{
+		{"a whole number of bytes", `1.5g`, "1610612736"},
+		{"rounded down", `1.1g`, "1181116006"},
+		{"without an integer part", `.5m`, "524288"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			loadsAs(t, serviceWith(attr, tc.notation), serviceWith(attr, `"`+tc.bytes+`"`))
+		})
+	}
+}
