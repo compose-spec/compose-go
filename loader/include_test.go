@@ -427,3 +427,33 @@ func TestIncludeSkipsLoadersNotAcceptingPath(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, p.Services["b"].Image, "x")
 }
+
+// remoteLoader stands for the remote resource loaders (git, OCI) of Docker
+// Compose: it serves a local copy of a reference, and its Dir is keyed by the
+// reference, so it returns nothing for the path of the local copy.
+type remoteLoader struct{ root string }
+
+func (remoteLoader) Accept(p string) bool { return strings.HasPrefix(p, "remote:") }
+func (l remoteLoader) Load(_ context.Context, p string) (string, error) {
+	return filepath.Join(l.root, strings.TrimPrefix(p, "remote:"), "compose.yaml"), nil
+}
+func (remoteLoader) Dir(string) string { return "" }
+
+// The relative paths of a file served by a remote resource loader, and of the
+// files it includes, are resolved against the directory of its local copy,
+// although the remote loader does not tell it.
+// https://github.com/compose-spec/compose-spec/blob/main/14-include.md#path
+func TestIncludeRelativePathsOfARemoteFile(t *testing.T) {
+	root := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(root, "module"), 0o700))
+	createFile(t, root, "include:\n  - ./nested.yaml\nservices:\n  b:\n    image: x\n    build: ./app\n", "module/compose.yaml")
+	createFile(t, root, "services:\n  c:\n    image: y\n    build: ./other\n", "module/nested.yaml")
+
+	p, err := includeProject(t, "include:\n  - remote:module\n", nil,
+		func(o *Options) { o.ResourceLoaders = []ResourceLoader{remoteLoader{root}} })
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["b"].Image, "x")
+	assert.Equal(t, p.Services["c"].Image, "y")
+	assert.Equal(t, p.Services["b"].Build.Context, filepath.Join(root, "module", "app"))
+	assert.Equal(t, p.Services["c"].Build.Context, filepath.Join(root, "module", "other"))
+}

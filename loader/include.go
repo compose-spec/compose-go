@@ -204,6 +204,18 @@ func (i *includer) resolvePaths(r *types.IncludeConfig) (string, error) {
 // loader accepting it. The first path is the "main" file, used to define
 // project-directory, the others are overrides: for this one the working
 // directory is returned too, and an include cycle is reported.
+//
+// There is no break after the first loader accepting the path, on purpose. The
+// local loader is last and accepts everything, so a path first loaded by a
+// remote loader is handled a second time by the local loader, on the local copy
+// the remote loader returned. For the first path of the entry, the first pass
+// sets the project directory and returns the remote loader's Dir of the local
+// copy; the second pass finds the project directory set and returns it, as an
+// absolute path, instead. That is what makes the relative paths of a remote
+// file resolve: the remote loaders of Docker Compose key Dir on the reference
+// given to Load, but Dir is called here with the local copy and so returns
+// nothing. Stopping at the first loader would leave that working directory
+// empty.
 func (i *includer) resolvePath(r *types.IncludeConfig, idx int, p string) (string, string, error) {
 	var relworkingdir string
 	for _, loader := range i.options.ResourceLoaders {
