@@ -117,6 +117,19 @@ func TestLoadWarnings(t *testing.T) {
 			yaml: "name: warn\nservices:\n  foo:\n    image: ${OTHER_UNSET:-${UNSET_VARIABLE}}\n",
 			want: []string{"The \"UNSET_VARIABLE\" variable is not set. Defaulting to a blank string."},
 		},
+		{
+			name: "deprecated external.name",
+			yaml: "name: warn\nservices:\n  foo:\n    image: busybox\nvolumes:\n  data:\n    external:\n      name: other\n",
+			want: []string{"volumes.data: external.name is deprecated. Please set name and external: true"},
+		},
+		{
+			name: "YAML 1.1 boolean in an extension",
+			yaml: "name: warn\nx-flag: \"yes\"\nservices:\n  foo:\n    image: busybox\n",
+			options: func(o *Options) {
+				o.KnownExtensions = map[string]any{"x-flag": true}
+			},
+			want: []string{"\"yes\" for boolean is not supported by YAML 1.2, please use `true`"},
+		},
 	}
 	for _, tc := range tests {
 		load := func(t *testing.T, logger *recordingLogger) {
@@ -234,6 +247,64 @@ func TestLoggerIsInheritedByIncludedFiles(t *testing.T) {
 			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual([]string{message}, logger.warnings))
 			assert.Check(t, is.Len(hook.AllEntries(), 0))
+		})
+	}
+}
+
+// The warnings raised while resolving the entries of the include section are
+// routed like the other ones: an unset variable referenced by the env_file of
+// an entry. (The entries have no boolean attribute, so the YAML 1.1 boolean
+// warning cannot be raised there today; the decoding of the entries is given
+// the logger all the same.)
+func TestIncludeEntryWarnings(t *testing.T) {
+	tests := []struct {
+		name string
+		main string
+		want string
+	}{
+		{
+			name: "unset variable in an env_file",
+			main: "name: warn\ninclude:\n  - path: other.yaml\n    env_file: include.env\n",
+			want: "The \"UNSET_VARIABLE\" variable is not set. Defaulting to a blank string.",
+		},
+	}
+	for _, tc := range tests {
+		run := func(t *testing.T, logger *recordingLogger) {
+			t.Helper()
+			dir := t.TempDir()
+			assert.NilError(t, os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(tc.main), 0o600))
+			assert.NilError(t, os.WriteFile(filepath.Join(dir, "other.yaml"), []byte("services: {}\n"), 0o600))
+			assert.NilError(t, os.WriteFile(filepath.Join(dir, "include.env"), []byte("FOO=${UNSET_VARIABLE}\n"), 0o600))
+			_, err := LoadWithContext(t.Context(), types.ConfigDetails{
+				WorkingDir:  dir,
+				ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
+				Environment: map[string]string{},
+			}, func(o *Options) {
+				o.SkipConsistencyCheck = true
+				if logger != nil {
+					o.Logger = logger
+				}
+			})
+			assert.NilError(t, err)
+		}
+		t.Run(tc.name, func(t *testing.T) {
+			// intent: with no Logger configured, the warning is still written
+			// through the standard logrus logger, as it has always been
+			t.Run("default goes through logrus", func(t *testing.T) {
+				hook := captureLogrus(t)
+				run(t, nil)
+				assert.Check(t, is.DeepEqual([]string{tc.want}, logrusMessages(hook)))
+			})
+
+			// intent: with a Logger configured, it receives the warning and
+			// logrus does not
+			t.Run("logger receives it", func(t *testing.T) {
+				hook := captureLogrus(t)
+				logger := &recordingLogger{}
+				run(t, logger)
+				assert.Check(t, is.DeepEqual([]string{tc.want}, logger.warnings))
+				assert.Check(t, is.Len(hook.AllEntries(), 0))
+			})
 		})
 	}
 }

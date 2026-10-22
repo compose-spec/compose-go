@@ -21,9 +21,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/compose-spec/compose-go/v2/logging"
 )
 
 func GetEnvFromFile(currentEnv map[string]string, filenames []string) (map[string]string, error) {
+	return GetEnvFromFileWithLogger(currentEnv, filenames, nil)
+}
+
+// GetEnvFromFileWithLogger is GetEnvFromFile sending the warnings raised while
+// parsing the files (a variable that is not set, referenced by a file) to l
+// instead of the standard logrus logger, which receives them when l is nil.
+func GetEnvFromFileWithLogger(currentEnv map[string]string, filenames []string, l logging.Logger) (map[string]string, error) {
 	envMap := make(map[string]string)
 
 	for _, dotEnvFile := range filenames {
@@ -56,14 +65,14 @@ func GetEnvFromFile(currentEnv map[string]string, filenames []string) (map[strin
 			return envMap, err
 		}
 
-		err = parseWithLookup(bytes.NewReader(b), envMap, func(k string) (string, bool) {
+		err = parseWithLogger(bytes.NewReader(b), envMap, func(k string) (string, bool) {
 			v, ok := currentEnv[k]
 			if ok {
 				return v, true
 			}
 			v, ok = envMap[k]
 			return v, ok
-		})
+		}, l)
 		if err != nil {
 			return envMap, fmt.Errorf("failed to read %s: %w", dotEnvFile, err)
 		}

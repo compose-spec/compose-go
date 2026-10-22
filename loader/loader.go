@@ -111,8 +111,14 @@ type Options struct {
 	// WithUnsupportedAttributesCheck.
 	UnsupportedAttributesCheck *UnsupportedAttributesCheck
 	// Logger receives the warnings raised while loading: obsolete `version`,
-	// YAML 1.1 booleans, unset variables, misconfigured resource loaders. When
+	// YAML 1.1 booleans, unset variables (in the model and in the env_file of an
+	// include), deprecated `external.name`, misconfigured resource loaders. When
 	// nil, they are written through the standard logrus logger.
+	//
+	// Two warnings are not routed: the unset variables referenced by the env_file
+	// of a service, resolved by types.Project.WithServicesEnvironmentResolved,
+	// and paths.ExpandUser failing to expand "~" when the environment lacks HOME.
+	// They are still written through logrus.
 	//
 	// It applies to the warnings of this package and to the interpolation
 	// performed by the Interpolate options built by ToOptions: an Interpolate
@@ -673,7 +679,7 @@ func (l *yamlFileLoader) validate() error {
 // canonicalize rewrites the merged model in its canonical form
 func (l *yamlFileLoader) canonicalize() error {
 	var err error
-	l.dict, err = transform.Canonical(l.dict, l.opts.SkipInterpolation)
+	l.dict, err = transform.CanonicalWithLogger(l.dict, l.opts.SkipInterpolation, l.opts.Logger)
 	if err != nil {
 		return err
 	}
@@ -736,7 +742,7 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	delete(dict, "name") // project name set by yaml must be identified by caller as opts.projectName
 
 	var err error
-	dict, err = processExtensions(dict, tree.NewPath(), opts.KnownExtensions)
+	dict, err = processExtensions(dict, tree.NewPath(), opts.KnownExtensions, opts.Logger)
 	if err != nil {
 		return nil, err
 	}
@@ -902,7 +908,7 @@ var userDefinedKeys = []tree.Path{
 	"configs",
 }
 
-func processExtensions(dict map[string]any, p tree.Path, extensions map[string]any) (map[string]interface{}, error) {
+func processExtensions(dict map[string]any, p tree.Path, extensions map[string]any, l logging.Logger) (map[string]interface{}, error) {
 	extras := map[string]any{}
 	var err error
 	for key, value := range dict {
@@ -920,14 +926,14 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 		}
 		switch v := value.(type) {
 		case map[string]interface{}:
-			dict[key], err = processExtensions(v, p.Next(key), extensions)
+			dict[key], err = processExtensions(v, p.Next(key), extensions, l)
 			if err != nil {
 				return nil, err
 			}
 		case []interface{}:
 			for i, e := range v {
 				if m, ok := e.(map[string]interface{}); ok {
-					v[i], err = processExtensions(m, p.Next(strconv.Itoa(i)), extensions)
+					v[i], err = processExtensions(m, p.Next(strconv.Itoa(i)), extensions, l)
 					if err != nil {
 						return nil, err
 					}
@@ -938,7 +944,7 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 	for name, val := range extras {
 		if typ, ok := extensions[name]; ok {
 			target := reflect.New(reflect.TypeOf(typ)).Elem().Interface()
-			err = Transform(val, &target)
+			err = transformWithLogger(val, &target, l)
 			if err != nil {
 				return nil, err
 			}

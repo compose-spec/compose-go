@@ -18,10 +18,44 @@ package transform
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
+	"github.com/compose-spec/compose-go/v2/internal/warn"
+	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/tree"
-	"github.com/sirupsen/logrus"
 )
+
+// externalResources are the top-level sections of resources that can be
+// declared external.
+var externalResources = []string{"volumes", "networks", "secrets", "configs"}
+
+// warnDeprecatedExternalName warns, for each top-level resource declaring
+// `external.name`, that the attribute is deprecated. It runs on the model
+// before it is made canonical, which turns `external` into a boolean: the
+// warnings are therefore raised even when the canonicalization fails later.
+// Resources are visited in the order of their names.
+func warnDeprecatedExternalName(yaml map[string]any, l logging.Logger) {
+	for _, section := range externalResources {
+		resources, ok := yaml[section].(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, name := range slices.Sorted(maps.Keys(resources)) {
+			m, ok := resources[name].(map[string]any)
+			if !ok {
+				continue
+			}
+			external, ok := m["external"].(map[string]any)
+			if !ok {
+				continue
+			}
+			if _, ok := external["name"]; ok {
+				warn.Warnf(l, "%s: external.name is deprecated. Please set name and external: true", tree.NewPath(section, name))
+			}
+		}
+	}
+}
 
 func transformMaybeExternal(data any, p tree.Path, ignoreParseError bool) (any, error) {
 	if data == nil {
@@ -41,7 +75,6 @@ func transformMaybeExternal(data any, p tree.Path, ignoreParseError bool) (any, 
 		if external, ok := ext.(map[string]any); ok {
 			resource["external"] = true
 			if extname, extNamed := external["name"]; extNamed {
-				logrus.Warnf("%s: external.name is deprecated. Please set name and external: true", p)
 				if named && extname != name {
 					return nil, fmt.Errorf("%s: name and external.name conflict; only use name", p)
 				}

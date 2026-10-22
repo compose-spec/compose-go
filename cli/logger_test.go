@@ -74,7 +74,8 @@ func writeFile(t *testing.T, path, content string) {
 // through the standard logrus logger unless WithLogger is used, in which case
 // the logger receives them and logrus stays silent. Each warning of this
 // package is covered: several default config files, several default override
-// files, an inaccessible default .env file, a project name taken from a
+// files, an inaccessible default .env file, an unset variable referenced by the
+// .env file, a project name taken from a
 // symlinked directory, and a warning of the loader.
 func TestProjectOptionsWarnings(t *testing.T) {
 	tests := []struct {
@@ -135,6 +136,16 @@ func TestProjectOptionsWarnings(t *testing.T) {
 			want: func(dir string) []string {
 				env := filepath.Join(dir, "locked", ".env")
 				return []string{"cannot access " + env + ", ignoring default env file: stat " + env + ": permission denied"}
+			},
+		},
+		{
+			name: "unset variable in the .env file",
+			setup: func(t *testing.T, dir string) []ProjectOptionsFn {
+				writeFile(t, filepath.Join(dir, ".env"), "FOO=${UNSET_VARIABLE}\n")
+				return []ProjectOptionsFn{WithWorkingDirectory(dir), WithEnvFiles(), WithDotEnv}
+			},
+			want: func(string) []string {
+				return []string{"The \"UNSET_VARIABLE\" variable is not set. Defaulting to a blank string."}
 			},
 		},
 		{
