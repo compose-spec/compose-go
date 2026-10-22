@@ -558,3 +558,161 @@ services:
 	assert.NilError(t, err)
 	assert.Check(t, p.Services["test"].Volumes[0].Source == "/dev/null")
 }
+
+// loadJobsExtends loads compose.yaml from a directory holding the given files.
+func loadJobsExtends(t *testing.T, files map[string]string) (*types.Project, error) {
+	t.Helper()
+	dir := t.TempDir()
+	for name, content := range files {
+		assert.NilError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+	}
+	return LoadWithContext(t.Context(), types.ConfigDetails{
+		WorkingDir:  dir,
+		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
+		Environment: map[string]string{},
+	}, func(o *Options) {
+		o.SkipConsistencyCheck = true
+		o.SetProjectName("test", true)
+	})
+}
+
+// A job extends a job, like a service extends a service: in the same file, or
+// in another file, whose `jobs` section is the one read (not its `services`).
+// A service and a job extending the same file each read their own section.
+func TestExtendsJob(t *testing.T) {
+	const base = `
+jobs:
+  base:
+    image: backup-tool
+    command: ["run", "--all"]
+    triggers:
+      manual: true
+`
+	t.Run("in the same file", func(t *testing.T) {
+		p, err := loadJobsExtends(t, map[string]string{"compose.yaml": base + `
+  nightly:
+    extends: base
+    command: ["run", "--nightly"]
+    triggers:
+      schedule: ["0 3 * * *"]
+`})
+		assert.NilError(t, err)
+		assert.Equal(t, p.Jobs["nightly"].Image, "backup-tool")
+		assert.DeepEqual(t, []string(p.Jobs["nightly"].Command), []string{"run", "--nightly"})
+		assert.Equal(t, len(p.Jobs["nightly"].Triggers.Schedule), 1)
+	})
+
+	t.Run("in another file", func(t *testing.T) {
+		p, err := loadJobsExtends(t, map[string]string{
+			"base.yaml": base,
+			"compose.yaml": `
+jobs:
+  nightly:
+    extends:
+      file: base.yaml
+      service: base
+    triggers:
+      schedule: ["0 3 * * *"]
+`,
+		})
+		assert.NilError(t, err)
+		assert.Equal(t, p.Jobs["nightly"].Image, "backup-tool")
+		assert.DeepEqual(t, []string(p.Jobs["nightly"].Command), []string{"run", "--all"})
+	})
+
+	t.Run("a service and a job extend the same file", func(t *testing.T) {
+		p, err := loadJobsExtends(t, map[string]string{
+			"base.yaml": `
+services:
+  base:
+    image: web
+jobs:
+  base:
+    image: backup-tool
+    triggers:
+      manual: true
+`,
+			"compose.yaml": `
+services:
+  web:
+    extends:
+      file: base.yaml
+      service: base
+jobs:
+  nightly:
+    extends:
+      file: base.yaml
+      service: base
+    triggers:
+      schedule: ["0 3 * * *"]
+`,
+		})
+		assert.NilError(t, err)
+		assert.Equal(t, p.Services["web"].Image, "web")
+		assert.Equal(t, p.Jobs["nightly"].Image, "backup-tool")
+	})
+
+	t.Run("a job cannot extend a service of another file", func(t *testing.T) {
+		_, err := loadJobsExtends(t, map[string]string{
+			"base.yaml": "services:\n  base:\n    image: web\n",
+			"compose.yaml": `
+jobs:
+  nightly:
+    extends:
+      file: base.yaml
+      service: base
+    triggers:
+      manual: true
+`,
+		})
+		assert.ErrorContains(t, err, `cannot extend job "nightly"`)
+		assert.ErrorContains(t, err, "no jobs section")
+	})
+
+	t.Run("a service cannot extend a job of another file", func(t *testing.T) {
+		_, err := loadJobsExtends(t, map[string]string{
+			"base.yaml": base,
+			"compose.yaml": `
+services:
+  web:
+    extends:
+      file: base.yaml
+      service: base
+`,
+		})
+		assert.ErrorContains(t, err, `cannot extend service "web"`)
+		assert.ErrorContains(t, err, "no services section")
+	})
+
+	t.Run("a job cannot extend a service of the same file", func(t *testing.T) {
+		_, err := loadJobsExtends(t, map[string]string{"compose.yaml": `
+services:
+  web:
+    image: web
+jobs:
+  nightly:
+    extends: web
+    triggers:
+      manual: true
+`})
+		assert.ErrorContains(t, err, `cannot extend job "nightly"`)
+		assert.ErrorContains(t, err, `job "web" not found`)
+	})
+
+	t.Run("a job not found in the other file", func(t *testing.T) {
+		_, err := loadJobsExtends(t, map[string]string{
+			"base.yaml": base,
+			"compose.yaml": `
+jobs:
+  nightly:
+    extends:
+      file: base.yaml
+      service: missing
+    triggers:
+      manual: true
+`,
+		})
+		assert.ErrorContains(t, err, `cannot extend job "nightly"`)
+		assert.ErrorContains(t, err, `job "missing" not found in base.yaml`)
+	})
+}

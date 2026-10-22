@@ -307,3 +307,37 @@ func TestSchema(t *testing.T) {
 	_, err = compiler.Compile("compose-spec.json")
 	assert.NilError(t, err)
 }
+
+// A job can extend another job, with the same syntax as a service: a name, or
+// a name and a file. The loader resolves extends before validating the model,
+// but the schema must accept the attribute for any tool validating a raw file.
+func TestValidateJobExtends(t *testing.T) {
+	job := func(extends any) map[string]any {
+		return map[string]any{
+			"jobs": map[string]any{
+				"nightly": map[string]any{
+					"extends":  extends,
+					"triggers": map[string]any{"manual": true},
+				},
+			},
+		}
+	}
+	for name, tc := range map[string]struct {
+		extends any
+		err     string
+	}{
+		"a name":              {extends: "base"},
+		"a name and a file":   {extends: map[string]any{"service": "base", "file": "base.yaml"}},
+		"a file without name": {extends: map[string]any{"file": "base.yaml"}, err: "jobs.nightly.extends"},
+		"a number":            {extends: 1, err: "jobs.nightly.extends"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := Validate(job(tc.extends))
+			if tc.err == "" {
+				assert.NilError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tc.err)
+		})
+	}
+}
