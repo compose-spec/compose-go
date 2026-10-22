@@ -32,6 +32,32 @@ jobs:
       - name: Check generated sources
         run: make check-generate
 
+  api-compat:
+    name: api compatibility
+    # Only meaningful on pull requests; skipped when reused by the release workflow
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Informational for now: breaking changes are reported in the job summary
+    # but do not block the merge, until the noise level is known.
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Install gorelease
+        run: go install golang.org/x/exp/cmd/gorelease@v0.0.0-20261014143641-f0251eb4aa3e
+      - name: Compare the public API with the latest release
+        run: |
+          status=0
+          gorelease > gorelease.txt 2>&1 || status=$?
+          cat gorelease.txt
+          { echo '```'; cat gorelease.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          exit $status
+
   test:
     strategy:
       matrix:
