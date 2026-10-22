@@ -30,6 +30,11 @@ import (
 func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 	normalizeNetworks(dict)
 
+	lookup := func(s string) (string, bool) {
+		v, ok := env[s]
+		return v, ok
+	}
+
 	for _, key := range []string{"services", "jobs"} {
 		d, ok := dict[key]
 		if !ok {
@@ -38,111 +43,9 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 		containers := d.(map[string]any)
 		for name, s := range containers {
 			container := s.(map[string]any)
-
-			if container["pull_policy"] == types.PullPolicyIfNotPresent {
-				container["pull_policy"] = types.PullPolicyMissing
-			}
-
-			fn := func(s string) (string, bool) {
-				v, ok := env[s]
-				return v, ok
-			}
-
-			if b, ok := container["build"]; ok {
-				build := b.(map[string]any)
-				if build["context"] == nil {
-					build["context"] = "."
-				}
-				if build["dockerfile"] == nil && build["dockerfile_inline"] == nil {
-					build["dockerfile"] = "Dockerfile"
-				}
-
-				if a, ok := build["args"]; ok {
-					build["args"], _ = resolve(a, fn, false)
-				}
-
-				container["build"] = build
-			}
-
-			if e, ok := container["environment"]; ok {
-				container["environment"], _ = resolve(e, fn, true)
-			}
-
-			var dependsOn map[string]any
-			if d, ok := container["depends_on"]; ok {
-				dependsOn = d.(map[string]any)
-			} else {
-				dependsOn = map[string]any{}
-			}
-			if l, ok := container["links"]; ok {
-				links := l.([]any)
-				for _, e := range links {
-					link := e.(string)
-					parts := strings.Split(link, ":")
-					if len(parts) == 2 {
-						link = parts[0]
-					}
-					if _, ok := dependsOn[link]; !ok {
-						dependsOn[link] = map[string]any{
-							"condition": types.ServiceConditionStarted,
-							"restart":   true,
-							"required":  true,
-						}
-					}
-				}
-			}
-
-			for _, namespace := range []string{"network_mode", "ipc", "pid", "uts", "cgroup"} {
-				if n, ok := container[namespace]; ok {
-					ref := n.(string)
-					if strings.HasPrefix(ref, types.ServicePrefix) {
-						shared := ref[len(types.ServicePrefix):]
-						if _, ok := dependsOn[shared]; !ok {
-							dependsOn[shared] = map[string]any{
-								"condition": types.ServiceConditionStarted,
-								"restart":   true,
-								"required":  true,
-							}
-						}
-					}
-				}
-			}
-
-			if v, ok := container["volumes"]; ok {
-				volumes := v.([]any)
-				for i, volume := range volumes {
-					vol := volume.(map[string]any)
-					target := vol["target"].(string)
-					vol["target"] = path.Clean(target)
-					volumes[i] = vol
-				}
-				container["volumes"] = volumes
-			}
-
-			if n, ok := container["volumes_from"]; ok {
-				volumesFrom := n.([]any)
-				for _, v := range volumesFrom {
-					vol := v.(string)
-					if !strings.HasPrefix(vol, types.ContainerPrefix) {
-						spec := strings.Split(vol, ":")
-						if _, ok := dependsOn[spec[0]]; !ok {
-							dependsOn[spec[0]] = map[string]any{
-								"condition": types.ServiceConditionStarted,
-								"restart":   false,
-								"required":  true,
-							}
-						}
-					}
-				}
-			}
-			if len(dependsOn) > 0 {
-				container["depends_on"] = dependsOn
-			}
-
-			if err := resolvePreStartHooks(container); err != nil {
+			if err := normalizeContainer(container, lookup); err != nil {
 				return nil, err
 			}
-
 			containers[name] = container
 		}
 
@@ -151,6 +54,136 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 	setNameFromKey(dict)
 
 	return dict, nil
+}
+
+// normalizeContainer normalizes a service or job definition in place
+func normalizeContainer(container map[string]any, lookup func(string) (string, bool)) error {
+	if container["pull_policy"] == types.PullPolicyIfNotPresent {
+		container["pull_policy"] = types.PullPolicyMissing
+	}
+
+	if b, ok := container["build"]; ok {
+		normalizeBuild(b.(map[string]any), lookup)
+	}
+
+	if e, ok := container["environment"]; ok {
+		container["environment"], _ = resolve(e, lookup, true)
+	}
+
+	dependsOn := map[string]any{}
+	if d, ok := container["depends_on"]; ok {
+		dependsOn = d.(map[string]any)
+	}
+	addLinksDependencies(container, dependsOn)
+	addNamespaceDependencies(container, dependsOn)
+	cleanVolumeTargets(container)
+	addVolumesFromDependencies(container, dependsOn)
+	if len(dependsOn) > 0 {
+		container["depends_on"] = dependsOn
+	}
+
+	return resolvePreStartHooks(container)
+}
+
+// normalizeBuild injects the implicit build context and dockerfile, and
+// resolves build args declared without a value from the environment
+func normalizeBuild(build map[string]any, lookup func(string) (string, bool)) {
+	if build["context"] == nil {
+		build["context"] = "."
+	}
+	if build["dockerfile"] == nil && build["dockerfile_inline"] == nil {
+		build["dockerfile"] = "Dockerfile"
+	}
+
+	if a, ok := build["args"]; ok {
+		build["args"], _ = resolve(a, lookup, false)
+	}
+}
+
+// implicitDependency builds the depends_on entry for a dependency the user
+// did not declare but which the service definition implies
+func implicitDependency(restart bool) map[string]any {
+	return map[string]any{
+		"condition": types.ServiceConditionStarted,
+		"restart":   restart,
+		"required":  true,
+	}
+}
+
+// addLinksDependencies makes each linked service a dependency, unless
+// declared as such already
+func addLinksDependencies(container map[string]any, dependsOn map[string]any) {
+	l, ok := container["links"]
+	if !ok {
+		return
+	}
+	for _, e := range l.([]any) {
+		link := e.(string)
+		parts := strings.Split(link, ":")
+		if len(parts) == 2 {
+			link = parts[0]
+		}
+		if _, ok := dependsOn[link]; !ok {
+			dependsOn[link] = implicitDependency(true)
+		}
+	}
+}
+
+// addNamespaceDependencies makes a service whose network, ipc, pid, uts or
+// cgroup namespace is shared with another service depend on it, unless
+// declared as such already
+func addNamespaceDependencies(container map[string]any, dependsOn map[string]any) {
+	for _, namespace := range []string{"network_mode", "ipc", "pid", "uts", "cgroup"} {
+		n, ok := container[namespace]
+		if !ok {
+			continue
+		}
+		ref := n.(string)
+		if !strings.HasPrefix(ref, types.ServicePrefix) {
+			continue
+		}
+		shared := ref[len(types.ServicePrefix):]
+		if _, ok := dependsOn[shared]; !ok {
+			dependsOn[shared] = implicitDependency(true)
+		}
+	}
+}
+
+// cleanVolumeTargets lexically cleans the container path of volumes
+func cleanVolumeTargets(container map[string]any) {
+	v, ok := container["volumes"]
+	if !ok {
+		return
+	}
+	volumes := v.([]any)
+	for i, volume := range volumes {
+		vol := volume.(map[string]any)
+		target := vol["target"].(string)
+		vol["target"] = path.Clean(target)
+		volumes[i] = vol
+	}
+	container["volumes"] = volumes
+}
+
+// addVolumesFromDependencies makes a service mounting the volumes of another
+// service depend on it (without restarting it on update), unless declared as
+// such already. Volumes taken from an external container are not a service
+// dependency.
+func addVolumesFromDependencies(container map[string]any, dependsOn map[string]any) {
+	n, ok := container["volumes_from"]
+	if !ok {
+		return
+	}
+	for _, v := range n.([]any) {
+		vol := v.(string)
+		if strings.HasPrefix(vol, types.ContainerPrefix) {
+			continue
+		}
+		spec := strings.Split(vol, ":")
+		if _, ok := dependsOn[spec[0]]; !ok {
+			dependsOn[spec[0]] = implicitDependency(false)
+		}
+	}
 }
 
 // resolvePreStartHooks materializes pre_start inheritance at load time: each
