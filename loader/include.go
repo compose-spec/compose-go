@@ -29,6 +29,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
+	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/override"
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
@@ -76,7 +77,7 @@ func includeModelKey(paths types.StringList, workingDir, projectDir string, env 
 }
 
 // loadIncludeConfig parse the required config from raw yaml
-func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
+func loadIncludeConfig(source any, l logging.Logger) ([]types.IncludeConfig, error) {
 	if source == nil {
 		return nil, nil
 	}
@@ -92,12 +93,16 @@ func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 		}
 	}
 	var requires []types.IncludeConfig
-	err := Transform(source, &requires)
+	err := transformWithLogger(source, &requires, l)
 	return requires, err
 }
 
 func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapping, model map[string]any, options *Options, included []string, processor PostProcessor) error {
-	includeConfig, err := loadIncludeConfig(model["include"])
+	var logger logging.Logger
+	if options != nil {
+		logger = options.Logger
+	}
+	includeConfig, err := loadIncludeConfig(model["include"], logger)
 	if err != nil {
 		return err
 	}
@@ -155,7 +160,7 @@ func (i *includer) apply(r *types.IncludeConfig) error {
 		return err
 	}
 
-	envFromFile, err := dotenv.GetEnvFromFile(i.environment, r.EnvFile)
+	envFromFile, err := dotenv.GetEnvFromFileWithLogger(i.environment, r.EnvFile, i.options.Logger)
 	if err != nil {
 		return err
 	}

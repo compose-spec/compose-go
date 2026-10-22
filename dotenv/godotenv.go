@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/template"
 )
 
@@ -48,6 +49,12 @@ func ParseWithLookup(r io.Reader, lookupFn LookupFn) (map[string]string, error) 
 
 // ParseWithLookup reads an env file from io.Reader, returning a map of keys and values.
 func parseWithLookup(r io.Reader, vars map[string]string, lookupFn LookupFn) error {
+	return parseWithLogger(r, vars, lookupFn, nil)
+}
+
+// parseWithLogger is parseWithLookup reporting its warnings to l, or to logrus
+// when nil.
+func parseWithLogger(r io.Reader, vars map[string]string, lookupFn LookupFn, l logging.Logger) error {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return err
@@ -57,7 +64,9 @@ func parseWithLookup(r io.Reader, vars map[string]string, lookupFn LookupFn) err
 	// editors tend to add it, and it'll cause parsing to fail)
 	data = bytes.TrimPrefix(data, utf8BOM)
 
-	return newParser().parse(string(data), vars, lookupFn)
+	p := newParser()
+	p.logger = l
+	return p.parse(string(data), vars, lookupFn)
 }
 
 // Load will read your env file(s) and load them into ENV for this process.
@@ -168,13 +177,19 @@ func ReadFile(filename string, lookupFn LookupFn) (map[string]string, error) {
 }
 
 func expandVariables(value string, envMap map[string]string, lookupFn LookupFn) (string, error) {
-	retVal, err := template.Substitute(value, func(k string) (string, bool) {
+	return expandVariablesWithLogger(value, envMap, lookupFn, nil)
+}
+
+// expandVariablesWithLogger is expandVariables reporting its warnings to l, or
+// to logrus when nil.
+func expandVariablesWithLogger(value string, envMap map[string]string, lookupFn LookupFn, l logging.Logger) (string, error) {
+	retVal, err := template.SubstituteWithOptions(value, func(k string) (string, bool) {
 		if v, ok := lookupFn(k); ok {
 			return v, true
 		}
 		v, ok := envMap[k]
 		return v, ok
-	})
+	}, template.WithLogger(l))
 	if err != nil {
 		return value, err
 	}

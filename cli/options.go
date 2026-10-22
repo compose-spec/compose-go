@@ -275,8 +275,9 @@ func WithDiscardEnvFile(o *ProjectOptions) error {
 // WithLogger sends the warnings raised while discovering files and loading
 // the project to l, instead of the standard logrus logger which receives
 // them by default: several default config or override files, an inaccessible
-// default .env file, a project name taken from a symlinked directory, and the
-// warnings of the loader (see loader.Options.Logger).
+// default .env file, an unset variable referenced by the .env file, a project
+// name taken from a symlinked directory, and the warnings of the loader (see
+// loader.Options.Logger).
 //
 // Options are applied in order: WithLogger must come before the options that
 // may warn, such as WithDefaultConfigPath or WithEnvFiles.
@@ -289,9 +290,10 @@ func WithDiscardEnvFile(o *ProjectOptions) error {
 //		cli.WithDefaultConfigPath,
 //	)
 //
-// Warnings raised while parsing .env and env_file files (an unset variable
-// referenced by such a file) are not routed: they are still written through
-// logrus.
+// Two warnings are not routed and are still written through logrus: the
+// unset variables referenced by the env_file of a service, resolved by
+// types.Project.WithServicesEnvironmentResolved, and paths.ExpandUser failing
+// to expand "~" when the environment lacks HOME.
 func WithLogger(l logging.Logger) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
 		o.logger = l
@@ -403,7 +405,7 @@ func WithEnvFiles(file ...string) ProjectOptionsFn {
 
 // WithDotEnv imports environment variables from .env file
 func WithDotEnv(o *ProjectOptions) error {
-	envMap, err := dotenv.GetEnvFromFile(o.Environment, o.EnvFiles)
+	envMap, err := dotenv.GetEnvFromFileWithLogger(o.Environment, o.EnvFiles, o.logger)
 	if err != nil {
 		return err
 	}
