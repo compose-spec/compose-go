@@ -121,7 +121,7 @@ func (o *Options) warnObsoleteVersion(file string) {
 	versionWarningMu.Lock()
 	defer versionWarningMu.Unlock()
 	if !versionWarning.Has(file) {
-		logrus.Warning(fmt.Sprintf("%s: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion", file))
+		logrus.Warning(file + ": the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion")
 		versionWarning.Add(file)
 	}
 }
@@ -979,7 +979,7 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 	if keyPrefix == "" {
 		location = "at top level"
 	} else {
-		location = fmt.Sprintf("in %s", keyPrefix)
+		location = "in " + keyPrefix
 	}
 	return fmt.Errorf("non-string key %s: %#v", location, key)
 }

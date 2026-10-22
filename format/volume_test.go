@@ -434,7 +434,7 @@ func TestParseVolumeWithVariableDefaultValue(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			volume, err := ParseVolume(tc.input)
-			assert.NilError(t, err, fmt.Sprintf("Failed to parse: %s", tc.input))
+			assert.NilError(t, err, "Failed to parse: "+tc.input)
 			assert.Check(t, is.DeepEqual(tc.expected, volume))
 		})
 	}
@@ -484,7 +484,7 @@ func TestParseVolumeWithVariableDefaultValueWindows(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			volume, err := ParseVolume(tc.input)
-			assert.NilError(t, err, fmt.Sprintf("Failed to parse: %s", tc.input))
+			assert.NilError(t, err, "Failed to parse: "+tc.input)
 			assert.Check(t, is.DeepEqual(tc.expected, volume))
 		})
 	}
@@ -533,7 +533,7 @@ func TestParseVolumeWithNestedBraces(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			volume, err := ParseVolume(tc.input)
-			assert.NilError(t, err, fmt.Sprintf("Failed to parse: %s", tc.input))
+			assert.NilError(t, err, "Failed to parse: "+tc.input)
 			assert.Check(t, is.DeepEqual(tc.expected, volume))
 		})
 	}

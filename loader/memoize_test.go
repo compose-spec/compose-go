@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -235,14 +236,16 @@ services:
     environment:
       - POLLUTED=1
 `
+	var extraServices strings.Builder
 	for i := 2; i <= 5; i++ {
-		root += fmt.Sprintf(`
+		fmt.Fprintf(&extraServices, `
   web%d:
     extends:
       file: base.yaml
       service: web
 `, i)
 	}
+	root += extraServices.String()
 	assert.NilError(t, os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(root), 0o600))
 
 	p, err := LoadWithContext(context.Background(), types.ConfigDetails{
@@ -327,14 +330,16 @@ services:
 		b.Fatal(err)
 	}
 	root := "name: extends-bench\nservices:"
+	var extraServices strings.Builder
 	for i := 0; i < 40; i++ {
-		root += fmt.Sprintf(`
+		fmt.Fprintf(&extraServices, `
   svc%d:
     extends:
       file: base.yaml
       service: base
 `, i)
 	}
+	root += extraServices.String()
 	if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(root), 0o600); err != nil {
 		b.Fatal(err)
 	}
