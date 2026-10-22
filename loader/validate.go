@@ -27,7 +27,7 @@ import (
 )
 
 // checkConsistency validate a compose model is consistent
-func checkConsistency(project *types.Project) error { //nolint:gocyclo
+func checkConsistency(project *types.Project) error {
 	for name, s := range project.Services {
 		if s.Build == nil && s.Image == "" && s.Provider == nil {
 			return fmt.Errorf("service %q has neither an image nor a build context specified: %w", s.Name, errdefs.ErrInvalid)
