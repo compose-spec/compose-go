@@ -77,12 +77,7 @@ make lint
 
 Check the license headers
 ```bash
-make check_license
-```
-
-Check the `compose-spec.json` file is sync with the `compose-spec` repository
-```bash
-make check_compose_spec
+make check-license
 ```
 
 ## Used by
