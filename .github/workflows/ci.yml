@@ -1,11 +1,17 @@
 on:
   push:
+    branches:
+      - main # other branches are covered by their pull request, tags by the release workflow
   pull_request:
   workflow_call: # reused by the release workflow as a gate
 name: Continuous integration
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
@@ -31,6 +37,23 @@ jobs:
           fi
       - name: Check generated sources
         run: make check-generate
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+      - name: Install Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
+        with:
+          version: v2.1.6
+          args: --verbose
+          skip-cache: true
 
   api-compat:
     name: api compatibility
@@ -83,10 +106,5 @@ jobs:
         go-version: ${{ matrix.go-version }}
         check-latest: true
         cache: true
-    - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
-      with:
-        version: v2.1.6
-        args: --verbose
-        skip-cache: true
     - name: Test
       run: go test ./...
