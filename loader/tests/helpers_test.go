@@ -218,13 +218,15 @@ func loadsIntegerValuedNumbers(t *testing.T, attr string) {
 // rejectsUnrepresentableNumbers asserts that the byte value attribute attr
 // rejects, instead of silently turning them into a different amount (0, the
 // unset value, for instance), the YAML numbers that are not a number of bytes
-// fitting in a signed 64 bits integer.
+// fitting in a signed 64 bits integer. The schema types the attribute as an
+// integer, so it rejects a fraction before the value is parsed; the parser
+// rejects it too, for the callers that skip the validation.
 func rejectsUnrepresentableNumbers(t *testing.T, attr string) {
 	t.Helper()
 	for _, tc := range []struct{ name, value, message string }{
-		{"a fraction", `1.5`, "a number of bytes must be an integer"},
-		{"a fraction below one", `0.5`, "a number of bytes must be an integer"},
-		{"a fraction with an exponent", `1.5e-3`, "a number of bytes must be an integer"},
+		{"a fraction", `1.5`, "must be a integer or string"},
+		{"a fraction below one", `0.5`, "must be a integer or string"},
+		{"a fraction with an exponent", `1.5e-3`, "must be a integer or string"},
 		{"a number beyond 64 bits", `9223372036854775808`, "out of range"},
 		{"an exponent beyond 64 bits", `1e19`, "out of range"},
 	} {

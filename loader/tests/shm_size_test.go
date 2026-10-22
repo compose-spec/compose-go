@@ -68,7 +68,7 @@ func TestShmSizeByteValues(t *testing.T) {
 	loadsByteValueNotations(t, "shm_size")
 }
 
-// The schema types shm_size as a number or a string: a number with an integer
+// The schema types shm_size as an integer or a string: a number with an integer
 // value is a number of bytes whatever its notation, any other number is
 // rejected rather than silently read as 0, which would leave the amount unset.
 func TestShmSizeNumbers(t *testing.T) {
@@ -136,8 +136,8 @@ func TestShmSizeInvalid(t *testing.T) {
 	for name, tc := range map[string]struct{ value, message string }{
 		"an unknown notation": {`abc`, "invalid size"},
 		"an empty string":     {`""`, "invalid size"},
-		"a boolean":           {`true`, "must be a number or string"},
-		"a list":              {`[512m]`, "must be a number or string"},
+		"a boolean":           {`true`, "must be a integer or string"},
+		"a list":              {`[512m]`, "must be a integer or string"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			err := loadErr(t, serviceWith("shm_size", tc.value))
