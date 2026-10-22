@@ -25,12 +25,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v4"
 
 	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/dotenv"
+	"github.com/compose-spec/compose-go/v2/internal/warn"
 	"github.com/compose-spec/compose-go/v2/loader"
+	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/types"
 	"github.com/compose-spec/compose-go/v2/utils"
 )
@@ -90,6 +91,10 @@ type ProjectOptions struct {
 	// variable, default file discovery), keyed by the value stored in
 	// ConfigPaths. Used to give context in configuration load errors.
 	configOrigin map[string]string
+
+	// logger receives the warnings raised by the options and the load. See
+	// WithLogger.
+	logger logging.Logger
 }
 
 type ProjectOptionsFn func(*ProjectOptions) error
@@ -223,8 +228,8 @@ func WithDefaultConfigPath(o *ProjectOptions) error {
 		if len(candidates) > 0 {
 			winner := candidates[0]
 			if len(candidates) > 1 {
-				logrus.Warnf("Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
-				logrus.Warnf("Using %s", winner)
+				warn.Warnf(o.logger, "Found multiple config files with supported names: %s", strings.Join(candidates, ", "))
+				warn.Warnf(o.logger, "Using %s", winner)
 			}
 			const origin = "found by default file discovery"
 			o.ConfigPaths = append(o.ConfigPaths, winner)
@@ -233,8 +238,8 @@ func WithDefaultConfigPath(o *ProjectOptions) error {
 			overrides := findFiles(DefaultOverrideFileNames, pwd)
 			if len(overrides) > 0 {
 				if len(overrides) > 1 {
-					logrus.Warnf("Found multiple override files with supported names: %s", strings.Join(overrides, ", "))
-					logrus.Warnf("Using %s", overrides[0])
+					warn.Warnf(o.logger, "Found multiple override files with supported names: %s", strings.Join(overrides, ", "))
+					warn.Warnf(o.logger, "Using %s", overrides[0])
 				}
 				o.ConfigPaths = append(o.ConfigPaths, overrides[0])
 				o.setConfigOrigin(overrides[0], origin)
@@ -265,6 +270,36 @@ func WithEnv(env []string) ProjectOptionsFn {
 func WithDiscardEnvFile(o *ProjectOptions) error {
 	o.loadOptions = append(o.loadOptions, loader.WithDiscardEnvFiles)
 	return nil
+}
+
+// WithLogger sends the warnings raised while discovering files and loading
+// the project to l, instead of the standard logrus logger which receives
+// them by default: several default config or override files, an inaccessible
+// default .env file, a project name taken from a symlinked directory, and the
+// warnings of the loader (see loader.Options.Logger).
+//
+// Options are applied in order: WithLogger must come before the options that
+// may warn, such as WithDefaultConfigPath or WithEnvFiles.
+//
+// The logger is also set as loader.Options.Logger, which a load option given
+// to WithLoadOptions afterwards may still replace.
+//
+//	opts, err := cli.NewProjectOptions(nil,
+//		cli.WithLogger(logrus.StandardLogger()),
+//		cli.WithDefaultConfigPath,
+//	)
+//
+// Warnings raised while parsing .env and env_file files (an unset variable
+// referenced by such a file) are not routed: they are still written through
+// logrus.
+func WithLogger(l logging.Logger) ProjectOptionsFn {
+	return func(o *ProjectOptions) error {
+		o.logger = l
+		o.loadOptions = append(o.loadOptions, func(opts *loader.Options) {
+			opts.Logger = l
+		})
+		return nil
+	}
 }
 
 // WithLoadOptions provides a hook to control how compose files are loaded
@@ -353,7 +388,7 @@ func WithEnvFiles(file ...string) ProjectOptionsFn {
 			// (say, running with a working directory owned by another user),
 			// warn and move on instead of failing the whole command. An
 			// explicit --env-file still fails hard in WithDotEnv.
-			logrus.Warnf("cannot access %s, ignoring default env file: %v", defaultDotEnv, err)
+			warn.Warnf(o.logger, "cannot access %s, ignoring default env file: %v", defaultDotEnv, err)
 			return nil
 		}
 		if err != nil {
@@ -645,7 +680,7 @@ func withNamePrecedenceLoad(absWorkingDir string, namedInYaml bool, options *Pro
 			dirname := filepath.Base(absWorkingDir)
 			symlink, err := filepath.EvalSymlinks(absWorkingDir)
 			if err == nil && filepath.Base(symlink) != dirname {
-				logrus.Warnf("project has been loaded without an explicit name from a symlink. Using name %q", dirname)
+				warn.Warnf(options.logger, "project has been loaded without an explicit name from a symlink. Using name %q", dirname)
 			}
 			opts.SetProjectName(
 				loader.NormalizeProjectName(dirname),
