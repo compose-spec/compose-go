@@ -110,6 +110,10 @@ var coveredBy = map[string]string{
 	"links":               "loader/tests/links_test.go",
 	"logging":             "loader/tests/logging_test.go",
 	"mac_address":         "loader/tests/mac_address_test.go",
+	"mem_limit":           "loader/tests/mem_limit_test.go",
+	"mem_reservation":     "loader/tests/mem_reservation_test.go",
+	"mem_swappiness":      "loader/tests/mem_swappiness_test.go",
+	"memswap_limit":       "loader/tests/memswap_limit_test.go",
 	"models":              "loader/tests/models_test.go",
 	"network_mode":        "loader/tests/network_mode_test.go",
 	"networks":            "loader/tests/networks_test.go",
@@ -153,10 +157,6 @@ var coveredBy = map[string]string{
 // yet, with the reason. Shrinking this list is welcome; growing it is a
 // reviewed decision.
 var knownGaps = map[string]string{
-	"mem_limit":          "no dedicated conformance test yet",
-	"mem_reservation":    "no dedicated conformance test yet",
-	"mem_swappiness":     "no dedicated conformance test yet",
-	"memswap_limit":      "no dedicated conformance test yet",
 	"pull_refresh_after": "no dedicated conformance test yet",
 	"read_only":          "no dedicated conformance test yet",
 	"shm_size":           "no dedicated conformance test yet",

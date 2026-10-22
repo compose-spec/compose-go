@@ -150,3 +150,50 @@ func loadFilesAs(t *testing.T, files []string, canonical string) {
 	assert.NilError(t, yaml.Unmarshal([]byte(canonical), &want), canonical)
 	assert.DeepEqual(t, loadFilesMap(t, files), want)
 }
+
+// serviceWith returns a compose document declaring one service, "foo", whose
+// only attribute besides the image is attr set to the given YAML value.
+func serviceWith(attr, value string) string {
+	return "name: test\nservices:\n  foo:\n    image: alpine\n    " + attr + ": " + value + "\n"
+}
+
+// byteValueNotations lists the notations of a byte value, as documented by
+//
+//	https://github.com/compose-spec/compose-spec/blob/main/11-extension.md#specifying-byte-values
+//
+// with the number of bytes each one stands for. A plain number (or numeric
+// string) is a count of bytes. Attributes typed as a byte value (mem_limit,
+// mem_reservation, memswap_limit, shm_size) share this vocabulary.
+var byteValueNotations = []struct{ name, notation, bytes string }{
+	{"bytes with the b unit", `2b`, "2"},
+	{"kilobytes with the k unit", `2048k`, "2097152"},
+	{"kilobytes with the kb unit", `1024kb`, "1048576"},
+	{"megabytes with the m unit", `300m`, "314572800"},
+	{"megabytes with the mb unit", `300mb`, "314572800"},
+	{"gigabytes with the g unit", `1g`, "1073741824"},
+	{"gigabytes with the gb unit", `1gb`, "1073741824"},
+	{"a number of bytes", `1048576`, "1048576"},
+	{"a numeric string", `"1048576"`, "1048576"},
+}
+
+// loadsByteValueNotations asserts that every notation of a byte value is
+// accepted by the service attribute attr, and canonicalizes into a decimal
+// number of bytes (a quoted string in the marshaled YAML).
+func loadsByteValueNotations(t *testing.T, attr string) {
+	t.Helper()
+	for _, tc := range byteValueNotations {
+		t.Run(tc.name, func(t *testing.T) {
+			loadsAs(t, serviceWith(attr, tc.notation), serviceWith(attr, `"`+tc.bytes+`"`))
+		})
+	}
+}
+
+// loadConsistent loads a project with the normalization and consistency
+// stages enabled, which the other helpers skip, and returns the outcome.
+func loadConsistent(t *testing.T, content string) (*types.Project, error) {
+	t.Helper()
+	return loader.LoadWithContext(t.Context(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
+		Environment: map[string]string{},
+	})
+}
