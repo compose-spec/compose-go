@@ -216,6 +216,38 @@ jobs:
 	expect(jsonP)
 }
 
+// An ssh key with a path is written `id=path`, as `docker buildx build --ssh`
+// reads it, and reads back from the YAML and the JSON the project marshals to,
+// whichever form (list or mapping) it was declared with.
+func TestBuildSSHWithPath(t *testing.T) {
+	for name, ssh := range map[string]string{
+		"a list":    "[default, key1=/tmp/id_rsa, key2=/tmp/other]",
+		"a mapping": "{default: null, key1: /tmp/id_rsa, key2: /tmp/other}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := load(t, "name: test\nservices:\n  foo:\n    build:\n      context: .\n      ssh: "+ssh+"\n")
+
+			expect := func(p *types.Project) {
+				got := map[string]string{}
+				for _, key := range p.Services["foo"].Build.SSH {
+					got[key.ID] = key.Path
+				}
+				assert.DeepEqual(t, got, map[string]string{"default": "", "key1": "/tmp/id_rsa", "key2": "/tmp/other"})
+			}
+			expect(p)
+
+			yamlP, jsonP := roundTrip(t, p)
+			expect(yamlP)
+			expect(jsonP)
+		})
+	}
+
+	t.Run("canonical form", func(t *testing.T) {
+		loadsAs(t, "name: test\nservices:\n  foo:\n    build:\n      context: .\n      ssh: [default=/tmp/id_rsa]\n",
+			"name: test\nservices:\n  foo:\n    build:\n      context: .\n      ssh: [default=/tmp/id_rsa]\n")
+	})
+}
+
 func TestBuildSecrets(t *testing.T) {
 	p := load(t, `
 name: test
