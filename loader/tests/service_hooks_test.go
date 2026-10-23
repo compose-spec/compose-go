@@ -295,3 +295,52 @@ func TestPreStartHookAmountsAreChecked(t *testing.T) {
 		})
 	}
 }
+
+// A pre_start hook is a container of its own: it gets the defaults of any
+// container, whatever the syntax it uses. A bind mount creates the host path
+// unless told otherwise, a secret is mounted under /run/secrets and a GPU
+// request without a count asks for all of them. Without them the model of a
+// hook did not survive a round trip (`docker compose config` omits the default
+// create_host_path, which reloaded as false).
+func TestPreStartGetsContainerDefaults(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  web:
+    image: myapp
+    pre_start:
+      - image: busybox
+        volumes:
+          - ./short:/short
+          - type: bind
+            source: ./long
+            target: /long
+            bind: {}
+          - type: bind
+            source: ./optout
+            target: /optout
+            bind: {create_host_path: false}
+        secrets:
+          - source: pw
+        gpus:
+          - driver: nvidia
+secrets:
+  pw:
+    external: true
+`)
+
+	expect := func(p *types.Project) {
+		hook := p.Services["web"].PreStart[0]
+		assert.Equal(t, len(hook.Volumes), 3)
+		assert.Assert(t, bool(hook.Volumes[0].Bind.CreateHostPath), "short syntax")
+		assert.Assert(t, bool(hook.Volumes[1].Bind.CreateHostPath), "long syntax, default")
+		assert.Assert(t, !bool(hook.Volumes[2].Bind.CreateHostPath), "long syntax, opted out")
+		assert.Equal(t, hook.Secrets[0].Target, "/run/secrets/pw")
+		assert.Equal(t, hook.Gpus[0].Count, types.DeviceCount(-1))
+	}
+	expect(p)
+
+	yamlP, jsonP := roundTrip(t, p)
+	expect(yamlP)
+	expect(jsonP)
+}
