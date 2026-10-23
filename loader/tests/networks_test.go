@@ -148,3 +148,12 @@ networks:
 	expect(yamlP)
 	expect(jsonP)
 }
+
+// A networks list naming something else than networks is rejected with an
+// error naming the attribute, even when schema validation is skipped, instead
+// of crashing the loader.
+func TestServiceNetworksListWithNonStringEntry(t *testing.T) {
+	err := loadUncheckedErr(t, serviceWith("networks", "[front, true]"))
+	assert.ErrorContains(t, err, "services.foo.networks")
+	assert.ErrorContains(t, err, "invalid type bool, expected a string")
+}
