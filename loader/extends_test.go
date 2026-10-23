@@ -716,3 +716,27 @@ jobs:
 		assert.ErrorContains(t, err, `job "missing" not found in base.yaml`)
 	})
 }
+
+// `extends.file` names the Compose file holding the service to extend: a value
+// that is not a path is reported as an error naming the service, in every
+// loading mode, instead of crashing the loader. Extends is resolved before the
+// schema validation, which would reject the value too.
+// https://github.com/compose-spec/compose-spec/blob/main/05-services.md#extends
+func TestExtendsFileMustBeAString(t *testing.T) {
+	for name, file := range map[string]string{"a number": "0", "a list": "[base.yaml]", "a mapping": "{path: base.yaml}"} {
+		t.Run(name, func(t *testing.T) {
+			yaml := `
+name: test-extends-file
+services:
+  test:
+    extends:
+      file: ` + file + `
+      service: base
+`
+			_, err := LoadWithContext(t.Context(), buildConfigDetails(yaml, nil), func(options *Options) {
+				options.ResolvePaths = false
+			})
+			assert.Error(t, err, "extends.test.file must be a string")
+		})
+	}
+}
