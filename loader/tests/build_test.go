@@ -242,6 +242,15 @@ func TestBuildSSHWithPath(t *testing.T) {
 		})
 	}
 
+	// the keys of a mapping have no order: they load, and marshal, in the order
+	// of their ids, so that a round trip is a fixed point
+	t.Run("a stable order", func(t *testing.T) {
+		doc := "name: test\nservices:\n  foo:\n    build:\n      context: .\n      ssh: [default, key1=/tmp/id_rsa, key2=/tmp/other, key3=/tmp/third]\n"
+		for range 20 {
+			loadsAs(t, doc, doc)
+		}
+	})
+
 	t.Run("canonical form", func(t *testing.T) {
 		loadsAs(t, "name: test\nservices:\n  foo:\n    build:\n      context: .\n      ssh: [default=/tmp/id_rsa]\n",
 			"name: test\nservices:\n  foo:\n    build:\n      context: .\n      ssh: [default=/tmp/id_rsa]\n")
