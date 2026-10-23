@@ -358,13 +358,19 @@ func importResources(source map[string]any, target map[string]any, processor Pos
 func importResource(source map[string]any, target map[string]any, key string, processor PostProcessor) error {
 	from := source[key]
 	if from != nil {
-		var to map[string]any
-		if v, ok := target[key]; ok {
-			to = v.(map[string]any)
-		} else {
-			to = map[string]any{}
+		resources, err := expectMapping(from, key)
+		if err != nil {
+			return err
 		}
-		for name, a := range from.(map[string]any) {
+		// a section left empty (`volumes:`) is declared, but holds nothing
+		to := map[string]any{}
+		if v := target[key]; v != nil {
+			to, err = expectMapping(v, key)
+			if err != nil {
+				return err
+			}
+		}
+		for name, a := range resources {
 			conflict, ok := to[name]
 			if !ok {
 				to[name] = a
