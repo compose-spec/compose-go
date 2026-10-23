@@ -27,6 +27,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
+	is "gotest.tools/v3/assert/cmp"
 )
 
 func TestLoadIncludeExtendsCombined(t *testing.T) {
@@ -300,6 +301,31 @@ func includeProject(t *testing.T, content string, files map[string]string, opts 
 func TestIncludeMustBeAList(t *testing.T) {
 	_, err := includeProject(t, "include: other.yaml\n", nil)
 	assert.ErrorContains(t, err, "`include` must be a list, got other.yaml")
+}
+
+// A section left empty in the including file (`services:` or `volumes:` with
+// nothing below) declares nothing: the resources of the included file are added
+// to it. Writing the section before filling it in is common, and it must not
+// crash the loader.
+// https://github.com/compose-spec/compose-spec/blob/main/14-include.md
+func TestIncludeIntoEmptySection(t *testing.T) {
+	included := map[string]string{"other.yaml": `
+services:
+  base:
+    image: busybox
+volumes:
+  shared: {}
+`}
+	for _, section := range []string{"services", "volumes"} {
+		for name, empty := range map[string]string{"no value": section + ":\n", "null": section + ": null\n"} {
+			t.Run(section+" with "+name, func(t *testing.T) {
+				p, err := includeProject(t, "include:\n  - other.yaml\n"+empty, included)
+				assert.NilError(t, err)
+				assert.Assert(t, is.Contains(p.Services, "base"))
+				assert.Assert(t, is.Contains(p.Volumes, "shared"))
+			})
+		}
+	}
 }
 
 // An included project is interpolated with the `.env` file found in its
