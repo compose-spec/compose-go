@@ -728,11 +728,19 @@ func (u *UlimitsConfig) DecodeMapstructure(value interface{}) error {
 		u.Single = 0
 		soft, ok := v["soft"]
 		if ok {
-			u.Soft = soft.(int)
+			limit, isInt := soft.(int)
+			if !isInt {
+				return fmt.Errorf("invalid type %T for ulimit soft limit", soft)
+			}
+			u.Soft = limit
 		}
 		hard, ok := v["hard"]
 		if ok {
-			u.Hard = hard.(int)
+			limit, isInt := hard.(int)
+			if !isInt {
+				return fmt.Errorf("invalid type %T for ulimit hard limit", hard)
+			}
+			u.Hard = limit
 		}
 	default:
 		return fmt.Errorf("unexpected value type %T for ulimit", value)
