@@ -194,3 +194,34 @@ jobs:
 	assert.Equal(t, len(p.Jobs["foo"].Secrets), 1)
 	assert.Equal(t, *p.Jobs["foo"].Secrets[0].Mode, types.FileMode(0o440))
 }
+
+// A file mode is an unsigned 32 bit number, as the Docker CLI reads the mode of
+// a secret: a negative value, a value that does not fit in 32 bits and text that
+// is not octal are rejected, with the attribute in the error.
+func TestSecretFileModeInvalid(t *testing.T) {
+	for name, value := range map[string]string{
+		"a negative number":         `-1`,
+		"a negative numeric string": `"-1"`,
+		"beyond 32 bits":            `0o77777777777`,
+		"beyond 32 bits, text":      `"77777777777"`,
+		"not octal":                 `"0999"`,
+		"text":                      `abc`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadErr(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    secrets:
+      - source: server-certificate
+        mode: `+value+`
+secrets:
+  server-certificate:
+    external: true
+`)
+			assert.ErrorContains(t, err, "services[foo].secrets[0].mode")
+			assert.ErrorContains(t, err, "invalid file mode")
+		})
+	}
+}
