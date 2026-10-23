@@ -43,6 +43,7 @@ import (
 var fuzzSeeds = []string{
 	"",
 	"services: {}",
+	"name: demo\nservices:\n  a:\n    build: !0\n",
 	"name: demo\nservices: {web: {image: x, build: {context: ., ssh: {key: 1}}}}\n",
 	"name: demo\nservices: {web: {image: x, build: {context: ., ssh: [default, key1=/tmp/id_rsa, key2=/tmp/other]}}}\n",
 	"name: demo\nservices: {web: {image: busybox, extra_hosts: {host: []}}}\n",
@@ -405,7 +406,9 @@ func hasZeroScalar(doc string) bool {
 			var number float64
 			return node.Decode(&number) == nil && number == 0
 		}
-		return false
+		// an empty value under a tag the loader does not know (`build: !0`) is
+		// read as an empty string
+		return node.Value == "" && strings.HasPrefix(node.Tag, "!") && !strings.HasPrefix(node.Tag, "!!")
 	})
 }
 
