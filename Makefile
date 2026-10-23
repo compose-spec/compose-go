@@ -26,6 +26,20 @@ build: ## Build command line
 test: ## Run tests
 	gotestsum ./...
 
+# `go test -fuzz` runs one fuzz target of one package at a time: enumerate them.
+FUZZTIME ?= 10s
+
+.PHONY: fuzz
+fuzz: ## Fuzz every parser for FUZZTIME (default 10s) each, e.g. make fuzz FUZZTIME=2m
+	@pkgs=$$(go list ./...) || exit 1; \
+	for pkg in $$pkgs; do \
+		targets=$$(go test -list '^Fuzz' $$pkg) || exit 1; \
+		for target in $$(echo "$$targets" | grep '^Fuzz'); do \
+			echo "==> $$pkg $$target ($(FUZZTIME))"; \
+			go test -run '^$$' -fuzz "^$$target\$$" -fuzztime $(FUZZTIME) $$pkg || exit 1; \
+		done; \
+	done
+
 .PHONY: fmt
 fmt: ## Format go files
 	go fmt ./...
