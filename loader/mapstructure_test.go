@@ -64,3 +64,41 @@ func TestDecodeMapStructure(t *testing.T) {
 		"ZOT": "true",
 	})
 }
+
+// Transform binds a model to the project types. Services and jobs that are not
+// mappings are reported by the decoder as an error naming them instead of
+// crashing while their implicit `name` is set. Transform is exported, and is
+// also reached with SkipValidation.
+func TestTransformRejectsServicesThatAreNotMappings(t *testing.T) {
+	tests := []struct {
+		name    string
+		model   map[string]any
+		wantErr string
+	}{
+		{"services is a list", map[string]any{"services": []any{"a"}}, "'services' expected type"},
+		{"services is a string", map[string]any{"services": "a"}, "'services' expected type"},
+		{"service is a number", map[string]any{"services": map[string]any{"a": 1}}, "'services[a]' expected a map or struct"},
+		{"service is a list", map[string]any{"services": map[string]any{"a": []any{"x"}}}, "'services[a]' expected a map or struct"},
+		{"job is a string", map[string]any{"jobs": map[string]any{"a": "x"}}, "'jobs[a]' expected a map or struct"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := Transform(tt.model, &types.Project{})
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+// A service or job left empty (`db:` with nothing below) is an empty
+// definition that still carries the name of its key, as the consumers matching
+// dependencies against names expect.
+func TestTransformNamesEmptyServicesAndJobs(t *testing.T) {
+	project := &types.Project{}
+	err := Transform(map[string]any{
+		"services": map[string]any{"db": nil},
+		"jobs":     map[string]any{"backup": nil},
+	}, project)
+	assert.NilError(t, err)
+	assert.Equal(t, project.Services["db"].Name, "db")
+	assert.Equal(t, project.Jobs["backup"].Name, "backup")
+}
