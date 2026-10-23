@@ -117,3 +117,31 @@ configs:
 		"x-foo": "bar",
 	})
 }
+
+// The mode of a config is read as the mode of a secret, an unsigned 32 bit
+// number: a negative value or a value that does not fit in 32 bits is rejected,
+// with the attribute in the error.
+func TestConfigFileModeInvalid(t *testing.T) {
+	for name, value := range map[string]string{
+		"a negative number": `-1`,
+		"beyond 32 bits":    `4294967296`,
+		"not octal":         `"0999"`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadErr(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    configs:
+      - source: my-config
+        mode: `+value+`
+configs:
+  my-config:
+    external: true
+`)
+			assert.ErrorContains(t, err, "services[foo].configs[0].mode")
+			assert.ErrorContains(t, err, "invalid file mode")
+		})
+	}
+}

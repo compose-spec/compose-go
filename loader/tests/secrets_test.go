@@ -24,6 +24,7 @@ package tests
 // per-service basis."
 
 import (
+	"math"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -193,4 +194,76 @@ jobs:
 	assert.Equal(t, *p.Services["foo"].Secrets[0].Mode, types.FileMode(0o440))
 	assert.Equal(t, len(p.Jobs["foo"].Secrets), 1)
 	assert.Equal(t, *p.Jobs["foo"].Secrets[0].Mode, types.FileMode(0o440))
+}
+
+// A file mode is an unsigned 32 bit number, as the Docker CLI reads the mode of
+// a secret, whichever way it is written: the smallest and the largest values
+// load, and marshal to a mode that loads back to the same value.
+func TestSecretFileModeBounds(t *testing.T) {
+	for name, tt := range map[string]struct {
+		mode string
+		want types.FileMode
+	}{
+		"zero":                     {`0`, 0},
+		"zero, text":               {`"0"`, 0},
+		"largest number":           {`0o37777777777`, math.MaxUint32},
+		"largest decimal number":   {`4294967295`, math.MaxUint32},
+		"largest octal text":       {`"37777777777"`, math.MaxUint32},
+		"largest with a zero text": {`"037777777777"`, math.MaxUint32},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    secrets:
+      - source: server-certificate
+        mode: `+tt.mode+`
+secrets:
+  server-certificate:
+    external: true
+`)
+			assert.Equal(t, *p.Services["foo"].Secrets[0].Mode, tt.want)
+			fromYAML, fromJSON := roundTrip(t, p)
+			assert.Equal(t, *fromYAML.Services["foo"].Secrets[0].Mode, tt.want)
+			assert.Equal(t, *fromJSON.Services["foo"].Secrets[0].Mode, tt.want)
+		})
+	}
+}
+
+// A file mode is an unsigned 32 bit number, as the Docker CLI reads the mode of
+// a secret: a negative value, a value that does not fit in 32 bits and text that
+// is not octal are rejected, with the attribute in the error.
+func TestSecretFileModeInvalid(t *testing.T) {
+	for name, value := range map[string]string{
+		"a negative number":          `-1`,
+		"a negative numeric string":  `"-1"`,
+		"a signed numeric string":    `"+440"`,
+		"just beyond 32 bits":        `4294967296`,
+		"just beyond 32 bits, octal": `0o40000000000`,
+		"just beyond 32 bits, text":  `"40000000000"`,
+		"far beyond 32 bits":         `0o77777777777`,
+		"far beyond 32 bits, text":   `"77777777777"`,
+		"beyond 64 bits, text":       `"7777777777777777777777"`,
+		"not octal":                  `"0999"`,
+		"text":                       `abc`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadErr(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    secrets:
+      - source: server-certificate
+        mode: `+value+`
+secrets:
+  server-certificate:
+    external: true
+`)
+			assert.ErrorContains(t, err, "services[foo].secrets[0].mode")
+			assert.ErrorContains(t, err, "invalid file mode")
+		})
+	}
 }
