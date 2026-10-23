@@ -143,6 +143,7 @@ func FuzzParsePortConfig(f *testing.F) {
 // decoders lists the types of the model decoding their value from whatever the
 // YAML document holds, as `DecodeMapstructure` does.
 var decoders = map[string]func() interface{ DecodeMapstructure(any) error }{
+	"HealthCheckTest":    func() interface{ DecodeMapstructure(any) error } { return new(HealthCheckTest) },
 	"ShellCommand":       func() interface{ DecodeMapstructure(any) error } { return new(ShellCommand) },
 	"FileMode":           func() interface{ DecodeMapstructure(any) error } { return new(FileMode) },
 	"NanoCPUs":           func() interface{ DecodeMapstructure(any) error } { return new(NanoCPUs) },

@@ -131,3 +131,12 @@ services:
 `)
 	assert.ErrorContains(t, err, "services.foo.healthcheck.disable")
 }
+
+// A healthcheck test entry that is not a string is rejected with an error
+// naming the attribute, even when schema validation is skipped, instead of
+// crashing the loader.
+func TestHealthcheckTestWithNonStringEntry(t *testing.T) {
+	err := loadUncheckedErr(t, serviceWith("healthcheck", "{test: [CMD, 1]}"))
+	assert.ErrorContains(t, err, "services[foo].healthcheck.test")
+	assert.ErrorContains(t, err, "invalid type int for healthcheck.test entry")
+}
