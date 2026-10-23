@@ -168,3 +168,12 @@ jobs:
 		},
 	})
 }
+
+// A depends_on list naming something else than services is rejected with an
+// error naming the attribute, even when schema validation is skipped, instead
+// of crashing the loader.
+func TestDependsOnListWithNonStringEntry(t *testing.T) {
+	err := loadUncheckedErr(t, serviceWith("depends_on", "[db, 3]"))
+	assert.ErrorContains(t, err, "services.foo.depends_on")
+	assert.ErrorContains(t, err, "invalid type int for a depends_on entry")
+}
