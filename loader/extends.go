@@ -99,7 +99,10 @@ func applyServiceExtends(ctx context.Context, section, name string, services map
 	)
 
 	if file != nil {
-		refFilename := file.(string)
+		refFilename, ok := file.(string)
+		if !ok {
+			return nil, fmt.Errorf("extends.%s.file must be a string", name)
+		}
 		services, processor, err = getExtendsBaseFromFile(ctx, section, name, ref, filename, refFilename, opts, tracker)
 		if err != nil {
 			return nil, err
