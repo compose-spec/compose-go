@@ -119,6 +119,26 @@ func loadErr(t *testing.T, content string) error {
 	return err
 }
 
+// loadUncheckedErr loads a project with neither schema validation nor
+// interpolation (and thus none of the type casts it performs), so that the
+// document reaches the decoders of the model as written, and returns the
+// error it is expected to be rejected with. A decoder must reject a value of
+// the wrong shape with an error, never panic.
+func loadUncheckedErr(t *testing.T, content string) error {
+	t.Helper()
+	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(content)}},
+		Environment: map[string]string{},
+	}, func(options *loader.Options) {
+		options.SkipValidation = true
+		options.SkipInterpolation = true
+		options.SkipConsistencyCheck = true
+		options.SkipNormalization = true
+	})
+	assert.Assert(t, err != nil, "expected loading to fail")
+	return err
+}
+
 // loadFilesMap loads a multi-file project, merging the files in order, and
 // returns the resulting model as a YAML tree.
 func loadFilesMap(t *testing.T, files []string) map[string]any {

@@ -87,3 +87,12 @@ jobs:
 `)
 	assert.DeepEqual(t, p.Jobs["foo"].Entrypoint, types.ShellCommand{"/code/entrypoint.sh", "-p", "3000"})
 }
+
+// An entrypoint entry that is not a string is rejected with an error naming
+// the attribute, even when schema validation is skipped, instead of crashing
+// the loader.
+func TestEntrypointListWithNonStringEntry(t *testing.T) {
+	err := loadUncheckedErr(t, serviceWith("entrypoint", `[/entrypoint.sh, true]`))
+	assert.ErrorContains(t, err, "services[foo].entrypoint")
+	assert.ErrorContains(t, err, "invalid type bool for command entry")
+}
