@@ -72,3 +72,12 @@ jobs:
 	assert.DeepEqual(t, p.Services["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
 	assert.DeepEqual(t, p.Jobs["foo"].Command, types.ShellCommand{"bundle", "exec", "thin", "-p", "3000"})
 }
+
+// A command entry that is not a string is rejected with an error naming the
+// attribute, even when schema validation is skipped, instead of crashing the
+// loader.
+func TestCommandListWithNonStringEntry(t *testing.T) {
+	err := loadUncheckedErr(t, serviceWith("command", `[bundle, 3000]`))
+	assert.ErrorContains(t, err, "services[foo].command")
+	assert.ErrorContains(t, err, "invalid type int for command entry")
+}
