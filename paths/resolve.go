@@ -143,7 +143,10 @@ func (r *relativePathsResolver) absVolumeMount(a any) (any, error) {
 		if !ok || src == "" {
 			return nil, errors.New(`invalid mount config for type "bind": field Source must not be empty`)
 		}
-		abs, err := r.maybeUnixPath(src.(string))
+		// a source that is not a string is left as is, like any non canonical
+		// value: the schema validation rejects it, and without validation the
+		// model decoding reads it as text
+		abs, err := r.maybeUnixPath(src)
 		if err != nil {
 			return nil, err
 		}
@@ -159,7 +162,11 @@ func (r *relativePathsResolver) volumeDriverOpts(a any) (any, error) {
 	if a == nil {
 		return nil, nil
 	}
-	vol := a.(map[string]any)
+	vol, ok := a.(map[string]any)
+	if !ok {
+		// not a volume definition: the model decoding reports it
+		return a, nil
+	}
 	if vol["driver"] != "local" {
 		return vol, nil
 	}
@@ -167,7 +174,10 @@ func (r *relativePathsResolver) volumeDriverOpts(a any) (any, error) {
 	if !ok {
 		return vol, nil
 	}
-	opts := do.(map[string]any)
+	opts, ok := do.(map[string]any)
+	if !ok {
+		return vol, nil
+	}
 	if dev, ok := opts["device"]; opts["o"] == "bind" && ok {
 		// This is actually a bind mount
 		path, err := r.maybeUnixPath(dev)

@@ -719,3 +719,37 @@ func TestAbsPathList(t *testing.T) {
 	_, err = r.absPath([]any{"a.env", 42})
 	assert.ErrorContains(t, err, "unexpected type int")
 }
+
+// A build context or an extends file that is not a path is a document error
+// reported with its type, in the same way as any other path: resolving the
+// paths of a model not checked against the schema must not crash.
+func TestResolveUnexpectedContextAndExtendsType(t *testing.T) {
+	for name, doc := range map[string]struct{ in, want string }{
+		"build context number": {"services:\n  web:\n    build:\n      context: 42\n", "unexpected type int"},
+		"build context empty":  {"services:\n  web:\n    build:\n      context:\n", "unexpected type <nil>"},
+		"build context list":   {"services:\n  web:\n    build:\n      context: [.]\n", "unexpected type []interface {}"},
+		"extends file number":  {"services:\n  web:\n    extends:\n      file: 42\n      service: base\n", "unexpected type int"},
+		"extends file empty":   {"services:\n  web:\n    extends:\n      file:\n      service: base\n", "unexpected type <nil>"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.ErrorContains(t, resolveFails(t, doc.in), doc.want)
+		})
+	}
+}
+
+// What is not in canonical form is left as written by the resolution of
+// paths, which only completes the attributes it recognizes: a bind mount whose
+// source is not a string, or a volume that is not a definition, is left for
+// the schema validation to reject, not made a crash here.
+func TestResolveLeavesMisshapenVolumesAlone(t *testing.T) {
+	for name, doc := range map[string]string{
+		"bind source number": "services:\n  web:\n    volumes:\n      - type: bind\n        source: 42\n        target: /data\n",
+		"volume is a string": "volumes:\n  data: local\n",
+		"driver_opts number": "volumes:\n  data:\n    driver: local\n    driver_opts: 42\n",
+		"driver_opts list":   "volumes:\n  data:\n    driver: local\n    driver_opts: [o=bind]\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			resolvesAs(t, nil, doc, doc)
+		})
+	}
+}

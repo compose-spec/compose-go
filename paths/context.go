@@ -17,13 +17,17 @@
 package paths
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
 func (r *relativePathsResolver) absContextPath(value any) (any, error) {
-	v := value.(string)
+	v, ok := value.(string)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type %T", value)
+	}
 	if strings.Contains(v, "://") { // `docker-image://` or any builder specific context type
 		return v, nil
 	}
