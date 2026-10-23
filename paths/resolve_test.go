@@ -412,6 +412,31 @@ services:
 `)
 }
 
+// The path of a key may be written as a number or a boolean in a mapping: the
+// model reads it as the text it is written with, so it is resolved like that
+// text, rather than left relative and resolved only when it is read back.
+func TestResolveBuildSSHScalarPath(t *testing.T) {
+	resolvesAs(t, nil, `
+services:
+  web:
+    build:
+      context: .
+      ssh:
+        number: 1
+        flag: true
+        text: "1"
+`, `
+services:
+  web:
+    build:
+      context: <wd>
+      ssh:
+        number: <wd>/1
+        flag: <wd>/true
+        text: <wd>/1
+`)
+}
+
 // An empty key path stays empty, like a null one, rather than becoming the
 // working directory: an empty path is not a key to find, and the working
 // directory is no key at all.
