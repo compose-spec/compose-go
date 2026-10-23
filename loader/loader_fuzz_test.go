@@ -125,6 +125,8 @@ configs:
 	"version: '3'\nservices:\n  a:\n    image: x\n",
 	"- a\n- b\n",
 	"a: &a [*a]\n",
+	"x: &a\n  <<: [*a]\n",
+	"x: &a\n  a]<<: [*a]\n",
 	"services:\n  a:\n    image: x\n    pre_start:\n      - command: echo\n        volumes: [./a:/a]\n",
 	"services:\n  a:\n    image: x\n    develop:\n      watch:\n        - path: ./src\n          action: sync\n          target: /app\n",
 	"name: demo\nservices: {web: {image: busybox}}\nx-value: .nan\n",

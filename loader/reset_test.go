@@ -526,3 +526,22 @@ func TestResetOnWholeDocument(t *testing.T) {
 		})
 	}
 }
+
+// An anchor holding a merge of itself is a cycle, and is reported as one at
+// once. It used to be followed until the node visit limit, with ever longer
+// paths: a file of a few bytes took about a minute to be rejected.
+func TestResetCycleThroughMergeKey(t *testing.T) {
+	for name, config := range map[string]string{
+		"merge of the anchor itself":   "x: &a\n  <<: *a\n",
+		"merge of a list holding it":   "x: &a\n  <<: [*a]\n",
+		"merge through a nested level": "x: &a\n  y:\n    <<: *a\n",
+		"key containing the merge key": "x: &a\n  a]<<: [*a]\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			start := time.Now()
+			_, err := loadResetYAML(t.Context(), config)
+			assert.ErrorContains(t, err, "cycle detected")
+			assert.Assert(t, time.Since(start) < 5*time.Second, "took %s", time.Since(start))
+		})
+	}
+}
