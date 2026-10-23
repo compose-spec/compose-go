@@ -49,9 +49,13 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+      # ci/Dockerfile is the single place that pins the linter, shared with `make lint`
+      - name: Read the golangci-lint version
+        id: golangci
+        run: echo "version=$(sed -n 's/^ARG GOLANGCILINT_VERSION=//p' ci/Dockerfile)" >> "$GITHUB_OUTPUT"
       - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
-          version: v2.15.0
+          version: ${{ steps.golangci.outputs.version }}
           args: --verbose
           skip-cache: true
 
