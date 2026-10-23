@@ -616,3 +616,42 @@ services:
 	_, err := Normalize(model, nil)
 	assert.ErrorContains(t, err, "resolving pre_start hook specification: services.hook.logging: cannot merge logging")
 }
+
+// Normalize completes a model in canonical form. A model whose attribute has
+// another shape, which schema validation would have rejected, is reported as an
+// error naming the attribute instead of crashing the caller: Normalize is
+// exported, and is also reached with SkipValidation.
+func TestNormalizeRejectsMisshapenModel(t *testing.T) {
+	tests := []struct {
+		name    string
+		model   string
+		wantErr string
+	}{
+		{"services is a list", "services: [a]", "services must be a mapping"},
+		{"jobs is a list", "jobs: [a]", "jobs must be a mapping"},
+		{"service is a string", "services:\n  a: image", "services.a must be a mapping"},
+		{"service is empty", "services:\n  a: null", "services.a must be a mapping"},
+		{"networks is a string", "networks: front", "networks must be a mapping"},
+		{"service networks is a list", "services:\n  a:\n    networks: [front]", "services.a.networks must be a mapping"},
+		{"build is a string", "services:\n  a:\n    build: .", "services.a.build must be a mapping"},
+		{"depends_on is a list", "services:\n  a:\n    depends_on: [b]", "services.a.depends_on must be a mapping"},
+		{"links is a string", "services:\n  a:\n    links: b", "services.a.links must be a list"},
+		{"link is a number", "services:\n  a:\n    links: [1]", "services.a.links[0] must be a string"},
+		{"network_mode is a list", "services:\n  a:\n    network_mode: [host]", "services.a.network_mode must be a string"},
+		{"volumes is a string", "services:\n  a:\n    volumes: /data", "services.a.volumes must be a list"},
+		{"volume is a string", "services:\n  a:\n    volumes: [\"/data\"]", "services.a.volumes[0] must be a mapping"},
+		{"volume has no target", "services:\n  a:\n    volumes:\n      - type: volume", "services.a.volumes[0].target must be a string"},
+		{"volumes_from is a string", "services:\n  a:\n    volumes_from: b", "services.a.volumes_from must be a list"},
+		{"volumes_from entry is a number", "services:\n  a:\n    volumes_from: [1]", "services.a.volumes_from[0] must be a string"},
+		{"volume resource is a string", "volumes:\n  data: local", "volumes.data must be a mapping"},
+		{"secrets is a list", "secrets: [pw]", "secrets must be a mapping"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var model map[string]any
+			assert.NilError(t, yaml.Unmarshal([]byte(tt.model), &model))
+			_, err := Normalize(model, types.Mapping{})
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
