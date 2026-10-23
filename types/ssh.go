@@ -67,6 +67,11 @@ func (s *SSHConfig) DecodeMapstructure(value interface{}) error {
 	}
 	result := make(SSHConfig, 0, len(v))
 	for id, path := range v {
+		// `id=path` is the way a key is written, and read back: an id that has
+		// a `=` would be cut in two
+		if strings.Contains(id, "=") {
+			return fmt.Errorf("invalid ssh key id %q: must not contain \"=\"", id)
+		}
 		key := SSHKey{ID: id}
 		if path != nil {
 			key.Path = fmt.Sprint(path)
