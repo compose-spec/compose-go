@@ -36,7 +36,7 @@ func ResolveRelativePaths(project map[string]any, base string, remotes []RemoteR
 	r.resolvers = map[tree.Path]resolver{
 		"services.*.build.context":               r.absContextPath,
 		"services.*.build.additional_contexts.*": r.absContextPath,
-		"services.*.build.ssh.*":                 r.maybeUnixPath,
+		"services.*.build.ssh.*":                 r.absSSHPath,
 		"services.*.env_file.*.path":             r.absPath,
 		"services.*.label_file.*":                r.absPath,
 		"services.*.extends.file":                r.absExtendsPath,
@@ -44,7 +44,7 @@ func ResolveRelativePaths(project map[string]any, base string, remotes []RemoteR
 		"services.*.volumes.*":                   r.absVolumeMount,
 		"jobs.*.build.context":                   r.absContextPath,
 		"jobs.*.build.additional_contexts.*":     r.absContextPath,
-		"jobs.*.build.ssh.*":                     r.maybeUnixPath,
+		"jobs.*.build.ssh.*":                     r.absSSHPath,
 		"jobs.*.env_file.*.path":                 r.absPath,
 		"jobs.*.label_file.*":                    r.absPath,
 		"jobs.*.extends.file":                    r.absExtendsPath,
@@ -131,6 +131,18 @@ func (r *relativePathsResolver) absPath(value any) (any, error) {
 	}
 
 	return nil, fmt.Errorf("unexpected type %T", value)
+}
+
+// absSSHPath resolves the path of a build ssh key. The value of a mapping may
+// be a number or a boolean, which the model reads as the text it is written
+// with: it is resolved like that text, as it would be if it was written as one.
+func (r *relativePathsResolver) absSSHPath(value any) (any, error) {
+	switch value.(type) {
+	case nil, string:
+	default:
+		value = fmt.Sprint(value)
+	}
+	return r.maybeUnixPath(value)
 }
 
 func (r *relativePathsResolver) absVolumeMount(a any) (any, error) {
