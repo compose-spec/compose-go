@@ -992,12 +992,23 @@ func transformWithLogger(source interface{}, target interface{}, l logging.Logge
 // nameServices create implicit `name` key for convenience accessing service or job
 func nameServices(from reflect.Value, to reflect.Value) (interface{}, error) {
 	if to.Type() == reflect.TypeOf(types.Services{}) || to.Type() == reflect.TypeOf(types.Jobs{}) {
+		// a value that is not a mapping (a service declared as a list or a
+		// string) has no name to set: decoding it reports the error
+		if from.Kind() != reflect.Map {
+			return from.Interface(), nil
+		}
 		nameK := reflect.ValueOf("name")
 		iter := from.MapRange()
 		for iter.Next() {
 			name := iter.Key()
-			elem := iter.Value()
-			elem.Elem().SetMapIndex(nameK, name)
+			elem := iter.Value().Elem()
+			switch {
+			case elem.Kind() == reflect.Map:
+				elem.SetMapIndex(nameK, name)
+			case !elem.IsValid():
+				// left empty: an empty definition, still named
+				from.SetMapIndex(name, reflect.ValueOf(map[string]any{"name": name.Interface()}))
+			}
 		}
 	}
 	return from.Interface(), nil
