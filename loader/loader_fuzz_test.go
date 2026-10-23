@@ -401,37 +401,6 @@ func hasZeroScalar(doc string) bool {
 	})
 }
 
-// hasNegativeFileMode tells whether a document gives a negative `mode`, as for
-// a secret or a config (`mode: -1`). The decoder of file modes accepts it, but
-// the mode marshals as `0-1`, which does not read back, so such a document is
-// not a fixed point of loading.
-func hasNegativeFileMode(doc string) bool {
-	nodes, ok := documentNodes(doc)
-	return !ok || anyNode(nodes, func(node *yaml.Node) bool {
-		if node.Kind != yaml.MappingNode {
-			return false
-		}
-		for i := 0; i+1 < len(node.Content); i += 2 {
-			var name string
-			if err := node.Content[i].Decode(&name); err != nil {
-				return true
-			}
-			if !strings.EqualFold(name, "mode") {
-				continue
-			}
-			value := node.Content[i+1]
-			if value.Kind == yaml.AliasNode {
-				return true
-			}
-			var mode string
-			if value.Kind == yaml.ScalarNode && (value.Decode(&mode) != nil || strings.HasPrefix(strings.TrimSpace(mode), "-")) {
-				return true
-			}
-		}
-		return false
-	})
-}
-
 // FuzzLoad locks that loading an arbitrary document never panics, whichever
 // stages are skipped, and that it terminates in a reasonable time. The low
 // bits of mode select the options: SkipValidation, SkipInterpolation,
@@ -448,8 +417,7 @@ func hasNegativeFileMode(doc string) bool {
 // each for a known reason: an explicit empty string or zero is dropped by
 // marshaling and defaulted by loading (see hasZeroScalar), an extra_hosts entry
 // without an address is marshaled as an empty list and then dropped (see
-// hasEmptyHostAddresses), and a negative file mode is marshaled as text that
-// does not read back (see hasNegativeFileMode).
+// hasEmptyHostAddresses).
 func FuzzLoad(f *testing.F) {
 	dir := f.TempDir()
 	included := filepath.Join(dir, "included.yaml")
@@ -507,7 +475,7 @@ func FuzzLoad(f *testing.F) {
 			t.Fatalf("a project that loads cannot be marshaled to JSON: %v", err)
 		}
 
-		if mode&1 != 0 || hasZeroScalar(doc) || hasEmptyHostAddresses(doc) || hasNegativeFileMode(doc) {
+		if mode&1 != 0 || hasZeroScalar(doc) || hasEmptyHostAddresses(doc) {
 			return
 		}
 		details.ConfigFiles = []types.ConfigFile{{Filename: filepath.Join(dir, "reload.yaml"), Content: out}}
