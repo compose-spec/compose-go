@@ -273,3 +273,37 @@ func TestValidateNotNegative(t *testing.T) {
 		})
 	}
 }
+
+// `external` is a boolean. Interpolation can be skipped, which leaves a
+// reference such as `${EXTERNAL:-true}` in its place: the validation checks
+// what it can tell, and leaves a value that is not a boolean to the decoding of
+// the model, instead of crashing.
+// https://github.com/compose-spec/compose-spec/blob/main/07-volumes.md#external
+func TestValidateExternalThatIsNotABoolean(t *testing.T) {
+	checker := checks["volumes.*"]
+	for name, input := range map[string]string{
+		"unresolved reference": "external: ${EXTERNAL:-true}\ndriver: local\n",
+		"unknown string":       "external: yes please\ndriver: local\n",
+		"false string":         "external: \"false\"\ndriver: local\n",
+		"list":                 "external: [true]\ndriver: local\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			var volume map[string]any
+			assert.NilError(t, yaml.Unmarshal([]byte(input), &volume))
+			assert.NilError(t, checker(volume, tree.NewPath("volumes.data")))
+		})
+	}
+}
+
+// With interpolation skipped, `external: "true"` is still read as a boolean by
+// the decoding of the model: it must keep conflicting with the attributes an
+// external resource cannot have.
+func TestValidateExternalTrueAsAString(t *testing.T) {
+	checker := checks["volumes.*"]
+	for _, external := range []string{"true", "TRUE", "yes", "on", "y"} {
+		t.Run(external, func(t *testing.T) {
+			volume := map[string]any{"external": external, "driver": "local"}
+			assert.ErrorContains(t, checker(volume, tree.NewPath("volumes.data")), `conflicting parameters "external" and "driver"`)
+		})
+	}
+}
