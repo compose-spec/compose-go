@@ -17,6 +17,7 @@
 package types
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -37,20 +38,24 @@ func (s SSHConfig) Get(id string) (string, error) {
 	return "", fmt.Errorf("ID %s not found in SSH keys", id)
 }
 
+// format is the `id=path` form of the key, as the Docker CLI and buildx read
+// `--ssh`, and as it loads back from a list. The path is left out for the
+// default agent (`default`), which is the only id a list accepts alone.
+func (s SSHKey) format() string {
+	if s.Path == "" && s.ID == "default" {
+		return s.ID
+	}
+	return s.ID + "=" + s.Path
+}
+
 // MarshalYAML makes SSHKey implement yaml.Marshaller
 func (s SSHKey) MarshalYAML() (interface{}, error) {
-	if s.Path == "" {
-		return s.ID, nil
-	}
-	return fmt.Sprintf("%s: %s", s.ID, s.Path), nil
+	return s.format(), nil
 }
 
 // MarshalJSON makes SSHKey implement json.Marshaller
 func (s SSHKey) MarshalJSON() ([]byte, error) {
-	if s.Path == "" {
-		return []byte(fmt.Sprintf(`%q`, s.ID)), nil
-	}
-	return []byte(fmt.Sprintf(`%q: %s`, s.ID, s.Path)), nil
+	return json.Marshal(s.format())
 }
 
 func (s *SSHConfig) DecodeMapstructure(value interface{}) error {
