@@ -202,11 +202,69 @@ func TestValidateMemSwappiness(t *testing.T) {
 			value: true,
 			err:   "services.foo.mem_swappiness: invalid value true: mem_swappiness must be a percentage, an integer between 0 and 100",
 		},
+		// a pre-parsed model may hold numbers of any Go type
+		{name: "a small integer type", value: int32(60)},
+		{name: "an unsigned integer", value: uint8(60)},
+		{name: "a float32", value: float32(60)},
+		{name: "a named integer type", value: percent(60)},
+		{
+			name:  "a small integer type, above 100",
+			value: int32(101),
+			err:   "services.foo.mem_swappiness: invalid value 101: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
+		{
+			name:  "a named integer type, below -1",
+			value: percent(-2),
+			err:   "services.foo.mem_swappiness: invalid value -2: mem_swappiness must be a percentage, an integer between 0 and 100",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := checker(tt.value, tree.NewPath("services.foo.mem_swappiness"))
+			if tt.err == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tt.err)
+			}
+		})
+	}
+}
+
+// percent stands for a named number type, such as types.UnitBytes, in a model
+// that was parsed before it reaches validation.
+type percent int64
+
+// A memory limit, memory reservation or shared memory size is not negative,
+// whatever the Go type of the number in a pre-parsed model. Other values are
+// for the byte value parser to judge.
+func TestValidateNotNegative(t *testing.T) {
+	checker := checks["services.*.mem_limit"]
+	tests := []struct {
+		name  string
+		value any
+		err   string
+	}{
+		{name: "a number of bytes", value: 1024},
+		{name: "zero", value: 0},
+		{name: "a value with a unit", value: "512m"},
+		{name: "a numeric string", value: "1024"},
+		{name: "unset", value: nil},
+		{name: "an unsigned integer", value: uint64(1024)},
+		{name: "text is left to the parser", value: "abc"},
+		{name: "a negative amount with a unit is left to the parser", value: "-1g"},
+		{name: "a negative number", value: -1, err: "services.foo.mem_limit: invalid value -1: must not be negative"},
+		{name: "a negative int64", value: int64(-1), err: "services.foo.mem_limit: invalid value -1: must not be negative"},
+		{name: "a negative int32", value: int32(-1), err: "services.foo.mem_limit: invalid value -1: must not be negative"},
+		{name: "a negative float64", value: float64(-1), err: "services.foo.mem_limit: invalid value -1: must not be negative"},
+		{name: "a negative float32", value: float32(-1), err: "services.foo.mem_limit: invalid value -1: must not be negative"},
+		{name: "a negative named type", value: percent(-1), err: "services.foo.mem_limit: invalid value -1: must not be negative"},
+		{name: "a negative numeric string", value: "-1", err: "services.foo.mem_limit: invalid value -1: must not be negative"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := checker(tt.value, tree.NewPath("services.foo.mem_limit"))
 			if tt.err == "" {
 				assert.NilError(t, err)
 			} else {

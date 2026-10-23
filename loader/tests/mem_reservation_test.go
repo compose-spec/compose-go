@@ -183,3 +183,16 @@ services:
 		assert.ErrorContains(t, err, "can't set distinct values on 'mem_reservation' and 'deploy.resources.reservations.memory'")
 	})
 }
+
+// A negative amount is rejected: the Docker CLI refuses it for the equivalent
+// flag (docker run --memory-reservation), and -1 is only meaningful for memswap_limit, where it stands for
+// unlimited swap. The shared container specification applies it to jobs too.
+func TestMemReservationNotNegative(t *testing.T) {
+	rejectsNegativeAmounts(t, "mem_reservation")
+
+	t.Run("a job", func(t *testing.T) {
+		err := loadErr(t, "name: test\njobs:\n  foo:\n    triggers:\n      manual: true\n    image: alpine\n    mem_reservation: -1\n")
+		assert.ErrorContains(t, err, "jobs.foo.mem_reservation")
+		assert.ErrorContains(t, err, "must not be negative")
+	})
+}

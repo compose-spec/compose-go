@@ -280,3 +280,21 @@ func loadsFractionsOfUnits(t *testing.T, attr string) {
 		})
 	}
 }
+
+// rejectsNegativeAmounts checks a byte value attribute, other than memswap_limit,
+// refuses a negative amount, like the Docker CLI does for the equivalent flag.
+func rejectsNegativeAmounts(t *testing.T, attr string) {
+	t.Helper()
+	for name, value := range map[string]string{
+		"a negative number":         `-1`,
+		"a negative numeric string": `"-1"`,
+		"a negative float":          `-1e3`,
+		"a negative default":        `${UNSET:--1}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadErr(t, serviceWith(attr, value))
+			assert.ErrorContains(t, err, attr)
+			assert.ErrorContains(t, err, "must not be negative")
+		})
+	}
+}

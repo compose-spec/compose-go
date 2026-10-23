@@ -277,3 +277,21 @@ jobs:
 	assert.Assert(t, hook.Init != nil && *hook.Init, "hook init must cast to boolean")
 	assert.Equal(t, p.Jobs["migrate"].CPUS, float32(1.5), "job cpus must cast to float")
 }
+
+// A pre_start hook is a container of its own: the amounts it declares are
+// checked like those of a service, a negative memory limit, memory reservation
+// or shared memory size is rejected and mem_swappiness is a percentage.
+func TestPreStartHookAmountsAreChecked(t *testing.T) {
+	for name, tc := range map[string]struct{ attr, value, message string }{
+		"mem_limit":       {"mem_limit", "-1", "must not be negative"},
+		"mem_reservation": {"mem_reservation", "-1", "must not be negative"},
+		"shm_size":        {"shm_size", "-1", "must not be negative"},
+		"mem_swappiness":  {"mem_swappiness", "101", "must be a percentage"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadErr(t, "name: test\nservices:\n  foo:\n    image: alpine\n    pre_start:\n      - image: alpine\n        "+tc.attr+": "+tc.value+"\n")
+			assert.ErrorContains(t, err, "services.foo.pre_start.[]."+tc.attr)
+			assert.ErrorContains(t, err, tc.message)
+		})
+	}
+}
