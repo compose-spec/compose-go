@@ -67,3 +67,19 @@ jobs:
 	expect(yamlP)
 	expect(jsonP)
 }
+
+// A ulimit whose soft or hard limit is not a number is rejected with an error
+// naming the attribute, even when neither schema validation nor interpolation
+// (which casts it) runs, instead of crashing the loader.
+func TestUlimitsWithNonNumericLimit(t *testing.T) {
+	for name, limits := range map[string]string{
+		"soft limit": "{soft: unlimited, hard: 2}",
+		"hard limit": "{soft: 1, hard: unlimited}",
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadUncheckedErr(t, serviceWith("ulimits", "{nofile: "+limits+"}"))
+			assert.ErrorContains(t, err, "services[foo].ulimits[nofile]")
+			assert.ErrorContains(t, err, "invalid type string for ulimit")
+		})
+	}
+}
