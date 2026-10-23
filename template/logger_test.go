@@ -106,3 +106,37 @@ func TestWithoutLoggingTakesPrecedenceOverLogger(t *testing.T) {
 	assert.Check(t, is.Len(logger.warnings, 0))
 	assert.Check(t, is.Len(hook.AllEntries(), 0))
 }
+
+// WithoutLogging silences every "variable is not set" warning of a template,
+// including those raised while substituting a default value or the text that
+// follows a braced expression: a nested substitution reports like the one it
+// belongs to.
+func TestWithoutLoggingSilencesNestedSubstitutions(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		want     string
+	}{
+		{name: "variable in a default value", template: "${A:-${UNSET}}", want: ""},
+		{name: "variable in an alternative value", template: "${FOO:+${UNSET}}", want: ""},
+		{name: "variable in the text following a braced expression", template: "${FOO:-x}-${UNSET}", want: "first-"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			hook, restore := captureWarnings(t)
+			defer restore()
+
+			logger := &recordingLogger{}
+			result, err := SubstituteWithOptions(tc.template, defaultMapping, WithLogger(logger), WithoutLogging)
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(tc.want, result))
+			assert.Check(t, is.Len(logger.warnings, 0))
+			assert.Check(t, is.Len(hook.AllEntries(), 0))
+
+			result, err = SubstituteWithOptions(tc.template, defaultMapping, WithoutLogging)
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(tc.want, result))
+			assert.Check(t, is.Len(hook.AllEntries(), 0))
+		})
+	}
+}
