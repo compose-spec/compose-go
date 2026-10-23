@@ -177,7 +177,7 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 		// nested substitutions (default values, error messages) report to the
 		// same logger as this one
 		_, subsFunc = substitutionFunctionForTemplate(substring, func(t string, m Mapping) (string, error) {
-			return SubstituteWithOptions(t, m, WithLogger(cfg.logger))
+			return SubstituteWithOptions(t, m, nestedLogging(cfg))
 		})
 	}
 
@@ -211,7 +211,7 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 			return "", false, err
 		}
 		if applied {
-			interpolatedNested, err := SubstituteWithOptions(rest, mapping, WithPattern(pattern), WithLogger(cfg.logger))
+			interpolatedNested, err := SubstituteWithOptions(rest, mapping, WithPattern(pattern), nestedLogging(cfg))
 			if err != nil {
 				return "", false, err
 			}
@@ -225,6 +225,15 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 	}
 
 	return value, ok, nil
+}
+
+// nestedLogging makes a nested substitution report like the one it belongs to:
+// to the same logger, and not at all when logging is disabled.
+func nestedLogging(cfg *Config) Option {
+	return func(nested *Config) {
+		nested.logger = cfg.logger
+		nested.logging = cfg.logging
+	}
 }
 
 // SubstituteWith substitute variables in the string with their values.
