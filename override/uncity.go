@@ -179,9 +179,12 @@ func mountIndexer(defaultPath string) indexer {
 		case string:
 			return fmt.Sprintf("%s/%s", defaultPath, v), nil
 		case map[string]any:
-			t, ok := v["target"]
-			if ok {
-				return t.(string), nil
+			if t, ok := v["target"]; ok {
+				target, ok := t.(string)
+				if !ok {
+					return "", fmt.Errorf("%s: unexpected type %T for target", path, t)
+				}
+				return target, nil
 			}
 			return fmt.Sprintf("%s/%s", defaultPath, v["source"]), nil
 		default:
@@ -227,7 +230,11 @@ func envFileIndexer(y any, p tree.Path) (string, error) {
 		return value, nil
 	case map[string]any:
 		if pathValue, ok := value["path"]; ok {
-			return pathValue.(string), nil
+			path, ok := pathValue.(string)
+			if !ok {
+				return "", fmt.Errorf("%s: unexpected type %T for path", p, pathValue)
+			}
+			return path, nil
 		}
 		return "", fmt.Errorf("environment path attribute %s is missing", p)
 	}
