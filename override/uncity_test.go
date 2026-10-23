@@ -137,3 +137,37 @@ func assertUnicity(t *testing.T, before string, expected string) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, got, unmarshal(t, expected))
 }
+
+// Entries of a list are told apart by an identifying key (the target of a
+// secret or config mount, the path of an env_file entry): a key that is not a
+// string is a document error naming the attribute, not a crash of the loader,
+// which enforces unicity before the schema validation.
+func TestEnforceUnicityRejectsKeyThatIsNotAString(t *testing.T) {
+	tests := []struct {
+		name    string
+		model   string
+		wantErr string
+	}{
+		{
+			name:    "secret target",
+			model:   "services:\n  a:\n    secrets:\n      - source: s\n        target: 3\n",
+			wantErr: "services.a.secrets.[0]: unexpected type int for target",
+		},
+		{
+			name:    "config target",
+			model:   "services:\n  a:\n    configs:\n      - source: c\n        target: [x]\n",
+			wantErr: "services.a.configs.[0]: unexpected type []interface {} for target",
+		},
+		{
+			name:    "env_file path",
+			model:   "services:\n  a:\n    env_file:\n      - path: 3\n",
+			wantErr: "services.a.env_file.[0]: unexpected type int for path",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := EnforceUnicity(unmarshal(t, tt.model))
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
