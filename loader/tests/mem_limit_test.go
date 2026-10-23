@@ -28,6 +28,7 @@ package tests
 import (
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
@@ -172,4 +173,47 @@ services:
 		assert.ErrorContains(t, err, "services.foo")
 		assert.ErrorContains(t, err, "can't set distinct values on 'mem_limit' and 'deploy.resources.limits.memory'")
 	})
+}
+
+// A negative amount is rejected: the Docker CLI refuses it for the equivalent
+// flag (docker run --memory), and -1 is only meaningful for memswap_limit, where it stands for
+// unlimited swap. The shared container specification applies it to jobs too.
+func TestMemLimitNotNegative(t *testing.T) {
+	rejectsNegativeAmounts(t, "mem_limit")
+
+	t.Run("a job", func(t *testing.T) {
+		err := loadErr(t, "name: test\njobs:\n  foo:\n    triggers:\n      manual: true\n    image: alpine\n    mem_limit: -1\n")
+		assert.ErrorContains(t, err, "jobs.foo.mem_limit")
+		assert.ErrorContains(t, err, "must not be negative")
+	})
+}
+
+// A model handed over already parsed (ConfigFile.Config) may hold numbers of
+// any Go type: a negative amount is rejected whatever its type.
+func TestMemLimitNotNegativeInPreParsedModel(t *testing.T) {
+	for name, value := range map[string]any{
+		"an int32":      int32(-1),
+		"a float32":     float32(-1),
+		"a UnitBytes":   types.UnitBytes(-1),
+		"a plain int64": int64(-1),
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
+				ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Config: map[string]any{
+					"name": "test",
+					"services": map[string]any{
+						"foo": map[string]any{"image": "alpine", "mem_limit": value},
+					},
+				}}},
+				Environment: map[string]string{},
+			}, func(options *loader.Options) {
+				// there is no file to read the project name from
+				options.SetProjectName("test", true)
+				options.SkipConsistencyCheck = true
+				options.SkipNormalization = true
+			})
+			assert.ErrorContains(t, err, "services.foo.mem_limit")
+			assert.ErrorContains(t, err, "must not be negative")
+		})
+	}
 }

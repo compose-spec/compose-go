@@ -306,3 +306,24 @@ jobs:
 	assert.DeepEqual(t, p.Jobs["string"].Build.NoCacheFilter, types.StringList{"foo"})
 	assert.DeepEqual(t, p.Jobs["list"].Build.NoCacheFilter, types.StringList{"foo", "bar"})
 }
+
+// A negative size is rejected, like the Docker CLI does for the equivalent flag
+// (docker build --shm-size).
+func TestBuildShmSizeNotNegative(t *testing.T) {
+	for name, value := range map[string]string{
+		"a negative number":         `-1`,
+		"a negative numeric string": `"-1"`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadErr(t, "name: test\nservices:\n  foo:\n    build:\n      context: .\n      shm_size: "+value+"\n")
+			assert.ErrorContains(t, err, "build.shm_size")
+			assert.ErrorContains(t, err, "must not be negative")
+		})
+	}
+
+	t.Run("a job", func(t *testing.T) {
+		err := loadErr(t, "name: test\njobs:\n  foo:\n    triggers:\n      manual: true\n    build:\n      context: .\n      shm_size: -1\n")
+		assert.ErrorContains(t, err, "jobs.foo.build.shm_size")
+		assert.ErrorContains(t, err, "must not be negative")
+	})
+}

@@ -195,3 +195,27 @@ services:
 	expect(yamlP)
 	expect(jsonP)
 }
+
+// A negative memory amount is rejected, like the Docker CLI does for the
+// equivalent flags (docker service create --limit-memory and --reserve-memory).
+func TestDeployResourcesMemoryNotNegative(t *testing.T) {
+	for name, section := range map[string]string{
+		"limits":       "limits",
+		"reservations": "reservations",
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadErr(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    deploy:
+      resources:
+        `+section+`:
+          memory: "-1"
+`)
+			assert.ErrorContains(t, err, "deploy.resources."+section+".memory")
+			assert.ErrorContains(t, err, "must not be negative")
+		})
+	}
+}

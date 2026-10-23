@@ -146,3 +146,16 @@ func TestShmSizeInvalid(t *testing.T) {
 		})
 	}
 }
+
+// A negative amount is rejected: the Docker CLI refuses it for the equivalent
+// flag (docker run --shm-size), and -1 is only meaningful for memswap_limit, where it stands for
+// unlimited swap. The shared container specification applies it to jobs too.
+func TestShmSizeNotNegative(t *testing.T) {
+	rejectsNegativeAmounts(t, "shm_size")
+
+	t.Run("a job", func(t *testing.T) {
+		err := loadErr(t, "name: test\njobs:\n  foo:\n    triggers:\n      manual: true\n    image: alpine\n    shm_size: -1\n")
+		assert.ErrorContains(t, err, "jobs.foo.shm_size")
+		assert.ErrorContains(t, err, "must not be negative")
+	})
+}
