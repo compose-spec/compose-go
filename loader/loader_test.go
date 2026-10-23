@@ -3385,3 +3385,44 @@ services:
 	}
 	wg.Wait()
 }
+
+// With interpolation skipped, an `external` that is still a reference to a
+// variable is not a boolean: loading fails on it with an error naming the
+// resource, instead of crashing the validation of the volume.
+// https://github.com/compose-spec/compose-spec/blob/main/07-volumes.md#external
+func TestExternalNotABooleanWithoutInterpolation(t *testing.T) {
+	_, err := LoadWithContext(t.Context(), buildConfigDetails(`
+name: test
+volumes:
+  data:
+    external: ${EXTERNAL:-true}
+    driver: local
+`, nil), func(options *Options) {
+		options.SkipInterpolation = true
+	})
+	assert.ErrorContains(t, err, "volumes[data].external")
+	assert.ErrorContains(t, err, "invalid boolean")
+}
+
+// With interpolation skipped, `external` can be a string that the decoding of
+// the model reads as true (true, yes, on, y, in any case): the resource is
+// then named after its key, unprefixed by the project, like any external
+// resource.
+// https://github.com/compose-spec/compose-spec/blob/main/07-volumes.md#external
+func TestExternalBooleanStringWithoutInterpolation(t *testing.T) {
+	for _, external := range []string{"true", "TRUE", "tRuE", "yes", "Yes", "on", "y"} {
+		t.Run(external, func(t *testing.T) {
+			p, err := LoadWithContext(t.Context(), buildConfigDetails(`
+name: demo
+volumes:
+  data:
+    external: `+external+`
+`, nil), func(options *Options) {
+				options.SkipInterpolation = true
+			})
+			assert.NilError(t, err)
+			assert.Equal(t, p.Volumes["data"].Name, "data")
+			assert.Check(t, bool(p.Volumes["data"].External))
+		})
+	}
+}
