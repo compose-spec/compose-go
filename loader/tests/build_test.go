@@ -242,6 +242,14 @@ func TestBuildSSHWithPath(t *testing.T) {
 		})
 	}
 
+	// an id with a `=` could not be written as `id=path` and read back as it
+	// was, so it is rejected, like the Docker CLI cannot express it
+	t.Run("an id with an equal sign", func(t *testing.T) {
+		err := loadErr(t, "name: test\nservices:\n  foo:\n    build:\n      context: .\n      ssh: {key: /tmp/plain, 'key=other': /tmp/special}\n")
+		assert.ErrorContains(t, err, "services[foo].build.ssh")
+		assert.ErrorContains(t, err, `invalid ssh key id "key=other"`)
+	})
+
 	// the keys of a mapping have no order: they load, and marshal, in the order
 	// of their ids, so that a round trip is a fixed point
 	t.Run("a stable order", func(t *testing.T) {
