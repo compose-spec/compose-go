@@ -2,3 +2,7 @@
 .idea/*
 .vscode/*
 bin/
+
+### Go fuzzing ###
+# inputs that made `make fuzz` fail: minimize them into a regression test instead of committing them
+**/testdata/fuzz/

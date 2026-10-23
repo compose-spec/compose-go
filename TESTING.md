@@ -54,6 +54,30 @@ not as Go struct literals:
 The point of both: the expected value reads as compose documentation, is
 diffable in review, and requires no knowledge of `types.Project` internals.
 
+### Fuzzing — `Fuzz*` in `*_fuzz_test.go`
+
+The parsers read untrusted text (Compose files, `.env` files, interpolated
+values, byte sizes, ports, volumes...). Each one has a native Go fuzz target
+(`testing.F`) next to its package, locking properties that must hold for *any*
+input: never panic, stay deterministic, and round-trip (parse, print, parse)
+wherever the syntax has a canonical form. Properties that only hold for
+well-formed input do not belong there.
+
+- The seeds (`f.Add`, and `testdata/fuzz/<FuzzName>/` when a minimized input
+  is worth keeping) run as plain tests in `go test ./...`: they must be small,
+  deterministic and pass on every OS. A crash the fuzzer finds becomes a
+  readable regression test in the package's usual style first; commit its
+  `testdata/fuzz` entry only if it adds something the test does not.
+- Like every test, a fuzz target opens with a comment stating the invariant it
+  locks.
+- Fuzzing itself is not part of CI. `make fuzz` runs every target for
+  `FUZZTIME` (default `10s`) each; use `make fuzz FUZZTIME=2m` for a deeper
+  run, or one target at a time:
+
+```sh
+go test -run '^$' -fuzz '^FuzzSubstitute$' -fuzztime 2m ./template
+```
+
 ## Rules
 
 - **State the intent.** Every test (or file, for single-attribute files)
