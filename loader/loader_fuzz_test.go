@@ -340,9 +340,6 @@ func usesKey(doc, key string) bool {
 	return !ok || hasKey(nodes, key)
 }
 
-// usesPreStart tells whether a document declares a `pre_start`.
-func usesPreStart(doc string) bool { return usesKey(doc, "pre_start") }
-
 // hasEmptyHostAddresses tells whether an `extra_hosts` mapping lists a host with
 // no address (`extra_hosts: {host: []}`). The attribute marshals as an empty
 // list, which loads as no host at all and is omitted the second time, so such a
@@ -451,9 +448,7 @@ func hasNegativeFileMode(doc string) bool {
 //
 // Documents that could read files of the host are skipped (see
 // includesHostFiles). Some documents are not expected to survive a round trip,
-// each for a known reason: a pre_start section does not get the default values
-// of the other containers (a bind mount declared with `bind: {}` does not
-// default create_host_path), an explicit empty string or zero is dropped by
+// each for a known reason: an explicit empty string or zero is dropped by
 // marshaling and defaulted by loading (see hasZeroScalar), an extra_hosts entry
 // without an address is marshaled as an empty list and then dropped (see
 // hasEmptyHostAddresses), a negative file mode is marshaled as text that does
@@ -517,7 +512,7 @@ func FuzzLoad(f *testing.F) {
 			t.Fatalf("a project that loads cannot be marshaled to JSON: %v", err)
 		}
 
-		if mode&1 != 0 || usesPreStart(doc) || usesKey(doc, "ssh") || hasZeroScalar(doc) || hasEmptyHostAddresses(doc) || hasNegativeFileMode(doc) {
+		if mode&1 != 0 || usesKey(doc, "ssh") || hasZeroScalar(doc) || hasEmptyHostAddresses(doc) || hasNegativeFileMode(doc) {
 			return
 		}
 		details.ConfigFiles = []types.ConfigFile{{Filename: filepath.Join(dir, "reload.yaml"), Content: out}}
@@ -614,19 +609,5 @@ func TestIncludesHostFiles(t *testing.T) {
 				t.Fatalf("includesHostFiles(%q) = %v, want %v", tt.doc, got, tt.want)
 			}
 		})
-	}
-}
-
-// The exclusion of documents with a pre_start section from the round trip check
-// looks at the decoded keys, not at the text.
-func TestUsesPreStart(t *testing.T) {
-	for doc, want := range map[string]bool{
-		"services:\n  a:\n    image: x\n":                               false,
-		"services:\n  a:\n    pre_start:\n      - image: y\n":           true,
-		"services:\n  a:\n    \"pre_st\\u0061rt\":\n      - image: y\n": true,
-	} {
-		if got := usesPreStart(doc); got != want {
-			t.Fatalf("usesPreStart(%q) = %v, want %v", doc, got, want)
-		}
 	}
 }
