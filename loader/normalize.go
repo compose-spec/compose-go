@@ -487,6 +487,14 @@ func setNameFromKey(dict map[string]any) error {
 }
 
 func isTrue(x any) bool {
+	// with interpolation skipped, `external` can still be a string: read it as
+	// the decoding of the model does
+	if s, ok := x.(string); ok {
+		switch strings.ToLower(s) {
+		case "true", "y", "yes", "on":
+			return true
+		}
+	}
 	parseBool, _ := strconv.ParseBool(fmt.Sprint(x))
 	return parseBool
 }
