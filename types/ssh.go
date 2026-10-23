@@ -19,6 +19,8 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 )
 
 type SSHKey struct {
@@ -63,16 +65,17 @@ func (s *SSHConfig) DecodeMapstructure(value interface{}) error {
 	if !ok {
 		return fmt.Errorf("invalid ssh config type %T", value)
 	}
-	result := make(SSHConfig, len(v))
-	i := 0
+	result := make(SSHConfig, 0, len(v))
 	for id, path := range v {
 		key := SSHKey{ID: id}
 		if path != nil {
 			key.Path = fmt.Sprint(path)
 		}
-		result[i] = key
-		i++
+		result = append(result, key)
 	}
+	// a mapping has no order: keep the keys in a stable one, so that the same
+	// file always loads, and marshals, the same way
+	slices.SortFunc(result, func(a, b SSHKey) int { return strings.Compare(a.ID, b.ID) })
 	*s = result
 	return nil
 }
