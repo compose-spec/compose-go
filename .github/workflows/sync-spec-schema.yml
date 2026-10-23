@@ -1,0 +1,37 @@
+name: Sync schema to compose-spec
+
+# compose-go is the source of truth of schema/compose-spec.json: each merge on
+# main that changes it asks compose-spec to open (or refresh) its sync pull
+# request, instead of compose-spec polling on a schedule.
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - schema/compose-spec.json
+
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Notify compose-spec
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create a token scoped to compose-spec
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.SPEC_SYNC_APP_ID }}
+          private-key: ${{ secrets.SPEC_SYNC_APP_PRIVATE_KEY }}
+          owner: compose-spec
+          repositories: compose-spec
+          permission-contents: write # repository_dispatch requires contents: write
+      - name: Dispatch compose-go-schema-updated
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          gh api repos/compose-spec/compose-spec/dispatches \
+            -f event_type=compose-go-schema-updated \
+            -f "client_payload[sha]=${SHA}"
