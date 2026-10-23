@@ -17,6 +17,7 @@
 package loader
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -59,6 +60,10 @@ func (p *ResetProcessor) UnmarshalYAML(value *yaml.Node) error {
 	resolved, err := p.resolveReset(value, tree.NewPath())
 	if err != nil {
 		return err
+	}
+	if resolved == nil {
+		// the document itself is tagged `!reset`: there is nothing left to decode
+		return errors.New("!reset cannot be set on the whole document")
 	}
 	p.addAliasPaths()
 	return resolved.Decode(p.target)

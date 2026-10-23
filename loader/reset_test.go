@@ -510,3 +510,19 @@ services:
 `)
 	assert.ErrorContains(t, err, "map merge requires map")
 }
+
+// `!reset` removes the value it tags: set on the whole document, it would leave
+// nothing to load, which is reported as an error instead of crashing the
+// loader.
+// https://github.com/compose-spec/compose-spec/blob/main/13-merge.md#reset-value
+func TestResetOnWholeDocument(t *testing.T) {
+	for name, files := range map[string][]string{
+		"only file":     {"!reset"},
+		"override file": {"services:\n  a:\n    image: x\n", "!reset {}"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := loadResetYAML(t.Context(), files...)
+			assert.ErrorContains(t, err, "!reset cannot be set on the whole document")
+		})
+	}
+}
