@@ -43,6 +43,8 @@ import (
 var fuzzSeeds = []string{
 	"",
 	"services: {}",
+	"name: demo\nservices: {web: {image: x, build: {context: ., ssh: {key: 1}}}}\n",
+	"name: demo\nservices: {web: {image: x, build: {context: ., ssh: [default, key1=/tmp/id_rsa, key2=/tmp/other]}}}\n",
 	"name: demo\nservices: {web: {image: busybox, extra_hosts: {host: []}}}\n",
 	"name: demo\nservices: {web: {image: x, gpus: [{driver: nvidia, count: !!binary MA==}]}}\n",
 	"name: demo\nservices: {web: {image: x, secrets: [{source: pw, mode: -1}]}}\nsecrets: {pw: {external: true}}\n",
@@ -456,10 +458,8 @@ func hasNegativeFileMode(doc string) bool {
 // default create_host_path), an explicit empty string or zero is dropped by
 // marshaling and defaulted by loading (see hasZeroScalar), an extra_hosts entry
 // without an address is marshaled as an empty list and then dropped (see
-// hasEmptyHostAddresses), a negative file mode is marshaled as text that does
-// not read back (see hasNegativeFileMode), and an ssh build entry with a path
-// does not marshal back to what it was read from. That last one does not
-// marshal to valid JSON either.
+// hasEmptyHostAddresses), and a negative file mode is marshaled as text that
+// does not read back (see hasNegativeFileMode).
 func FuzzLoad(f *testing.F) {
 	dir := f.TempDir()
 	included := filepath.Join(dir, "included.yaml")
@@ -513,11 +513,11 @@ func FuzzLoad(f *testing.F) {
 		if err != nil {
 			t.Fatalf("a project that loads cannot be marshaled to YAML: %v", err)
 		}
-		if _, err := project.MarshalJSON(); err != nil && mode&3 == 0 && !usesKey(doc, "ssh") {
+		if _, err := project.MarshalJSON(); err != nil && mode&3 == 0 {
 			t.Fatalf("a project that loads cannot be marshaled to JSON: %v", err)
 		}
 
-		if mode&1 != 0 || usesPreStart(doc) || usesKey(doc, "ssh") || hasZeroScalar(doc) || hasEmptyHostAddresses(doc) || hasNegativeFileMode(doc) {
+		if mode&1 != 0 || usesPreStart(doc) || hasZeroScalar(doc) || hasEmptyHostAddresses(doc) || hasNegativeFileMode(doc) {
 			return
 		}
 		details.ConfigFiles = []types.ConfigFile{{Filename: filepath.Join(dir, "reload.yaml"), Content: out}}
