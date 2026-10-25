@@ -762,6 +762,27 @@ func TestResolveUnexpectedContextAndExtendsType(t *testing.T) {
 	}
 }
 
+// An error of the resolution names the attribute whose value is rejected, like
+// the other errors of the loader do, so that it can be found in a document:
+// "unexpected type int" alone says nothing of where the number is. The entries
+// of a list are all written "[]", as in the paths of the transformations.
+func TestResolveErrorNamesTheAttribute(t *testing.T) {
+	for name, doc := range map[string]struct{ in, want string }{
+		"build context":      {"services:\n  web:\n    build:\n      context: 42\n", "services.web.build.context: unexpected type int"},
+		"job build context":  {"jobs:\n  web:\n    build:\n      context: 42\n", "jobs.web.build.context: unexpected type int"},
+		"extends file":       {"services:\n  web:\n    extends:\n      file: [x]\n      service: base\n", "services.web.extends.file: unexpected type []interface {}"},
+		"env file path":      {"services:\n  web:\n    env_file:\n      - path: 42\n", "services.web.env_file.[].path: unexpected type int"},
+		"label file":         {"services:\n  web:\n    label_file: [42]\n", "services.web.label_file.[]: unexpected type int"},
+		"watch path":         {"services:\n  web:\n    develop:\n      watch:\n        - path: 42\n", "services.web.develop.watch.[].path: unexpected type int"},
+		"pre_start env file": {"services:\n  web:\n    pre_start:\n      - env_file:\n          - path: 42\n", "services.web.pre_start.[].env_file.[].path: unexpected type int"},
+		"bind mount":         {"services:\n  web:\n    volumes:\n      - type: bind\n        target: /data\n", `services.web.volumes.[]: invalid mount config for type "bind"`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.ErrorContains(t, resolveFails(t, doc.in), doc.want)
+		})
+	}
+}
+
 // What is not in canonical form is left as written by the resolution of
 // paths, which only completes the attributes it recognizes: a bind mount whose
 // source is not a string, or a volume that is not a definition, is left for

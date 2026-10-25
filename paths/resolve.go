@@ -84,7 +84,11 @@ func (r *relativePathsResolver) isRemoteResource(path string) bool {
 func (r *relativePathsResolver) resolveRelativePaths(value any, p tree.Path) (any, error) {
 	for pattern, resolver := range r.resolvers {
 		if p.Matches(pattern) {
-			return resolver(value)
+			resolved, err := resolver(value)
+			if err != nil {
+				return nil, fmt.Errorf("%s: %w", p, err)
+			}
+			return resolved, nil
 		}
 	}
 	switch v := value.(type) {

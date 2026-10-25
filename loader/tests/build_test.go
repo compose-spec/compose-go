@@ -312,3 +312,12 @@ secrets:
 	assert.Equal(t, jobSecrets[1].UID, "103")
 	assert.Equal(t, *jobSecrets[1].Mode, types.FileMode(0o440))
 }
+
+// A build context that is not a string is rejected with an error naming the
+// attribute, even when schema validation is skipped, rather than with the bare
+// type of the value.
+// https://github.com/compose-spec/compose-spec/blob/main/build.md#context
+func TestBuildContextWithNonStringValue(t *testing.T) {
+	err := loadUncheckedErr(t, "name: test\nservices:\n  foo:\n    build:\n      context: 42\n")
+	assert.ErrorContains(t, err, "services.foo.build.context: unexpected type int")
+}
