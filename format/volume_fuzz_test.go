@@ -20,7 +20,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"github.com/compose-spec/compose-go/v2/types"
 )
@@ -29,13 +28,14 @@ import (
 // (https://github.com/compose-spec/compose-spec/blob/main/05-services.md#short-syntax-5):
 // whatever the text, ParseVolume never panics, is deterministic, and types a
 // volume it accepts as a bind mount or a named volume. A volume with a source
-// and a target (neither a single letter), once rendered by String() (which the type documents as
+// and a target, once rendered by String() (which the type documents as
 // parseable), parses back to the same volume.
 func FuzzParseVolume(f *testing.F) {
 	for _, seed := range []string{
 		"", "a", "ab", "/data", "data:/data", "data:/data:ro", "data:/data:rw", "./src:/app", "../src:/app:ro",
 		"~/src:/app", "/host:/container:z", "/host:/container:Z", "/host:/container:ro,z", "/host:/container:rshared",
-		"data:/data:nocopy", "data:/data:ro,nocopy", "/host:/container:unknown", "a:b:c:d", "::", ":a", "a:", "a::b",
+		"data:/data:nocopy", "data:/data:ro,nocopy", "/host:/container:unknown", "a:b:c:d", "::", ":a", "a:", "a::b", "a:/data", "a:/data:ro", "a:b", "x:y:ro", "00:A", "/data:a:ro",
+		`C:/Users/data:/data`, `C:/Users/data:/data:ro`, `a:\data:/data`,
 		`C:\Users\data:/data`, `C:\Users\data:/data:ro`, `\\.\pipe\docker_engine:\\.\pipe\docker_engine`,
 		"${DATA}:/data", "${DATA:-/srv}:/data:ro", "${A:-${B:-x}}:/data", "${", "$", "a:${B", "é:ü:ro",
 	} {
@@ -53,12 +53,10 @@ func FuzzParseVolume(f *testing.F) {
 		if volume.Type != types.VolumeTypeBind && volume.Type != types.VolumeTypeVolume {
 			t.Fatalf("ParseVolume(%q) has the unexpected type %q", spec, volume.Type)
 		}
-		if volume.Source == "" || volume.Target == "" || utf8.RuneCountInString(volume.Source) == 1 || utf8.RuneCountInString(volume.Target) == 1 ||
-			strings.ContainsRune(spec, endOfSpec) || strings.HasSuffix(volume.Source, ":") || strings.HasSuffix(volume.Target, ":") {
-			// ParseVolume knows nothing of the platform: a single letter
-			// followed by a colon is always taken for a Windows drive, so
-			// "a:b" is one path and no longer a source and a target. Such
-			// ambiguous volumes cannot be rendered back, nor can a spec
+		if volume.Source == "" || volume.Target == "" || strings.ContainsRune(spec, endOfSpec) ||
+			strings.HasSuffix(volume.Source, ":") || strings.HasSuffix(volume.Target, ":") {
+			// An anonymous volume has nothing to render, a path ending with
+			// a colon cannot be told from the separator, nor can a spec
 			// holding the NUL character the parser marks its end with.
 			return
 		}

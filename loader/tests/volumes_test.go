@@ -162,3 +162,80 @@ jobs:
 	assert.Equal(t, jvol.Source, "\\\\.\\pipe\\docker_engine")
 	assert.Equal(t, jvol.Target, "\\\\.\\pipe\\docker_engine")
 }
+
+// Spec, short syntax: "`[SOURCE:]TARGET[:MODE]`, where `SOURCE` can be either a
+// host path or volume name." A volume named with a single letter is a volume
+// name like any other, not a Windows drive: `a:/data` mounts the volume `a`.
+// A host path on a Windows drive still is a source.
+func TestVolumeShortSyntaxSingleLetterName(t *testing.T) {
+	loadsAs(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - a:/data
+      - b:/logs:ro
+      - 'C:\Users\me:/home'
+      - C:/Users/me:/work:ro
+jobs:
+  foo:
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - a:/data
+      - b:/logs:ro
+      - 'C:\Users\me:/home'
+      - C:/Users/me:/work:ro
+`, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: volume
+        source: a
+        target: /data
+        volume: {}
+      - type: volume
+        source: b
+        target: /logs
+        read_only: true
+        volume: {}
+      - type: bind
+        source: 'C:\Users\me'
+        target: /home
+        bind: {}
+      - type: bind
+        source: C:/Users/me
+        target: /work
+        read_only: true
+        bind: {}
+jobs:
+  foo:
+    name: foo
+    triggers:
+      manual: true
+    image: alpine
+    volumes:
+      - type: volume
+        source: a
+        target: /data
+        volume: {}
+      - type: volume
+        source: b
+        target: /logs
+        read_only: true
+        volume: {}
+      - type: bind
+        source: 'C:\Users\me'
+        target: /home
+        bind: {}
+      - type: bind
+        source: C:/Users/me
+        target: /work
+        read_only: true
+        bind: {}
+`)
+}
