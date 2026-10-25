@@ -180,7 +180,10 @@ func checkServiceNetworkModeService(project *types.Project, s *types.ServiceConf
 	if strings.HasPrefix(s.NetworkMode, types.ServicePrefix) {
 		serviceName := s.NetworkMode[len(types.ServicePrefix):]
 		if _, err := project.GetServices(serviceName); err != nil {
-			return fmt.Errorf("service %q not found for network_mode 'service:%s'", serviceName, serviceName)
+			if errors.Is(err, errdefs.ErrDisabled) {
+				return fmt.Errorf("service %q declares disabled service %q for network_mode", s.Name, serviceName)
+			}
+			return fmt.Errorf("service %q declares unknown service %q for network_mode", s.Name, serviceName)
 		}
 	}
 	return nil

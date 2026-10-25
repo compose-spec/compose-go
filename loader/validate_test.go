@@ -125,8 +125,9 @@ func TestValidateNetworkMode(t *testing.T) {
 				},
 			},
 		}
+		// the message names the service which declares the network_mode, then its target
 		err := checkConsistency(project)
-		assert.Error(t, err, `service "nonexistentservice" not found for network_mode 'service:nonexistentservice'`)
+		assert.Error(t, err, `service "myservice2" declares unknown service "nonexistentservice" for network_mode`)
 	})
 
 	t.Run("network_mode container", func(t *testing.T) {
@@ -787,7 +788,8 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 					"db": {Name: "db", ContainerSpec: types.ContainerSpec{Image: "scratch"}},
 				},
 			},
-			err: `service "db" not found for network_mode 'service:db'`,
+			// a disabled service is told apart from an unknown one
+			err: `service "web" declares disabled service "db" for network_mode`,
 		},
 
 		// volumes, build secrets, configs, models and secrets must be declared
@@ -1262,7 +1264,7 @@ func TestCheckConsistencyOrder(t *testing.T) {
 			}),
 		},
 		{
-			err: `service "ghost" not found for network_mode 'service:ghost'`,
+			err: `service "web" declares unknown service "ghost" for network_mode`,
 			fix: update(func(s *types.ServiceConfig) { s.NetworkMode = "" }),
 		},
 		{
