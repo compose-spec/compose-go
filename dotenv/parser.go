@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-
-	"github.com/compose-spec/compose-go/v2/logging"
 )
 
 const (
@@ -24,9 +22,6 @@ var (
 
 type parser struct {
 	line int
-	// logger receives the warnings raised while expanding variables. When nil,
-	// they are written through the standard logrus logger.
-	logger logging.Logger
 }
 
 func newParser() *parser {
@@ -172,7 +167,7 @@ func (p *parser) extractVarValue(src string, envMap map[string]string, lookupFn 
 		// Remove inline comments on unquoted lines
 		value, _, _ = strings.Cut(value, " #")
 		value = strings.TrimRightFunc(value, unicode.IsSpace)
-		retVal, err := expandVariablesWithLogger(value, envMap, lookupFn, p.logger)
+		retVal, err := expandVariables(value, envMap, lookupFn)
 		return retVal, rest, err
 	}
 
@@ -209,7 +204,7 @@ func (p *parser) extractVarValue(src string, envMap map[string]string, lookupFn 
 		if quote == prefixDoubleQuote {
 			// expand standard shell escape sequences & then interpolate
 			// variables on the result
-			retVal, err := expandVariablesWithLogger(expandEscapes(value), envMap, lookupFn, p.logger)
+			retVal, err := expandVariables(expandEscapes(value), envMap, lookupFn)
 			if err != nil {
 				return "", "", err
 			}

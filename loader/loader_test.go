@@ -3426,3 +3426,20 @@ volumes:
 		})
 	}
 }
+
+// The type casts applied to the interpolated values belong to one load: a
+// caller who adds, replaces or removes a cast on the Options of a load must not
+// change the casts of another one.
+func TestToOptionsTypeCastMappingIsPerLoad(t *testing.T) {
+	first := ToOptions(&types.ConfigDetails{}, nil)
+	second := ToOptions(&types.ConfigDetails{}, nil)
+	assert.Assert(t, len(first.Interpolate.TypeCastMapping) > 0)
+
+	want := len(second.Interpolate.TypeCastMapping)
+	for path := range first.Interpolate.TypeCastMapping {
+		delete(first.Interpolate.TypeCastMapping, path)
+	}
+
+	assert.Equal(t, len(second.Interpolate.TypeCastMapping), want)
+	assert.Equal(t, len(ToOptions(&types.ConfigDetails{}, nil).Interpolate.TypeCastMapping), want)
+}

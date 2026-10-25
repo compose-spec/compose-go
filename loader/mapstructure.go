@@ -19,8 +19,6 @@ package loader
 import (
 	"reflect"
 	"strconv"
-
-	"github.com/compose-spec/compose-go/v2/logging"
 )
 
 // comparable to yaml.Unmarshaler, decoder allow a type to define it's own custom logic to convert value
@@ -57,20 +55,12 @@ func decoderHook(from reflect.Value, to reflect.Value) (interface{}, error) {
 	return to.Interface(), nil
 }
 
-// castHook casts strings and integers to the type expected by the target. The
-// warnings it raises are reported to l, or to logrus when l is nil.
-func castHook(l logging.Logger) func(from reflect.Value, to reflect.Value) (interface{}, error) {
-	return func(from reflect.Value, to reflect.Value) (interface{}, error) {
-		return cast(from, to, l)
-	}
-}
-
-func cast(from reflect.Value, to reflect.Value, l logging.Logger) (interface{}, error) {
+func cast(from reflect.Value, to reflect.Value) (interface{}, error) {
 	switch from.Type().Kind() {
 	case reflect.String:
 		switch to.Kind() {
 		case reflect.Bool:
-			return parseBoolean(from.String(), l)
+			return toBoolean(from.String())
 		case reflect.Int:
 			return toInt(from.String())
 		case reflect.Int64:

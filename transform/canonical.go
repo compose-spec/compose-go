@@ -19,7 +19,6 @@ package transform
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/tree"
 )
 
@@ -79,14 +78,6 @@ func transformStringOrList(data any, _ tree.Path, _ bool) (any, error) {
 
 // Canonical transforms a compose model into canonical syntax
 func Canonical(yaml map[string]any, ignoreParseError bool) (map[string]any, error) {
-	return CanonicalWithLogger(yaml, ignoreParseError, nil)
-}
-
-// CanonicalWithLogger is Canonical sending the warnings it raises (a
-// deprecated `external.name`) to l instead of the standard logrus logger,
-// which receives them when l is nil.
-func CanonicalWithLogger(yaml map[string]any, ignoreParseError bool, l logging.Logger) (map[string]any, error) {
-	warnDeprecatedExternalName(yaml, l)
 	canonical, err := transform(yaml, tree.NewPath(), ignoreParseError)
 	if err != nil {
 		return nil, err

@@ -48,9 +48,6 @@ var templateSeeds = []string{
 	"${UNSET:-${FOO:-nested}}",
 	"${UNSET:-${UNSET:-${UNSET:-deep}}}",
 	"${UNSET:?${FOO}}",
-	"${UNSET:-$OTHER}",
-	"${FOO:+${OTHER}}-${OTHER}",
-	"$OTHER",
 	"${FOO:-a}-${FOO:+b}-$FOO",
 	"${FOO:-{}}",
 	"${FOO:-}}",
@@ -85,8 +82,7 @@ func fuzzMapping(name string) (string, bool) {
 // whatever the template, Substitute must return a result or an error, never
 // panic, and must be deterministic. A template with no `$` has nothing to
 // interpolate and comes back untouched. Escaping every `$` as `$$` turns any
-// text into a template that interpolates to itself. WithoutLogging silences
-// every warning, including those of nested defaults.
+// text into a template that interpolates to itself.
 func FuzzSubstitute(f *testing.F) {
 	for _, s := range templateSeeds {
 		f.Add(s)
@@ -102,11 +98,6 @@ func FuzzSubstitute(f *testing.F) {
 			if err != nil || got != tmpl {
 				t.Fatalf("Substitute(%q) = (%q, %v), want the template untouched", tmpl, got, err)
 			}
-		}
-
-		silent := &recordingLogger{}
-		if _, _ = SubstituteWithOptions(tmpl, fuzzMapping, WithoutLogging, WithLogger(silent)); len(silent.warnings) > 0 {
-			t.Fatalf("Substitute(%q) warned despite WithoutLogging: %q", tmpl, silent.warnings)
 		}
 
 		escaped := strings.ReplaceAll(tmpl, "$", "$$")

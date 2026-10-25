@@ -33,9 +33,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/consts"
 	"github.com/compose-spec/compose-go/v2/errdefs"
-	"github.com/compose-spec/compose-go/v2/internal/warn"
 	interp "github.com/compose-spec/compose-go/v2/interpolation"
-	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/override"
 	"github.com/compose-spec/compose-go/v2/paths"
 	"github.com/compose-spec/compose-go/v2/schema"
@@ -46,6 +44,7 @@ import (
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/compose-spec/compose-go/v2/validation"
 	"github.com/go-viper/mapstructure/v2"
+	"github.com/sirupsen/logrus"
 	"go.yaml.in/yaml/v4"
 )
 
@@ -111,25 +110,6 @@ type Options struct {
 	// compose-file attributes not honored by the caller's runtime. See
 	// WithUnsupportedAttributesCheck.
 	UnsupportedAttributesCheck *UnsupportedAttributesCheck
-	// Logger receives the warnings raised while loading: obsolete `version`,
-	// YAML 1.1 booleans, unset variables (in the model and in the env_file of an
-	// include), deprecated `external.name`, misconfigured resource loaders. When
-	// nil, they are written through the standard logrus logger.
-	//
-	// Two warnings are not routed: the unset variables referenced by the env_file
-	// of a service, resolved by types.Project.WithServicesEnvironmentResolved,
-	// and paths.ExpandUser failing to expand "~" when the environment lacks HOME.
-	// They are still written through logrus.
-	//
-	// It applies to the warnings of this package and to the interpolation
-	// performed by the Interpolate options built by ToOptions: an Interpolate
-	// value supplied by the caller reports wherever its Substitute and
-	// TypeCastMapping functions are written to report. Those functions read
-	// the Logger of the Options returned by ToOptions, not of a copy of it.
-	//
-	// The obsolete `version` warning is emitted once per file for the whole
-	// process, whichever Logger the first load used.
-	Logger logging.Logger
 }
 
 var (
@@ -142,7 +122,7 @@ func (o *Options) warnObsoleteVersion(file string) {
 	versionWarningMu.Lock()
 	defer versionWarningMu.Unlock()
 	if !versionWarning.Has(file) {
-		warn.Warnf(o.Logger, "%s: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion", file)
+		logrus.Warning(file + ": the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion")
 		versionWarning.Add(file)
 	}
 }
@@ -172,7 +152,7 @@ func (o Options) RemoteResourceLoaders() []ResourceLoader {
 	for i, loader := range o.ResourceLoaders {
 		if _, ok := loader.(localResourceLoader); ok {
 			if i != len(o.ResourceLoaders)-1 {
-				warn.Warnf(o.Logger, "misconfiguration of ResourceLoaders: localResourceLoader should be last")
+				logrus.Warning("misconfiguration of ResourceLoaders: localResourceLoader should be last")
 			}
 			continue
 		}
@@ -243,7 +223,6 @@ func (o *Options) clone() *Options {
 		KnownExtensions:            o.KnownExtensions,
 		Listeners:                  o.Listeners,
 		UnsupportedAttributesCheck: o.UnsupportedAttributesCheck,
-		Logger:                     o.Logger,
 	}
 }
 
@@ -433,14 +412,13 @@ func loadModelWithContext(ctx context.Context, configDetails *types.ConfigDetail
 }
 
 func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Options {
-	opts := &Options{ResolvePaths: true}
-	opts.Interpolate = &interp.Options{
-		// bound to opts so that the Logger, set by the options below, is honored
-		Substitute: func(value string, mapping template.Mapping) (string, error) {
-			return template.SubstituteWithOptions(value, mapping, template.WithLogger(opts.Logger))
+	opts := &Options{
+		Interpolate: &interp.Options{
+			Substitute:      template.Substitute,
+			LookupValue:     configDetails.LookupEnv,
+			TypeCastMapping: buildInterpolateTypeCastMapping(),
 		},
-		LookupValue:     configDetails.LookupEnv,
-		TypeCastMapping: buildInterpolateTypeCastMapping(opts.toBoolean),
+		ResolvePaths: true,
 	}
 
 	for _, op := range options {
@@ -683,7 +661,7 @@ func (l *yamlFileLoader) validate() error {
 // canonicalize rewrites the merged model in its canonical form
 func (l *yamlFileLoader) canonicalize() error {
 	var err error
-	l.dict, err = transform.CanonicalWithLogger(l.dict, l.opts.SkipInterpolation, l.opts.Logger)
+	l.dict, err = transform.Canonical(l.dict, l.opts.SkipInterpolation)
 	if err != nil {
 		return err
 	}
@@ -746,12 +724,12 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	delete(dict, "name") // project name set by yaml must be identified by caller as opts.projectName
 
 	var err error
-	dict, err = processExtensions(dict, tree.NewPath(), opts.KnownExtensions, opts.Logger)
+	dict, err = processExtensions(dict, tree.NewPath(), opts.KnownExtensions)
 	if err != nil {
 		return nil, err
 	}
 
-	err = transformWithLogger(dict, project, opts.Logger)
+	err = Transform(dict, project)
 	if err != nil {
 		return nil, err
 	}
@@ -912,7 +890,7 @@ var userDefinedKeys = []tree.Path{
 	"configs",
 }
 
-func processExtensions(dict map[string]any, p tree.Path, extensions map[string]any, l logging.Logger) (map[string]interface{}, error) {
+func processExtensions(dict map[string]any, p tree.Path, extensions map[string]any) (map[string]interface{}, error) {
 	extras := map[string]any{}
 	var err error
 	for key, value := range dict {
@@ -930,14 +908,14 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 		}
 		switch v := value.(type) {
 		case map[string]interface{}:
-			dict[key], err = processExtensions(v, p.Next(key), extensions, l)
+			dict[key], err = processExtensions(v, p.Next(key), extensions)
 			if err != nil {
 				return nil, err
 			}
 		case []interface{}:
 			for i, e := range v {
 				if m, ok := e.(map[string]interface{}); ok {
-					v[i], err = processExtensions(m, p.Next(strconv.Itoa(i)), extensions, l)
+					v[i], err = processExtensions(m, p.Next(strconv.Itoa(i)), extensions)
 					if err != nil {
 						return nil, err
 					}
@@ -948,7 +926,7 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 	for name, val := range extras {
 		if typ, ok := extensions[name]; ok {
 			target := reflect.New(reflect.TypeOf(typ)).Elem().Interface()
-			err = transformWithLogger(val, &target, l)
+			err = Transform(val, &target)
 			if err != nil {
 				return nil, err
 			}
@@ -964,17 +942,12 @@ func processExtensions(dict map[string]any, p tree.Path, extensions map[string]a
 // Transform converts the source into the target struct with compose types transformer
 // and the specified transformers if any.
 func Transform(source interface{}, target interface{}) error {
-	return transformWithLogger(source, target, nil)
-}
-
-// transformWithLogger is Transform reporting its warnings to l, or to logrus when nil.
-func transformWithLogger(source interface{}, target interface{}, l logging.Logger) error {
 	data := mapstructure.Metadata{}
 	config := &mapstructure.DecoderConfig{
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			nameServices,
 			decoderHook,
-			castHook(l),
+			cast,
 			secretConfigDecoderHook,
 		),
 		Result:   target,
