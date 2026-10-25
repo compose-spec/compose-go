@@ -68,6 +68,38 @@ services:
 `)
 }
 
+// Devices are told apart by their target in the container, whatever the
+// syntax and permissions: the last mapping of a target takes effect at the
+// position of the first, while the same host device mapped to two targets is
+// two devices.
+func Test_DevicesUnicity(t *testing.T) {
+	assertUnicity(t, `
+services:
+  test:
+    image: foo
+    devices:
+      - /dev/sda:/dev/xvda:r
+      - /dev/sdb:/dev/xvdb
+      - /dev/sda:/dev/xvdc
+      - source: /dev/sdd
+        target: /dev/xvda
+        permissions: rwm
+      - vendor1.com/device=gpu
+      - vendor1.com/device=gpu
+`, `
+services:
+  test:
+    image: foo
+    devices:
+      - source: /dev/sdd
+        target: /dev/xvda
+        permissions: rwm
+      - /dev/sdb:/dev/xvdb
+      - /dev/sda:/dev/xvdc
+      - vendor1.com/device=gpu
+`)
+}
+
 func Test_PortsShortUnicity(t *testing.T) {
 	assertUnicity(t, `
 services:
