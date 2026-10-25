@@ -107,9 +107,6 @@ linters:
         path: loader/reset\.go
         text: 'of func `\(\*ResetProcessor\)\.resolveContainer`'
       - linters: [gocognit]
-        path: loader/validate\.go
-        text: 'of func `checkConsistency`'
-      - linters: [gocognit]
         path: schema/paths\.go
         text: 'of func `\(\*pathCollector\)\.walk`'
       - linters: [gocognit]
