@@ -49,6 +49,7 @@ var fuzzSeeds = []string{
 	"name: demo\nservices: {web: {image: busybox, extra_hosts: {host: []}}}\n",
 	"name: demo\nservices: {web: {image: x, gpus: [{driver: nvidia, count: !!binary MA==}]}}\n",
 	"name: demo\nservices: {web: {image: x, secrets: [{source: pw, mode: -1}]}}\nsecrets: {pw: {external: true}}\n",
+	"name: demo\nservices: {web: {image: x, secrets: [{source: pw, mode: '0x1ff'}], configs: [{source: c, mode: '0o440'}]}}\nsecrets: {pw: {external: true}}\nconfigs: {c: {external: true}}\n",
 	"name: demo\nservices:\n  web:\n    image: nginx\n",
 	`name: demo
 services:

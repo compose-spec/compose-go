@@ -174,6 +174,8 @@ func FuzzDecodeMapstructure(f *testing.F) {
 		{"", 0},
 		{"all", -1},
 		{"0755", 493},
+		{"0o440", 0},
+		{"0x1ff", 0},
 		{"1.5", 1},
 		{"a=b", 2},
 		{"a:b", 3},

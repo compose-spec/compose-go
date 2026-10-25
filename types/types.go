@@ -675,9 +675,17 @@ func (f *FileMode) DecodeMapstructure(value interface{}) error {
 		return nil
 	// the Docker CLI reads a file mode as an unsigned 32 bit number
 	case string:
-		i, err := strconv.ParseUint(v, 8, 32)
+		// A string is an octal number, `440` being 0o440 (the Docker CLI
+		// reads it as decimal, with base 0, so that `mode=440` is 0o670
+		// there). A leading 0 selects the CLI's own syntax, of which the
+		// octal one is a subset: `0440`, `0o440`, `0x1ff` and `0b101`.
+		base := 8
+		if strings.HasPrefix(v, "0") {
+			base = 0
+		}
+		i, err := strconv.ParseUint(v, base, 32)
 		if err != nil {
-			return fmt.Errorf("invalid file mode %q: must be an octal number that fits in 32 bits", v)
+			return fmt.Errorf("invalid file mode %q: must be an octal number, or a number with a 0o, 0x or 0b prefix, that fits in 32 bits", v)
 		}
 		*f = FileMode(i)
 	case int:
