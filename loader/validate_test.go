@@ -17,11 +17,13 @@
 package loader
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
 
+	"github.com/compose-spec/compose-go/v2/errdefs"
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
@@ -127,7 +129,7 @@ func TestValidateNetworkMode(t *testing.T) {
 		}
 		// the message names the service which declares the network_mode, then its target
 		err := checkConsistency(project)
-		assert.Error(t, err, `service "myservice2" declares unknown service "nonexistentservice" for network_mode`)
+		assert.Error(t, err, `service "myservice2" declares unknown service "nonexistentservice" for network_mode: invalid compose project`)
 	})
 
 	t.Run("network_mode container", func(t *testing.T) {
@@ -541,7 +543,7 @@ func TestValidateMountConflict(t *testing.T) {
 		},
 	}
 	err := checkConsistency(project)
-	assert.Error(t, err, "services.myservice.volumes[1]: target /conflict already mounted as services.myservice.tmpfs[1]")
+	assert.Error(t, err, "services.myservice.volumes[1]: target /conflict already mounted as services.myservice.tmpfs[1]: invalid compose project")
 }
 
 func TestValidateNegativeScale(t *testing.T) {
@@ -555,7 +557,7 @@ func TestValidateNegativeScale(t *testing.T) {
 		},
 	}
 	err := checkConsistency(project)
-	assert.Error(t, err, "services.myservice.scale: must be greater than or equal to 0")
+	assert.Error(t, err, "services.myservice.scale: must be greater than or equal to 0: invalid compose project")
 
 	project = &types.Project{
 		Services: types.Services{
@@ -569,7 +571,7 @@ func TestValidateNegativeScale(t *testing.T) {
 		},
 	}
 	err = checkConsistency(project)
-	assert.Error(t, err, "services.myservice.deploy.replicas: must be greater than or equal to 0")
+	assert.Error(t, err, "services.myservice.deploy.replicas: must be greater than or equal to 0: invalid compose project")
 }
 
 // webService returns a project's services made of one valid service named
@@ -611,7 +613,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 			project: types.Project{Services: webService(func(s *types.ServiceConfig) {
 				s.Build = &types.BuildConfig{Dockerfile: "Dockerfile", DockerfileInline: "FROM scratch"}
 			})},
-			err: `service "web" declares mutualy exclusive dockerfile and dockerfile_inline` + invalid,
+			err: `service "web" declares mutually exclusive dockerfile and dockerfile_inline` + invalid,
 		},
 		{
 			name:    "dockerfile alone",
@@ -628,7 +630,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 			project: types.Project{Services: webService(func(s *types.ServiceConfig) {
 				s.Build = &types.BuildConfig{AdditionalContexts: types.Mapping{"base": "service:ghost"}}
 			})},
-			err: `service "web" declares unknown service "ghost" as additional contexts base`,
+			err: `service "web" declares unknown service "ghost" as additional contexts base` + invalid,
 		},
 		{
 			name: "additional context on a non-buildable service",
@@ -638,7 +640,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 				}},
 				"db": {Name: "db", ContainerSpec: types.ContainerSpec{Image: "scratch"}},
 			}},
-			err: `service "web" declares non-buildable service "db" as additional contexts base`,
+			err: `service "web" declares non-buildable service "db" as additional contexts base` + invalid,
 		},
 		{
 			name: "additional context on a buildable service",
@@ -670,7 +672,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 					"base": {Name: "base", ContainerSpec: types.ContainerSpec{Image: "scratch"}},
 				},
 			},
-			err: `service "web" declares non-buildable service "base" as additional contexts base`,
+			err: `service "web" declares non-buildable service "base" as additional contexts base` + invalid,
 		},
 		{
 			name: "additional context which is not a service",
@@ -731,7 +733,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 			project: types.Project{Services: webService(func(s *types.ServiceConfig) {
 				s.HealthCheck = &types.HealthCheckConfig{Test: types.HealthCheckTest{"curl", "-f", "http://localhost"}}
 			})},
-			err: `healthcheck.test must start either by "CMD", "CMD-SHELL" or "NONE"`,
+			err: `healthcheck.test must start either by "CMD", "CMD-SHELL" or "NONE"` + invalid,
 		},
 		{
 			name: "healthcheck test with CMD",
@@ -789,7 +791,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 				},
 			},
 			// a disabled service is told apart from an unknown one
-			err: `service "web" declares disabled service "db" for network_mode`,
+			err: `service "web" declares disabled service "db" for network_mode` + invalid,
 		},
 
 		// volumes, build secrets, configs, models and secrets must be declared
@@ -883,7 +885,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 				s.Scale = ptr(-1)
 				s.Deploy = &types.DeployConfig{Replicas: ptr(-1)}
 			})},
-			err: "services.web.scale: must be greater than or equal to 0",
+			err: "services.web.scale: must be greater than or equal to 0" + invalid,
 		},
 
 		// cpus, mem_limit, mem_reservation and pids_limit, when also set under
@@ -1010,7 +1012,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 			project: types.Project{Services: webService(func(s *types.ServiceConfig) {
 				s.Tmpfs = types.StringList{"/tmp", "/run", "/tmp:size=64m"}
 			})},
-			err: "services.web.tmpfs[2]: target /tmp already mounted as services.web.tmpfs[0]",
+			err: "services.web.tmpfs[2]: target /tmp already mounted as services.web.tmpfs[0]" + invalid,
 		},
 		{
 			name: "volume mounted twice",
@@ -1020,7 +1022,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 					{Type: types.VolumeTypeBind, Source: "..", Target: "/data"},
 				}
 			})},
-			err: "services.web.volumes[1]: target /data already mounted as services.web.volumes[0]",
+			err: "services.web.volumes[1]: target /data already mounted as services.web.volumes[0]" + invalid,
 		},
 		{
 			name: "tmpfs and volumes on distinct targets",
@@ -1037,6 +1039,8 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 				return
 			}
 			assert.Error(t, err, tc.err)
+			// every consistency error tells the project is invalid
+			assert.Assert(t, errors.Is(err, errdefs.ErrInvalid))
 		})
 	}
 }
@@ -1118,18 +1122,6 @@ func TestCheckConsistencyProjectChecks(t *testing.T) {
 				}},
 			},
 		},
-		{
-			name: "services depend on each other",
-			project: types.Project{Services: types.Services{
-				"web": {Name: "web", ContainerSpec: types.ContainerSpec{Image: "scratch"}, WorkloadSpec: types.WorkloadSpec{
-					DependsOn: types.DependsOnConfig{"db": {Required: true}},
-				}},
-				"db": {Name: "db", ContainerSpec: types.ContainerSpec{Image: "scratch"}, WorkloadSpec: types.WorkloadSpec{
-					DependsOn: types.DependsOnConfig{"web": {Required: true}},
-				}},
-			}},
-			err: "dependency cycle detected: db -> web -> db",
-		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := checkConsistency(&tc.project)
@@ -1138,6 +1130,8 @@ func TestCheckConsistencyProjectChecks(t *testing.T) {
 				return
 			}
 			assert.Error(t, err, tc.err)
+			// every consistency error tells the project is invalid
+			assert.Assert(t, errors.Is(err, errdefs.ErrInvalid))
 		})
 	}
 }
@@ -1219,15 +1213,15 @@ func TestCheckConsistencyOrder(t *testing.T) {
 		fix func() // repairs it, and sets up the next one when it needs more than a repair
 	}{
 		{
-			err: `service "web" declares mutualy exclusive dockerfile and dockerfile_inline` + invalid,
+			err: `service "web" declares mutually exclusive dockerfile and dockerfile_inline` + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.Build.DockerfileInline = "" }),
 		},
 		{
-			err: `service "web" declares unknown service "ghost" as additional contexts base`,
+			err: `service "web" declares unknown service "ghost" as additional contexts base` + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.Build.AdditionalContexts["base"] = "service:base" }),
 		},
 		{
-			err: `service "web" declares non-buildable service "base" as additional contexts base`,
+			err: `service "web" declares non-buildable service "base" as additional contexts base` + invalid,
 			fix: func() {
 				project.Services["base"] = types.ServiceConfig{Name: "base", ContainerSpec: types.ContainerSpec{Image: "scratch"}, WorkloadSpec: types.WorkloadSpec{Build: &types.BuildConfig{}}}
 			},
@@ -1245,7 +1239,7 @@ func TestCheckConsistencyOrder(t *testing.T) {
 			fix: func() { project.Networks = types.Networks{"front": types.NetworkConfig{}} },
 		},
 		{
-			err: `healthcheck.test must start either by "CMD", "CMD-SHELL" or "NONE"`,
+			err: `healthcheck.test must start either by "CMD", "CMD-SHELL" or "NONE"` + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.HealthCheck.Test = types.HealthCheckTest{"CMD", "true"} }),
 		},
 		{
@@ -1264,7 +1258,7 @@ func TestCheckConsistencyOrder(t *testing.T) {
 			}),
 		},
 		{
-			err: `service "web" declares unknown service "ghost" for network_mode`,
+			err: `service "web" declares unknown service "ghost" for network_mode` + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.NetworkMode = "" }),
 		},
 		{
@@ -1292,11 +1286,11 @@ func TestCheckConsistencyOrder(t *testing.T) {
 			fix: update(func(s *types.ServiceConfig) { s.Scale = ptr(-1); s.Deploy.Replicas = ptr(-1) }),
 		},
 		{
-			err: "services.web.scale: must be greater than or equal to 0",
+			err: "services.web.scale: must be greater than or equal to 0" + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.Scale = nil }),
 		},
 		{
-			err: "services.web.deploy.replicas: must be greater than or equal to 0",
+			err: "services.web.deploy.replicas: must be greater than or equal to 0" + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.Deploy.Replicas = ptr(2) }),
 		},
 		{
@@ -1324,15 +1318,15 @@ func TestCheckConsistencyOrder(t *testing.T) {
 			fix: update(func(s *types.ServiceConfig) { s.Develop.Watch[0].Target = "/app" }),
 		},
 		{
-			err: "services.web.tmpfs[1]: target /data already mounted as services.web.tmpfs[0]",
+			err: "services.web.tmpfs[1]: target /data already mounted as services.web.tmpfs[0]" + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.Tmpfs = types.StringList{"/data"} }),
 		},
 		{
-			err: "services.web.volumes[0]: target /data already mounted as services.web.tmpfs[0]",
+			err: "services.web.volumes[0]: target /data already mounted as services.web.tmpfs[0]" + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.Tmpfs = nil }),
 		},
 		{
-			err: "services.web.volumes[1]: target /data already mounted as services.web.volumes[0]",
+			err: "services.web.volumes[1]: target /data already mounted as services.web.volumes[0]" + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.Volumes = s.Volumes[:1] }),
 		},
 		{
@@ -1367,8 +1361,28 @@ func TestCheckConsistencyOrder(t *testing.T) {
 			fix: update(func(s *types.ServiceConfig) { s.DependsOn = nil }),
 		},
 	} {
-		assert.Error(t, checkConsistency(project), step.err)
+		err := checkConsistency(project)
+		assert.Error(t, err, step.err)
+		// every consistency error tells the project is invalid, but the cycle
+		// one which comes from the graph package
+		if !strings.HasPrefix(step.err, "dependency cycle") {
+			assert.Assert(t, errors.Is(err, errdefs.ErrInvalid), step.err)
+		}
 		step.fix()
 	}
 	assert.NilError(t, checkConsistency(project))
+}
+
+// TestCheckConsistencyCycle locks that a dependency cycle between services is
+// reported, which graph.CheckCycle does with an error of its own.
+func TestCheckConsistencyCycle(t *testing.T) {
+	project := types.Project{Services: types.Services{
+		"web": {Name: "web", ContainerSpec: types.ContainerSpec{Image: "scratch"}, WorkloadSpec: types.WorkloadSpec{
+			DependsOn: types.DependsOnConfig{"db": {Required: true}},
+		}},
+		"db": {Name: "db", ContainerSpec: types.ContainerSpec{Image: "scratch"}, WorkloadSpec: types.WorkloadSpec{
+			DependsOn: types.DependsOnConfig{"web": {Required: true}},
+		}},
+	}}
+	assert.Error(t, checkConsistency(&project), "dependency cycle detected: db -> web -> db")
 }
