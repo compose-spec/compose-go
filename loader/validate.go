@@ -278,8 +278,8 @@ func checkServiceContainerName(s *types.ServiceConfig) error {
 		if s.Scale == nil {
 			attr = "deploy.replicas"
 		}
-		return fmt.Errorf("services.%s: can't set container_name and %s as container name must be unique: %w", attr,
-			s.Name, errdefs.ErrInvalid)
+		return fmt.Errorf("services.%s: can't set container_name and %s as container name must be unique: %w",
+			s.Name, attr, errdefs.ErrInvalid)
 	}
 	return nil
 }
