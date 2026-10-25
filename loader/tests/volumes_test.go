@@ -164,10 +164,12 @@ jobs:
 }
 
 // Spec, short syntax: "`[SOURCE:]TARGET[:MODE]`, where `SOURCE` can be either a
-// host path or volume name." A volume named with a single letter is a volume
-// name like any other, not a Windows drive: `a:/data` mounts the volume `a`.
-// A host path on a Windows drive still is a source.
-func TestVolumeShortSyntaxSingleLetterName(t *testing.T) {
+// host path or volume name." The short syntax is parsed without knowing the
+// platform of the engine, as `docker run -v` does: a single letter followed by
+// a colon always is a Windows drive. `a:/data` is therefore not the volume `a`
+// but an anonymous volume on the path `a:/data`, and a volume named with a
+// single letter has to be declared with the long syntax.
+func TestVolumeShortSyntaxSingleLetterDrive(t *testing.T) {
 	loadsAs(t, `
 name: test
 services:
@@ -175,19 +177,11 @@ services:
     image: alpine
     volumes:
       - a:/data
-      - b:/logs:ro
       - 'C:\Users\me:/home'
       - C:/Users/me:/work:ro
-jobs:
-  foo:
-    triggers:
-      manual: true
-    image: alpine
-    volumes:
-      - a:/data
-      - b:/logs:ro
-      - 'C:\Users\me:/home'
-      - C:/Users/me:/work:ro
+      - type: volume
+        source: a
+        target: /logs
 `, `
 name: test
 services:
@@ -195,13 +189,7 @@ services:
     image: alpine
     volumes:
       - type: volume
-        source: a
-        target: /data
-        volume: {}
-      - type: volume
-        source: b
-        target: /logs
-        read_only: true
+        target: a:/data
         volume: {}
       - type: bind
         source: 'C:\Users\me'
@@ -212,31 +200,9 @@ services:
         target: /work
         read_only: true
         bind: {}
-jobs:
-  foo:
-    name: foo
-    triggers:
-      manual: true
-    image: alpine
-    volumes:
       - type: volume
         source: a
-        target: /data
-        volume: {}
-      - type: volume
-        source: b
         target: /logs
-        read_only: true
-        volume: {}
-      - type: bind
-        source: 'C:\Users\me'
-        target: /home
-        bind: {}
-      - type: bind
-        source: C:/Users/me
-        target: /work
-        read_only: true
-        bind: {}
 `)
 }
 
