@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -646,9 +647,52 @@ type ServiceVolumeVolume struct {
 type ServiceVolumeTmpfs struct {
 	Size UnitBytes `yaml:"size,omitempty" json:"size,omitempty"`
 
-	Mode uint32 `yaml:"mode,omitempty" json:"mode,omitempty"`
+	Mode TmpfsMode `yaml:"mode,omitempty" json:"mode,omitempty"`
 
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
+}
+
+// TmpfsMode is the file mode of a tmpfs mount, an unsigned 32 bit number as the
+// Docker CLI reads it (`tmpfs-mode`)
+type TmpfsMode uint32
+
+// DecodeMapstructure decodes a tmpfs mode from the YAML model: a whole number
+// that fits in 32 bits, taken as YAML reads it, or text, an octal number that
+// fits in 32 bits as the Docker CLI reads `tmpfs-mode`. Any other value is an
+// error rather than a silently truncated mode.
+func (m *TmpfsMode) DecodeMapstructure(value interface{}) error {
+	var mode uint64
+	switch v := reflect.ValueOf(value); v.Kind() {
+	case reflect.Invalid:
+		return nil
+	case reflect.String:
+		i, err := strconv.ParseUint(v.String(), 8, 32)
+		if err != nil {
+			return fmt.Errorf("invalid tmpfs mode %q: must be an octal number that fits in 32 bits", v.String())
+		}
+		mode = i
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v.Int() < 0 {
+			return fmt.Errorf("invalid tmpfs mode %d: must be a non-negative number that fits in 32 bits", v.Int())
+		}
+		mode = uint64(v.Int())
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+		mode = v.Uint()
+	case reflect.Float32, reflect.Float64:
+		// a float is how the YAML decoder reads a number that is not an integer
+		// or does not fit in 64 bits
+		if f := v.Float(); f < 0 || f != math.Trunc(f) || f > math.MaxUint32 {
+			return fmt.Errorf("invalid tmpfs mode %v: must be a non-negative whole number that fits in 32 bits", f)
+		}
+		mode = uint64(v.Float())
+	default:
+		return fmt.Errorf("unexpected value type %T for tmpfs mode", value)
+	}
+	if mode > math.MaxUint32 {
+		return fmt.Errorf("invalid tmpfs mode %d: must be a non-negative number that fits in 32 bits", mode)
+	}
+	*m = TmpfsMode(mode)
+	return nil
 }
 
 type ServiceVolumeImage struct {

@@ -24,6 +24,8 @@ package tests
 // accessible by service containers."
 
 import (
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -161,4 +163,113 @@ jobs:
 	assert.Equal(t, jvol.Type, "npipe")
 	assert.Equal(t, jvol.Source, "\\\\.\\pipe\\docker_engine")
 	assert.Equal(t, jvol.Target, "\\\\.\\pipe\\docker_engine")
+}
+
+// The mode of a tmpfs mount is an unsigned 32 bit number, as the Docker CLI
+// reads `tmpfs-mode`, whether it is written as a number (taken as YAML reads
+// it) or as octal text: the smallest and the largest values load, and marshal
+// to a mode that loads back to the same value.
+// https://github.com/compose-spec/compose-spec/blob/main/05-services.md#volumes
+func TestTmpfsVolumeModeBounds(t *testing.T) {
+	for name, tt := range map[string]struct {
+		mode string
+		want uint32
+	}{
+		"zero":                   {`0`, 0},
+		"octal number":           {`0o1777`, 0o1777},
+		"decimal number":         {`1777`, 1777},
+		"largest octal number":   {`0o37777777777`, math.MaxUint32},
+		"largest decimal number": {`4294967295`, math.MaxUint32},
+		"whole float":            {`1e3`, 1000},
+		"octal text":             {`"1777"`, 0o1777},
+		"octal text, zero first": {`"01777"`, 0o1777},
+		"zero text":              {`"0"`, 0},
+		"largest octal text":     {`"37777777777"`, math.MaxUint32},
+	} {
+		t.Run(name, func(t *testing.T) {
+			input := `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: tmpfs
+        target: /run
+        tmpfs:
+          mode: ` + tt.mode + `
+`
+			want := fmt.Sprintf(`
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: tmpfs
+        target: /run
+        tmpfs:
+          mode: %d
+`, tt.want)
+			if tt.want == 0 {
+				// a zero mode is the default one, marshaling drops it
+				want = `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: tmpfs
+        target: /run
+        tmpfs: {}
+`
+			}
+			loadsAs(t, input, want)
+
+			p := load(t, input)
+			assert.Equal(t, uint32(p.Services["foo"].Volumes[0].Tmpfs.Mode), tt.want)
+			fromYAML, fromJSON := roundTrip(t, p)
+			assert.Equal(t, uint32(fromYAML.Services["foo"].Volumes[0].Tmpfs.Mode), tt.want)
+			assert.Equal(t, uint32(fromJSON.Services["foo"].Volumes[0].Tmpfs.Mode), tt.want)
+		})
+	}
+}
+
+// The mode of a tmpfs mount is an unsigned 32 bit number, as the Docker CLI
+// reads `tmpfs-mode`: a negative number, a number that does not fit in 32 bits
+// (it would be silently truncated, 2^32 to 0), a number that is not whole and
+// text that is not an octal number that fits in 32 bits (no sign, no `0o`
+// prefix) are rejected, with the attribute in the error.
+func TestTmpfsVolumeModeInvalid(t *testing.T) {
+	for name, value := range map[string]string{
+		"a negative number":          `-1`,
+		"just beyond 32 bits":        `4294967296`,
+		"just beyond 32 bits, octal": `0o40000000000`,
+		"far beyond 32 bits":         `0o77777777777`,
+		"beyond 64 bits":             `99999999999999999999999`,
+		"a fraction":                 `1.5`,
+		"a float beyond 32 bits":     `1e10`,
+		"text beyond 32 bits":        `"40000000000"`,
+		"text beyond 64 bits":        `"7777777777777777777777"`,
+		"a negative text":            `"-1"`,
+		"a signed text":              `"+1777"`,
+		"text with a 0o prefix":      `"0o1777"`,
+		"not octal":                  `"0999"`,
+		"text":                       `abc`,
+		"empty text":                 `""`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := loadErr(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: tmpfs
+        target: /run
+        tmpfs:
+          mode: `+value+`
+`)
+			assert.ErrorContains(t, err, "services[foo].volumes[0].tmpfs.mode")
+			assert.ErrorContains(t, err, "invalid tmpfs mode")
+		})
+	}
 }
