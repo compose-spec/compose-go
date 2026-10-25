@@ -958,9 +958,8 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 				s.ContainerName = "web"
 				s.Scale = ptr(2)
 			})},
-			// the attribute is interpolated where the service name belongs, and
-			// the other way round: kept as is by the refactoring of the check
-			err: "services.scale: can't set container_name and web as container name must be unique" + invalid,
+			// the message names the service, then the attribute which scales it
+			err: "services.web: can't set container_name and scale as container name must be unique" + invalid,
 		},
 		{
 			name: "container_name with deploy.replicas",
@@ -968,7 +967,7 @@ func TestCheckConsistencyServiceChecks(t *testing.T) {
 				s.ContainerName = "web"
 				s.Deploy = &types.DeployConfig{Replicas: ptr(2)}
 			})},
-			err: "services.deploy.replicas: can't set container_name and web as container name must be unique" + invalid,
+			err: "services.web: can't set container_name and deploy.replicas as container name must be unique" + invalid,
 		},
 		{
 			name: "container_name with a single replica",
@@ -1315,7 +1314,7 @@ func TestCheckConsistencyOrder(t *testing.T) {
 			fix: update(func(s *types.ServiceConfig) { s.PidsLimit = 10 }),
 		},
 		{
-			err: "services.deploy.replicas: can't set container_name and web as container name must be unique" + invalid,
+			err: "services.web: can't set container_name and deploy.replicas as container name must be unique" + invalid,
 			fix: update(func(s *types.ServiceConfig) { s.ContainerName = "" }),
 		},
 		{
