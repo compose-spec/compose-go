@@ -41,6 +41,34 @@ func TestParseVariable(t *testing.T) {
 	assert.Error(t, err, "line 1: unexpected character \"%\" in variable name \"%!(EXTRA string)=foo\"")
 }
 
+// A variable without value takes its value from the environment, also when it
+// is the last line of a file that has no final line break.
+func TestParseInheritedAtEndOfFile(t *testing.T) {
+	lookup := func(key string) (string, bool) {
+		if key == "INHERITED" {
+			return "from env", true
+		}
+		return "", false
+	}
+	for name, tc := range map[string]struct {
+		src  string
+		want map[string]string
+	}{
+		"only line":          {"INHERITED", map[string]string{"INHERITED": "from env"}},
+		"trailing space":     {"INHERITED  ", map[string]string{"INHERITED": "from env"}},
+		"after a valid line": {"A=1\nINHERITED", map[string]string{"A": "1", "INHERITED": "from env"}},
+		"windows line break": {"A=1\r\nINHERITED\r", map[string]string{"A": "1", "INHERITED": "from env"}},
+		"unset":              {"A=1\nUNSET", map[string]string{"A": "1"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			out := map[string]string{}
+			err := newParser().parse(tc.src, out, lookup)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, out, tc.want)
+		})
+	}
+}
+
 func TestMemoryExplosion(t *testing.T) {
 	p := newParser()
 	var startMemStats runtime.MemStats
