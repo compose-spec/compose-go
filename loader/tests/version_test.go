@@ -25,22 +25,42 @@ package tests
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"sync/atomic"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
+	"github.com/sirupsen/logrus"
+	logrustest "github.com/sirupsen/logrus/hooks/test"
 	"gotest.tools/v3/assert"
 )
 
-// recordingLogger collects the warnings it receives.
-type recordingLogger struct {
-	warnings []string
-}
+// captureWarnings collects the warnings written to the standard logrus logger
+// until the test ends.
+func captureWarnings(t *testing.T) func() []string {
+	t.Helper()
+	logger := logrus.StandardLogger()
+	oldLevel := logger.Level
+	oldOut := logger.Out
+	oldHooks := logger.ReplaceHooks(make(logrus.LevelHooks))
+	t.Cleanup(func() {
+		logger.ReplaceHooks(oldHooks)
+		logger.SetOutput(oldOut)
+		logger.SetLevel(oldLevel)
+	})
 
-func (r *recordingLogger) Warnf(format string, args ...any) {
-	r.warnings = append(r.warnings, fmt.Sprintf(format, args...))
+	logger.SetLevel(logrus.WarnLevel)
+	logger.SetOutput(io.Discard)
+	hook := logrustest.NewGlobal()
+	return func() []string {
+		var warnings []string
+		for _, entry := range hook.AllEntries() {
+			warnings = append(warnings, entry.Message)
+		}
+		return warnings
+	}
 }
 
 // versionFileSeq makes the name of each loaded file unique: the obsolete
@@ -59,7 +79,7 @@ func TestVersionIsObsoleteAndIgnored(t *testing.T) {
 	for _, version := range []string{`"3.8"`, `"2"`, `"whatever"`} {
 		t.Run(version, func(t *testing.T) {
 			filename := versionFilename(t)
-			logger := &recordingLogger{}
+			warnings := captureWarnings(t)
 			p, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 				ConfigFiles: []types.ConfigFile{{
 					Filename: filename,
@@ -69,11 +89,10 @@ func TestVersionIsObsoleteAndIgnored(t *testing.T) {
 			}, func(o *loader.Options) {
 				o.SkipConsistencyCheck = true
 				o.SkipNormalization = true
-				o.Logger = logger
 			})
 			assert.NilError(t, err)
 			assert.Equal(t, p.Services["foo"].Image, "busybox")
-			assert.DeepEqual(t, logger.warnings, []string{
+			assert.DeepEqual(t, warnings(), []string{
 				filename + ": the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion",
 			})
 
@@ -87,7 +106,7 @@ func TestVersionIsObsoleteAndIgnored(t *testing.T) {
 
 // Without `version` there is nothing to warn about.
 func TestNoVersionNoWarning(t *testing.T) {
-	logger := &recordingLogger{}
+	warnings := captureWarnings(t)
 	_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
 		ConfigFiles: []types.ConfigFile{{
 			Filename: versionFilename(t),
@@ -97,8 +116,7 @@ func TestNoVersionNoWarning(t *testing.T) {
 	}, func(o *loader.Options) {
 		o.SkipConsistencyCheck = true
 		o.SkipNormalization = true
-		o.Logger = logger
 	})
 	assert.NilError(t, err)
-	assert.Equal(t, len(logger.warnings), 0)
+	assert.Equal(t, len(warnings()), 0)
 }
