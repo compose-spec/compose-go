@@ -239,3 +239,134 @@ jobs:
         bind: {}
 `)
 }
+
+// The `mode` of a `tmpfs` mount accepts the same values as the Docker CLI: a
+// number is read as written, and a string is read as an octal number, as
+// `--mount type=tmpfs,tmpfs-mode=1777` does. Both are canonicalized to a
+// number, whether the mount is declared by a service or by a job.
+//
+// Spec: "mode: the file mode for the tmpfs mount as Unix permission bits as an
+// octal number", a number or a string in the schema:
+//
+//	https://github.com/compose-spec/compose-spec/blob/main/container_spec.md#volumes
+func TestTmpfsMode(t *testing.T) {
+	// the canonical form of a job states its name
+	document := func(mode string, canonical ...bool) string {
+		jobName := ""
+		if len(canonical) > 0 {
+			jobName = `
+    name: foo`
+		}
+		const container = `
+    image: alpine
+    volumes:
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          mode: `
+		return `
+name: test
+services:
+  foo:` + container + mode + `
+jobs:
+  foo:
+    triggers:
+      manual: true` + jobName + container + mode
+	}
+
+	for _, tc := range []struct {
+		name, mode, want string
+	}{
+		{"octal string", `"1777"`, "1023"},
+		{"octal string with a leading zero", `"01777"`, "1023"},
+		{"octal string of a regular mode", `"0755"`, "493"},
+		{"largest octal string", `"37777777777"`, "4294967295"},
+		{"YAML octal integer", `01777`, "1023"},
+		{"YAML integer is decimal", `1777`, "1777"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			loadsAs(t, document(tc.mode), document(tc.want, true))
+		})
+	}
+
+	// A zero mode is the default one, which the canonical form omits.
+	t.Run("zero string", func(t *testing.T) {
+		p := load(t, document(`"0"`))
+		assert.Equal(t, p.Services["foo"].Volumes[0].Tmpfs.Mode, uint32(0))
+	})
+
+	// An octal string reaching the model through an interpolation is read the
+	// same way as one written in the file.
+	t.Run("interpolated octal string", func(t *testing.T) {
+		p := loadWithEnv(t, document("${MODE}"), map[string]string{"MODE": "1777"})
+		assert.Equal(t, p.Services["foo"].Volumes[0].Tmpfs.Mode, uint32(0o1777))
+		assert.Equal(t, p.Jobs["foo"].Volumes[0].Tmpfs.Mode, uint32(0o1777))
+	})
+
+	// The canonical number marshals back to the same mode, in YAML and JSON.
+	t.Run("round trip", func(t *testing.T) {
+		p := load(t, document(`"1777"`))
+		fromYAML, fromJSON := roundTrip(t, p)
+		for _, rt := range []*types.Project{fromYAML, fromJSON} {
+			assert.Equal(t, rt.Services["foo"].Volumes[0].Tmpfs.Mode, uint32(0o1777))
+			assert.Equal(t, rt.Jobs["foo"].Volumes[0].Tmpfs.Mode, uint32(0o1777))
+		}
+	})
+
+	// The mode is read the same way when the mount comes from a merged file or
+	// from an extended service.
+	t.Run("merge", func(t *testing.T) {
+		loadFilesAs(t, []string{document(`"0755"`), document(`"1777"`)}, document("1023", true))
+	})
+	t.Run("extends", func(t *testing.T) {
+		loadsAs(t, `
+name: test
+services:
+  base:
+    image: alpine
+    volumes:
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          mode: "1777"
+  foo:
+    extends:
+      service: base
+`, `
+name: test
+services:
+  base:
+    image: alpine
+    volumes:
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          mode: 1023
+  foo:
+    image: alpine
+    volumes:
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          mode: 1023
+`)
+	})
+
+	// A string the Docker CLI rejects (not an octal number, a sign, a prefix,
+	// a blank) is rejected too, with the path of the attribute (the service or the
+	// job, whichever is transformed first).
+	for _, tc := range []struct{ name, mode string }{
+		{"not a number", `"abc"`},
+		{"negative", `"-1"`},
+		{"0o prefix", `"0o1777"`},
+		{"trailing blank", `"1777 "`},
+		{"not an octal digit", `"1778"`},
+		{"empty", `""`},
+	} {
+		t.Run("rejects "+tc.name, func(t *testing.T) {
+			err := loadErr(t, document(tc.mode))
+			assert.ErrorContains(t, err, ".foo.volumes.[].tmpfs.mode")
+			assert.ErrorContains(t, err, "must be an octal number")
+		})
+	}
+}
