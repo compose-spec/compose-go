@@ -51,11 +51,15 @@ func (p *parser) parse(src string, out map[string]string, lookupFn LookupFn) err
 		if err != nil {
 			return err
 		}
+		if key == "" {
+			return fmt.Errorf("line %d: key cannot be empty", p.line)
+		}
 		if strings.Contains(key, " ") {
 			return fmt.Errorf("line %d: key cannot contain a space", p.line)
 		}
 
 		if inherited {
+			p.line++
 			value, ok := lookupFn(key)
 			if ok {
 				out[key] = value
@@ -149,10 +153,6 @@ loop:
 		key = src
 		offset = len(src)
 		inherited = true
-	}
-
-	if inherited && strings.IndexByte(key, ' ') == -1 {
-		p.line++
 	}
 
 	// trim whitespace
