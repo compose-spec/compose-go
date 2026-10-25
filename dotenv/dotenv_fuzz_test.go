@@ -9,11 +9,11 @@ import (
 )
 
 // FuzzUnmarshal locks the safety of the .env parser, with variable expansion
-// on: whatever the file, parsing returns a map or an error, never panics, and
-// is deterministic, with or without a lookup function. The variables of a
-// file that parses survive a round trip: written back as single-quoted
-// literals (which are neither escaped nor expanded), the file parses to the
-// same variables.
+// on: whatever the file, parsing returns a map or an error, never panics, is
+// deterministic, with or without a lookup function, and no variable has an
+// empty name. The variables of a file that parses survive a round trip:
+// written back as single-quoted literals (which are neither escaped nor
+// expanded), the file parses to the same variables.
 func FuzzUnmarshal(f *testing.F) {
 	for _, seed := range []string{
 		"",
@@ -80,6 +80,9 @@ func FuzzUnmarshal(f *testing.F) {
 		}
 		var out strings.Builder
 		for key, value := range got {
+			if key == "" {
+				t.Fatalf("UnmarshalWithLookup(%q) = %q, a variable has no name", src, got)
+			}
 			if strings.ContainsRune(value, '\'') || strings.HasSuffix(value, `\`) {
 				// not representable as a single-quoted literal
 				return

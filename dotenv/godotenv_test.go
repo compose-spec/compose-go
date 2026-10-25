@@ -399,8 +399,6 @@ func TestParsing(t *testing.T) {
 	parseAndCompare(t, `FOO="bar\\r\ b\az"`, "FOO", "bar\\r\\ b\az")
 	parseAndCompare(t, `FOO="bar\nbaz\\"`, "FOO", "bar\nbaz\\")
 
-	parseAndCompare(t, `="value"`, "", "value")
-
 	// leading whitespace should be ignored
 	parseAndCompare(t, " KEY =value", "KEY", "value")
 	parseAndCompare(t, "   KEY=value", "KEY", "value")

@@ -69,6 +69,33 @@ func TestParseInheritedAtEndOfFile(t *testing.T) {
 	}
 }
 
+// A line without a variable name is rejected, like `docker run --env-file`
+// does ("no variable name on line"): an environment variable with an empty
+// name is invalid, and the engine would refuse the container later on.
+func TestParseEmptyKey(t *testing.T) {
+	for name, tc := range map[string]struct {
+		src  string
+		want string
+	}{
+		"equal sign":              {"=value", "line 1: key cannot be empty"},
+		"quoted value":            {`="value"`, "line 1: key cannot be empty"},
+		"nothing else":            {"=", "line 1: key cannot be empty"},
+		"yaml style":              {": value", "line 1: key cannot be empty"},
+		"leading space":           {"  =value", "line 1: key cannot be empty"},
+		"export":                  {"export =value", "line 1: key cannot be empty"},
+		"after a valid line":      {"A=1\n\n# comment\n=2\nB=3", "line 4: key cannot be empty"},
+		"after an inherited line": {"A\n=1", "line 2: key cannot be empty"},
+		"after a padded name":     {"A  \n=1", "line 2: key cannot be empty"},
+		"export before line end":  {"export \n=1", "line 1: key cannot be empty"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			out := map[string]string{}
+			err := newParser().parse(tc.src, out, nil)
+			assert.Error(t, err, tc.want)
+		})
+	}
+}
+
 func TestMemoryExplosion(t *testing.T) {
 	p := newParser()
 	var startMemStats runtime.MemStats
