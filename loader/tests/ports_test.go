@@ -200,3 +200,132 @@ jobs:
 	assert.Equal(t, p.Services["foo"].Ports[0].AppProtocol, "http")
 	assert.Equal(t, p.Jobs["foo"].Ports[0].AppProtocol, "http")
 }
+
+// A port declared again by an override file is one port, whether the file
+// repeats the short syntax or spells the same port in the long syntax, and
+// whether it belongs to a service or to a job: the unicity of the entries is
+// enforced once the short syntax is canonicalized.
+func TestPortsRedeclaredByAnOverrideFileAreMerged(t *testing.T) {
+	base := `
+name: test
+services:
+  foo:
+    image: alpine
+    ports: ["8080:80", "9090:90"]
+jobs:
+  foo:
+    image: alpine
+    triggers:
+      manual: true
+    ports: ["8080:80", "9090:90"]
+`
+	port := func(published, target string) string {
+		return `
+      - mode: ingress
+        protocol: tcp
+        published: "` + published + `"
+        target: ` + target
+	}
+	canonical := `
+name: test
+services:
+  foo:
+    image: alpine
+    ports:` + port("8080", "80") + port("9090", "90") + `
+jobs:
+  foo:
+    name: foo
+    image: alpine
+    triggers:
+      manual: true
+    ports:` + port("8080", "80") + port("9090", "90") + "\n"
+
+	tests := []struct {
+		name     string
+		override string
+	}{
+		{"same short syntax", `
+services:
+  foo:
+    ports: ["8080:80"]
+jobs:
+  foo:
+    ports: ["8080:80"]
+`},
+		{"long syntax of a short one", `
+services:
+  foo:
+    ports: [{target: 80, published: "8080"}]
+jobs:
+  foo:
+    ports: [{target: 80, published: "8080"}]
+`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loadFilesAs(t, []string{base, tt.override}, canonical)
+		})
+	}
+}
+
+// A job extending another one keeps the unicity of its entries like a service
+// does: the port of the extending job replaces the one it inherits.
+func TestPortsOfAnExtendingEntryReplaceTheInheritedOnes(t *testing.T) {
+	loadsAs(t, `
+name: test
+services:
+  base:
+    image: alpine
+    ports: ["8080:80"]
+  foo:
+    extends: base
+    ports: [{target: 80, published: "8080", mode: host}]
+jobs:
+  base:
+    image: alpine
+    triggers:
+      manual: true
+    ports: ["8080:80"]
+  foo:
+    extends: base
+    ports: [{target: 80, published: "8080", mode: host}]
+`, `
+name: test
+services:
+  base:
+    image: alpine
+    ports:
+      - mode: ingress
+        protocol: tcp
+        published: "8080"
+        target: 80
+  foo:
+    image: alpine
+    ports:
+      - mode: host
+        protocol: tcp
+        published: "8080"
+        target: 80
+jobs:
+  base:
+    name: base
+    image: alpine
+    triggers:
+      manual: true
+    ports:
+      - mode: ingress
+        protocol: tcp
+        published: "8080"
+        target: 80
+  foo:
+    name: foo
+    image: alpine
+    triggers:
+      manual: true
+    ports:
+      - mode: host
+        protocol: tcp
+        published: "8080"
+        target: 80
+`)
+}

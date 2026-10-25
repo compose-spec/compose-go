@@ -176,24 +176,23 @@ services:
 // is a valid list, the last entry takes effect). Merging must compact those
 // repeats before applying the override, otherwise the override replaces only
 // the last one and leaves two identical entries, which the schema rejects.
-// Jobs are used because EnforceUnicity does not cover them and would hide it.
+// Configs are used because EnforceUnicity does not cover their labels and
+// would hide it.
 func Test_mergeYamlKeyValueSequenceCompactsRepeatedBaseKeys(t *testing.T) {
 	assertMergeYaml(t, `
-jobs:
+configs:
   test:
-    image: foo
     labels:
       - MODE=debug
       - MODE=release
 `, `
-jobs:
+configs:
   test:
     labels:
       - MODE=debug
 `, `
-jobs:
+configs:
   test:
-    image: foo
     labels:
       - MODE=debug
 `)
@@ -235,7 +234,8 @@ secrets:
 // at the position of the first one. Entries that could only resolve to the same
 // key once interpolated are not reconciled and stay side by side, so which of
 // them wins after interpolation depends on their position, as it already does
-// for services. Jobs are used because EnforceUnicity does not cover them.
+// for services. Configs are used because EnforceUnicity does not cover their
+// labels.
 func Test_mergeYamlKeyValueSequenceOfUninterpolatedEntries(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -252,15 +252,15 @@ func Test_mergeYamlKeyValueSequenceOfUninterpolatedEntries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assertMergeYaml(t, `
-jobs:
+configs:
   test:
     labels: [`+tt.base+`]
 `, `
-jobs:
+configs:
   test:
     labels: [`+tt.override+`]
 `, `
-jobs:
+configs:
   test:
     labels: [`+tt.want+`]
 `)

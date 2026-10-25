@@ -17,8 +17,10 @@
 package override
 
 import (
+	"strings"
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/tree"
 	"gotest.tools/v3/assert"
 )
 
@@ -168,6 +170,115 @@ func TestEnforceUnicityRejectsKeyThatIsNotAString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := EnforceUnicity(unmarshal(t, tt.model))
 			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+// Jobs share the container specification of services, so a sequence that
+// cannot hold two entries for the same thing (a mount target, a published
+// port, a key...) is compacted the same way whichever of the two declares it:
+// the last entry wins, at the position of the first one. Without it, merging
+// two files over a job leaves both entries in the model while the same
+// documents under `services:` leave one.
+func TestEnforceUnicityAppliesToJobsLikeServices(t *testing.T) {
+	tests := []struct {
+		name     string
+		attr     string
+		base     string
+		override string
+		want     string
+	}{
+		{
+			name: "ports",
+			attr: "ports",
+			base: `
+      - target: 80
+        published: "8080"
+      - target: 81
+        published: "8081"
+      - target: 80
+        published: "8080"
+        mode: host`,
+			want: `
+      - target: 80
+        published: "8080"
+        mode: host
+      - target: 81
+        published: "8081"`,
+		},
+		{name: "volumes", attr: "volumes", base: `[./a:/data, ./b:/data]`, want: `[./b:/data]`},
+		{name: "devices", attr: "devices", base: `[/dev/a:/dev/x, /dev/b:/dev/x]`, want: `[/dev/b:/dev/x]`},
+		{
+			name: "secrets",
+			attr: "secrets",
+			base: `
+      - s
+      - source: s
+        mode: 0400`,
+			want: `
+      - source: s
+        mode: 0400`,
+		},
+		{
+			name: "configs",
+			attr: "configs",
+			base: `
+      - c
+      - source: c
+        mode: 0400`,
+			want: `
+      - source: c
+        mode: 0400`,
+		},
+		{name: "env_file", attr: "env_file", base: `[a.env, b.env, a.env]`, want: `[a.env, b.env]`},
+		{name: "expose", attr: "expose", base: `["80", 80]`, want: `[80]`},
+		{name: "cap_add", attr: "cap_add", base: `[NET_ADMIN, NET_ADMIN]`, want: `[NET_ADMIN]`},
+		{name: "cap_drop", attr: "cap_drop", base: `[ALL, ALL]`, want: `[ALL]`},
+		{name: "dns", attr: "dns", base: `[1.1.1.1, 1.1.1.1]`, want: `[1.1.1.1]`},
+		{name: "dns_opt", attr: "dns_opt", base: `[ndots=1, ndots=2]`, want: `[ndots=2]`},
+		{name: "dns_search", attr: "dns_search", base: `[a.com, a.com]`, want: `[a.com]`},
+		{name: "profiles", attr: "profiles", base: `[p, p]`, want: `[p]`},
+		{name: "tmpfs", attr: "tmpfs", base: `[/a, /a]`, want: `[/a]`},
+		{name: "sysctls", attr: "sysctls", base: `[a=1, a=2]`, want: `[a=2]`},
+		{name: "labels", attr: "labels", base: `[a=1, a=2]`, want: `[a=2]`},
+		{name: "annotations", attr: "annotations", base: `[a=1, a=2]`, want: `[a=2]`},
+		{name: "environment", attr: "environment", base: `[A=1, A=2]`, want: `[A=2]`},
+		{name: "build.tags", attr: "build:\n      tags", base: `[t, t]`, want: `[t]`},
+		{name: "build.args", attr: "build:\n      args", base: `[a=1, a=2]`, want: `[a=2]`},
+		{name: "build.labels", attr: "build:\n      labels", base: `[a=1, a=2]`, want: `[a=2]`},
+		{name: "build.additional_contexts", attr: "build:\n      additional_contexts", base: `[a=x, a=y]`, want: `[a=y]`},
+		{name: "networks.*.aliases", attr: "networks:\n      n:\n        aliases", base: `[a, a]`, want: `[a]`},
+		{name: "networks.*.link_local_ips", attr: "networks:\n      n:\n        link_local_ips", base: `[1.1.1.1, 1.1.1.1]`, want: `[1.1.1.1]`},
+	}
+	for _, tt := range tests {
+		for _, section := range []string{"services", "jobs"} {
+			t.Run(tt.name+" under "+section, func(t *testing.T) {
+				doc := func(value string) string {
+					return section + ":\n  test:\n    " + tt.attr + ": " + value + "\n"
+				}
+				assertUnicity(t, doc(tt.base), doc(tt.want))
+			})
+		}
+	}
+}
+
+// Every rule of services that applies to the container specification has its
+// counterpart for jobs: a rule added for `services.*` alone silently leaves
+// jobs out, as the merge rules (which cover both) never do. The attributes
+// only services have are listed here.
+func TestEnforceUnicityCoversJobsAsServices(t *testing.T) {
+	serviceOnly := map[tree.Path]bool{
+		"services.*.deploy.labels": true, // jobs have no deploy
+		"services.*.links":         true, // jobs have no links
+	}
+	for pattern := range unique {
+		rest, ok := strings.CutPrefix(string(pattern), "services.")
+		if !ok || serviceOnly[pattern] {
+			continue
+		}
+		t.Run(string(pattern), func(t *testing.T) {
+			_, ok := unique[tree.Path("jobs."+rest)]
+			assert.Assert(t, ok, "%s has no counterpart for jobs", pattern)
 		})
 	}
 }
