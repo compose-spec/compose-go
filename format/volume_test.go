@@ -43,6 +43,45 @@ func TestParseVolumeAnonymousVolumeWindows(t *testing.T) {
 	}
 }
 
+// ParseVolume knows nothing of the platform of the engine, as docker/cli's own
+// parser of `-v` (internal/volumespec): a single letter followed by a colon
+// always is a Windows drive, so `a:/data` is the anonymous volume of the path
+// `a:/data` and not the volume `a`, which needs the long syntax.
+func TestParseVolumeSingleLetterIsDrive(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		spec     string
+		expected types.ServiceVolumeConfig
+	}{
+		{
+			name:     "path",
+			spec:     "a:/data",
+			expected: types.ServiceVolumeConfig{Type: "volume", Target: "a:/data", Volume: &types.ServiceVolumeVolume{}},
+		},
+		{
+			name:     "path in upper case",
+			spec:     "C:/data",
+			expected: types.ServiceVolumeConfig{Type: "volume", Target: "C:/data", Volume: &types.ServiceVolumeVolume{}},
+		},
+		{
+			name:     "path and target",
+			spec:     "a:/data:ro",
+			expected: types.ServiceVolumeConfig{Type: "bind", Source: "a:/data", Target: "ro", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
+		},
+		{
+			name:     "named volume of two letters",
+			spec:     "ab:/data",
+			expected: types.ServiceVolumeConfig{Type: "volume", Source: "ab", Target: "/data", Volume: &types.ServiceVolumeVolume{}},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			volume, err := ParseVolume(tc.spec)
+			assert.NilError(t, err)
+			assert.Check(t, is.DeepEqual(tc.expected, volume))
+		})
+	}
+}
+
 func TestParseVolumeTooManyColons(t *testing.T) {
 	_, err := ParseVolume("/foo:/foo:ro:foo")
 	assert.Error(t, err, "invalid spec: /foo:/foo:ro:foo: too many colons")
@@ -534,61 +573,6 @@ func TestParseVolumeWithNestedBraces(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			volume, err := ParseVolume(tc.input)
 			assert.NilError(t, err, "Failed to parse: "+tc.input)
-			assert.Check(t, is.DeepEqual(tc.expected, volume))
-		})
-	}
-}
-
-// TestParseVolumeSingleLetter locks how a single letter followed by a colon is
-// read. ParseVolume does not know the platform: the letter is a Windows drive
-// when it is followed by a backslash, or by a slash when the spec binds a path
-// to a target; otherwise (`a:/data`, `a:b`) it is a plain name, as on Linux
-// where a volume may be named with a single letter.
-func TestParseVolumeSingleLetter(t *testing.T) {
-	named := func(source, target string, readOnly bool) types.ServiceVolumeConfig {
-		return types.ServiceVolumeConfig{
-			Type: "volume", Source: source, Target: target, ReadOnly: readOnly, Volume: &types.ServiceVolumeVolume{},
-		}
-	}
-	bind := func(source, target string, readOnly bool) types.ServiceVolumeConfig {
-		return types.ServiceVolumeConfig{
-			Type: "bind", Source: source, Target: target, ReadOnly: readOnly, Bind: &types.ServiceVolumeBind{CreateHostPath: true},
-		}
-	}
-	for _, tc := range []struct {
-		name     string
-		spec     string
-		expected types.ServiceVolumeConfig
-	}{
-		{"named volume", "a:/data", named("a", "/data", false)},
-		{"named volume with options", "a:/data:ro", named("a", "/data", true)},
-		{"named volume with several options", "a:/data:rw,nocopy", func() types.ServiceVolumeConfig {
-			v := named("a", "/data", false)
-			v.Volume.NoCopy = true
-			return v
-		}()},
-		{"upper case named volume", "C:/data:ro", named("C", "/data", true)},
-		{"named volume with a variable", "a:/${DIR:-data}:ro", named("a", "/${DIR:-data}", true)},
-		{"named volume at a relative path", "a:b", named("a", "b", false)},
-		{"named volume at a relative path with options", "x:y:ro", named("x", "y", true)},
-		{"single letter target", "/data:a:ro", bind("/data", "a", true)},
-		{"drive with a backslash", `C:\data:/data`, bind(`C:\data`, "/data", false)},
-		{"anonymous volume on a drive", `C:\data`, types.ServiceVolumeConfig{Type: "volume", Target: `C:\data`, Volume: &types.ServiceVolumeVolume{}}},
-		{"drive with a backslash and options", `C:\data:/data:ro`, bind(`C:\data`, "/data", true)},
-		{"drive with a slash", "C:/data:/data", bind("C:/data", "/data", false)},
-		{"drive with a slash and options", "c:/data:/data:ro", bind("c:/data", "/data", true)},
-		{"drive with a slash to a drive", `C:/data:d:\data`, bind("C:/data", `d:\data`, false)},
-		{"drive with a slash to a drive and options", `C:/data:d:/data:ro`, bind("C:/data", "d:/data", true)},
-		{"drive with a slash and a variable", "C:/${DIR:-data}:/data:ro", bind("C:/${DIR:-data}", "/data", true)},
-		{"drive with a slash to an unresolved target", "C:/data:${TARGET:-/dst}", bind("C:/data", "${TARGET:-/dst}", false)},
-		{"drive with a slash to an unresolved target and options", "C:/data:${TARGET:-/dst}:ro", bind("C:/data", "${TARGET:-/dst}", true)},
-		{"named volume with a non-ASCII name", "é:/data:ro", named("é", "/data", true)},
-		{"relative path", "./a:/data", bind("./a", "/data", false)},
-		{"absolute path", "/a:/data", bind("/a", "/data", false)},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			volume, err := ParseVolume(tc.spec)
-			assert.NilError(t, err)
 			assert.Check(t, is.DeepEqual(tc.expected, volume))
 		})
 	}
