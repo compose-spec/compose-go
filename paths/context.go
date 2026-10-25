@@ -40,6 +40,20 @@ func (r *relativePathsResolver) absContextPath(value any) (any, error) {
 	return r.absPath(v)
 }
 
+// absAdditionalContextPath resolves an additional build context. The value of a
+// mapping may be a number or a boolean, which the schema accepts and the model
+// reads as the text it is written with: it is resolved like that text, as it
+// is when written in the list form. A null one stays null.
+func (r *relativePathsResolver) absAdditionalContextPath(value any) (any, error) {
+	switch value.(type) {
+	case nil:
+		return nil, nil
+	case int, int64, uint64, float64, bool:
+		value = fmt.Sprint(value)
+	}
+	return r.absContextPath(value)
+}
+
 // isRemoteContext returns true if the value is a Git reference or HTTP(S) URL.
 //
 // Any other value is assumed to be a local filesystem path and returns false.

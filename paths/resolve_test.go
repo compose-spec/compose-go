@@ -437,6 +437,47 @@ services:
 `)
 }
 
+// The context of an additional build context may be written as a number or a
+// boolean in a mapping, which the schema accepts: the model reads it as the
+// text it is written with, so it is resolved like that text, as in the list
+// form (`name=1`), rather than rejected. A null one is left as it is.
+// https://github.com/compose-spec/compose-spec/blob/main/build.md#additional_contexts
+func TestResolveAdditionalContextScalar(t *testing.T) {
+	resolvesAs(t, nil, `
+services:
+  web:
+    build:
+      context: .
+      additional_contexts:
+        number: 1
+        flag: true
+        text: "1"
+        empty:
+jobs:
+  task:
+    build:
+      context: .
+      additional_contexts:
+        number: 1
+`, `
+services:
+  web:
+    build:
+      context: <wd>
+      additional_contexts:
+        number: <wd>/1
+        flag: <wd>/true
+        text: <wd>/1
+        empty:
+jobs:
+  task:
+    build:
+      context: <wd>
+      additional_contexts:
+        number: <wd>/1
+`)
+}
+
 // An empty key path stays empty, like a null one, rather than becoming the
 // working directory: an empty path is not a key to find, and the working
 // directory is no key at all.

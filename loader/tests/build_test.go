@@ -24,6 +24,7 @@ package tests
 // source."
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/loader"
@@ -311,6 +312,17 @@ secrets:
 	assert.Equal(t, jobSecrets[0].Source, "secret1")
 	assert.Equal(t, jobSecrets[1].UID, "103")
 	assert.Equal(t, *jobSecrets[1].Mode, types.FileMode(0o440))
+}
+
+// An additional context written as a number or a boolean in a mapping is
+// accepted by the schema, and loads as the text it is written with, as it does
+// in the list form, rather than being rejected.
+// https://github.com/compose-spec/compose-spec/blob/main/build.md#additional_contexts
+func TestBuildAdditionalContextWithScalar(t *testing.T) {
+	p := load(t, "name: test\nservices:\n  foo:\n    build:\n      context: .\n      additional_contexts:\n        number: 1\n        flag: true\n")
+	contexts := p.Services["foo"].Build.AdditionalContexts
+	assert.Equal(t, filepath.Base(contexts["number"]), "1")
+	assert.Equal(t, filepath.Base(contexts["flag"]), "true")
 }
 
 // A build context that is not a string is rejected with an error naming the
