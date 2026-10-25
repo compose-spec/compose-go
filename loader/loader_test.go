@@ -1184,7 +1184,7 @@ services:
       - type: bind
         target: /app
 `)
-	assert.Error(t, err, `invalid mount config for type "bind": field Source must not be empty`)
+	assert.Error(t, err, `services.tmpfs.volumes.[]: invalid mount config for type "bind": field Source must not be empty`)
 }
 
 func TestLoadBindMountSourceIsWindowsAbsolute(t *testing.T) {
