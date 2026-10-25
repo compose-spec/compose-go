@@ -118,6 +118,40 @@ configs:
 	})
 }
 
+// The mode of a config is read as the mode of a secret, with the syntax of the
+// Docker CLI (`--config ...,mode=`) wherever it does not contradict the octal
+// number Compose has always read.
+func TestConfigFileModeCLISyntax(t *testing.T) {
+	for name, tt := range map[string]struct {
+		mode string
+		want types.FileMode
+	}{
+		"octal prefix":       {`"0o440"`, 0o440},
+		"hexadecimal prefix": {`"0x1ff"`, 0o777},
+		"binary prefix":      {`"0b101"`, 0b101},
+		"no prefix is octal": {`"440"`, 0o440},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    configs:
+      - source: my-config
+        mode: `+tt.mode+`
+configs:
+  my-config:
+    external: true
+`)
+			assert.Equal(t, *p.Services["foo"].Configs[0].Mode, tt.want)
+			fromYAML, fromJSON := roundTrip(t, p)
+			assert.Equal(t, *fromYAML.Services["foo"].Configs[0].Mode, tt.want)
+			assert.Equal(t, *fromJSON.Services["foo"].Configs[0].Mode, tt.want)
+		})
+	}
+}
+
 // The mode of a config is read as the mode of a secret, an unsigned 32 bit
 // number: a negative value or a value that does not fit in 32 bits is rejected,
 // with the attribute in the error.

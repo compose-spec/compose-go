@@ -232,6 +232,49 @@ secrets:
 	}
 }
 
+// The text of a file mode is read with the syntax of the Docker CLI
+// (`--secret ...,mode=`, base 0) wherever it does not contradict the octal
+// number Compose has always read: a leading 0 selects the prefixes 0o, 0x and
+// 0b, and the digit separator they allow. The one syntax left out is the
+// decimal number: `440` is 0o440 here, the CLI reads it as 440.
+func TestSecretFileModeCLISyntax(t *testing.T) {
+	for name, tt := range map[string]struct {
+		mode string
+		want types.FileMode
+	}{
+		"octal prefix":               {`"0o440"`, 0o440},
+		"octal prefix, upper case":   {`"0O440"`, 0o440},
+		"hexadecimal prefix":         {`"0x1ff"`, 0o777},
+		"hexadecimal, upper case":    {`"0X1FF"`, 0o777},
+		"binary prefix":              {`"0b101"`, 0b101},
+		"binary prefix, upper case":  {`"0B101"`, 0b101},
+		"separator after the prefix": {`"0o4_40"`, 0o440},
+		"separator after the zero":   {`"0_440"`, 0o440},
+		"largest hexadecimal":        {`"0xffffffff"`, math.MaxUint32},
+		"no prefix is octal":         {`"440"`, 0o440},
+		"leading zero is octal":      {`"0440"`, 0o440},
+	} {
+		t.Run(name, func(t *testing.T) {
+			p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    secrets:
+      - source: server-certificate
+        mode: `+tt.mode+`
+secrets:
+  server-certificate:
+    external: true
+`)
+			assert.Equal(t, *p.Services["foo"].Secrets[0].Mode, tt.want)
+			fromYAML, fromJSON := roundTrip(t, p)
+			assert.Equal(t, *fromYAML.Services["foo"].Secrets[0].Mode, tt.want)
+			assert.Equal(t, *fromJSON.Services["foo"].Secrets[0].Mode, tt.want)
+		})
+	}
+}
+
 // A file mode is an unsigned 32 bit number, as the Docker CLI reads the mode of
 // a secret: a negative value, a value that does not fit in 32 bits and text that
 // is not octal are rejected, with the attribute in the error.
@@ -248,6 +291,9 @@ func TestSecretFileModeInvalid(t *testing.T) {
 		"beyond 64 bits, text":       `"7777777777777777777777"`,
 		"not octal":                  `"0999"`,
 		"text":                       `abc`,
+		"a prefix without digits":    `"0x"`,
+		"a digit out of the base":    `"0b2"`,
+		"hexadecimal beyond 32 bits": `"0x100000000"`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			err := loadErr(t, `
