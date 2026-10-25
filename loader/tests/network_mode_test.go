@@ -24,6 +24,7 @@ package tests
 import (
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/errdefs"
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
@@ -75,4 +76,5 @@ services:
     profiles: [debug]
 `)
 	assert.ErrorContains(t, err, `service "web" declares disabled service "db" for network_mode`)
+	assert.ErrorIs(t, err, errdefs.ErrInvalid)
 }

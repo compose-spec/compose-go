@@ -92,7 +92,7 @@ func checkService(project *types.Project, name string, s *types.ServiceConfig) e
 // checkServiceBuild validate the build section of a service
 func checkServiceBuild(project *types.Project, name string, s *types.ServiceConfig) error {
 	if s.Build.DockerfileInline != "" && s.Build.Dockerfile != "" {
-		return fmt.Errorf("service %q declares mutualy exclusive dockerfile and dockerfile_inline: %w", s.Name, errdefs.ErrInvalid)
+		return fmt.Errorf("service %q declares mutually exclusive dockerfile and dockerfile_inline: %w", s.Name, errdefs.ErrInvalid)
 	}
 
 	if err := checkBuildAdditionalContexts(project, name, s.Build); err != nil {
@@ -124,10 +124,10 @@ func checkBuildAdditionalContexts(project *types.Project, name string, build *ty
 				err = nil
 			}
 			if err != nil {
-				return fmt.Errorf("service %q declares unknown service %q as additional contexts %s", name, target, add)
+				return fmt.Errorf("service %q declares unknown service %q as additional contexts %s: %w", name, target, add, errdefs.ErrInvalid)
 			}
 			if t.Build == nil {
-				return fmt.Errorf("service %q declares non-buildable service %q as additional contexts %s", name, target, add)
+				return fmt.Errorf("service %q declares non-buildable service %q as additional contexts %s: %w", name, target, add, errdefs.ErrInvalid)
 			}
 		}
 	}
@@ -153,7 +153,7 @@ func checkServiceHealthCheck(s *types.ServiceConfig) error {
 		switch s.HealthCheck.Test[0] {
 		case "CMD", "CMD-SHELL", "NONE":
 		default:
-			return errors.New(`healthcheck.test must start either by "CMD", "CMD-SHELL" or "NONE"`)
+			return fmt.Errorf(`healthcheck.test must start either by "CMD", "CMD-SHELL" or "NONE": %w`, errdefs.ErrInvalid)
 		}
 	}
 	return nil
@@ -181,9 +181,9 @@ func checkServiceNetworkModeService(project *types.Project, s *types.ServiceConf
 		serviceName := s.NetworkMode[len(types.ServicePrefix):]
 		if _, err := project.GetServices(serviceName); err != nil {
 			if errors.Is(err, errdefs.ErrDisabled) {
-				return fmt.Errorf("service %q declares disabled service %q for network_mode", s.Name, serviceName)
+				return fmt.Errorf("service %q declares disabled service %q for network_mode: %w", s.Name, serviceName, errdefs.ErrInvalid)
 			}
-			return fmt.Errorf("service %q declares unknown service %q for network_mode", s.Name, serviceName)
+			return fmt.Errorf("service %q declares unknown service %q for network_mode: %w", s.Name, serviceName, errdefs.ErrInvalid)
 		}
 	}
 	return nil
@@ -237,10 +237,10 @@ func checkServiceScale(s *types.ServiceConfig) error {
 	}
 
 	if s.Scale != nil && *s.Scale < 0 {
-		return fmt.Errorf("services.%s.scale: must be greater than or equal to 0", s.Name)
+		return fmt.Errorf("services.%s.scale: must be greater than or equal to 0: %w", s.Name, errdefs.ErrInvalid)
 	}
 	if s.Deploy != nil && s.Deploy.Replicas != nil && *s.Deploy.Replicas < 0 {
-		return fmt.Errorf("services.%s.deploy.replicas: must be greater than or equal to 0", s.Name)
+		return fmt.Errorf("services.%s.deploy.replicas: must be greater than or equal to 0: %w", s.Name, errdefs.ErrInvalid)
 	}
 	return nil
 }
@@ -306,14 +306,14 @@ func checkServiceMounts(s *types.ServiceConfig) error {
 		loc := fmt.Sprintf("services.%s.tmpfs[%d]", s.Name, i)
 		path, _, _ := strings.Cut(tmpfs, ":")
 		if p, ok := mounts[path]; ok {
-			return fmt.Errorf("%s: target %s already mounted as %s", loc, path, p)
+			return fmt.Errorf("%s: target %s already mounted as %s: %w", loc, path, p, errdefs.ErrInvalid)
 		}
 		mounts[path] = loc
 	}
 	for i, volume := range s.Volumes {
 		loc := fmt.Sprintf("services.%s.volumes[%d]", s.Name, i)
 		if p, ok := mounts[volume.Target]; ok {
-			return fmt.Errorf("%s: target %s already mounted as %s", loc, volume.Target, p)
+			return fmt.Errorf("%s: target %s already mounted as %s: %w", loc, volume.Target, p, errdefs.ErrInvalid)
 		}
 		mounts[volume.Target] = loc
 	}
