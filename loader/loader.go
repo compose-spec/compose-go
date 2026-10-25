@@ -111,15 +111,13 @@ type Options struct {
 	// compose-file attributes not honored by the caller's runtime. See
 	// WithUnsupportedAttributesCheck.
 	UnsupportedAttributesCheck *UnsupportedAttributesCheck
-	// Logger receives the warnings raised while loading: obsolete `version`,
-	// YAML 1.1 booleans, unset variables (in the model and in the env_file of an
-	// include), deprecated `external.name`, misconfigured resource loaders. When
-	// nil, they are written through the standard logrus logger.
-	//
-	// Two warnings are not routed: the unset variables referenced by the env_file
-	// of a service, resolved by types.Project.WithServicesEnvironmentResolved,
-	// and paths.ExpandUser failing to expand "~" when the environment lacks HOME.
-	// They are still written through logrus.
+	// Logger receives every warning raised while loading: obsolete `version`,
+	// YAML 1.1 booleans, unset variables (in the model, and in the env_file and
+	// label_file of a service or of an include), deprecated `external.name`, a
+	// "~" that cannot be expanded because the environment lacks HOME,
+	// misconfigured resource loaders. When nil, they are written through the
+	// standard logrus logger. A *logrus.Logger or *logrus.Entry can be set as is
+	// (see package logging).
 	//
 	// It applies to the warnings of this package and to the interpolation
 	// performed by the Interpolate options built by ToOptions: an Interpolate
@@ -486,7 +484,7 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 		for _, loader := range opts.RemoteResourceLoaders() {
 			remotes = append(remotes, loader.Accept)
 		}
-		err = paths.ResolveRelativePaths(dict, config.WorkingDir, remotes)
+		err = paths.ResolveRelativePathsWithLogger(dict, config.WorkingDir, remotes, opts.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -795,7 +793,7 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	}
 
 	if !opts.SkipResolveEnvironment {
-		project, err = project.WithServicesEnvironmentResolved(opts.discardEnvFiles)
+		project, err = project.WithServicesEnvironmentResolvedWithLogger(opts.discardEnvFiles, opts.Logger)
 		if err != nil {
 			return nil, err
 		}
@@ -803,7 +801,7 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 
 	if !opts.SkipResolveLabels {
 		// discardEnvFiles only applies to `env_file`: `label_file` entries are never discarded
-		project, err = project.WithServicesLabelsResolved(false)
+		project, err = project.WithServicesLabelsResolvedWithLogger(false, opts.Logger)
 		if err != nil {
 			return nil, err
 		}

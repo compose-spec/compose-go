@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -307,4 +308,181 @@ func TestIncludeEntryWarnings(t *testing.T) {
 			})
 		})
 	}
+}
+
+// setNoHome makes os.UserHomeDir fail on every OS ("HOME" on Unix,
+// "USERPROFILE" on Windows), so that a "~" cannot be expanded.
+func setNoHome(t *testing.T) {
+	t.Helper()
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+}
+
+const (
+	unsetVariableWarning = "The \"UNSET_VARIABLE\" variable is not set. Defaulting to a blank string."
+	noHomeWarning        = "cannot expand '~', because the environment lacks HOME"
+)
+
+// loadWarningFiles loads a project made of the given files, written in a
+// temporary directory, with the environment lacking HOME, and returns the
+// error, if any. The model is not checked beyond loading: only the warnings
+// raised on the way are of interest.
+func loadWarningFiles(t *testing.T, files map[string]string, configure func(*Options)) error {
+	t.Helper()
+	dir := t.TempDir()
+	setNoHome(t)
+	for name, content := range files {
+		assert.NilError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+	}
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
+		WorkingDir:  dir,
+		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
+		Environment: map[string]string{},
+	}, func(o *Options) {
+		o.SkipConsistencyCheck = true
+		configure(o)
+	})
+	return err
+}
+
+// Every warning of the loading is routed to the configured Logger: the
+// unset variables referenced by the env_file or the label_file of a service
+// (or of one of its pre_start hooks), and a "~" that cannot be expanded when
+// the environment lacks HOME, wherever a path is resolved (bind mount, secret,
+// file loaded through extends). Without a Logger, they keep going through the
+// standard logrus logger.
+func TestFileWarningsAreRouted(t *testing.T) {
+	const dotenv = "FOO=${UNSET_VARIABLE}\n"
+	tests := []struct {
+		name  string
+		files map[string]string
+		want  []string
+	}{
+		{
+			name: "unset variable in a service env_file",
+			files: map[string]string{
+				"compose.yaml": "name: warn\nservices:\n  foo:\n    image: busybox\n    env_file: a.env\n",
+				"a.env":        dotenv,
+			},
+			want: []string{unsetVariableWarning},
+		},
+		{
+			name: "unset variable in an env_file written with a path",
+			files: map[string]string{
+				"compose.yaml": "name: warn\nservices:\n  foo:\n    image: busybox\n    env_file:\n      - path: a.env\n",
+				"a.env":        dotenv,
+			},
+			want: []string{unsetVariableWarning},
+		},
+		{
+			name: "unset variable in the env_file of a pre_start hook",
+			files: map[string]string{
+				"compose.yaml": "name: warn\nservices:\n  foo:\n    image: busybox\n    pre_start:\n      - image: busybox\n        env_file: a.env\n",
+				"a.env":        dotenv,
+			},
+			want: []string{unsetVariableWarning},
+		},
+		{
+			name: "unset variable in a service label_file",
+			files: map[string]string{
+				"compose.yaml": "name: warn\nservices:\n  foo:\n    image: busybox\n    label_file: a.env\n",
+				"a.env":        dotenv,
+			},
+			want: []string{unsetVariableWarning},
+		},
+		{
+			name: "home that cannot be expanded in a bind mount",
+			files: map[string]string{
+				"compose.yaml": "name: warn\nservices:\n  foo:\n    image: busybox\n    volumes:\n      - ~/data:/data\n",
+			},
+			want: []string{noHomeWarning},
+		},
+		{
+			name: "home that cannot be expanded in a secret file",
+			files: map[string]string{
+				"compose.yaml": "name: warn\nservices:\n  foo:\n    image: busybox\nsecrets:\n  token:\n    file: ~/token\n",
+			},
+			want: []string{noHomeWarning},
+		},
+		{
+			name: "home that cannot be expanded in an extended file",
+			files: map[string]string{
+				"compose.yaml": "name: warn\nservices:\n  foo:\n    extends:\n      file: other.yaml\n      service: base\n",
+				"other.yaml":   "services:\n  base:\n    image: busybox\n    volumes:\n      - ~/data:/data\n",
+			},
+			// once when the extended file is resolved, once more when the
+			// service that extends it is
+			want: []string{noHomeWarning, noHomeWarning},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// intent: with no Logger configured, the warning is still written
+			// through the standard logrus logger, as it has always been
+			t.Run("default goes through logrus", func(t *testing.T) {
+				hook := captureLogrus(t)
+				assert.NilError(t, loadWarningFiles(t, tc.files, func(*Options) {}))
+				assert.Check(t, is.DeepEqual(tc.want, logrusMessages(hook)))
+			})
+
+			// intent: with a Logger configured, it receives the warning and
+			// logrus does not
+			t.Run("logger receives it", func(t *testing.T) {
+				hook := captureLogrus(t)
+				logger := &recordingLogger{}
+				assert.NilError(t, loadWarningFiles(t, tc.files, func(o *Options) { o.Logger = logger }))
+				assert.Check(t, is.DeepEqual(tc.want, logger.warnings))
+				assert.Check(t, is.Len(hook.AllEntries(), 0))
+			})
+		})
+	}
+}
+
+// A logrus entry is a Logger as is, with no adapter: the warnings of every
+// stage of the loading (model, env_file, label_file, path resolution) reach
+// it with the fields it carries, and not the standard logrus logger.
+func TestLogrusEntryReceivesEveryWarning(t *testing.T) {
+	files := map[string]string{
+		"compose.yaml": `name: warn
+services:
+  foo:
+    image: ${UNSET_VARIABLE}
+    env_file: a.env
+    label_file: a.env
+    volumes:
+      - ~/data:/data
+volumes:
+  data:
+    external:
+      name: other
+`,
+		"a.env": "FOO=${UNSET_VARIABLE}\n",
+	}
+	std := captureLogrus(t)
+
+	// the entry writes to its own logger, observed through its own hook
+	own := logrus.New()
+	own.SetOutput(io.Discard)
+	ownHook := &logrustest.Hook{}
+	own.AddHook(ownHook)
+	entry := own.WithField("component", "compose")
+
+	assert.NilError(t, loadWarningFiles(t, files, func(o *Options) { o.Logger = entry }))
+
+	var messages []string
+	for _, e := range ownHook.AllEntries() {
+		messages = append(messages, e.Message)
+		assert.Check(t, is.Equal(logrus.WarnLevel, e.Level))
+		assert.Check(t, is.Equal("compose", e.Data["component"]), e.Message)
+	}
+	// the stages run in a fixed order, but the order is not what is locked
+	slices.Sort(messages)
+	assert.Check(t, is.DeepEqual([]string{
+		unsetVariableWarning,
+		unsetVariableWarning,
+		unsetVariableWarning,
+		noHomeWarning,
+		"volumes.data: external.name is deprecated. Please set name and external: true",
+	}, messages))
+	assert.Check(t, is.Len(std.AllEntries(), 0))
 }

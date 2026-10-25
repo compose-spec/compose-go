@@ -32,8 +32,30 @@ package logging
 //		l.Warn(fmt.Sprintf(format, args...))
 //	}
 //
-// When no Logger is configured, warnings are written through the standard
-// logrus logger, which is how compose-go has always reported them.
+// # Default: logrus
+//
+// When no Logger is configured, every warning is written through the standard
+// logrus logger, which is how compose-go has always reported them: nothing
+// has to be done for logrus users. To customize it, give a logrus logger or
+// entry (with its fields, hooks and level) as is, with no adapter:
+//
+//	logger := logrus.WithField("component", "compose")
+//
+//	opts, err := cli.NewProjectOptions(nil, cli.WithLogger(logger), cli.WithDefaultConfigPath)
+//	// or, with the loader alone: loader.Options{Logger: logger}
+//
+// # Custom logger
+//
+// Any other implementation receives all the warnings, and none is written
+// through logrus when a Logger is configured:
+//
+//	type collector struct{ warnings []string }
+//
+//	func (c *collector) Warnf(format string, args ...any) {
+//		c.warnings = append(c.warnings, fmt.Sprintf(format, args...))
+//	}
+//
+//	opts, err := cli.NewProjectOptions(nil, cli.WithLogger(&collector{}))
 type Logger interface {
 	// Warnf reports a warning, formatted as fmt.Sprintf would.
 	Warnf(format string, args ...any)

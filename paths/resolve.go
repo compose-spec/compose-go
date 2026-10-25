@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/tree"
 	"github.com/compose-spec/compose-go/v2/types"
 )
@@ -29,9 +30,17 @@ type resolver func(any) (any, error)
 
 // ResolveRelativePaths make relative paths absolute
 func ResolveRelativePaths(project map[string]any, base string, remotes []RemoteResource) error {
+	return ResolveRelativePathsWithLogger(project, base, remotes, nil)
+}
+
+// ResolveRelativePathsWithLogger is ResolveRelativePaths sending its warning (a
+// "~" that cannot be expanded because the environment lacks HOME) to l instead
+// of the standard logrus logger, which receives it when l is nil.
+func ResolveRelativePathsWithLogger(project map[string]any, base string, remotes []RemoteResource, l logging.Logger) error {
 	r := relativePathsResolver{
 		workingDir: base,
 		remotes:    remotes,
+		logger:     l,
 	}
 	r.resolvers = map[tree.Path]resolver{
 		"services.*.build.context":               r.absContextPath,
@@ -70,6 +79,9 @@ type relativePathsResolver struct {
 	workingDir string
 	remotes    []RemoteResource
 	resolvers  map[tree.Path]resolver
+	// logger receives the warnings raised while resolving; when nil, they are
+	// written through the standard logrus logger
+	logger logging.Logger
 }
 
 func (r *relativePathsResolver) isRemoteResource(path string) bool {
@@ -124,7 +136,7 @@ func (r *relativePathsResolver) absPath(value any) (any, error) {
 		}
 		return v, nil
 	case string:
-		v = ExpandUser(v)
+		v = expandUser(v, r.logger)
 		if filepath.IsAbs(v) {
 			return v, nil
 		}

@@ -21,7 +21,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/sirupsen/logrus"
+	"github.com/compose-spec/compose-go/v2/internal/warn"
+	"github.com/compose-spec/compose-go/v2/logging"
 )
 
 // ExpandUser replaces a leading "~" by the home directory of the current user.
@@ -29,10 +30,15 @@ import (
 // "~" followed by a name ("~user/x") is the home directory of another user,
 // which is not looked up, and the path is left untouched.
 func ExpandUser(p string) string {
+	return expandUser(p, nil)
+}
+
+// expandUser is ExpandUser reporting its warning to l, or to logrus when nil.
+func expandUser(p string, l logging.Logger) string {
 	if isHomePath(p) {
 		home, err := os.UserHomeDir()
 		if err != nil {
-			logrus.Warn("cannot expand '~', because the environment lacks HOME")
+			warn.Warnf(l, "cannot expand '~', because the environment lacks HOME")
 			return p
 		}
 		return filepath.Join(home, p[1:])

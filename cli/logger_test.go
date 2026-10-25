@@ -75,7 +75,7 @@ func writeFile(t *testing.T, path, content string) {
 // the logger receives them and logrus stays silent. Each warning of this
 // package is covered: several default config files, several default override
 // files, an inaccessible default .env file, an unset variable referenced by the
-// .env file, a project name taken from a
+// .env file or by the env_file of a service, a project name taken from a
 // symlinked directory, and a warning of the loader.
 func TestProjectOptionsWarnings(t *testing.T) {
 	tests := []struct {
@@ -163,6 +163,18 @@ func TestProjectOptionsWarnings(t *testing.T) {
 			},
 			want: func(string) []string {
 				return []string{"project has been loaded without an explicit name from a symlink. Using name \"link\""}
+			},
+			load: true,
+		},
+		{
+			name: "unset variable in the env_file of a service",
+			setup: func(t *testing.T, dir string) []ProjectOptionsFn {
+				writeFile(t, filepath.Join(dir, "compose.yaml"), "name: warn\nservices:\n  foo:\n    image: busybox\n    env_file: a.env\n")
+				writeFile(t, filepath.Join(dir, "a.env"), "FOO=${UNSET_VARIABLE}\n")
+				return []ProjectOptionsFn{WithWorkingDirectory(dir), WithDefaultConfigPath}
+			},
+			want: func(string) []string {
+				return []string{"The \"UNSET_VARIABLE\" variable is not set. Defaulting to a blank string."}
 			},
 			load: true,
 		},

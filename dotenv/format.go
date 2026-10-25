@@ -19,33 +19,56 @@ package dotenv
 import (
 	"fmt"
 	"io"
+
+	"github.com/compose-spec/compose-go/v2/logging"
 )
 
 const DotEnv = ".env"
 
-var formats = map[string]Parser{
-	DotEnv: func(r io.Reader, filename string, vars map[string]string, lookup func(key string) (string, bool)) error {
-		err := parseWithLookup(r, vars, lookup)
-		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", filename, err)
-		}
-		return nil
-	},
+// format is a registered env_file format: either the built-in .env one, which
+// reports its warnings to a logger (parseWithLogger), or one added by
+// RegisterFormat, which has no way to be given one (parse).
+type format struct {
+	parse           Parser
+	parseWithLogger func(r io.Reader, filename string, vars map[string]string, lookup func(key string) (string, bool), l logging.Logger) error
+}
+
+var formats = map[string]format{
+	DotEnv: {parseWithLogger: parseDotEnv},
+}
+
+func parseDotEnv(r io.Reader, filename string, vars map[string]string, lookup func(key string) (string, bool), l logging.Logger) error {
+	err := parseWithLogger(r, vars, lookup, l)
+	if err != nil {
+		return fmt.Errorf("failed to read %s: %w", filename, err)
+	}
+	return nil
 }
 
 type Parser func(r io.Reader, filename string, vars map[string]string, lookup func(key string) (string, bool)) error
 
-func RegisterFormat(format string, p Parser) {
-	formats[format] = p
+func RegisterFormat(name string, p Parser) {
+	formats[name] = format{parse: p}
 }
 
-func ParseWithFormat(r io.Reader, filename string, vars map[string]string, resolve LookupFn, format string) error {
-	if format == "" {
-		format = DotEnv
+func ParseWithFormat(r io.Reader, filename string, vars map[string]string, resolve LookupFn, f string) error {
+	return ParseWithFormatAndLogger(r, filename, vars, resolve, f, nil)
+}
+
+// ParseWithFormatAndLogger is ParseWithFormat sending the warnings raised while
+// parsing (a variable that is not set, referenced by the file) to l instead of
+// the standard logrus logger, which receives them when l is nil. A format added
+// by RegisterFormat is not given the logger: it reports as it chooses.
+func ParseWithFormatAndLogger(r io.Reader, filename string, vars map[string]string, resolve LookupFn, f string, l logging.Logger) error {
+	if f == "" {
+		f = DotEnv
 	}
-	fn, ok := formats[format]
+	fn, ok := formats[f]
 	if !ok {
-		return fmt.Errorf("unsupported env_file format %q", format)
+		return fmt.Errorf("unsupported env_file format %q", f)
 	}
-	return fn(r, filename, vars, resolve)
+	if fn.parseWithLogger != nil {
+		return fn.parseWithLogger(r, filename, vars, resolve, l)
+	}
+	return fn.parse(r, filename, vars, resolve)
 }

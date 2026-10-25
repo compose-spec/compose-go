@@ -33,7 +33,7 @@ func (r *relativePathsResolver) maybeUnixPath(a any) (any, error) {
 		// as for the other path attributes
 		return p, nil
 	}
-	p = ExpandUser(p)
+	p = expandUser(p, r.logger)
 	// Check if source is an absolute path (either Unix or Windows), to
 	// handle a Windows client with a Unix daemon or vice-versa.
 	//

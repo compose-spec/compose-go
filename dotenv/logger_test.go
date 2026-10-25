@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -92,5 +93,82 @@ func TestGetEnvFromFileUnsetVariable(t *testing.T) {
 		assert.Check(t, is.DeepEqual(map[string]string{"FOO": ""}, env))
 		assert.Check(t, is.DeepEqual([]string{message}, logger.warnings))
 		assert.Check(t, is.Len(hook.AllEntries(), 0))
+	})
+}
+
+// ParseWithFormat reads an env_file of the format it is given; the warnings it
+// raises (a variable that is not set) go through the standard logrus logger
+// unless ParseWithFormatAndLogger is given a logger, which then receives them
+// and logrus stays silent.
+func TestParseWithFormatUnsetVariable(t *testing.T) {
+	const (
+		message = "The \"UNSET_VARIABLE\" variable is not set. Defaulting to a blank string."
+		content = "FOO=${UNSET_VARIABLE}\n"
+	)
+	parse := func(format string, l *recordingLogger) (map[string]string, error) {
+		vars := map[string]string{}
+		var err error
+		if l == nil {
+			err = ParseWithFormat(strings.NewReader(content), "a.env", vars, nil, format)
+		} else {
+			err = ParseWithFormatAndLogger(strings.NewReader(content), "a.env", vars, nil, format, l)
+		}
+		return vars, err
+	}
+	for _, format := range []string{"", DotEnv} {
+		t.Run("format "+format, func(t *testing.T) {
+			// intent: ParseWithFormat, which takes no logger, keeps writing
+			// through logrus as it has always done
+			t.Run("default goes through logrus", func(t *testing.T) {
+				hook := captureLogrus(t)
+				vars, err := parse(format, nil)
+				assert.NilError(t, err)
+				assert.Check(t, is.DeepEqual(map[string]string{"FOO": ""}, vars))
+				assert.Check(t, is.Len(hook.AllEntries(), 1))
+				assert.Check(t, is.Equal(message, hook.LastEntry().Message))
+			})
+
+			// intent: a nil logger is the default one
+			t.Run("nil logger goes through logrus", func(t *testing.T) {
+				hook := captureLogrus(t)
+				assert.NilError(t, ParseWithFormatAndLogger(strings.NewReader(content), "a.env", map[string]string{}, nil, format, nil))
+				assert.Check(t, is.Len(hook.AllEntries(), 1))
+			})
+
+			// intent: the logger receives the warning, logrus does not
+			t.Run("logger receives it", func(t *testing.T) {
+				hook := captureLogrus(t)
+				logger := &recordingLogger{}
+				vars, err := parse(format, logger)
+				assert.NilError(t, err)
+				assert.Check(t, is.DeepEqual(map[string]string{"FOO": ""}, vars))
+				assert.Check(t, is.DeepEqual([]string{message}, logger.warnings))
+				assert.Check(t, is.Len(hook.AllEntries(), 0))
+			})
+		})
+	}
+
+	// intent: a format added by RegisterFormat is called as it always was, and
+	// replacing the built-in .env format is still honored: the logger is not
+	// forced on a parser that has no way to receive it
+	t.Run("registered format is called as is", func(t *testing.T) {
+		t.Cleanup(func() { formats[DotEnv] = format{parseWithLogger: parseDotEnv}; delete(formats, "custom-logger") })
+		RegisterFormat("custom-logger", func(_ io.Reader, _ string, vars map[string]string, _ func(string) (string, bool)) error {
+			vars["CUSTOM"] = "yes"
+			return nil
+		})
+		logger := &recordingLogger{}
+		vars := map[string]string{}
+		assert.NilError(t, ParseWithFormatAndLogger(strings.NewReader(content), "a.env", vars, nil, "custom-logger", logger))
+		assert.Check(t, is.DeepEqual(map[string]string{"CUSTOM": "yes"}, vars))
+		assert.Check(t, is.Len(logger.warnings, 0))
+
+		RegisterFormat(DotEnv, func(_ io.Reader, _ string, vars map[string]string, _ func(string) (string, bool)) error {
+			vars["REPLACED"] = "yes"
+			return nil
+		})
+		vars = map[string]string{}
+		assert.NilError(t, ParseWithFormatAndLogger(strings.NewReader(content), "a.env", vars, nil, "", logger))
+		assert.Check(t, is.DeepEqual(map[string]string{"REPLACED": "yes"}, vars))
 	})
 }

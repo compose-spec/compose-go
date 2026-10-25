@@ -269,7 +269,7 @@ func loadExtendsBase(ctx context.Context, section, name, local, relworkingdir st
 	for _, loader := range opts.RemoteResourceLoaders() {
 		remotes = append(remotes, loader.Accept)
 	}
-	err = paths.ResolveRelativePaths(source, relworkingdir, remotes)
+	err = paths.ResolveRelativePathsWithLogger(source, relworkingdir, remotes, opts.Logger)
 	if err != nil {
 		return extendsBase{}, err
 	}

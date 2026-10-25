@@ -30,6 +30,7 @@ import (
 
 	"github.com/compose-spec/compose-go/v2/dotenv"
 	"github.com/compose-spec/compose-go/v2/errdefs"
+	"github.com/compose-spec/compose-go/v2/logging"
 	"github.com/compose-spec/compose-go/v2/utils"
 	"github.com/distribution/reference"
 	godigest "github.com/opencontainers/go-digest"
@@ -863,9 +864,17 @@ func (p *Project) MarshalJSON(options ...func(*marshallOptions)) ([]byte, error)
 // the actual environment map for services and hooks
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project, error) {
+	return p.WithServicesEnvironmentResolvedWithLogger(discardEnvFiles, nil)
+}
+
+// WithServicesEnvironmentResolvedWithLogger is WithServicesEnvironmentResolved
+// sending the warnings raised while parsing the env_files (a variable that is
+// not set, referenced by a file) to l instead of the standard logrus logger,
+// which receives them when l is nil.
+func (p Project) WithServicesEnvironmentResolvedWithLogger(discardEnvFiles bool, l logging.Logger) (*Project, error) {
 	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
-		if err := resolveEnvironment(&service.ContainerSpec, newProject.Environment, discardEnvFiles); err != nil {
+		if err := resolveEnvironment(&service.ContainerSpec, newProject.Environment, discardEnvFiles, l); err != nil {
 			return nil, err
 		}
 		// pre_start hooks inherit the service environment and env_files at load time, so each one carries
@@ -874,7 +883,7 @@ func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project
 			if len(service.PreStart[j].Environment) == 0 && len(service.PreStart[j].EnvFiles) == 0 {
 				continue
 			}
-			if err := resolveEnvironment(&service.PreStart[j].ContainerSpec, newProject.Environment, discardEnvFiles); err != nil {
+			if err := resolveEnvironment(&service.PreStart[j].ContainerSpec, newProject.Environment, discardEnvFiles, l); err != nil {
 				return nil, err
 			}
 		}
@@ -885,7 +894,7 @@ func (p Project) WithServicesEnvironmentResolved(discardEnvFiles bool) (*Project
 
 // resolveEnvironment resolves the environment of a container specification: values without a value are looked up
 // in the project environment, then env_files are loaded and overridden by the explicit environment
-func resolveEnvironment(spec *ContainerSpec, projectEnv Mapping, discardEnvFiles bool) error {
+func resolveEnvironment(spec *ContainerSpec, projectEnv Mapping, discardEnvFiles bool, l logging.Logger) error {
 	spec.Environment = spec.Environment.Resolve(projectEnv.Resolve)
 
 	environment := spec.Environment.ToMapping()
@@ -900,7 +909,7 @@ func resolveEnvironment(spec *ContainerSpec, projectEnv Mapping, discardEnvFiles
 				return *s, true
 			}
 			return "", false
-		})
+		}, l)
 		if err != nil {
 			return err
 		}
@@ -918,15 +927,23 @@ func resolveEnvironment(spec *ContainerSpec, projectEnv Mapping, discardEnvFiles
 // the actual label map for services and hooks
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p Project) WithServicesLabelsResolved(discardLabelFiles bool) (*Project, error) {
+	return p.WithServicesLabelsResolvedWithLogger(discardLabelFiles, nil)
+}
+
+// WithServicesLabelsResolvedWithLogger is WithServicesLabelsResolved sending the
+// warnings raised while parsing the label_files (a variable that is not set,
+// referenced by a file) to l instead of the standard logrus logger, which
+// receives them when l is nil.
+func (p Project) WithServicesLabelsResolvedWithLogger(discardLabelFiles bool, l logging.Logger) (*Project, error) {
 	newProject := p.deepCopy()
 	for i, service := range newProject.Services {
-		if err := resolveLabels(&service.ContainerSpec, discardLabelFiles); err != nil {
+		if err := resolveLabels(&service.ContainerSpec, discardLabelFiles, l); err != nil {
 			return nil, err
 		}
 		// pre_start hooks inherit the service labels and label_files at load time, so each one carries
 		// the merged declarations and has to be resolved exactly like a service
 		for j := range service.PreStart {
-			if err := resolveLabels(&service.PreStart[j].ContainerSpec, discardLabelFiles); err != nil {
+			if err := resolveLabels(&service.PreStart[j].ContainerSpec, discardLabelFiles, l); err != nil {
 				return nil, err
 			}
 		}
@@ -937,7 +954,7 @@ func (p Project) WithServicesLabelsResolved(discardLabelFiles bool) (*Project, e
 
 // resolveLabels resolves the labels of a container specification: label_files are loaded and overridden by the
 // explicit labels
-func resolveLabels(spec *ContainerSpec, discardLabelFiles bool) error {
+func resolveLabels(spec *ContainerSpec, discardLabelFiles bool, l logging.Logger) error {
 	labels := MappingWithEquals{}
 	// resolve variables based on other files we already parsed
 	var resolve dotenv.LookupFn = func(s string) (string, bool) {
@@ -949,7 +966,7 @@ func resolveLabels(spec *ContainerSpec, discardLabelFiles bool) error {
 	}
 
 	for _, labelFile := range spec.LabelFiles {
-		vars, err := loadLabelFile(labelFile, resolve)
+		vars, err := loadLabelFile(labelFile, resolve, l)
 		if err != nil {
 			return err
 		}
@@ -969,7 +986,7 @@ func resolveLabels(spec *ContainerSpec, discardLabelFiles bool) error {
 	return nil
 }
 
-func loadEnvFile(envFile EnvFile, environment Mapping, resolve dotenv.LookupFn) error {
+func loadEnvFile(envFile EnvFile, environment Mapping, resolve dotenv.LookupFn, l logging.Logger) error {
 	if _, err := os.Stat(envFile.Path); os.IsNotExist(err) {
 		if envFile.Required {
 			return fmt.Errorf("env file %s not found: %w", envFile.Path, err)
@@ -977,28 +994,28 @@ func loadEnvFile(envFile EnvFile, environment Mapping, resolve dotenv.LookupFn) 
 		return nil
 	}
 
-	err := loadMappingFile(envFile.Path, envFile.Format, environment, resolve)
+	err := loadMappingFile(envFile.Path, envFile.Format, environment, resolve, l)
 	return err
 }
 
-func loadLabelFile(labelFile string, resolve dotenv.LookupFn) (Mapping, error) {
+func loadLabelFile(labelFile string, resolve dotenv.LookupFn, l logging.Logger) (Mapping, error) {
 	if _, err := os.Stat(labelFile); os.IsNotExist(err) {
 		return nil, fmt.Errorf("label file %s not found: %w", labelFile, err)
 	}
 
 	labels := Mapping{}
-	err := loadMappingFile(labelFile, "", labels, resolve)
+	err := loadMappingFile(labelFile, "", labels, resolve, l)
 	return labels, err
 }
 
-func loadMappingFile(path string, format string, vars Mapping, resolve dotenv.LookupFn) error {
+func loadMappingFile(path string, format string, vars Mapping, resolve dotenv.LookupFn, l logging.Logger) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	return dotenv.ParseWithFormat(file, path, vars, resolve, format)
+	return dotenv.ParseWithFormatAndLogger(file, path, vars, resolve, format, l)
 }
 
 func (p *Project) deepCopy() *Project {

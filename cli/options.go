@@ -290,10 +290,9 @@ func WithDiscardEnvFile(o *ProjectOptions) error {
 //		cli.WithDefaultConfigPath,
 //	)
 //
-// Two warnings are not routed and are still written through logrus: the
-// unset variables referenced by the env_file of a service, resolved by
-// types.Project.WithServicesEnvironmentResolved, and paths.ExpandUser failing
-// to expand "~" when the environment lacks HOME.
+// Every warning is routed to l: none is written through logrus when a logger
+// is configured. A *logrus.Logger or *logrus.Entry can be given as is (see
+// package logging).
 func WithLogger(l logging.Logger) ProjectOptionsFn {
 	return func(o *ProjectOptions) error {
 		o.logger = l
