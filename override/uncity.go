@@ -43,7 +43,6 @@ func init() {
 		unique[prefix+".*.build.labels"] = keyValueIndexer
 		unique[prefix+".*.cap_add"] = keyValueIndexer
 		unique[prefix+".*.cap_drop"] = keyValueIndexer
-		unique[prefix+".*.devices"] = volumeIndexer
 		unique[prefix+".*.configs"] = mountIndexer("")
 		unique[prefix+".*.dns"] = keyValueIndexer
 		unique[prefix+".*.dns_opt"] = keyValueIndexer
