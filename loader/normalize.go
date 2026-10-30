@@ -224,30 +224,39 @@ func addNamespaceDependencies(container map[string]any, dependsOn map[string]any
 	return nil
 }
 
-// cleanVolumeTargets lexically cleans the container path of volumes
+// cleanVolumeTargets lexically cleans the container path of volumes and mounts
 func cleanVolumeTargets(container map[string]any, _ map[string]any, containerPath string) error {
-	v, ok := container["volumes"]
+	for _, key := range []string{"volumes", "mounts"} {
+		if err := cleanTargets(container, key, containerPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func cleanTargets(container map[string]any, key, containerPath string) error {
+	v, ok := container[key]
 	if !ok {
 		return nil
 	}
-	volumes, err := expectList(v, containerPath+".volumes")
+	entries, err := expectList(v, containerPath+"."+key)
 	if err != nil {
 		return err
 	}
-	for i, volume := range volumes {
-		volumePath := fmt.Sprintf("%s.volumes[%d]", containerPath, i)
-		vol, err := expectMapping(volume, volumePath)
+	for i, entry := range entries {
+		entryPath := fmt.Sprintf("%s.%s[%d]", containerPath, key, i)
+		mount, err := expectMapping(entry, entryPath)
 		if err != nil {
 			return err
 		}
-		target, err := expectString(vol["target"], volumePath+".target")
+		target, err := expectString(mount["target"], entryPath+".target")
 		if err != nil {
 			return err
 		}
-		vol["target"] = path.Clean(target)
-		volumes[i] = vol
+		mount["target"] = path.Clean(target)
+		entries[i] = mount
 	}
-	container["volumes"] = volumes
+	container[key] = entries
 	return nil
 }
 
@@ -288,7 +297,7 @@ func addVolumesFromDependencies(container map[string]any, dependsOn map[string]a
 // idempotent when an already-resolved model (a `config` output) is loaded
 // again. This subsumes the image inheritance of compose-spec#647.
 //
-// Volumes are deliberately not inherited: mounts inherit at runtime through
+// Volumes and mounts are deliberately not inherited: they inherit at runtime through
 // volumes_from, the only mechanism able to share the parent's anonymous and
 // image volumes; the hook keeps only its own volume declarations.
 func resolvePreStartHooks(service map[string]any) error {
@@ -298,7 +307,7 @@ func resolvePreStartHooks(service map[string]any) error {
 	}
 	base := map[string]any{}
 	for k, v := range service {
-		if k == "volumes" || !containerSpecKeys[k] {
+		if k == "volumes" || k == "mounts" || !containerSpecKeys[k] {
 			continue
 		}
 		base[k] = v

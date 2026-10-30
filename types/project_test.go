@@ -301,6 +301,53 @@ func Test_ResolveImages_preStartHooks(t *testing.T) {
 	assert.Equal(t, service.PreStart[1].Image, "")
 }
 
+func Test_ResolveImages_imageMounts(t *testing.T) {
+	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return digested, nil
+	}
+	p := &Project{
+		Services: Services{
+			"service_1": {
+				Name: "service_1",
+				ContainerSpec: ContainerSpec{
+					Image: "alpine:3.20",
+					Mounts: []ServiceMountConfig{
+						{Type: VolumeTypeImage, Source: "alpine:3.19", Target: "/data"},
+						{Type: VolumeTypeVolume, Source: "vol", Target: "/vol"},
+					},
+				},
+			},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	mounts := p.Services["service_1"].Mounts
+	assert.Equal(t, mounts[0].Source, "docker.io/library/alpine:3.19@"+digested)
+	assert.Equal(t, mounts[1].Source, "vol")
+}
+
+// a volume used by a mount is not an unnecessary resource
+func Test_WithoutUnnecessaryResources_mounts(t *testing.T) {
+	p := &Project{
+		Services: Services{
+			"app": {
+				Name: "app",
+				ContainerSpec: ContainerSpec{
+					Mounts: []ServiceMountConfig{{Type: VolumeTypeVolume, Source: "used", Target: "/data"}},
+				},
+			},
+		},
+		Volumes: Volumes{"used": VolumeConfig{}, "unused": VolumeConfig{}},
+	}
+	p = p.WithoutUnnecessaryResources()
+	assert.Equal(t, len(p.Volumes), 1)
+	_, ok := p.Volumes["used"]
+	assert.Assert(t, ok)
+}
+
 func Test_ResolveImages_imageVolumes(t *testing.T) {
 	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
 	resolver := func(_ reference.Named) (digest.Digest, error) {

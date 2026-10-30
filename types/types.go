@@ -92,6 +92,7 @@ type ContainerSpec struct {
 	MemSwappiness    UnitBytes                        `yaml:"mem_swappiness,omitempty" json:"mem_swappiness,omitempty"`
 	MacAddress       string                           `yaml:"mac_address,omitempty" json:"mac_address,omitempty"`
 	Models           map[string]*ServiceModelConfig   `yaml:"models,omitempty" json:"models,omitempty"`
+	Mounts           []ServiceMountConfig             `yaml:"mounts,omitempty" json:"mounts,omitempty"`
 	NetworkMode      string                           `yaml:"network_mode,omitempty" json:"network_mode,omitempty"`
 	Networks         map[string]*ServiceNetworkConfig `yaml:"networks,omitempty" json:"networks,omitempty"`
 	OomKillDisable   bool                             `yaml:"oom_kill_disable,omitempty" json:"oom_kill_disable,omitempty"`

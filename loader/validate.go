@@ -111,6 +111,13 @@ func checkConsistency(project *types.Project) error {
 				}
 			}
 		}
+		for _, mount := range s.Mounts {
+			if mount.Type == types.VolumeTypeVolume && mount.Source != "" { // non anonymous volumes
+				if _, ok := project.Volumes[mount.Source]; !ok {
+					return fmt.Errorf("service %q refers to undefined volume %s: %w", s.Name, mount.Source, errdefs.ErrInvalid)
+				}
+			}
+		}
 		if s.Build != nil {
 			for _, secret := range s.Build.Secrets {
 				if _, ok := project.Secrets[secret.Source]; !ok {
@@ -208,6 +215,13 @@ func checkConsistency(project *types.Project) error {
 				return fmt.Errorf("%s: target %s already mounted as %s", loc, volume.Target, p)
 			}
 			mounts[volume.Target] = loc
+		}
+		for i, mount := range s.Mounts {
+			loc := fmt.Sprintf("services.%s.mounts[%d]", s.Name, i)
+			if p, ok := mounts[mount.Target]; ok {
+				return fmt.Errorf("%s: target %s already mounted as %s", loc, mount.Target, p)
+			}
+			mounts[mount.Target] = loc
 		}
 
 	}

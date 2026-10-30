@@ -479,6 +479,12 @@ func (p *Project) WithoutUnnecessaryResources() *Project {
 			}
 			requiredVolumes[v.Source] = struct{}{}
 		}
+		for _, m := range s.Mounts {
+			if m.Type != VolumeTypeVolume || m.Source == "" {
+				continue
+			}
+			requiredVolumes[m.Source] = struct{}{}
+		}
 		for _, v := range s.Secrets {
 			requiredSecrets[v.Source] = struct{}{}
 		}
@@ -748,18 +754,36 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 			service.PreStart[i].Image = image
 		}
 
-		for i, vol := range service.Volumes {
-			if vol.Type != VolumeTypeImage {
-				continue
-			}
-			image, err := resolve(vol.Source)
-			if err != nil {
-				return service, err
-			}
-			service.Volumes[i].Source = image
+		if err := resolveImageMounts(&service, resolve); err != nil {
+			return service, err
 		}
 		return service, nil
 	})
+}
+
+// resolveImageMounts resolves the image of the `type: image` volumes and mounts of the service
+func resolveImageMounts(service *ServiceConfig, resolve func(string) (string, error)) error {
+	for i, vol := range service.Volumes {
+		if vol.Type != VolumeTypeImage {
+			continue
+		}
+		image, err := resolve(vol.Source)
+		if err != nil {
+			return err
+		}
+		service.Volumes[i].Source = image
+	}
+	for i, mount := range service.Mounts {
+		if mount.Type != VolumeTypeImage {
+			continue
+		}
+		image, err := resolve(mount.Source)
+		if err != nil {
+			return err
+		}
+		service.Mounts[i].Source = image
+	}
+	return nil
 }
 
 // resolveImageDigest returns image with its digest resolved by resolver, unless
