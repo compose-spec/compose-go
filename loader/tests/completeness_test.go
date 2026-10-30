@@ -110,6 +110,7 @@ var coveredBy = map[string]string{
 	"links":               "loader/tests/links_test.go",
 	"logging":             "loader/tests/logging_test.go",
 	"mac_address":         "loader/tests/mac_address_test.go",
+	"mounts":              "loader/tests/mounts_test.go",
 	"mem_limit":           "loader/tests/mem_limit_test.go",
 	"mem_reservation":     "loader/tests/mem_reservation_test.go",
 	"mem_swappiness":      "loader/tests/mem_swappiness_test.go",

@@ -59,6 +59,7 @@ func init() {
 		unique[prefix+".*.sysctls"] = keyValueIndexer
 		unique[prefix+".*.tmpfs"] = keyValueIndexer
 		unique[prefix+".*.volumes"] = volumeIndexer
+		unique[prefix+".*.mounts"] = mountTargetIndexer
 		unique[prefix+".*.devices"] = deviceMappingIndexer
 	}
 	// attributes only services have
@@ -145,6 +146,19 @@ func volumeIndexer(y any, p tree.Path) (string, error) {
 		return volume.Target, nil
 	}
 	return "", nil
+}
+
+// mountTargetIndexer identifies a mount by its target, like volumes
+func mountTargetIndexer(y any, p tree.Path) (string, error) {
+	value, ok := y.(map[string]any)
+	if !ok {
+		return "", nil
+	}
+	target, ok := value["target"].(string)
+	if !ok {
+		return "", fmt.Errorf("mount %s is missing a target", p)
+	}
+	return target, nil
 }
 
 func deviceMappingIndexer(y any, p tree.Path) (string, error) {

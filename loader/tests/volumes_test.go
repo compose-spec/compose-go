@@ -24,6 +24,7 @@ package tests
 // accessible by service containers."
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -188,18 +189,9 @@ services:
   foo:
     image: alpine
     volumes:
-      - type: volume
-        target: a:/data
-        volume: {}
-      - type: bind
-        source: 'C:\Users\me'
-        target: /home
-        bind: {}
-      - type: bind
-        source: C:/Users/me
-        target: /work
-        read_only: true
-        bind: {}
+      - a:/data
+      - 'C:\Users\me:/home'
+      - C:/Users/me:/work:ro
       - type: volume
         source: a
         target: /logs
@@ -335,4 +327,95 @@ services:
 			assert.ErrorContains(t, err, "must be an octal number")
 		})
 	}
+}
+
+// A volume the short syntax can say is written as a short string, whatever the
+// syntax it was declared with, and the others keep the long syntax: the short
+// syntax is the canonical form, the long one what it cannot be. The model that
+// is loaded stays the same, and the JSON form is left structured.
+func TestVolumesCanonicalForm(t *testing.T) {
+	input := `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: bind
+        source: /data
+        target: /a
+        read_only: true
+        bind:
+          create_host_path: true
+          selinux: z
+          propagation: rshared
+      - type: volume
+        source: cache
+        target: /b
+        volume:
+          nocopy: true
+      - type: volume
+        target: /c
+      - /d:/d
+      - type: bind
+        source: /data
+        target: /not-created
+        bind:
+          create_host_path: false
+      - type: volume
+        source: cache
+        target: /subpath
+        volume:
+          subpath: sub
+      - type: bind
+        source: /data
+        target: /colon:in:target
+      - type: tmpfs
+        target: /scratch
+volumes:
+  cache:
+`
+	loadsAs(t, input, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - /data:/a:ro,z,rshared
+      - cache:/b:nocopy
+      - /c
+      - /d:/d
+      - type: bind
+        source: /data
+        target: /not-created
+        bind:
+          create_host_path: false
+      - type: volume
+        source: cache
+        target: /subpath
+        volume:
+          subpath: sub
+      - type: bind
+        source: /data
+        target: /colon:in:target
+      - type: tmpfs
+        target: /scratch
+volumes:
+  cache: {}
+`)
+
+	// what is written reads back as the same project, and as the same text
+	p := load(t, input)
+	out, err := p.MarshalYAML()
+	assert.NilError(t, err)
+	again := load(t, string(out))
+	assert.DeepEqual(t, again.Services["foo"].Volumes, p.Services["foo"].Volumes)
+	outAgain, err := again.MarshalYAML()
+	assert.NilError(t, err)
+	assert.Equal(t, string(outAgain), string(out))
+
+	// the JSON form, which the hash of a service is computed from, doesn't move
+	js, err := p.MarshalJSON()
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(string(js), `"type": "volume"`), string(js))
+	assert.Assert(t, !strings.Contains(string(js), `/data:/a`), string(js))
 }
