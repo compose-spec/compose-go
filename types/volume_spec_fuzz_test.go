@@ -14,15 +14,13 @@
    limitations under the License.
 */
 
-package format
+package types
 
 import (
 	"reflect"
 	"strings"
 	"testing"
 	"unicode/utf8"
-
-	"github.com/compose-spec/compose-go/v2/types"
 )
 
 // FuzzParseVolume locks the short syntax of service `volumes`
@@ -50,7 +48,7 @@ func FuzzParseVolume(f *testing.F) {
 		if err != nil {
 			return
 		}
-		if volume.Type != types.VolumeTypeBind && volume.Type != types.VolumeTypeVolume {
+		if volume.Type != VolumeTypeBind && volume.Type != VolumeTypeVolume {
 			t.Fatalf("ParseVolume(%q) has the unexpected type %q", spec, volume.Type)
 		}
 		if volume.Source == "" || volume.Target == "" || utf8.RuneCountInString(volume.Source) == 1 || utf8.RuneCountInString(volume.Target) == 1 ||

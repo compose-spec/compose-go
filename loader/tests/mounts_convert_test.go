@@ -28,7 +28,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/compose-spec/compose-go/v2/format"
 	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
 	"go.yaml.in/yaml/v4"
@@ -37,7 +36,8 @@ import (
 
 // onlyTheLongSyntax is the obvious case: a volume that the short syntax can't say
 func onlyTheLongSyntax(volume types.ServiceVolumeConfig) (bool, error) {
-	return !format.IsShortSyntaxExpressible(volume), nil
+	_, ok := volume.ShortSyntax()
+	return !ok, nil
 }
 
 func loadConverting(t *testing.T, content string) (*types.Project, error) {
@@ -79,6 +79,12 @@ services:
       - /data:/simple
       - cache:/cache:nocopy
       - /host:/propagated:ro,z,rshared
+      - cache:/relabeled:z
+      - type: volume
+        source: cache
+        target: /relabeled-long
+        bind:
+          selinux: z
       - type: volume
         source: cache
         target: /subpath
@@ -105,22 +111,15 @@ services:
   foo:
     image: alpine
     volumes:
-      - type: bind
-        source: /data
-        target: /simple
-        bind: {}
+      - /data:/simple
+      - cache:/cache:nocopy
+      - /host:/propagated:ro,z,rshared
+      - cache:/relabeled:z
       - type: volume
         source: cache
-        target: /cache
-        volume:
-          nocopy: true
-      - type: bind
-        source: /host
-        target: /propagated
-        read_only: true
+        target: /relabeled-long
         bind:
           selinux: z
-          propagation: rshared
     mounts:
       - type: volume
         source: cache
@@ -265,7 +264,7 @@ services:
 
 // What makes a volume a mount depends on the engine that runs it: the function decides, volume by volume,
 // and what it doesn't say so of stays in `volumes`, even when the short syntax can't say it. The decision of
-// the one used here is what an implementation may do when it knows its engine ignores the extensions.
+// the one used here is the obvious case, for which the extensions are no reason to move a volume.
 func TestConvertVolumesToMountsLeavesTheDecisionToTheCaller(t *testing.T) {
 	input := `
 name: test
@@ -283,10 +282,7 @@ services:
       - /data:/plain
 `
 	t.Run("an extension doesn't make the volume a mount", func(t *testing.T) {
-		p, err := loadConvertingWith(t, input, func(volume types.ServiceVolumeConfig) (bool, error) {
-			volume.Extensions = nil
-			return !format.IsShortSyntaxExpressible(volume), nil
-		})
+		p, err := loadConvertingWith(t, input, onlyTheLongSyntax)
 		assert.NilError(t, err)
 		foo := p.Services["foo"]
 		assert.Equal(t, len(foo.Volumes), 2)

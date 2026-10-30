@@ -64,7 +64,7 @@ func TestShortSyntax(t *testing.T) {
 		{"bind with a colon in the target", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Target = "/t:x" }), ""},
 		{"bind with a colon in the source", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Source = "/da:ta" }), ""},
 		{"bind with a consistency", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Consistency = "cached" }), ""},
-		{"bind with an extension", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Extensions = types.Extensions{"x-a": true} }), ""},
+		{"bind with an extension", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Extensions = types.Extensions{"x-a": true} }), "/data:/t"},
 		{"named volume", volume(nil), "vol:/t"},
 		{"named volume with empty options", volume(&types.ServiceVolumeVolume{}), "vol:/t"},
 		{"named volume read only", with(volume(nil), func(v *types.ServiceVolumeConfig) { v.ReadOnly = true }), "vol:/t:ro"},
@@ -85,7 +85,7 @@ func TestShortSyntax(t *testing.T) {
 		{"named volume bind recursive", with(volume(nil), func(v *types.ServiceVolumeConfig) { v.Bind = &types.ServiceVolumeBind{Recursive: "disabled"} }), ""},
 		{"named volume bind extension", with(volume(nil), func(v *types.ServiceVolumeConfig) {
 			v.Bind = &types.ServiceVolumeBind{Extensions: types.Extensions{"x-a": true}}
-		}), ""},
+		}), "vol:/t"},
 		{"named volume with a colon in the target", with(volume(nil), func(v *types.ServiceVolumeConfig) { v.Target = "/t:x" }), ""},
 		// https://github.com/docker/compose/issues/12993
 		{"named volume at a path made of colons", with(volume(nil), func(v *types.ServiceVolumeConfig) {

@@ -68,8 +68,8 @@ type Options struct {
 	// state to keep: it is shared with the files an extends or an include loads.
 	// Nothing is moved when it is nil, which is the default: what a volume needs
 	// to be a mount depends on the engine that runs it, which is for the caller to
-	// say. format.IsShortSyntaxExpressible tells the obvious case, a
-	// volume that only the long syntax can say.
+	// say. ServiceVolumeConfig.ShortSyntax tells the obvious case, a volume that
+	// only the long syntax can say.
 	ConvertVolumesToMounts func(volume types.ServiceVolumeConfig) (bool, error)
 	// Skip consistency check
 	SkipConsistencyCheck bool
