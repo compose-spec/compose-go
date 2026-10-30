@@ -14,29 +14,27 @@
    limitations under the License.
 */
 
-package format
+package types
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/compose-spec/compose-go/v2/types"
 )
 
-// ShortSyntax renders a volume in the short syntax, `[SOURCE:]TARGET[:OPTIONS]`.
+// ShortSyntax renders a volume in the short syntax, `[SOURCE:]TARGET[:OPTIONS]`,
+// leaving out the options that are the default (`rw`).
 // It reports false when the short syntax can't say what the volume says, which
 // is when no spelling of it parses back as the same volume: something it has no
 // place for (a tmpfs, an image, a subpath, labels, a consistency, extensions...),
 // or something it would read otherwise (a colon in a path, a bind source that
 // is not a path, a bind that doesn't create its host path).
-func ShortSyntax(v types.ServiceVolumeConfig) (string, bool) {
+func (v ServiceVolumeConfig) ShortSyntax() (string, bool) {
 	if !fitsShortSyntax(v) {
 		return "", false
 	}
 
-	options := []string{"rw"}
+	var options []string
 	if v.ReadOnly {
-		options = []string{"ro"}
+		options = append(options, "ro")
 	}
 	if v.Bind != nil && v.Bind.SELinux != "" {
 		options = append(options, v.Bind.SELinux)
@@ -51,8 +49,11 @@ func ShortSyntax(v types.ServiceVolumeConfig) (string, bool) {
 	// an anonymous volume has no place for options
 	spec := v.Target
 	if v.Source != "" {
-		spec = fmt.Sprintf("%s:%s:%s", v.Source, v.Target, strings.Join(options, ","))
-	} else if len(options) != 1 || options[0] != "rw" {
+		spec = v.Source + ":" + v.Target
+		if len(options) > 0 {
+			spec += ":" + strings.Join(options, ",")
+		}
+	} else if len(options) > 0 {
 		return "", false
 	}
 
@@ -65,14 +66,14 @@ func ShortSyntax(v types.ServiceVolumeConfig) (string, bool) {
 
 // IsShortSyntaxExpressible tells whether the short syntax can say what the volume
 // says, so that a volume which isn't can only be written, and understood, as a mount.
-func IsShortSyntaxExpressible(v types.ServiceVolumeConfig) bool {
-	_, ok := ShortSyntax(v)
+func (v ServiceVolumeConfig) IsShortSyntaxExpressible() bool {
+	_, ok := v.ShortSyntax()
 	return ok
 }
 
 // fitsShortSyntax checks what has no place in the short syntax, whatever the
 // spelling: the type, and the attributes and options it does not know.
-func fitsShortSyntax(v types.ServiceVolumeConfig) bool {
+func fitsShortSyntax(v ServiceVolumeConfig) bool {
 	if v.Target == "" || v.Consistency != "" || len(v.Extensions) > 0 {
 		return false
 	}
@@ -80,7 +81,7 @@ func fitsShortSyntax(v types.ServiceVolumeConfig) bool {
 		return false
 	}
 	switch v.Type {
-	case types.VolumeTypeBind:
+	case VolumeTypeBind:
 		if v.Source == "" {
 			return false
 		}
@@ -90,7 +91,7 @@ func fitsShortSyntax(v types.ServiceVolumeConfig) bool {
 		if b := v.Bind; b != nil && (!bool(b.CreateHostPath) || b.Recursive != "" || len(b.Extensions) > 0) {
 			return false
 		}
-	case types.VolumeTypeVolume:
+	case VolumeTypeVolume:
 		if !isZeroBind(v.Bind) {
 			return false
 		}
@@ -103,22 +104,22 @@ func fitsShortSyntax(v types.ServiceVolumeConfig) bool {
 	return true
 }
 
-func isZeroBind(b *types.ServiceVolumeBind) bool {
+func isZeroBind(b *ServiceVolumeBind) bool {
 	return b == nil || (b.SELinux == "" && b.Propagation == "" && b.Recursive == "" && len(b.Extensions) == 0 && !bool(b.CreateHostPath))
 }
 
-func isZeroVolume(v *types.ServiceVolumeVolume) bool {
+func isZeroVolume(v *ServiceVolumeVolume) bool {
 	return v == nil || (!v.NoCopy && v.Subpath == "" && len(v.Labels) == 0 && len(v.Extensions) == 0)
 }
 
 // sameVolume compares what the short syntax can carry. An option that is not set
 // is the same as one that is not there: the parser always sets the options of
 // the type it recognizes.
-func sameVolume(parsed, v types.ServiceVolumeConfig) bool {
+func sameVolume(parsed, v ServiceVolumeConfig) bool {
 	if parsed.Type != v.Type || parsed.Source != v.Source || parsed.Target != v.Target || parsed.ReadOnly != v.ReadOnly {
 		return false
 	}
-	var pb, vb types.ServiceVolumeBind
+	var pb, vb ServiceVolumeBind
 	if parsed.Bind != nil {
 		pb = *parsed.Bind
 	}
@@ -127,7 +128,7 @@ func sameVolume(parsed, v types.ServiceVolumeConfig) bool {
 	}
 	// a bind of the short syntax creates its host path, which is also the default
 	// of a bind that doesn't say
-	if v.Type == types.VolumeTypeBind {
+	if v.Type == VolumeTypeBind {
 		pb.CreateHostPath, vb.CreateHostPath = true, true
 	} else {
 		pb.CreateHostPath, vb.CreateHostPath = false, false
@@ -135,7 +136,7 @@ func sameVolume(parsed, v types.ServiceVolumeConfig) bool {
 	if pb.SELinux != vb.SELinux || pb.Propagation != vb.Propagation || pb.CreateHostPath != vb.CreateHostPath {
 		return false
 	}
-	var pv, vv types.ServiceVolumeVolume
+	var pv, vv ServiceVolumeVolume
 	if parsed.Volume != nil {
 		pv = *parsed.Volume
 	}
@@ -143,4 +144,15 @@ func sameVolume(parsed, v types.ServiceVolumeConfig) bool {
 		vv = *v.Volume
 	}
 	return pv.NoCopy == vv.NoCopy
+}
+
+// MarshalYAML writes a volume the short syntax can say as a string, and the
+// others as the long syntax, so that the short syntax is the canonical form of
+// a volume and the long one only what it cannot be.
+func (v ServiceVolumeConfig) MarshalYAML() (interface{}, error) {
+	if spec, ok := v.ShortSyntax(); ok {
+		return spec, nil
+	}
+	type t ServiceVolumeConfig
+	return t(v), nil
 }

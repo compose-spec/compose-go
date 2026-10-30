@@ -91,22 +91,9 @@ services:
   foo:
     image: alpine
     volumes:
-      - type: bind
-        source: /data
-        target: /simple
-        bind: {}
-      - type: volume
-        source: cache
-        target: /cache
-        volume:
-          nocopy: true
-      - type: bind
-        source: /host
-        target: /propagated
-        read_only: true
-        bind:
-          selinux: z
-          propagation: rshared
+      - /data:/simple
+      - cache:/cache:nocopy
+      - /host:/propagated:ro,z,rshared
     mounts:
       - type: volume
         source: cache
