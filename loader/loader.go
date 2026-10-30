@@ -735,12 +735,7 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 	}
 
 	if opts.ConvertWindowsPaths {
-		for i, service := range project.Services {
-			for j, volume := range service.Volumes {
-				service.Volumes[j] = convertVolumePath(volume)
-			}
-			project.Services[i] = service
-		}
+		convertWindowsPaths(project)
 	}
 
 	if project, err = project.WithProfiles(opts.Profiles); err != nil {
@@ -1073,17 +1068,34 @@ func formatInvalidKeyError(keyPrefix string, key interface{}) error {
 	return fmt.Errorf("non-string key %s: %#v", location, key)
 }
 
+// convertWindowsPaths turns the Windows sources of the binds of the services
+func convertWindowsPaths(project *types.Project) {
+	for i, service := range project.Services {
+		for j, volume := range service.Volumes {
+			service.Volumes[j] = convertVolumePath(volume)
+		}
+		for j, mount := range service.Mounts {
+			if mount.Type == types.VolumeTypeBind {
+				service.Mounts[j].Source = convertSourcePath(mount.Source)
+			}
+		}
+		project.Services[i] = service
+	}
+}
+
+func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConfig {
+	volume.Source = convertSourcePath(volume.Source)
+	return volume
+}
+
 // Windows path, c:\\my\\path\\shiny, need to be changed to be compatible with
 // the Engine. Volume path are expected to be linux style /c/my/path/shiny/
-func convertVolumePath(volume types.ServiceVolumeConfig) types.ServiceVolumeConfig {
-	volumeName := strings.ToLower(filepath.VolumeName(volume.Source))
+func convertSourcePath(source string) string {
+	volumeName := strings.ToLower(filepath.VolumeName(source))
 	if len(volumeName) != 2 {
-		return volume
+		return source
 	}
 
-	convertedSource := fmt.Sprintf("/%c%s", volumeName[0], volume.Source[len(volumeName):])
-	convertedSource = strings.ReplaceAll(convertedSource, "\\", "/")
-
-	volume.Source = convertedSource
-	return volume
+	convertedSource := fmt.Sprintf("/%c%s", volumeName[0], source[len(volumeName):])
+	return strings.ReplaceAll(convertedSource, "\\", "/")
 }

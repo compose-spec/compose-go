@@ -51,3 +51,20 @@ func TestConvertWindowsVolumePath(t *testing.T) {
 		assert.Equal(t, testcase.expectedConvertedPath, convertVolumePath(volume).Source)
 	}
 }
+
+func TestConvertWindowsMountPath(t *testing.T) {
+	project := &types.Project{Services: types.Services{"foo": {ContainerSpec: types.ContainerSpec{
+		Volumes: []types.ServiceVolumeConfig{{Type: types.VolumeTypeBind, Source: "d:\\compose", Target: "/volume"}},
+		Mounts: []types.ServiceMountConfig{
+			{Type: types.VolumeTypeBind, Source: "c:\\hello\\docker", Target: "/test"},
+			{Type: types.VolumeTypeImage, Source: "a:1", Target: "/image"},
+		},
+	}}}}
+
+	convertWindowsPaths(project)
+
+	service := project.Services["foo"]
+	assert.Equal(t, service.Volumes[0].Source, "/d/compose")
+	assert.Equal(t, service.Mounts[0].Source, "/c/hello/docker")
+	assert.Equal(t, service.Mounts[1].Source, "a:1")
+}
