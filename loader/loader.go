@@ -60,6 +60,9 @@ type Options struct {
 	ResolvePaths bool
 	// Convert Windows path
 	ConvertWindowsPaths bool
+	// ConvertVolumesToMounts moves to `mounts` the `volumes` that the short syntax
+	// can't say, as the equivalent mounts, once the model is loaded.
+	ConvertVolumesToMounts bool
 	// Skip consistency check
 	SkipConsistencyCheck bool
 	// Skip extends
@@ -208,6 +211,7 @@ func (o *Options) clone() *Options {
 		SkipNormalization:          o.SkipNormalization,
 		ResolvePaths:               o.ResolvePaths,
 		ConvertWindowsPaths:        o.ConvertWindowsPaths,
+		ConvertVolumesToMounts:     o.ConvertVolumesToMounts,
 		SkipConsistencyCheck:       o.SkipConsistencyCheck,
 		SkipExtends:                o.SkipExtends,
 		SkipInclude:                o.SkipInclude,
@@ -736,6 +740,12 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 
 	if opts.ConvertWindowsPaths {
 		convertWindowsPaths(project)
+	}
+
+	if opts.ConvertVolumesToMounts {
+		if err := ConvertVolumesToMounts(project); err != nil {
+			return nil, err
+		}
 	}
 
 	if project, err = project.WithProfiles(opts.Profiles); err != nil {
