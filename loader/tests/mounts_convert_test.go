@@ -65,6 +65,12 @@ services:
       - /data:/simple
       - cache:/cache:nocopy
       - /host:/propagated:ro,z,rshared
+      - cache:/relabeled:z
+      - type: volume
+        source: cache
+        target: /relabeled-long
+        bind:
+          selinux: z
       - type: volume
         source: cache
         target: /subpath
@@ -91,22 +97,15 @@ services:
   foo:
     image: alpine
     volumes:
-      - type: bind
-        source: /data
-        target: /simple
-        bind: {}
+      - /data:/simple
+      - cache:/cache:nocopy
+      - /host:/propagated:ro,z,rshared
+      - cache:/relabeled:z
       - type: volume
         source: cache
-        target: /cache
-        volume:
-          nocopy: true
-      - type: bind
-        source: /host
-        target: /propagated
-        read_only: true
+        target: /relabeled-long
         bind:
           selinux: z
-          propagation: rshared
     mounts:
       - type: volume
         source: cache

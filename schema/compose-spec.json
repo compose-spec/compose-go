@@ -885,7 +885,7 @@
         },
         "volumes": {
           "type": "array",
-          "description": "Mount host paths or named volumes accessible to the container. Short syntax (VOLUME:CONTAINER_PATH[:MODE])",
+          "description": "Mount host paths or named volumes accessible to the container. Short syntax (VOLUME:CONTAINER_PATH[:MODE]). The long syntax is deprecated: use 'mounts' for what the short syntax can't say.",
           "items": {
             "oneOf": [
               {
@@ -893,6 +893,8 @@
               },
               {
                 "type": "object",
+                "deprecated": true,
+                "description": "Long syntax. Deprecated: use 'mounts'.",
                 "required": [
                   "type"
                 ],

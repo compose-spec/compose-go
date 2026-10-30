@@ -19,13 +19,12 @@ package loader
 import (
 	"fmt"
 
-	"github.com/compose-spec/compose-go/v2/format"
 	"github.com/compose-spec/compose-go/v2/types"
 )
 
 // ConvertVolumesToMounts moves the volumes that the short syntax can't say from
 // the `volumes` of the services, jobs and pre_start hooks of the project to their
-// `mounts`, as the mounts they are equivalent to (see format.IsShortSyntaxExpressible
+// `mounts`, as the mounts they are equivalent to (see ServiceVolumeConfig.IsShortSyntaxExpressible
 // and types.ServiceVolumeConfig.ToMount). The volumes the short syntax can say are
 // left as they are, so that running it again changes nothing.
 //
@@ -62,7 +61,7 @@ func convertSpecVolumesToMounts(spec *types.ContainerSpec, where string) error {
 	var volumes []types.ServiceVolumeConfig
 	var mounts []types.ServiceMountConfig
 	for _, volume := range spec.Volumes {
-		if format.IsShortSyntaxExpressible(volume) {
+		if volume.IsShortSyntaxExpressible() {
 			volumes = append(volumes, volume)
 			continue
 		}
