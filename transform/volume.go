@@ -28,18 +28,8 @@ import (
 func transformVolumeMount(data any, p tree.Path, ignoreParseError bool) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
-		if tmpfs, ok := v["tmpfs"].(map[string]any); ok {
-			if mode, ok := tmpfs["mode"].(string); ok {
-				// the Docker CLI reads the mode of a tmpfs as an octal number
-				i, err := strconv.ParseUint(mode, 8, 32)
-				if err != nil {
-					if ignoreParseError {
-						return v, nil
-					}
-					return nil, fmt.Errorf("%s.tmpfs.mode: invalid mode %q: must be an octal number that fits in 32 bits", p, mode)
-				}
-				tmpfs["mode"] = uint32(i)
-			}
+		if err := transformTmpfsMode(v, p, ignoreParseError); err != nil {
+			return nil, err
 		}
 		return v, nil
 	case string:
@@ -56,6 +46,41 @@ func transformVolumeMount(data any, p tree.Path, ignoreParseError bool) (any, er
 	default:
 		return data, fmt.Errorf("%s: invalid type %T for service volume mount", p, v)
 	}
+}
+
+// transformTmpfsMode reads the mode of the tmpfs of a mount as the octal number
+// the Docker CLI reads it as
+func transformTmpfsMode(mount map[string]any, p tree.Path, ignoreParseError bool) error {
+	tmpfs, ok := mount["tmpfs"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	mode, ok := tmpfs["mode"].(string)
+	if !ok {
+		return nil
+	}
+	i, err := strconv.ParseUint(mode, 8, 32)
+	if err != nil {
+		if ignoreParseError {
+			return nil
+		}
+		return fmt.Errorf("%s.tmpfs.mode: invalid mode %q: must be an octal number that fits in 32 bits", p, mode)
+	}
+	tmpfs["mode"] = uint32(i)
+	return nil
+}
+
+// transformMount canonicalizes an entry of `mounts`. Unlike a volume, a mount has
+// no short syntax: its structure is the one of the `--mount` flag.
+func transformMount(data any, p tree.Path, ignoreParseError bool) (any, error) {
+	v, ok := data.(map[string]any)
+	if !ok {
+		return data, fmt.Errorf("%s: invalid type %T for mount: a mount is a mapping", p, data)
+	}
+	if err := transformTmpfsMode(v, p, ignoreParseError); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 func cleanTarget(target string) string {

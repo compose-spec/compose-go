@@ -209,6 +209,9 @@ func checkServiceReferences(project *types.Project, s *types.ServiceConfig) erro
 	if err := checkVolumeReferences(project, fmt.Sprintf("service %q", s.Name), s.Volumes); err != nil {
 		return err
 	}
+	if err := checkMountReferences(project, fmt.Sprintf("service %q", s.Name), s.Mounts); err != nil {
+		return err
+	}
 	if s.Build != nil {
 		for _, secret := range s.Build.Secrets {
 			if _, ok := project.Secrets[secret.Source]; !ok {
@@ -314,7 +317,22 @@ func checkContainerVolumes(project *types.Project, path string, spec *types.Cont
 	if err := checkVolumeReferences(project, path+".volumes", spec.Volumes); err != nil {
 		return err
 	}
+	if err := checkMountReferences(project, path+".mounts", spec.Mounts); err != nil {
+		return err
+	}
 	return checkMountTargets(path, spec)
+}
+
+func checkMountReferences(project *types.Project, location string, mounts []types.ServiceMountConfig) error {
+	for _, mount := range mounts {
+		if mount.Type != types.VolumeTypeVolume || mount.Source == "" {
+			continue
+		}
+		if _, ok := project.Volumes[mount.Source]; !ok {
+			return fmt.Errorf("%s refers to undefined volume %s: %w", location, mount.Source, errdefs.ErrInvalid)
+		}
+	}
+	return nil
 }
 
 func checkVolumeReferences(project *types.Project, location string, volumes []types.ServiceVolumeConfig) error {
@@ -329,7 +347,7 @@ func checkVolumeReferences(project *types.Project, location string, volumes []ty
 	return nil
 }
 
-// checkMountTargets rejects multiple tmpfs or volume mounts at the same target.
+// checkMountTargets rejects multiple tmpfs, volumes or mounts entries at the same target.
 func checkMountTargets(containerPath string, spec *types.ContainerSpec) error {
 	mounts := map[string]string{}
 	for i, tmpfs := range spec.Tmpfs {
@@ -346,6 +364,13 @@ func checkMountTargets(containerPath string, spec *types.ContainerSpec) error {
 			return fmt.Errorf("%s: target %s already mounted as %s: %w", loc, volume.Target, p, errdefs.ErrInvalid)
 		}
 		mounts[volume.Target] = loc
+	}
+	for i, mount := range spec.Mounts {
+		loc := fmt.Sprintf("%s.mounts[%d]", containerPath, i)
+		if p, ok := mounts[mount.Target]; ok {
+			return fmt.Errorf("%s: target %s already mounted as %s: %w", loc, mount.Target, p, errdefs.ErrInvalid)
+		}
+		mounts[mount.Target] = loc
 	}
 	return nil
 }
