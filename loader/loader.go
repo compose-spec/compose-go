@@ -60,6 +60,17 @@ type Options struct {
 	ResolvePaths bool
 	// Convert Windows path
 	ConvertWindowsPaths bool
+	// ConvertVolumesToMounts moves to `mounts` the `volumes` it says so of, as the
+	// equivalent mounts, once the model is loaded. It is called with each volume of
+	// the services, jobs and pre_start hooks, as normalization left it (create_host_path
+	// defaulted, for one), and tells whether it must become a mount, or fails: the error
+	// is returned by the load with the container and the volume it is about. It has no
+	// state to keep: it is shared with the files an extends or an include loads.
+	// Nothing is moved when it is nil, which is the default: what a volume needs
+	// to be a mount depends on the engine that runs it, which is for the caller to
+	// say. format.IsShortSyntaxExpressible tells the obvious case, a
+	// volume that only the long syntax can say.
+	ConvertVolumesToMounts func(volume types.ServiceVolumeConfig) (bool, error)
 	// Skip consistency check
 	SkipConsistencyCheck bool
 	// Skip extends
@@ -726,6 +737,12 @@ func ModelToProject(dict map[string]interface{}, opts *Options, configDetails ty
 
 	if opts.ConvertWindowsPaths {
 		convertWindowsPaths(project)
+	}
+
+	if opts.ConvertVolumesToMounts != nil {
+		if err := ConvertVolumesToMounts(project, opts.ConvertVolumesToMounts); err != nil {
+			return nil, err
+		}
 	}
 
 	if project, err = project.WithProfiles(opts.Profiles); err != nil {
