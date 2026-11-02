@@ -77,7 +77,11 @@ func (p *ResetProcessor) UnmarshalYAML(value *yaml.Node) error {
 		return errors.New("!reset cannot be set on the whole document")
 	}
 	p.addAliasPaths()
-	return resolved.Decode(p.target)
+	// Not Node.Decode: it builds its constructor from go-yaml's DefaultOptions,
+	// which carry no alias or depth limit, whereas Load applies the default
+	// ones. The aliases are expanded here, not by the decoder that called
+	// UnmarshalYAML.
+	return resolved.Load(p.target)
 }
 
 // addAliasPaths records, next to each path going through an extension declared
