@@ -12,7 +12,7 @@ require (
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.1
 	github.com/sirupsen/logrus v1.10.1
 	github.com/xhit/go-str2duration/v2 v2.1.0
-	go.yaml.in/yaml/v4 v4.0.0-rc.4
+	go.yaml.in/yaml/v4 v4.0.0-rc.8
 	golang.org/x/sync v0.24.0
 	golang.org/x/text v0.41.0
 	gotest.tools/v3 v3.5.2
