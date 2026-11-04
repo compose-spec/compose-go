@@ -784,6 +784,30 @@ func (u *UlimitsConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(*u)
 }
 
+// UnmarshalJSON makes UlimitsConfig implement json.Unmarshaler, accepting
+// both shapes MarshalJSON produces: a bare number for a single limit, and
+// an object with soft and hard limits.
+func (u *UlimitsConfig) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		return nil
+	}
+	var single int
+	if err := json.Unmarshal(data, &single); err == nil {
+		u.Single = single
+		u.Soft = 0
+		u.Hard = 0
+		return nil
+	}
+	// Decode through an alias to avoid re-entering this method.
+	type ulimitsConfig UlimitsConfig
+	var v ulimitsConfig
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	*u = UlimitsConfig(v)
+	return nil
+}
+
 // NetworkConfig for a network
 type NetworkConfig struct {
 	Name         string     `yaml:"name,omitempty" json:"name,omitempty"`

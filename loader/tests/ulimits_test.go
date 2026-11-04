@@ -22,6 +22,7 @@ package tests
 // Spec: "`ulimits` overrides the default ulimits for a container."
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -66,6 +67,30 @@ jobs:
 	yamlP, jsonP := roundTrip(t, p)
 	expect(yamlP)
 	expect(jsonP)
+}
+
+// A project marshalled to JSON must unmarshal back with encoding/json,
+// including a ulimit written as a single number. MarshalJSON writes that
+// form, so UnmarshalJSON must accept it, or tools decoding a marshalled
+// project fail on the ulimit. Regression test for
+// https://github.com/compose-spec/compose-go/issues/980
+func TestUlimitsJSONRoundTrip(t *testing.T) {
+	p := load(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 20000
+        hard: 40000
+`)
+	jsonBytes, err := json.Marshal(p)
+	assert.NilError(t, err)
+	var back types.Project
+	assert.NilError(t, json.Unmarshal(jsonBytes, &back))
+	assert.DeepEqual(t, back.Services["foo"].Ulimits, p.Services["foo"].Ulimits)
 }
 
 // A ulimit whose soft or hard limit is not a number is rejected with an error
