@@ -19,6 +19,7 @@ package loader
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/compose-spec/compose-go/v2/errdefs"
@@ -176,6 +177,19 @@ func checkConsistency(project *types.Project) error {
 			}
 		}
 
+		if s.Restart != "" && s.Deploy != nil && s.Deploy.RestartPolicy != nil {
+			name, attempts, hasAttempts := parseRestart(s.Restart)
+			policy := s.Deploy.RestartPolicy
+			if policy.Condition != "" && restartCondition(policy.Condition) != name {
+				return fmt.Errorf("services.%s: can't set distinct values on 'restart' and 'deploy.restart_policy.condition': %w",
+					s.Name, errdefs.ErrInvalid)
+			}
+			if policy.MaxAttempts != nil && hasAttempts && int(*policy.MaxAttempts) != attempts {
+				return fmt.Errorf("services.%s: can't set distinct values on 'restart' and 'deploy.restart_policy.max_attempts': %w",
+					s.Name, errdefs.ErrInvalid)
+			}
+		}
+
 		if s.GetScale() > 1 && s.ContainerName != "" {
 			attr := "scale"
 			if s.Scale == nil {
@@ -249,4 +263,32 @@ func checkConsistency(project *types.Project) error {
 	}
 
 	return graph.CheckCycle(project)
+}
+
+// parseRestart splits a service restart value into the policy name and the
+// retry count optionally declared after a colon (e.g. "on-failure:3").
+func parseRestart(restart string) (string, int, bool) {
+	name, num, ok := strings.Cut(restart, ":")
+	var attempts int
+	if ok {
+		attempts, _ = strconv.Atoi(num)
+	}
+	return name, attempts, ok
+}
+
+// restartCondition maps a deploy.restart_policy condition to the restart
+// vocabulary used by the service-level restart attribute.
+func restartCondition(condition string) string {
+	switch condition {
+	case "none", "no":
+		return types.RestartPolicyNo
+	case "any", "always":
+		return types.RestartPolicyAlways
+	case "on-failure":
+		return types.RestartPolicyOnFailure
+	case "unless-stopped":
+		return types.RestartPolicyUnlessStopped
+	default:
+		return condition
+	}
 }
