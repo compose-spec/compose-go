@@ -42,7 +42,7 @@ services:
       restart_policy:
         condition: on-failure
         max_attempts: 3
-    restart: unless-stopped
+    restart: on-failure:3
     scale: 2
     post_start:
       - command:
