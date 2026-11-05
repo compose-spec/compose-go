@@ -103,7 +103,7 @@
         },
         "placement": {}
       },
-      "restart": "unless-stopped",
+      "restart": "on-failure:3",
       "scale": 2,
       "post_start": [
         {
