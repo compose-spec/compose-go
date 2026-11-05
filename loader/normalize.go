@@ -59,6 +59,10 @@ func Normalize(dict map[string]any, env types.Mapping) (map[string]any, error) {
 			if err := normalizeContainer(container, lookup, where); err != nil {
 				return nil, err
 			}
+			if key == "services" {
+				// a job runs to completion: it has no restart policy, nor `deploy`
+				carryRestartPolicy(container)
+			}
 			containers[name] = container
 		}
 
