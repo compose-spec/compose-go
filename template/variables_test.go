@@ -217,6 +217,36 @@ func TestExtractVariables(t *testing.T) {
 			},
 		},
 		{
+			name: "nested-in-required-error-braced",
+			dict: map[string]interface{}{
+				"foo": "${U:?${B}}",
+			},
+			expected: map[string]Variable{
+				"U": {Name: "U", Required: true},
+				"B": {Name: "B"},
+			},
+		},
+		{
+			name: "nested-in-required-error-unbraced",
+			dict: map[string]interface{}{
+				"foo": "${U?$B}",
+			},
+			expected: map[string]Variable{
+				"U": {Name: "U", Required: true},
+				"B": {Name: "B"},
+			},
+		},
+		{
+			name: "nested-default-in-required-error",
+			dict: map[string]interface{}{
+				"foo": "${U:?${B:-fallback}}",
+			},
+			expected: map[string]Variable{
+				"U": {Name: "U", Required: true},
+				"B": {Name: "B", DefaultValue: "fallback"},
+			},
+		},
+		{
 			name: "nested-array-of-maps",
 			dict: map[string]interface{}{
 				"volumes": []interface{}{
