@@ -19,10 +19,7 @@ services:
         target: /run/secrets/db_password
         mode: "0400"
     volumes:
-      - type: volume
-        source: db-data
-        target: /var/lib/postgresql/data
-        volume: {}
+      - db-data:/var/lib/postgresql/data
     healthcheck:
       test:
         - CMD-SHELL
@@ -74,16 +71,8 @@ services:
           - www
         priority: 10
     volumes:
-      - type: bind
-        source: ./static
-        target: /usr/share/nginx/html
-        read_only: true
-        bind: {}
-      - type: volume
-        source: data
-        target: /data
-        volume:
-          nocopy: true
+      - ./static:/usr/share/nginx/html:ro
+      - data:/data:nocopy
       - type: tmpfs
         target: /scratch
         tmpfs:

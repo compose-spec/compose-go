@@ -42,6 +42,7 @@ func ResolveRelativePaths(project map[string]any, base string, remotes []RemoteR
 		"services.*.extends.file":                r.absExtendsPath,
 		"services.*.develop.watch.*.path":        r.absSymbolicLink,
 		"services.*.volumes.*":                   r.absVolumeMount,
+		"services.*.mounts.*":                    r.absMount,
 		"jobs.*.build.context":                   r.absContextPath,
 		"jobs.*.build.additional_contexts.*":     r.absAdditionalContextPath,
 		"jobs.*.build.ssh.*":                     r.absSSHPath,
@@ -49,10 +50,12 @@ func ResolveRelativePaths(project map[string]any, base string, remotes []RemoteR
 		"jobs.*.label_file.*":                    r.absPath,
 		"jobs.*.extends.file":                    r.absExtendsPath,
 		"jobs.*.volumes.*":                       r.absVolumeMount,
+		"jobs.*.mounts.*":                        r.absMount,
 		// pre_start hooks are full container specifications (compose-spec#656)
 		"services.*.pre_start.*.env_file.*.path": r.absPath,
 		"services.*.pre_start.*.label_file.*":    r.absPath,
 		"services.*.pre_start.*.volumes.*":       r.absVolumeMount,
+		"services.*.pre_start.*.mounts.*":        r.absMount,
 		"configs.*.file":                         r.maybeUnixPath,
 		"secrets.*.file":                         r.maybeUnixPath,
 		"include.path":                           r.absPath,
@@ -172,6 +175,23 @@ func (r *relativePathsResolver) absVolumeMount(a any) (any, error) {
 		// not using canonical format, skip
 		return a, nil
 	}
+}
+
+// absMount resolves the paths of a mount: the source of a bind, and the device of
+// the local volume that a volume mount asks for, as it does for the volumes of the project
+func (r *relativePathsResolver) absMount(a any) (any, error) {
+	a, err := r.absVolumeMount(a)
+	if err != nil {
+		return nil, err
+	}
+	if mount, ok := a.(map[string]any); ok && mount["type"] == types.VolumeTypeVolume {
+		if opts, ok := mount["volume"]; ok {
+			if mount["volume"], err = r.volumeDriverOpts(opts); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return a, nil
 }
 
 func (r *relativePathsResolver) volumeDriverOpts(a any) (any, error) {

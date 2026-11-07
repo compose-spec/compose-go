@@ -53,6 +53,7 @@ var ContainerSpecAttributes = []string{
 	"mem_swappiness",
 	"memswap_limit",
 	"models",
+	"mounts",
 	"network_mode",
 	"networks",
 	"oom_kill_disable",
