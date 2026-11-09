@@ -343,6 +343,171 @@ func Test_ResolveImages_imageVolumes(t *testing.T) {
 	assert.Equal(t, volumes[2].Source, "vol")
 }
 
+// A `type: image` volume of a pre_start hook is pulled as the one of the service
+// is, so resolving the images of a project pins it to a digest too. It is
+// resolved once when the service, or another hook, mounts the same image.
+// https://github.com/compose-spec/compose-go/issues/985
+func Test_ResolveImages_preStartHookImageVolumes(t *testing.T) {
+	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	var mu sync.Mutex
+	calls := map[string]int{}
+	resolver := func(named reference.Named) (digest.Digest, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		calls[named.Name()+":"+reference.TagNameOnly(named).(reference.Tagged).Tag()]++
+		return digested, nil
+	}
+	p := &Project{
+		Services: Services{
+			"service_1": {
+				Name: "service_1",
+				ContainerSpec: ContainerSpec{
+					Image:   "alpine:3.20",
+					Volumes: []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "busybox", Target: "/d"}},
+				},
+				PreStart: []PreStartHook{
+					{ContainerSpec: ContainerSpec{
+						Image: "alpine:3.20",
+						Volumes: []ServiceVolumeConfig{
+							// the volume of the service, which the hook inherits
+							{Type: VolumeTypeImage, Source: "busybox", Target: "/d"},
+							{Type: VolumeTypeImage, Source: "tools:1", Target: "/tools"},
+							{Type: VolumeTypeVolume, Source: "vol", Target: "/vol"},
+						},
+					}},
+					// a hook without volume is left as it is
+					{ContainerSpec: ContainerSpec{Image: "alpine:3.20"}},
+				},
+			},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	service := p.Services["service_1"]
+	assert.Equal(t, service.Volumes[0].Source, "docker.io/library/busybox:latest@"+digested)
+	hook := service.PreStart[0]
+	assert.Equal(t, hook.Volumes[0].Source, "docker.io/library/busybox:latest@"+digested)
+	assert.Equal(t, hook.Volumes[1].Source, "docker.io/library/tools:1@"+digested)
+	assert.Equal(t, hook.Volumes[2].Source, "vol")
+	assert.Equal(t, len(service.PreStart[1].Volumes), 0)
+	assert.Equal(t, calls["docker.io/library/busybox:latest"], 1, "an image mounted twice is resolved once")
+}
+
+// A job runs from its own image and mounts `type: image` volumes, which are
+// pinned to a digest like the ones of a service when the images of a project are
+// resolved. An image which already has a digest, and a volume which is not an
+// image, are left as they are.
+// https://github.com/compose-spec/compose-go/issues/985
+func Test_ResolveImages_jobs(t *testing.T) {
+	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	const other = "sha256:abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return digested, nil
+	}
+	p := &Project{
+		Services: Services{
+			"service_1": {Name: "service_1", ContainerSpec: ContainerSpec{Image: "alpine:3.20"}},
+		},
+		Jobs: Jobs{
+			"migrate": {
+				Name: "migrate",
+				ContainerSpec: ContainerSpec{
+					Image: "migrate:2",
+					Volumes: []ServiceVolumeConfig{
+						{Type: VolumeTypeImage, Source: "schema:5", Target: "/schema"},
+						{Type: VolumeTypeVolume, Source: "vol", Target: "/vol"},
+					},
+				},
+			},
+			"pinned": {
+				Name: "pinned",
+				ContainerSpec: ContainerSpec{
+					Image:   "docker.io/library/pinned@" + other,
+					Volumes: []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "docker.io/library/data@" + other, Target: "/data"}},
+				},
+			},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	migrate := p.Jobs["migrate"]
+	assert.Equal(t, migrate.Image, "docker.io/library/migrate:2@"+digested)
+	assert.Equal(t, migrate.Volumes[0].Source, "docker.io/library/schema:5@"+digested)
+	assert.Equal(t, migrate.Volumes[1].Source, "vol")
+	pinned := p.Jobs["pinned"]
+	assert.Equal(t, pinned.Image, "docker.io/library/pinned@"+other)
+	assert.Equal(t, pinned.Volumes[0].Source, "docker.io/library/data@"+other)
+}
+
+// Resolving the images returns a new project: the hooks and the jobs of the
+// project it is called on keep the references they had.
+// https://github.com/compose-spec/compose-go/issues/985
+func Test_ResolveImages_leavesTheProjectUnchanged(t *testing.T) {
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return "sha256:1234567890123456789012345678901234567890123456789012345678901234", nil
+	}
+	p := &Project{
+		Services: Services{
+			"service_1": {
+				Name:          "service_1",
+				ContainerSpec: ContainerSpec{Image: "alpine:3.20"},
+				PreStart: []PreStartHook{{ContainerSpec: ContainerSpec{
+					Image:   "alpine:3.20",
+					Volumes: []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "busybox", Target: "/d"}},
+				}}},
+			},
+		},
+		Jobs: Jobs{
+			"migrate": {Name: "migrate", ContainerSpec: ContainerSpec{
+				Image:   "migrate:2",
+				Volumes: []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "schema:5", Target: "/schema"}},
+			}},
+		},
+	}
+
+	_, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	assert.Equal(t, p.Services["service_1"].PreStart[0].Volumes[0].Source, "busybox")
+	assert.Equal(t, p.Jobs["migrate"].Image, "migrate:2")
+	assert.Equal(t, p.Jobs["migrate"].Volumes[0].Source, "schema:5")
+}
+
+// An image which cannot be resolved fails the resolution of the project, wherever
+// it is: in a volume of a hook, or in the image or a volume of a job, as it does
+// in the image of a service.
+// https://github.com/compose-spec/compose-go/issues/985
+func Test_ResolveImages_failsOnWhatItCannotResolve(t *testing.T) {
+	resolver := func(named reference.Named) (digest.Digest, error) {
+		if strings.HasPrefix(named.Name(), "docker.io/library/unreachable") {
+			return "", errors.New("registry unreachable")
+		}
+		return "sha256:1234567890123456789012345678901234567890123456789012345678901234", nil
+	}
+	imageVolume := []ServiceVolumeConfig{{Type: VolumeTypeImage, Source: "unreachable", Target: "/d"}}
+
+	for name, p := range map[string]*Project{
+		"volume of a pre_start hook": {Services: Services{"service_1": {
+			Name:          "service_1",
+			ContainerSpec: ContainerSpec{Image: "alpine"},
+			PreStart:      []PreStartHook{{ContainerSpec: ContainerSpec{Image: "alpine", Volumes: imageVolume}}},
+		}}},
+		"image of a job": {Jobs: Jobs{"migrate": {Name: "migrate", ContainerSpec: ContainerSpec{Image: "unreachable"}}}},
+		"volume of a job": {Jobs: Jobs{"migrate": {Name: "migrate", ContainerSpec: ContainerSpec{
+			Image: "alpine", Volumes: imageVolume,
+		}}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := p.WithImagesResolved(resolver)
+			assert.ErrorContains(t, err, "registry unreachable")
+		})
+	}
+}
+
 func Test_ResolveImages_preStartHookError(t *testing.T) {
 	// A resolver failure on a pre_start hook image is fatal: hooks run as the
 	// service's own runtime images and must resolve.
