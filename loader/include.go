@@ -258,10 +258,12 @@ func (i *includer) setProjectDirectory(r *types.IncludeConfig, loader ResourceLo
 // For an included file, workingDir is relative to the project directory of
 // its parent, so that the paths of its model resolve once merged there; files
 // read right away, such as env files, need the absolute directory the local
-// resource loader is set to.
+// resource loader is set to. A local loader with no working directory is
+// skipped, since a path joined to an empty directory is relative to the
+// process.
 func (i *includer) baseDir() string {
 	for _, loader := range slices.Backward(i.options.ResourceLoaders) {
-		if local, ok := loader.(localResourceLoader); ok {
+		if local, ok := loader.(localResourceLoader); ok && local.WorkingDir != "" {
 			return local.WorkingDir
 		}
 	}
