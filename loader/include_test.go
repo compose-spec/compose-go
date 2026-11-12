@@ -483,3 +483,47 @@ func TestIncludeRelativePathsOfARemoteFile(t *testing.T) {
 	assert.Equal(t, p.Services["b"].Build.Context, filepath.Join(root, "module", "app"))
 	assert.Equal(t, p.Services["c"].Build.Context, filepath.Join(root, "module", "other"))
 }
+
+// The relative env_file and project_directory of an include declared in an
+// included file are resolved against the project directory of that file (its
+// own directory here), at any depth, and never against the working directory
+// of the process: the decoy files sit where a path relative to the process
+// working directory would point.
+// https://github.com/compose-spec/compose-spec/blob/main/14-include.md#env_file
+// https://github.com/docker/compose/issues/14488
+func TestNestedIncludeRelativePathsIgnoreProcessDirectory(t *testing.T) {
+	decoys := map[string]string{
+		"p/marker.env": "WHICH=decoy\n",
+		"q/marker.env": "WHICH=decoy\n",
+		"q/sub/.env":   "WHICH=decoy\n",
+	}
+	cwd := t.TempDir()
+	for name, c := range decoys {
+		assert.NilError(t, os.MkdirAll(filepath.Dir(filepath.Join(cwd, name)), 0o700))
+		createFile(t, cwd, c, name)
+	}
+	t.Chdir(cwd)
+
+	files := map[string]string{
+		"p/inc.yaml":     "include:\n  - path: q/two.yaml\n    env_file: marker.env\n  - q/inc.yaml\n",
+		"p/marker.env":   "WHICH=p\n",
+		"p/q/two.yaml":   "services:\n  two:\n    image: \"${WHICH:-unset}\"\n",
+		"p/q/inc.yaml":   "include:\n  - path: three.yaml\n    env_file: marker.env\n  - path: four.yaml\n    project_directory: sub\n",
+		"p/q/marker.env": "WHICH=p/q\n",
+		"p/q/three.yaml": "services:\n  three:\n    image: \"${WHICH:-unset}\"\n",
+		"p/q/four.yaml":  "services:\n  four:\n    image: \"${WHICH:-unset}\"\n",
+		"p/q/sub/.env":   "WHICH=p/q/sub\n",
+	}
+	p, err := includeProject(t, "include:\n  - p/inc.yaml\n", files)
+	assert.NilError(t, err)
+
+	for _, tc := range []struct{ name, service, want string }{
+		{name: "env_file in a file included from the root", service: "two", want: "p"},
+		{name: "env_file in a file included two levels down", service: "three", want: "p/q"},
+		{name: "project_directory in a file included two levels down", service: "four", want: "p/q/sub"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Check(t, is.Equal(p.Services[tc.service].Image, tc.want))
+		})
+	}
+}
