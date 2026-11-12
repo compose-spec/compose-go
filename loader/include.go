@@ -124,7 +124,9 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 // section of a model into this very model
 type includer struct {
 	ctx context.Context
-	// workingDir is the working directory of the file declaring the includes
+	// workingDir is the working directory of the file declaring the includes,
+	// relative to the project directory of its parent for an included file
+	// (see baseDir)
 	workingDir  string
 	environment types.Mapping
 	// model is the model declaring the includes, receiving the included resources
@@ -243,11 +245,29 @@ func (i *includer) setProjectDirectory(r *types.IncludeConfig, loader ResourceLo
 		return loader.Dir(path)
 	case !filepath.IsAbs(r.ProjectDirectory):
 		relworkingdir := loader.Dir(r.ProjectDirectory)
-		r.ProjectDirectory = filepath.Join(i.workingDir, r.ProjectDirectory)
+		r.ProjectDirectory = filepath.Join(i.baseDir(), r.ProjectDirectory)
 		return relworkingdir
 	default:
 		return r.ProjectDirectory
 	}
+}
+
+// baseDir is the directory the relative paths of the file declaring the
+// includes are resolved against: its project directory, which is its own
+// directory unless the include entry that loaded it set project_directory.
+// For an included file, workingDir is relative to the project directory of
+// its parent, so that the paths of its model resolve once merged there; files
+// read right away, such as env files, need the absolute directory the local
+// resource loader is set to. A local loader with no working directory is
+// skipped, since a path joined to an empty directory is relative to the
+// process.
+func (i *includer) baseDir() string {
+	for _, loader := range slices.Backward(i.options.ResourceLoaders) {
+		if local, ok := loader.(localResourceLoader); ok && local.WorkingDir != "" {
+			return local.WorkingDir
+		}
+	}
+	return i.workingDir
 }
 
 // checkCycle reports an error if path is already being included
@@ -308,7 +328,7 @@ func (i *includer) resolveEnvFiles(r *types.IncludeConfig) error {
 // checkRelativeEnvFile resolves a relative env file against the working
 // directory of the including file, and checks it is an existing file
 func (i *includer) checkRelativeEnvFile(f string) (string, error) {
-	f = filepath.Join(i.workingDir, f)
+	f = filepath.Join(i.baseDir(), f)
 	s, err := os.Stat(f)
 	if err != nil {
 		return "", err
