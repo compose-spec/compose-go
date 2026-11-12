@@ -243,7 +243,7 @@ func (i *includer) setProjectDirectory(r *types.IncludeConfig, loader ResourceLo
 		return loader.Dir(path)
 	case !filepath.IsAbs(r.ProjectDirectory):
 		relworkingdir := loader.Dir(r.ProjectDirectory)
-		r.ProjectDirectory = filepath.Join(i.workingDir, r.ProjectDirectory)
+		r.ProjectDirectory = filepath.Join(i.projectDirectory(), r.ProjectDirectory)
 		return relworkingdir
 	default:
 		return r.ProjectDirectory
@@ -305,10 +305,35 @@ func (i *includer) resolveEnvFiles(r *types.IncludeConfig) error {
 	return nil
 }
 
-// checkRelativeEnvFile resolves a relative env file against the working
+// projectDirectory is the directory a relative path declared by an include
+// entry, `env_file` or `project_directory`, is resolved against, as the file
+// system sees it: the project directory of the file declaring the entry.
+//
+// It is workingDir when that one is absolute, as it is for the main project
+// and for the files served by a remote resource loader. It is not, in general:
+// workingDir is also the directory the model of the file is relative to, for
+// the files of an included project, that of the project including it. The paths
+// of the model are resolved from it level by level, until the main project
+// makes them absolute. That is right for the paths of the model, but such a
+// workingDir is not a path of the file system, and looking for a file with it
+// finds it from the working directory of the process. The local resource loader
+// the including entry set in the options holds the project directory to use.
+func (i *includer) projectDirectory() string {
+	if filepath.IsAbs(i.workingDir) {
+		return i.workingDir
+	}
+	for _, loader := range slices.Backward(i.options.ResourceLoaders) {
+		if local, ok := loader.(localResourceLoader); ok && local.WorkingDir != "" {
+			return local.WorkingDir
+		}
+	}
+	return i.workingDir
+}
+
+// checkRelativeEnvFile resolves a relative env file against the project
 // directory of the including file, and checks it is an existing file
 func (i *includer) checkRelativeEnvFile(f string) (string, error) {
-	f = filepath.Join(i.workingDir, f)
+	f = filepath.Join(i.projectDirectory(), f)
 	s, err := os.Stat(f)
 	if err != nil {
 		return "", err
