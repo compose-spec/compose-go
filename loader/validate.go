@@ -151,6 +151,10 @@ func checkConsistency(project *types.Project) error {
 			return fmt.Errorf("services.%s.deploy.replicas: must be greater than or equal to 0", s.Name)
 		}
 
+		if err := checkRestartPolicy(s); err != nil {
+			return err
+		}
+
 		if s.CPUS != 0 && s.Deploy != nil {
 			if s.Deploy.Resources.Limits != nil && s.Deploy.Resources.Limits.NanoCPUs.Value() != s.CPUS {
 				return fmt.Errorf("services.%s: can't set distinct values on 'cpus' and 'deploy.resources.limits.cpus': %w",
