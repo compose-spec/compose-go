@@ -363,3 +363,38 @@ networks:
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(reported, 0))
 }
+
+// The options of `storage_opt` are declared by the specification, on a
+// service, on a `pre_start` hook and on a job alike: the complete inventory
+// must not report any of them as an attribute the runtime does not know
+// (docker/compose#14505).
+func TestDetectUnsupportedAttributes_StorageOptKeysAreSupported(t *testing.T) {
+	var reported []UnsupportedAttribute
+	_, err := LoadWithContext(t.Context(), types.ConfigDetails{
+		ConfigFiles: []types.ConfigFile{{Filename: "compose.yaml", Content: []byte(`
+services:
+  app:
+    image: alpine
+    storage_opt:
+      size: 1G
+    pre_start:
+      - command: ["true"]
+        storage_opt:
+          size: 2G
+jobs:
+  nightly:
+    image: alpine
+    triggers:
+      manual: true
+    storage_opt:
+      size: 3G
+`)}},
+	}, func(options *Options) {
+		options.SetProjectName("storage-opt", true)
+		options.ResolvePaths = false
+	}, WithSupportedAttributes(schema.AttributePaths(), func(found []UnsupportedAttribute) {
+		reported = found
+	}))
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(reported, 0), "reported: %v", reported)
+}
