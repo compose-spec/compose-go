@@ -462,6 +462,171 @@
           ],
           "description": "Amount of memory the container is allowed to swap to disk. Set to -1 to enable unlimited swap."
         },
+        "mounts": {
+          "type": "array",
+          "description": "Mounts of the container, with the structure of the `--mount` flag of `docker run`: unlike `volumes`, the implementation has no latitude on how a mount is made.",
+          "items": {
+            "type": "object",
+            "required": [
+              "type",
+              "target"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "bind",
+                  "volume",
+                  "tmpfs",
+                  "cluster",
+                  "npipe",
+                  "image"
+                ],
+                "description": "The mount type: bind for mounting host directories, volume for named volumes, tmpfs for temporary filesystems, cluster for cluster volumes, npipe for named pipes, or image for mounting from an image."
+              },
+              "source": {
+                "type": "string",
+                "description": "The source of the mount, a path on the host for a bind mount, a docker image reference for an image mount, or the name of a volume defined in the top-level volumes key. Not applicable for a tmpfs mount."
+              },
+              "target": {
+                "type": "string",
+                "description": "The path in the container where the mount is made."
+              },
+              "read_only": {
+                "type": [
+                  "boolean",
+                  "string"
+                ],
+                "description": "Flag to set the mount as read-only."
+              },
+              "consistency": {
+                "type": "string",
+                "description": "The consistency requirements for the mount. Available values are platform specific."
+              },
+              "bind": {
+                "type": "object",
+                "description": "Configuration specific to bind mounts.",
+                "properties": {
+                  "propagation": {
+                    "type": "string",
+                    "description": "The propagation mode for the bind mount: 'shared', 'slave', 'private', 'rshared', 'rslave', or 'rprivate'."
+                  },
+                  "create_src": {
+                    "type": [
+                      "boolean",
+                      "string"
+                    ],
+                    "description": "Create the source on the host if it doesn't exist. Unlike create_host_path of a volume, it is false unless set."
+                  },
+                  "recursive": {
+                    "type": "string",
+                    "enum": [
+                      "enabled",
+                      "disabled",
+                      "writable",
+                      "readonly"
+                    ],
+                    "description": "Recursively mount the source directory."
+                  }
+                },
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^x-": {}
+                }
+              },
+              "volume": {
+                "type": "object",
+                "description": "Configuration specific to volume mounts.",
+                "properties": {
+                  "labels": {
+                    "$ref": "#/$defs/list_or_dict",
+                    "description": "Labels to apply to the volume."
+                  },
+                  "nocopy": {
+                    "type": [
+                      "boolean",
+                      "string"
+                    ],
+                    "description": "Flag to disable copying of data from a container when a volume is created."
+                  },
+                  "subpath": {
+                    "type": "string",
+                    "description": "Path within the volume to mount instead of the volume root."
+                  },
+                  "driver": {
+                    "type": "string",
+                    "description": "Driver of the volume created for this mount."
+                  },
+                  "driver_opts": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^.+$": {
+                        "type": [
+                          "string",
+                          "number"
+                        ]
+                      }
+                    },
+                    "additionalProperties": false,
+                    "description": "Options passed to the driver of the volume created for this mount."
+                  }
+                },
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^x-": {}
+                }
+              },
+              "tmpfs": {
+                "type": "object",
+                "description": "Configuration specific to tmpfs mounts.",
+                "properties": {
+                  "size": {
+                    "oneOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "string"
+                      }
+                    ],
+                    "description": "Size of the tmpfs mount in bytes."
+                  },
+                  "mode": {
+                    "type": [
+                      "number",
+                      "string"
+                    ],
+                    "description": "File mode of the tmpfs in octal."
+                  }
+                },
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^x-": {}
+                }
+              },
+              "image": {
+                "type": "object",
+                "description": "Configuration specific to image mounts.",
+                "properties": {
+                  "subpath": {
+                    "type": "string",
+                    "description": "Path within the image to mount instead of the image root."
+                  }
+                },
+                "additionalProperties": false,
+                "patternProperties": {
+                  "^x-": {}
+                }
+              }
+            },
+            "additionalProperties": false,
+            "patternProperties": {
+              "^x-": {}
+            }
+          },
+          "uniqueItems": true
+        },
         "network_mode": {
           "type": "string",
           "description": "Network mode. Values can be 'bridge', 'host', 'none', 'service:[service name]', or 'container:[container name]'."
@@ -720,7 +885,7 @@
         },
         "volumes": {
           "type": "array",
-          "description": "Mount host paths or named volumes accessible to the container. Short syntax (VOLUME:CONTAINER_PATH[:MODE])",
+          "description": "Mount host paths or named volumes accessible to the container. Short syntax (VOLUME:CONTAINER_PATH[:MODE]). The long syntax is deprecated: use 'mounts' for what the short syntax can't say.",
           "items": {
             "oneOf": [
               {
@@ -728,6 +893,8 @@
               },
               {
                 "type": "object",
+                "deprecated": true,
+                "description": "Long syntax. Deprecated: use 'mounts'.",
                 "required": [
                   "type"
                 ],

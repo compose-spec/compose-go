@@ -24,6 +24,8 @@ package tests
 // accessible by service containers."
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -188,18 +190,9 @@ services:
   foo:
     image: alpine
     volumes:
-      - type: volume
-        target: a:/data
-        volume: {}
-      - type: bind
-        source: 'C:\Users\me'
-        target: /home
-        bind: {}
-      - type: bind
-        source: C:/Users/me
-        target: /work
-        read_only: true
-        bind: {}
+      - a:/data
+      - 'C:\Users\me:/home'
+      - C:/Users/me:/work:ro
       - type: volume
         source: a
         target: /logs
@@ -333,6 +326,165 @@ services:
 			err := loadErr(t, document(tc.mode))
 			assert.ErrorContains(t, err, ".foo.volumes.[].tmpfs.mode")
 			assert.ErrorContains(t, err, "must be an octal number")
+		})
+	}
+}
+
+// A volume the short syntax can say is written as a short string, whatever the
+// syntax it was declared with, and the others keep the long syntax: the short
+// syntax is the canonical form, the long one what it cannot be. So does a volume
+// that has not the option blocks the short syntax reads back with (a long syntax
+// `type: volume` without `volume`), so that the model that is loaded stays the
+// same when it is written and read again, and the JSON form, which the hash of a
+// service is computed from, is left structured and does not move.
+func TestVolumesCanonicalForm(t *testing.T) {
+	input := `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: bind
+        source: /data
+        target: /a
+        read_only: true
+        bind:
+          create_host_path: true
+          selinux: z
+          propagation: rshared
+      - type: volume
+        source: cache
+        target: /b
+        volume:
+          nocopy: true
+      - type: volume
+        target: /cache
+      - /d:/d
+      - probevol:/e:z,rw
+      - probevol:/f:ro,Z
+      - probevol:/g:rshared,nocopy
+      - type: bind
+        source: /data
+        target: /not-created
+        bind:
+          create_host_path: false
+      - type: volume
+        source: cache
+        target: /subpath
+        volume:
+          subpath: sub
+      - type: bind
+        source: /data
+        target: /colon:in:target
+      - type: tmpfs
+        target: /scratch
+volumes:
+  cache:
+  probevol:
+`
+	loadsAs(t, input, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - /data:/a:ro,z,rshared
+      - cache:/b:nocopy
+      - type: volume
+        target: /cache
+      - /d:/d
+      - probevol:/e:z
+      - probevol:/f:ro,Z
+      - probevol:/g:rshared,nocopy
+      - type: bind
+        source: /data
+        target: /not-created
+        bind:
+          create_host_path: false
+      - type: volume
+        source: cache
+        target: /subpath
+        volume:
+          subpath: sub
+      - type: bind
+        source: /data
+        target: /colon:in:target
+      - type: tmpfs
+        target: /scratch
+volumes:
+  cache: {}
+  probevol: {}
+`)
+
+	// what is written reads back as the same project, and as the same text
+	p := load(t, input)
+	out, err := p.MarshalYAML()
+	assert.NilError(t, err)
+	again := load(t, string(out))
+	assert.DeepEqual(t, again.Services["foo"].Volumes, p.Services["foo"].Volumes)
+	outAgain, err := again.MarshalYAML()
+	assert.NilError(t, err)
+	assert.Equal(t, string(outAgain), string(out))
+
+	// the JSON form, which the hash of a service is computed from, doesn't move
+	js, err := p.MarshalJSON()
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(string(js), `"type": "volume"`), string(js))
+	assert.Assert(t, !strings.Contains(string(js), `/data:/a`), string(js))
+}
+
+// A volume written as a short string reloads as the very same volume, option
+// blocks included: the JSON of a service, which its hash is computed from,
+// doesn't move when the project is written and read again. What the short
+// syntax would read back otherwise (an empty `volume` block that a target of one
+// or two characters drops, a `bind` whose create_host_path the loader sets) keeps
+// the long syntax.
+func TestVolumesRoundTripKeepTheirJSON(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		volume    string
+		canonical string
+	}{
+		{
+			name:      "anonymous volume of a short target with an empty volume block",
+			volume:    "{type: volume, target: /t, volume: {}}",
+			canonical: "{type: volume, target: /t, volume: {}}",
+		},
+		{
+			name:      "anonymous volume of a short target without volume block",
+			volume:    "{type: volume, target: /t}",
+			canonical: "/t",
+		},
+		{
+			name:      "anonymous volume with an empty volume block",
+			volume:    "{type: volume, target: /tmp, volume: {}}",
+			canonical: "/tmp",
+		},
+		{
+			name:      "named volume with selinux and create_host_path off",
+			volume:    "{type: volume, source: vol, target: /t, volume: {}, bind: {selinux: z, create_host_path: false}}",
+			canonical: "{type: volume, source: vol, target: /t, volume: {}, bind: {selinux: z, create_host_path: false}}",
+		},
+		{
+			name:      "named volume with selinux",
+			volume:    "{type: volume, source: vol, target: /t, volume: {}, bind: {selinux: z}}",
+			canonical: "vol:/t:z",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			input := "name: test\nservices:\n  foo:\n    image: alpine\n    volumes:\n      - " + tc.volume + "\nvolumes:\n  vol: {}\n"
+			want := "name: test\nservices:\n  foo:\n    image: alpine\n    volumes:\n      - " + tc.canonical + "\nvolumes:\n  vol: {}\n"
+			loadsAs(t, input, want)
+
+			p := load(t, input)
+			fromYAML, fromJSON := roundTrip(t, p)
+			js, err := json.Marshal(p.Services["foo"])
+			assert.NilError(t, err)
+			for _, again := range []*types.Project{fromYAML, fromJSON} {
+				jsAgain, err := json.Marshal(again.Services["foo"])
+				assert.NilError(t, err)
+				assert.Equal(t, string(jsAgain), string(js))
+			}
 		})
 	}
 }

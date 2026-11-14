@@ -301,6 +301,67 @@ func Test_ResolveImages_preStartHooks(t *testing.T) {
 	assert.Equal(t, service.PreStart[1].Image, "")
 }
 
+// The `type: image` mounts of a container, whether a service, a pre_start hook or a
+// job, are pinned to a digest like its `type: image` volumes are.
+func Test_ResolveImages_imageMounts(t *testing.T) {
+	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
+	resolver := func(_ reference.Named) (digest.Digest, error) {
+		return digested, nil
+	}
+	mounts := func(image string) []ServiceMountConfig {
+		return []ServiceMountConfig{
+			{Type: VolumeTypeImage, Source: image, Target: "/data"},
+			{Type: VolumeTypeVolume, Source: "vol", Target: "/vol"},
+		}
+	}
+	p := &Project{
+		Services: Services{
+			"service_1": {
+				Name: "service_1",
+				ContainerSpec: ContainerSpec{
+					Image:  "alpine:3.20",
+					Mounts: mounts("alpine:3.19"),
+				},
+				PreStart: []PreStartHook{{ContainerSpec: ContainerSpec{Image: "busybox", Mounts: mounts("alpine:3.18")}}},
+			},
+		},
+		Jobs: Jobs{
+			"migrate": {Name: "migrate", ContainerSpec: ContainerSpec{Image: "migrate:2", Mounts: mounts("schema:5")}},
+		},
+	}
+
+	p, err := p.WithImagesResolved(resolver)
+	assert.NilError(t, err)
+
+	service := p.Services["service_1"]
+	assert.Equal(t, service.Mounts[0].Source, "docker.io/library/alpine:3.19@"+digested)
+	assert.Equal(t, service.Mounts[1].Source, "vol")
+	assert.Equal(t, service.PreStart[0].Mounts[0].Source, "docker.io/library/alpine:3.18@"+digested)
+	assert.Equal(t, service.PreStart[0].Mounts[1].Source, "vol")
+	migrate := p.Jobs["migrate"]
+	assert.Equal(t, migrate.Mounts[0].Source, "docker.io/library/schema:5@"+digested)
+	assert.Equal(t, migrate.Mounts[1].Source, "vol")
+}
+
+// a volume used by a mount is not an unnecessary resource
+func Test_WithoutUnnecessaryResources_mounts(t *testing.T) {
+	p := &Project{
+		Services: Services{
+			"app": {
+				Name: "app",
+				ContainerSpec: ContainerSpec{
+					Mounts: []ServiceMountConfig{{Type: VolumeTypeVolume, Source: "used", Target: "/data"}},
+				},
+			},
+		},
+		Volumes: Volumes{"used": VolumeConfig{}, "unused": VolumeConfig{}},
+	}
+	p = p.WithoutUnnecessaryResources()
+	assert.Equal(t, len(p.Volumes), 1)
+	_, ok := p.Volumes["used"]
+	assert.Assert(t, ok)
+}
+
 func Test_ResolveImages_imageVolumes(t *testing.T) {
 	const digested = "sha256:1234567890123456789012345678901234567890123456789012345678901234"
 	resolver := func(_ reference.Named) (digest.Digest, error) {

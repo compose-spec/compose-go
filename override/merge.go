@@ -65,6 +65,7 @@ func init() {
 		mergeSpecials[prefix+".*.healthcheck.test"] = override
 		mergeSpecials[prefix+".*.labels"] = mergeKeyValueSequence
 		mergeSpecials[prefix+".*.volumes.*.volume.labels"] = mergeKeyValueSequence
+		mergeSpecials[prefix+".*.mounts.*.volume.labels"] = mergeKeyValueSequence
 		mergeSpecials[prefix+".*.logging"] = mergeLogging
 		mergeSpecials[prefix+".*.models"] = mergeModels
 		mergeSpecials[prefix+".*.networks"] = mergeNetworks

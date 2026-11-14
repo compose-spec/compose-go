@@ -84,6 +84,9 @@ func buildInterpolateTypeCastMapping() map[tree.Path]interp.Cast {
 	add(containerSpec, toInt, "ulimits", tree.PathMatchAll, "soft")
 	add(containerSpec, toBoolean, "volumes", tree.PathMatchList, "read_only")
 	add(containerSpec, toBoolean, "volumes", tree.PathMatchList, "volume", "nocopy")
+	add(containerSpec, toBoolean, "mounts", tree.PathMatchList, "read_only")
+	add(containerSpec, toBoolean, "mounts", tree.PathMatchList, "bind", "create_src")
+	add(containerSpec, toBoolean, "mounts", tree.PathMatchList, "volume", "nocopy")
 
 	add(workloadSpec, toBoolean, "depends_on", tree.PathMatchAll, "required")
 	add(workloadSpec, toBoolean, "depends_on", tree.PathMatchAll, "restart")
