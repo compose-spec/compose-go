@@ -24,6 +24,7 @@ package tests
 import (
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/errdefs"
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
@@ -52,4 +53,28 @@ jobs:
 	yamlP, jsonP := roundTrip(t, p)
 	expect(yamlP)
 	expect(jsonP)
+}
+
+// `network_mode: service:<name>` makes the service depend on the one it shares the
+// network of, so a target the project cannot run is reported as an undefined
+// dependency, unless the dependency is explicitly optional: then the consistency
+// check on network_mode itself names the service that declares the target, and
+// tells a target disabled by profiles from an unknown one.
+func TestNetworkModeServiceDisabledTarget(t *testing.T) {
+	_, err := loadConsistent(t, `
+name: test
+services:
+  web:
+    image: alpine
+    network_mode: service:db
+    depends_on:
+      db:
+        condition: service_started
+        required: false
+  db:
+    image: alpine
+    profiles: [debug]
+`)
+	assert.ErrorContains(t, err, `service "web" declares disabled service "db" for network_mode`)
+	assert.ErrorIs(t, err, errdefs.ErrInvalid)
 }
