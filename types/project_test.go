@@ -20,6 +20,7 @@ import (
 	_ "crypto/sha256"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -94,6 +95,46 @@ func Test_WithoutUnnecessaryResources(t *testing.T) {
 	if _, ok := p.Configs["unused"]; ok {
 		t.Fail()
 	}
+}
+
+// Volumes, networks, secrets and configs used only by a pre_start hook or
+// by an enabled job are still required: those run containers too.
+func Test_WithoutUnnecessaryResourcesKeepsHookAndJobResources(t *testing.T) {
+	p := &Project{
+		Services: Services{
+			"a": {
+				Name: "a",
+				PreStart: []PreStartHook{{ContainerSpec: ContainerSpec{
+					Volumes: []ServiceVolumeConfig{{Type: VolumeTypeVolume, Source: "hookvol", Target: "/d"}},
+				}}},
+			},
+		},
+		Jobs: Jobs{
+			"j": {
+				Name: "j",
+				ContainerSpec: ContainerSpec{
+					Volumes:  []ServiceVolumeConfig{{Type: VolumeTypeVolume, Source: "jobvol", Target: "/d"}},
+					Networks: map[string]*ServiceNetworkConfig{"jobnet": nil},
+					Secrets:  []ServiceSecretConfig{{Source: "jobsecret"}},
+					Configs:  []ServiceConfigObjConfig{{Source: "jobconfig"}},
+				},
+				WorkloadSpec: WorkloadSpec{Build: &BuildConfig{
+					Secrets: []ServiceSecretConfig{{Source: "buildsecret"}},
+				}},
+			},
+		},
+		Volumes:  Volumes{"hookvol": {Name: "external-hookvol"}, "jobvol": {Name: "external-jobvol"}, "unused": {}},
+		Networks: Networks{"jobnet": {}, "unused": {}},
+		Secrets:  Secrets{"jobsecret": {}, "buildsecret": {}, "unused": {}},
+		Configs:  Configs{"jobconfig": {}, "unused": {}},
+	}
+
+	p = p.WithoutUnnecessaryResources()
+
+	assert.DeepEqual(t, p.Volumes, Volumes{"hookvol": {Name: "external-hookvol"}, "jobvol": {Name: "external-jobvol"}})
+	assert.DeepEqual(t, slices.Sorted(maps.Keys(p.Networks)), []string{"jobnet"})
+	assert.DeepEqual(t, slices.Sorted(maps.Keys(p.Secrets)), []string{"buildsecret", "jobsecret"})
+	assert.DeepEqual(t, slices.Sorted(maps.Keys(p.Configs)), []string{"jobconfig"})
 }
 
 func Test_WithoutUnresolvedOptionalDependencies(t *testing.T) {
