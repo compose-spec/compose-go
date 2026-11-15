@@ -469,30 +469,41 @@ func (p *Project) WithoutUnnecessaryResources() *Project {
 	requiredSecrets := map[string]struct{}{}
 	requiredConfigs := map[string]struct{}{}
 	requiredModels := map[string]struct{}{}
-	for _, s := range newProject.Services {
-		for k := range s.Networks {
+	collect := func(c ContainerSpec, build *BuildConfig) {
+		for k := range c.Networks {
 			requiredNetworks[k] = struct{}{}
 		}
-		for _, v := range s.Volumes {
+		for _, v := range c.Volumes {
 			if v.Type != VolumeTypeVolume || v.Source == "" {
 				continue
 			}
 			requiredVolumes[v.Source] = struct{}{}
 		}
-		for _, v := range s.Secrets {
+		for _, v := range c.Secrets {
 			requiredSecrets[v.Source] = struct{}{}
 		}
-		if s.Build != nil {
-			for _, v := range s.Build.Secrets {
+		if build != nil {
+			for _, v := range build.Secrets {
 				requiredSecrets[v.Source] = struct{}{}
 			}
 		}
-		for _, v := range s.Configs {
+		for _, v := range c.Configs {
 			requiredConfigs[v.Source] = struct{}{}
 		}
-		for m := range s.Models {
+		for m := range c.Models {
 			requiredModels[m] = struct{}{}
 		}
+	}
+	// services, their pre_start hooks and the enabled jobs all run
+	// containers, so keep whatever any of them refers to
+	for _, s := range newProject.Services {
+		collect(s.ContainerSpec, s.Build)
+		for _, h := range s.PreStart {
+			collect(h.ContainerSpec, nil)
+		}
+	}
+	for _, j := range newProject.Jobs {
+		collect(j.ContainerSpec, j.Build)
 	}
 
 	networks := Networks{}
