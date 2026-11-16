@@ -14,13 +14,12 @@
    limitations under the License.
 */
 
-package format
+package types
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -28,7 +27,7 @@ import (
 func TestParseVolumeAnonymousVolume(t *testing.T) {
 	for _, path := range []string{"/path", "/path/foo"} {
 		volume, err := ParseVolume(path)
-		expected := types.ServiceVolumeConfig{Type: "volume", Target: path, Volume: &types.ServiceVolumeVolume{}}
+		expected := ServiceVolumeConfig{Type: "volume", Target: path, Volume: &ServiceVolumeVolume{}}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
 	}
@@ -37,7 +36,7 @@ func TestParseVolumeAnonymousVolume(t *testing.T) {
 func TestParseVolumeAnonymousVolumeWindows(t *testing.T) {
 	for _, path := range []string{"C:\\path", "Z:\\path\\foo"} {
 		volume, err := ParseVolume(path)
-		expected := types.ServiceVolumeConfig{Type: "volume", Target: path, Volume: &types.ServiceVolumeVolume{}}
+		expected := ServiceVolumeConfig{Type: "volume", Target: path, Volume: &ServiceVolumeVolume{}}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
 	}
@@ -51,27 +50,27 @@ func TestParseVolumeSingleLetterIsDrive(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		spec     string
-		expected types.ServiceVolumeConfig
+		expected ServiceVolumeConfig
 	}{
 		{
 			name:     "path",
 			spec:     "a:/data",
-			expected: types.ServiceVolumeConfig{Type: "volume", Target: "a:/data", Volume: &types.ServiceVolumeVolume{}},
+			expected: ServiceVolumeConfig{Type: "volume", Target: "a:/data", Volume: &ServiceVolumeVolume{}},
 		},
 		{
 			name:     "path in upper case",
 			spec:     "C:/data",
-			expected: types.ServiceVolumeConfig{Type: "volume", Target: "C:/data", Volume: &types.ServiceVolumeVolume{}},
+			expected: ServiceVolumeConfig{Type: "volume", Target: "C:/data", Volume: &ServiceVolumeVolume{}},
 		},
 		{
 			name:     "path and target",
 			spec:     "a:/data:ro",
-			expected: types.ServiceVolumeConfig{Type: "bind", Source: "a:/data", Target: "ro", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
+			expected: ServiceVolumeConfig{Type: "bind", Source: "a:/data", Target: "ro", Bind: &ServiceVolumeBind{CreateHostPath: true}},
 		},
 		{
 			name:     "named volume of two letters",
 			spec:     "ab:/data",
-			expected: types.ServiceVolumeConfig{Type: "volume", Source: "ab", Target: "/data", Volume: &types.ServiceVolumeVolume{}},
+			expected: ServiceVolumeConfig{Type: "volume", Source: "ab", Target: "/data", Volume: &ServiceVolumeVolume{}},
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -90,7 +89,7 @@ func TestParseVolumeTooManyColons(t *testing.T) {
 func TestParseVolumeShortVolumes(t *testing.T) {
 	for _, path := range []string{".", "/a"} {
 		volume, err := ParseVolume(path)
-		expected := types.ServiceVolumeConfig{Type: "volume", Target: path}
+		expected := ServiceVolumeConfig{Type: "volume", Target: path}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
 	}
@@ -106,11 +105,11 @@ func TestParseVolumeMissingSource(t *testing.T) {
 func TestParseVolumeBindMount(t *testing.T) {
 	for _, path := range []string{"./foo", "~/thing", "../other", "/foo", "/home/user"} {
 		volume, err := ParseVolume(path + ":/target")
-		expected := types.ServiceVolumeConfig{
+		expected := ServiceVolumeConfig{
 			Type:   "bind",
 			Source: path,
 			Target: "/target",
-			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+			Bind:   &ServiceVolumeBind{CreateHostPath: true},
 		}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -125,11 +124,11 @@ func TestParseVolumeRelativeBindMountWindows(t *testing.T) {
 		"D:\\path", "/home/user",
 	} {
 		volume, err := ParseVolume(path + ":d:\\target")
-		expected := types.ServiceVolumeConfig{
+		expected := ServiceVolumeConfig{
 			Type:   "bind",
 			Source: path,
 			Target: "d:\\target",
-			Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+			Bind:   &ServiceVolumeBind{CreateHostPath: true},
 		}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -138,11 +137,11 @@ func TestParseVolumeRelativeBindMountWindows(t *testing.T) {
 
 func TestParseVolumeWithBindOptions(t *testing.T) {
 	volume, err := ParseVolume("/source:/target:slave")
-	expected := types.ServiceVolumeConfig{
+	expected := ServiceVolumeConfig{
 		Type:   "bind",
 		Source: "/source",
 		Target: "/target",
-		Bind: &types.ServiceVolumeBind{
+		Bind: &ServiceVolumeBind{
 			CreateHostPath: true,
 			Propagation:    "slave",
 		},
@@ -153,12 +152,12 @@ func TestParseVolumeWithBindOptions(t *testing.T) {
 
 func TestParseVolumeWithBindOptionsSELinuxShared(t *testing.T) {
 	volume, err := ParseVolume("/source:/target:ro,z")
-	expected := types.ServiceVolumeConfig{
+	expected := ServiceVolumeConfig{
 		Type:     "bind",
 		Source:   "/source",
 		Target:   "/target",
 		ReadOnly: true,
-		Bind: &types.ServiceVolumeBind{
+		Bind: &ServiceVolumeBind{
 			CreateHostPath: true,
 			SELinux:        "z",
 		},
@@ -169,12 +168,12 @@ func TestParseVolumeWithBindOptionsSELinuxShared(t *testing.T) {
 
 func TestParseVolumeWithBindOptionsSELinuxPrivate(t *testing.T) {
 	volume, err := ParseVolume("/source:/target:ro,Z")
-	expected := types.ServiceVolumeConfig{
+	expected := ServiceVolumeConfig{
 		Type:     "bind",
 		Source:   "/source",
 		Target:   "/target",
 		ReadOnly: true,
-		Bind: &types.ServiceVolumeBind{
+		Bind: &ServiceVolumeBind{
 			CreateHostPath: true,
 			SELinux:        "Z",
 		},
@@ -185,12 +184,12 @@ func TestParseVolumeWithBindOptionsSELinuxPrivate(t *testing.T) {
 
 func TestParseVolumeWithBindOptionsWindows(t *testing.T) {
 	volume, err := ParseVolume("C:\\source\\foo:D:\\target:ro,rprivate")
-	expected := types.ServiceVolumeConfig{
+	expected := ServiceVolumeConfig{
 		Type:     "bind",
 		Source:   "C:\\source\\foo",
 		Target:   "D:\\target",
 		ReadOnly: true,
-		Bind: &types.ServiceVolumeBind{
+		Bind: &ServiceVolumeBind{
 			CreateHostPath: true,
 			Propagation:    "rprivate",
 		},
@@ -206,11 +205,11 @@ func TestParseVolumeWithInvalidVolumeOptions(t *testing.T) {
 
 func TestParseVolumeWithVolumeOptions(t *testing.T) {
 	volume, err := ParseVolume("name:/target:nocopy")
-	expected := types.ServiceVolumeConfig{
+	expected := ServiceVolumeConfig{
 		Type:   "volume",
 		Source: "name",
 		Target: "/target",
-		Volume: &types.ServiceVolumeVolume{NoCopy: true},
+		Volume: &ServiceVolumeVolume{NoCopy: true},
 	}
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(expected, volume))
@@ -219,12 +218,12 @@ func TestParseVolumeWithVolumeOptions(t *testing.T) {
 func TestParseVolumeWithReadOnly(t *testing.T) {
 	for _, path := range []string{"./foo", "/home/user"} {
 		volume, err := ParseVolume(path + ":/target:ro")
-		expected := types.ServiceVolumeConfig{
+		expected := ServiceVolumeConfig{
 			Type:     "bind",
 			Source:   path,
 			Target:   "/target",
 			ReadOnly: true,
-			Bind:     &types.ServiceVolumeBind{CreateHostPath: true},
+			Bind:     &ServiceVolumeBind{CreateHostPath: true},
 		}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -234,12 +233,12 @@ func TestParseVolumeWithReadOnly(t *testing.T) {
 func TestParseVolumeWithRW(t *testing.T) {
 	for _, path := range []string{"./foo", "/home/user"} {
 		volume, err := ParseVolume(path + ":/target:rw")
-		expected := types.ServiceVolumeConfig{
+		expected := ServiceVolumeConfig{
 			Type:     "bind",
 			Source:   path,
 			Target:   "/target",
 			ReadOnly: false,
-			Bind:     &types.ServiceVolumeBind{CreateHostPath: true},
+			Bind:     &ServiceVolumeBind{CreateHostPath: true},
 		}
 		assert.NilError(t, err)
 		assert.Check(t, is.DeepEqual(expected, volume))
@@ -249,11 +248,11 @@ func TestParseVolumeWithRW(t *testing.T) {
 func TestParseVolumeWindowsNamedPipe(t *testing.T) {
 	volume, err := ParseVolume(`\\.\pipe\docker_engine:\\.\pipe\inside`)
 	assert.NilError(t, err)
-	expected := types.ServiceVolumeConfig{
+	expected := ServiceVolumeConfig{
 		Type:   "bind",
 		Source: `\\.\pipe\docker_engine`,
 		Target: `\\.\pipe\inside`,
-		Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+		Bind:   &ServiceVolumeBind{CreateHostPath: true},
 	}
 	assert.Check(t, is.DeepEqual(expected, volume))
 }
@@ -321,15 +320,15 @@ func TestParseVolumeInvalidSections(t *testing.T) {
 }
 
 func TestVolumeStringer(t *testing.T) {
-	v := types.ServiceVolumeConfig{
+	v := ServiceVolumeConfig{
 		Type:     "bind",
 		Source:   "/src",
 		Target:   "/target",
 		ReadOnly: false,
-		Bind: &types.ServiceVolumeBind{
+		Bind: &ServiceVolumeBind{
 			CreateHostPath: true,
-			Propagation:    types.PropagationShared,
-			SELinux:        types.SELinuxShared,
+			Propagation:    PropagationShared,
+			SELinux:        SELinuxShared,
 		},
 	}
 	assert.Equal(t, v.String(), "/src:/target:rw,z,shared")
@@ -341,128 +340,128 @@ func TestParseVolumeWithVariableDefaultValue(t *testing.T) {
 	testCases := []struct {
 		name     string
 		input    string
-		expected types.ServiceVolumeConfig
+		expected ServiceVolumeConfig
 	}{
 		{
 			name:  "variable with default value in target path",
 			input: "/tmp:/tmp/${BUG_HERE:-DEFAULT}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/${BUG_HERE:-DEFAULT}/path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable with default value in source path",
 			input: "/tmp/${VAR:-default}:/target",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp/${VAR:-default}",
 				Target: "/target",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable with default value in both source and target",
 			input: "/src/${SRC:-default}:/dst/${DST:-value}",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/src/${SRC:-default}",
 				Target: "/dst/${DST:-value}",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable with empty default value",
 			input: "/tmp:/tmp/${VAR:-}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/${VAR:-}/path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable with complex default value containing slashes",
 			input: "/tmp:/tmp/${VAR:-default/path/value}/file",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/${VAR:-default/path/value}/file",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "multiple variables with default values in target",
 			input: "/tmp:/tmp/${VAR1:-val1}/${VAR2:-val2}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/${VAR1:-val1}/${VAR2:-val2}/path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable with default value and read-only option",
 			input: "/tmp:/tmp/${VAR:-default}/path:ro",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:     "bind",
 				Source:   "/tmp",
 				Target:   "/tmp/${VAR:-default}/path",
 				ReadOnly: true,
-				Bind:     &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:     &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable without default value (normal variable)",
 			input: "/tmp:/tmp/${WORKS_AS_EXPECTED}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/${WORKS_AS_EXPECTED}/path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "mixed variables with and without defaults",
 			input: "/tmp:/tmp/${VAR1:-default}/${VAR2}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/${VAR1:-default}/${VAR2}/path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable with default containing colon",
 			input: "/tmp:/tmp/${TIME:-12:30:45}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/${TIME:-12:30:45}/path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "named volume with variable default in target",
 			input: "myvolume:/data/${VAR:-default}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "volume",
 				Source: "myvolume",
 				Target: "/data/${VAR:-default}/path",
-				Volume: &types.ServiceVolumeVolume{},
+				Volume: &ServiceVolumeVolume{},
 			},
 		},
 		{
 			name:  "variable with default value and bind options",
 			input: "/src:/target/${VAR:-default}/path:slave,ro",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:     "bind",
 				Source:   "/src",
 				Target:   "/target/${VAR:-default}/path",
 				ReadOnly: true,
-				Bind: &types.ServiceVolumeBind{
+				Bind: &ServiceVolumeBind{
 					CreateHostPath: true,
 					Propagation:    "slave",
 				},
@@ -485,37 +484,37 @@ func TestParseVolumeWithVariableDefaultValueWindows(t *testing.T) {
 	testCases := []struct {
 		name     string
 		input    string
-		expected types.ServiceVolumeConfig
+		expected ServiceVolumeConfig
 	}{
 		{
 			name:  "Windows path with variable default in target",
 			input: "C:\\source:D:\\target\\${VAR:-default}\\path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "C:\\source",
 				Target: "D:\\target\\${VAR:-default}\\path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "Windows path with variable default in source",
 			input: "C:\\src\\${VAR:-default}:D:\\target",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "C:\\src\\${VAR:-default}",
 				Target: "D:\\target",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "Windows path with variable default and options",
 			input: "C:\\source:D:\\${VAR:-default}\\path:ro",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:     "bind",
 				Source:   "C:\\source",
 				Target:   "D:\\${VAR:-default}\\path",
 				ReadOnly: true,
-				Bind:     &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:     &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 	}
@@ -535,36 +534,36 @@ func TestParseVolumeWithNestedBraces(t *testing.T) {
 	testCases := []struct {
 		name     string
 		input    string
-		expected types.ServiceVolumeConfig
+		expected ServiceVolumeConfig
 	}{
 		{
 			name:  "variable with default containing braces",
 			input: "/tmp:/tmp/${VAR:-{default}}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/${VAR:-{default}}/path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable with default at end of path",
 			input: "/tmp:/tmp/path/${VAR:-default}",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/tmp/path/${VAR:-default}",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 		{
 			name:  "variable with default at start of path",
 			input: "/tmp:/${VAR:-default}/path",
-			expected: types.ServiceVolumeConfig{
+			expected: ServiceVolumeConfig{
 				Type:   "bind",
 				Source: "/tmp",
 				Target: "/${VAR:-default}/path",
-				Bind:   &types.ServiceVolumeBind{CreateHostPath: true},
+				Bind:   &ServiceVolumeBind{CreateHostPath: true},
 			},
 		},
 	}

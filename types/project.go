@@ -479,6 +479,12 @@ func (p *Project) WithoutUnnecessaryResources() *Project {
 			}
 			requiredVolumes[v.Source] = struct{}{}
 		}
+		for _, m := range s.Mounts {
+			if m.Type != VolumeTypeVolume || m.Source == "" {
+				continue
+			}
+			requiredVolumes[m.Source] = struct{}{}
+		}
 		for _, v := range s.Secrets {
 			requiredSecrets[v.Source] = struct{}{}
 		}
@@ -752,6 +758,9 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 		if err := resolveVolumeImages(service.Volumes, resolve); err != nil {
 			return service, err
 		}
+		if err := resolveMountImages(service.Mounts, resolve); err != nil {
+			return service, err
+		}
 		return service, nil
 	})
 	if err != nil {
@@ -769,14 +778,17 @@ func (p *Project) WithImagesResolved(resolver func(named reference.Named) (godig
 }
 
 // resolveContainerImages resolves the image of a container specification, and the
-// `type: image` volumes it mounts.
+// `type: image` volumes and mounts it has.
 func resolveContainerImages(spec *ContainerSpec, resolve func(string) (string, error)) error {
 	image, err := resolve(spec.Image)
 	if err != nil {
 		return err
 	}
 	spec.Image = image
-	return resolveVolumeImages(spec.Volumes, resolve)
+	if err := resolveVolumeImages(spec.Volumes, resolve); err != nil {
+		return err
+	}
+	return resolveMountImages(spec.Mounts, resolve)
 }
 
 // resolveVolumeImages resolves the source of the `type: image` volumes, which is
@@ -791,6 +803,22 @@ func resolveVolumeImages(volumes []ServiceVolumeConfig, resolve func(string) (st
 			return err
 		}
 		volumes[i].Source = image
+	}
+	return nil
+}
+
+// resolveMountImages resolves the source of the `type: image` mounts, which is
+// always an image reference.
+func resolveMountImages(mounts []ServiceMountConfig, resolve func(string) (string, error)) error {
+	for i, mount := range mounts {
+		if mount.Type != VolumeTypeImage {
+			continue
+		}
+		image, err := resolve(mount.Source)
+		if err != nil {
+			return err
+		}
+		mounts[i].Source = image
 	}
 	return nil
 }
