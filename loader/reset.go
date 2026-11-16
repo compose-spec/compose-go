@@ -19,6 +19,7 @@ package loader
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -291,7 +292,7 @@ func (p *ResetProcessor) applyNullOverrides(target any, path tree.Path) error {
 	switch v := target.(type) {
 	case map[string]any:
 	KEYS:
-		for k, e := range v {
+		for k := range v {
 			next := path.Next(k)
 			for _, pattern := range p.paths {
 				if next.Matches(pattern) {
@@ -299,6 +300,7 @@ func (p *ResetProcessor) applyNullOverrides(target any, path tree.Path) error {
 					continue KEYS
 				}
 			}
+			e := p.pruneResetKeys(v, k, next)
 			err := p.applyNullOverrides(e, next)
 			if err != nil {
 				return err
@@ -321,6 +323,51 @@ func (p *ResetProcessor) applyNullOverrides(target any, path tree.Path) error {
 		}
 	}
 	return nil
+}
+
+// pruneResetKeys returns the value of the key of a mapping, and, when it is a
+// sequence, removes from it (and from the mapping) the entries a `!reset`
+// targets, see removeResetKeys.
+func (p *ResetProcessor) pruneResetKeys(parent map[string]any, key string, path tree.Path) any {
+	e := parent[key]
+	if seq, ok := e.([]any); ok {
+		e = p.removeResetKeys(seq, path)
+		parent[key] = e
+	}
+	return e
+}
+
+// removeResetKeys drops from a sequence the entries whose key part is targeted
+// by a recorded `!reset` path. A `!reset` on a mapping key (e.g.
+// `environment.FOO`) records a key path, but once several files contributed
+// the field, merging has normalized it into a "KEY=VALUE" sequence (see
+// override.mergeToSequence: environment, labels, build.args, …), so the
+// mapping branch of applyNullOverrides can no longer reach the key
+// (docker/compose#11816). Match such patterns against the key part of each
+// entry — "KEY=VALUE" or bare "KEY" — and remove it.
+func (p *ResetProcessor) removeResetKeys(seq []any, path tree.Path) []any {
+	var keys []string
+	for _, pattern := range p.paths {
+		last := pattern.Last()
+		if last == tree.PathMatchAll || !path.Matches(pattern.Parent()) {
+			continue
+		}
+		// path segments escape "." (see tree.Path.Next); entries hold raw keys
+		keys = append(keys, tree.Path(last).String())
+	}
+	if len(keys) == 0 {
+		return seq
+	}
+	filtered := make([]any, 0, len(seq))
+	for _, e := range seq {
+		if s, ok := e.(string); ok && slices.ContainsFunc(keys, func(key string) bool {
+			return s == key || strings.HasPrefix(s, key+"=")
+		}) {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+	return filtered
 }
 
 func (p *ResetProcessor) checkForCycle(node *yaml.Node, path tree.Path) error {
