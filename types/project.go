@@ -460,7 +460,8 @@ func (p *Project) WithServicesEnabled(names ...string) (*Project, error) {
 	return newProject.WithProfiles(profiles)
 }
 
-// WithoutUnnecessaryResources drops networks/volumes/secrets/configs that are not referenced by active services
+// WithoutUnnecessaryResources drops networks/volumes/secrets/configs that are not referenced by active services,
+// their pre_start hooks or enabled jobs
 // It returns a new Project instance with the changes and keep the original Project unchanged
 func (p *Project) WithoutUnnecessaryResources() *Project {
 	newProject := p.deepCopy()
