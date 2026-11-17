@@ -20,7 +20,6 @@ import (
 	_ "crypto/sha256"
 	"errors"
 	"fmt"
-	"maps"
 	"slices"
 	"sort"
 	"strings"
@@ -98,7 +97,8 @@ func Test_WithoutUnnecessaryResources(t *testing.T) {
 }
 
 // Volumes, networks, secrets and configs used only by a pre_start hook or
-// by an enabled job are still required: those run containers too.
+// by an enabled job are still required: those run containers too. A
+// disabled job does not count.
 func Test_WithoutUnnecessaryResourcesKeepsHookAndJobResources(t *testing.T) {
 	p := &Project{
 		Services: Services{
@@ -123,7 +123,15 @@ func Test_WithoutUnnecessaryResourcesKeepsHookAndJobResources(t *testing.T) {
 				}},
 			},
 		},
-		Volumes:  Volumes{"hookvol": {Name: "external-hookvol"}, "jobvol": {Name: "external-jobvol"}, "unused": {}},
+		DisabledJobs: Jobs{
+			"off": {
+				Name: "off",
+				ContainerSpec: ContainerSpec{
+					Volumes: []ServiceVolumeConfig{{Type: VolumeTypeVolume, Source: "offvol", Target: "/d"}},
+				},
+			},
+		},
+		Volumes:  Volumes{"hookvol": {Name: "external-hookvol"}, "jobvol": {Name: "external-jobvol"}, "offvol": {}, "unused": {}},
 		Networks: Networks{"jobnet": {}, "unused": {}},
 		Secrets:  Secrets{"jobsecret": {}, "buildsecret": {}, "unused": {}},
 		Configs:  Configs{"jobconfig": {}, "unused": {}},
@@ -132,9 +140,9 @@ func Test_WithoutUnnecessaryResourcesKeepsHookAndJobResources(t *testing.T) {
 	p = p.WithoutUnnecessaryResources()
 
 	assert.DeepEqual(t, p.Volumes, Volumes{"hookvol": {Name: "external-hookvol"}, "jobvol": {Name: "external-jobvol"}})
-	assert.DeepEqual(t, slices.Sorted(maps.Keys(p.Networks)), []string{"jobnet"})
-	assert.DeepEqual(t, slices.Sorted(maps.Keys(p.Secrets)), []string{"buildsecret", "jobsecret"})
-	assert.DeepEqual(t, slices.Sorted(maps.Keys(p.Configs)), []string{"jobconfig"})
+	assert.DeepEqual(t, p.NetworkNames(), []string{"jobnet"})
+	assert.DeepEqual(t, p.SecretNames(), []string{"buildsecret", "jobsecret"})
+	assert.DeepEqual(t, p.ConfigNames(), []string{"jobconfig"})
 }
 
 func Test_WithoutUnresolvedOptionalDependencies(t *testing.T) {
