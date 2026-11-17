@@ -96,6 +96,55 @@ func Test_WithoutUnnecessaryResources(t *testing.T) {
 	}
 }
 
+// Volumes, networks, secrets and configs used only by a pre_start hook or
+// by an enabled job are still required: those run containers too. A
+// disabled job does not count.
+func Test_WithoutUnnecessaryResourcesKeepsHookAndJobResources(t *testing.T) {
+	p := &Project{
+		Services: Services{
+			"a": {
+				Name: "a",
+				PreStart: []PreStartHook{{ContainerSpec: ContainerSpec{
+					Volumes: []ServiceVolumeConfig{{Type: VolumeTypeVolume, Source: "hookvol", Target: "/d"}},
+				}}},
+			},
+		},
+		Jobs: Jobs{
+			"j": {
+				Name: "j",
+				ContainerSpec: ContainerSpec{
+					Volumes:  []ServiceVolumeConfig{{Type: VolumeTypeVolume, Source: "jobvol", Target: "/d"}},
+					Networks: map[string]*ServiceNetworkConfig{"jobnet": nil},
+					Secrets:  []ServiceSecretConfig{{Source: "jobsecret"}},
+					Configs:  []ServiceConfigObjConfig{{Source: "jobconfig"}},
+				},
+				WorkloadSpec: WorkloadSpec{Build: &BuildConfig{
+					Secrets: []ServiceSecretConfig{{Source: "buildsecret"}},
+				}},
+			},
+		},
+		DisabledJobs: Jobs{
+			"off": {
+				Name: "off",
+				ContainerSpec: ContainerSpec{
+					Volumes: []ServiceVolumeConfig{{Type: VolumeTypeVolume, Source: "offvol", Target: "/d"}},
+				},
+			},
+		},
+		Volumes:  Volumes{"hookvol": {Name: "external-hookvol"}, "jobvol": {Name: "external-jobvol"}, "offvol": {}, "unused": {}},
+		Networks: Networks{"jobnet": {}, "unused": {}},
+		Secrets:  Secrets{"jobsecret": {}, "buildsecret": {}, "unused": {}},
+		Configs:  Configs{"jobconfig": {}, "unused": {}},
+	}
+
+	p = p.WithoutUnnecessaryResources()
+
+	assert.DeepEqual(t, p.Volumes, Volumes{"hookvol": {Name: "external-hookvol"}, "jobvol": {Name: "external-jobvol"}})
+	assert.DeepEqual(t, p.NetworkNames(), []string{"jobnet"})
+	assert.DeepEqual(t, p.SecretNames(), []string{"buildsecret", "jobsecret"})
+	assert.DeepEqual(t, p.ConfigNames(), []string{"jobconfig"})
+}
+
 func Test_WithoutUnresolvedOptionalDependencies(t *testing.T) {
 	p := &Project{
 		Services: Services{
