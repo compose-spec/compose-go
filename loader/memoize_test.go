@@ -316,42 +316,65 @@ func BenchmarkIncludeDiamond(b *testing.B) {
 	}
 }
 
+// BenchmarkExtendsFile loads n services, each extending its own service of a
+// file declaring n services: the time per service must not grow with n.
 func BenchmarkExtendsFile(b *testing.B) {
-	dir := b.TempDir()
-	base := `
-services:
-  base:
+	for _, n := range []int{50, 100, 200} {
+		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+			dir := b.TempDir()
+			var base strings.Builder
+			base.WriteString("services:")
+			for i := 0; i < n; i++ {
+				fmt.Fprintf(&base, `
+  base%[1]d:
     image: busybox
+    command: ["run", "--port", "8080"]
     environment:
       - FOO=bar
-`
-	if err := os.WriteFile(filepath.Join(dir, "base.yaml"), []byte(base), 0o600); err != nil {
-		b.Fatal(err)
-	}
-	root := "name: extends-bench\nservices:"
-	var extraServices strings.Builder
-	for i := 0; i < 40; i++ {
-		fmt.Fprintf(&extraServices, `
-  svc%d:
+      - INDEX=%[1]d
+    labels:
+      com.example.index: "%[1]d"
+    ports:
+      - "%[2]d:8080"
+    volumes:
+      - ./data%[1]d:/data
+    healthcheck:
+      test: ["CMD", "true"]
+      interval: 30s
+`, i, 10000+i)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "base.yaml"), []byte(base.String()), 0o600); err != nil {
+				b.Fatal(err)
+			}
+			root := "name: extends-bench\nservices:"
+			var extraServices strings.Builder
+			for i := 0; i < n; i++ {
+				fmt.Fprintf(&extraServices, `
+  svc%[1]d:
     extends:
       file: base.yaml
-      service: base
+      service: base%[1]d
+    environment:
+      - EXTRA=%[1]d
 `, i)
-	}
-	root += extraServices.String()
-	if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(root), 0o600); err != nil {
-		b.Fatal(err)
-	}
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
-		_, err := LoadWithContext(b.Context(), types.ConfigDetails{
-			WorkingDir:  dir,
-			ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
-		}, func(options *Options) {
-			options.SkipConsistencyCheck = true
+			}
+			root += extraServices.String()
+			if err := os.WriteFile(filepath.Join(dir, "compose.yaml"), []byte(root), 0o600); err != nil {
+				b.Fatal(err)
+			}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for k := 0; k < b.N; k++ {
+				_, err := LoadWithContext(b.Context(), types.ConfigDetails{
+					WorkingDir:  dir,
+					ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
+				}, func(options *Options) {
+					options.SkipConsistencyCheck = true
+				})
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
 		})
-		if err != nil {
-			b.Fatal(err)
-		}
 	}
 }
