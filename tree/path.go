@@ -51,22 +51,38 @@ func (p Path) Parts() []string {
 	return strings.Split(string(p), pathSeparator)
 }
 
+// Matches tells whether p has the same depth as pattern and every segment of
+// pattern is either PathMatchAll or equal to the segment of p at that level.
+//
+// It is called for every node of a document against every pattern of a table,
+// so it walks both paths segment by segment instead of splitting them: it
+// doesn't allocate and stops at the first segment that differs.
 func (p Path) Matches(pattern Path) bool {
-	patternParts := pattern.Parts()
-	parts := p.Parts()
-
-	if len(patternParts) != len(parts) {
-		return false
-	}
-	for index, part := range parts {
-		switch patternParts[index] {
-		case PathMatchAll, part:
-			continue
-		default:
+	s, pt := string(p), string(pattern)
+	for {
+		var seg, pseg string
+		var more, pmore bool
+		seg, s, more = cutSegment(s)
+		pseg, pt, pmore = cutSegment(pt)
+		if more != pmore {
 			return false
 		}
+		if pseg != PathMatchAll && pseg != seg {
+			return false
+		}
+		if !more {
+			return true
+		}
 	}
-	return true
+}
+
+// cutSegment splits s around its first separator. more tells whether a
+// separator was found, i.e. whether rest is the path of a deeper level.
+func cutSegment(s string) (seg, rest string, more bool) {
+	if i := strings.Index(s, pathSeparator); i >= 0 {
+		return s[:i], s[i+len(pathSeparator):], true
+	}
+	return s, "", false
 }
 
 func (p Path) Last() string {
