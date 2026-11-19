@@ -19,6 +19,7 @@ package loader
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	"github.com/compose-spec/compose-go/v2/types"
@@ -739,4 +740,172 @@ services:
 			assert.Error(t, err, "extends.test.file must be a string")
 		})
 	}
+}
+
+// An entry extending a service of another file gets the whole extends chain of
+// that service, wherever it leads: a chain within the extended file, a chain
+// leaving it for a third file, and a service with no extends at all, whichever
+// the number of entries extending the file and the order they are resolved in.
+// Entries of the extended file that no chain reaches play no part.
+func TestExtendsFileChains(t *testing.T) {
+	p, err := loadJobsExtends(t, map[string]string{
+		"base.yaml": `
+services:
+  a:
+    image: from-a
+    labels:
+      a: "1"
+  b:
+    extends: a
+    labels:
+      b: "1"
+  c:
+    extends:
+      service: b
+    labels:
+      c: "1"
+  other:
+    extends:
+      file: other.yaml
+      service: x
+    labels:
+      other: "1"
+  unrelated:
+    image: from-unrelated
+  broken:
+    extends: missing
+`,
+		"other.yaml": `
+services:
+  x:
+    image: from-x
+    labels:
+      x: "1"
+`,
+		"compose.yaml": `
+services:
+  from-c:
+    extends: {file: base.yaml, service: c}
+  from-c-again:
+    extends: {file: base.yaml, service: c}
+    labels:
+      again: "1"
+  from-b:
+    extends: {file: base.yaml, service: b}
+  from-a:
+    extends: {file: base.yaml, service: a}
+  from-other:
+    extends: {file: base.yaml, service: other}
+  from-unrelated:
+    extends: {file: base.yaml, service: unrelated}
+`,
+	})
+	assert.NilError(t, err)
+
+	for name, want := range map[string]struct {
+		image  string
+		labels types.Labels
+	}{
+		"from-c":         {"from-a", types.Labels{"a": "1", "b": "1", "c": "1"}},
+		"from-c-again":   {"from-a", types.Labels{"a": "1", "b": "1", "c": "1", "again": "1"}},
+		"from-b":         {"from-a", types.Labels{"a": "1", "b": "1"}},
+		"from-a":         {"from-a", types.Labels{"a": "1"}},
+		"from-other":     {"from-x", types.Labels{"x": "1", "other": "1"}},
+		"from-unrelated": {"from-unrelated", nil},
+	} {
+		t.Run(name, func(t *testing.T) {
+			svc, err := p.GetService(name)
+			assert.NilError(t, err)
+			assert.Equal(t, svc.Image, want.image)
+			assert.DeepEqual(t, svc.Labels, want.labels)
+		})
+	}
+}
+
+// A dangling or cyclic extends in the extended file is reported when an entry
+// reaches it, and only then: an entry of the file that is not extended is not
+// looked at.
+func TestExtendsFileBrokenChain(t *testing.T) {
+	base := `
+services:
+  ok:
+    image: busybox
+  dangling:
+    extends: missing
+  ping:
+    extends: pong
+  pong:
+    extends: ping
+`
+	for name, tc := range map[string]struct {
+		service string
+		wantErr string
+	}{
+		"not reached":     {"ok", ""},
+		"dangling extend": {"dangling", `service "missing" not found`},
+		"cycle":           {"ping", "Circular reference"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, err := loadJobsExtends(t, map[string]string{
+				"base.yaml": base,
+				"compose.yaml": `
+services:
+  web:
+    extends: {file: base.yaml, service: ` + tc.service + `}
+`,
+			})
+			if tc.wantErr == "" {
+				assert.NilError(t, err)
+				return
+			}
+			assert.ErrorContains(t, err, tc.wantErr)
+		})
+	}
+}
+
+// cloneReachable copies the entry and the chain of entries it extends in the
+// same file, deeply, and nothing else.
+func TestCloneReachable(t *testing.T) {
+	services := map[string]any{
+		"a":         map[string]any{"image": "a", "labels": map[string]any{"k": "v"}},
+		"b":         map[string]any{"extends": "a"},
+		"c":         map[string]any{"extends": map[string]any{"service": "b"}},
+		"d":         map[string]any{"extends": map[string]any{"service": "a", "file": "other.yaml"}},
+		"e":         map[string]any{"extends": map[string]any{"service": "c"}},
+		"unrelated": map[string]any{"image": "unrelated"},
+		"loop":      map[string]any{"extends": "loop"},
+		"dangling":  map[string]any{"extends": "missing"},
+		"not-a-map": "oops",
+	}
+	names := func(m map[string]any) []string {
+		var out []string
+		for name := range m {
+			out = append(out, name)
+		}
+		sort.Strings(out)
+		return out
+	}
+	for ref, want := range map[string][]string{
+		"a":         {"a"},
+		"c":         {"a", "b", "c"},
+		"e":         {"a", "b", "c", "e"},
+		"d":         {"d"}, // the chain goes on in the other file
+		"unrelated": {"unrelated"},
+		"loop":      {"loop"},
+		"dangling":  {"dangling"},
+		"not-a-map": {"not-a-map"},
+		"missing":   nil,
+	} {
+		t.Run(ref, func(t *testing.T) {
+			assert.DeepEqual(t, names(cloneReachable(services, ref)), want)
+		})
+	}
+
+	t.Run("copy is deep", func(t *testing.T) {
+		clone := cloneReachable(services, "b")
+		clone["a"].(map[string]any)["labels"].(map[string]any)["k"] = "changed"
+		clone["b"].(map[string]any)["extends"] = "changed"
+		assert.Equal(t, services["a"].(map[string]any)["labels"].(map[string]any)["k"], "v")
+		assert.Equal(t, services["b"].(map[string]any)["extends"], "a")
+	})
 }

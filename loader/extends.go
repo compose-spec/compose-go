@@ -205,21 +205,21 @@ func getExtendsBaseFromFile(
 		cache := extendsCache(ctx)
 		cacheKey := extendsRef{path: local, workingDir: relworkingdir, section: section}
 		base, hit := cache[cacheKey]
-		if hit {
-			// hand out a copy: resolving an extends chain writes merged
-			// services back into this map (see applyServiceExtends)
-			base.services = deepClone(base.services).(map[string]any)
-		} else {
+		if !hit {
 			base, err = loadExtendsBase(ctx, section, name, local, relworkingdir, opts, ct)
 			if err != nil {
 				return nil, nil, err
 			}
 			if cache != nil {
-				cache[cacheKey] = extendsBase{
-					services:  deepClone(base.services).(map[string]any),
-					processor: base.processor,
-				}
+				cache[cacheKey] = base
 			}
+		}
+		if cache != nil {
+			// the cached services are shared by every entry extending this
+			// file, and resolving an extends chain writes merged entries back
+			// into the map handed out (see applyServiceExtends): hand out a
+			// copy, of the only entries that chain reads
+			base.services = cloneReachable(base.services, ref)
 		}
 
 		if _, ok := base.services[ref]; !ok {
@@ -294,4 +294,42 @@ func deepClone(value any) any {
 	default:
 		return value
 	}
+}
+
+// cloneReachable returns a deep copy of the entry ref of services and of the
+// entries it extends, directly or not, within the same file: the ones
+// applyServiceExtends reads and writes to resolve ref. The other entries are
+// left out, as copying a whole file for each entry extending it is quadratic.
+// An entry extending a file leaves this one: the chain goes on in the copy of
+// that file.
+func cloneReachable(services map[string]any, ref string) map[string]any {
+	reachable := map[string]any{}
+	for name := ref; name != ""; {
+		if _, done := reachable[name]; done {
+			break // extends cycle, reported when resolving the chain
+		}
+		entry, ok := services[name]
+		if !ok {
+			break // dangling extends, reported when resolving the chain
+		}
+		reachable[name] = deepClone(entry)
+		name = sameFileExtends(entry)
+	}
+	return reachable
+}
+
+// sameFileExtends returns the name of the entry the given one extends in the
+// same file, or "" when it extends none or one of another file.
+func sameFileExtends(entry any) string {
+	m, _ := entry.(map[string]any)
+	switch extends := m["extends"].(type) {
+	case string:
+		return extends
+	case map[string]any:
+		if extends["file"] == nil {
+			name, _ := extends["service"].(string)
+			return name
+		}
+	}
+	return ""
 }
