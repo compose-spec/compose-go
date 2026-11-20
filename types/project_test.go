@@ -184,6 +184,83 @@ func Test_ForServicesIgnoreDependencies(t *testing.T) {
 	assert.Check(t, dependsOn)
 }
 
+// chainProject returns a project of n services, each depending on the previous one.
+func chainProject(n int) *Project {
+	p := &Project{Services: Services{}}
+	for i := range n {
+		name := fmt.Sprintf("svc_%d", i)
+		s := ServiceConfig{Name: name}
+		s.Image = "example/" + name
+		s.Environment = MappingWithEquals{"A": new("a"), "B": new("b"), "C": new("c")}
+		if i > 0 {
+			s.DependsOn = map[string]ServiceDependency{fmt.Sprintf("svc_%d", i-1): {Required: true}}
+		}
+		p.Services[name] = s
+	}
+	return p
+}
+
+// WithSelectedServices keeps the selected services and what they need, disables the others
+// without touching the project it was called on, and leaves no dependency on a disabled service.
+func Test_WithSelectedServicesLeavesOriginalUnchanged(t *testing.T) {
+	p := chainProject(6)
+	selected, err := p.WithSelectedServices([]string{"svc_3"}, IgnoreDependencies)
+	assert.NilError(t, err)
+
+	assert.DeepEqual(t, selected.ServiceNames(), []string{"svc_3"})
+	assert.DeepEqual(t, selected.DisabledServiceNames(), []string{"svc_0", "svc_1", "svc_2", "svc_4", "svc_5"})
+	assert.Equal(t, len(selected.Services["svc_3"].DependsOn), 0)
+
+	assert.Equal(t, len(p.Services), 6)
+	assert.Equal(t, len(p.DisabledServices), 0)
+	assert.Equal(t, len(p.Services["svc_3"].DependsOn), 1)
+
+	// the copy does not share anything with the original
+	selected.Services["svc_3"].Environment["A"] = new("changed")
+	assert.Equal(t, *p.Services["svc_3"].Environment["A"], "a")
+}
+
+// Selecting every service disables nothing, so the project has no disabled services.
+func Test_WithSelectedServicesAllSelected(t *testing.T) {
+	p := chainProject(3)
+	selected, err := p.WithSelectedServices([]string{"svc_2"})
+	assert.NilError(t, err)
+	assert.Equal(t, len(selected.Services), 3)
+	assert.Assert(t, selected.DisabledServices == nil)
+}
+
+// allocsGrowth returns how many times more allocations op takes on a project of 2n services than
+// on one of n services: about 2 when the cost is linear, about 4 when it is quadratic.
+func allocsGrowth(n int, op func(p *Project)) float64 {
+	measure := func(n int) float64 {
+		p := chainProject(n)
+		return testing.AllocsPerRun(3, func() { op(p) })
+	}
+	return measure(2*n) / measure(n)
+}
+
+// Selecting services costs a single copy of the project, not one per disabled service: the
+// allocations grow linearly with the number of services.
+func Test_WithSelectedServicesIsLinear(t *testing.T) {
+	growth := allocsGrowth(100, func(p *Project) {
+		_, err := p.WithSelectedServices([]string{"svc_0"})
+		assert.NilError(t, err)
+	})
+	assert.Assert(t, growth < 3, "allocations grew %.1f times when the services doubled", growth)
+}
+
+// A job without any service dependency disables every service, in one copy of the project.
+func Test_WithSelectedJobWithoutServicesIsLinear(t *testing.T) {
+	growth := allocsGrowth(100, func(p *Project) {
+		p.Jobs = Jobs{"noop": JobConfig{Name: "noop"}}
+		selected, err := p.WithSelectedJob("noop")
+		assert.NilError(t, err)
+		assert.Equal(t, len(selected.Services), 0)
+		assert.Equal(t, len(selected.DisabledServices), len(p.Services))
+	})
+	assert.Assert(t, growth < 3, "allocations grew %.1f times when the services doubled", growth)
+}
+
 func Test_ForServicesCycle(t *testing.T) {
 	p := makeProject()
 	service := p.Services["service_1"]
