@@ -47,10 +47,9 @@ type Cast func(value string) (interface{}, error)
 
 // Interpolate replaces variables in a string with the values from a mapping.
 // Every failure is collected into a single joined error, sorted by config
-// path, rather than returning the first one. There is one error per failing
-// config value: if a value holds several failing variable references, only
-// the first one is reported. The walk continues past failures, so
-// LookupValue, Substitute and Cast may run on values dropped from the result.
+// path, rather than returning the first one, including multiple failing
+// variable references within the same value. The walk continues past failures,
+// so LookupValue, Substitute and Cast may run on values dropped from the result.
 func Interpolate(config map[string]interface{}, opts Options) (map[string]interface{}, error) {
 	if opts.LookupValue == nil {
 		opts.LookupValue = os.LookupEnv
@@ -166,11 +165,22 @@ func (e pathError) Error() string { return e.msg }
 func (e pathError) Unwrap() error { return e.err }
 
 func newPathError(path tree.Path, err error) error {
-	var ite *template.InvalidTemplateError
-	switch {
-	case err == nil:
+	if err == nil {
 		return nil
-	case errors.As(err, &ite):
+	}
+	var joined interface{ Unwrap() []error }
+	if errors.As(err, &joined) {
+		unwrapped := joined.Unwrap()
+		errs := make([]error, 0, len(unwrapped))
+		for _, e := range unwrapped {
+			if pe := newPathError(path, e); pe != nil {
+				errs = append(errs, pe)
+			}
+		}
+		return errors.Join(errs...)
+	}
+	var ite *template.InvalidTemplateError
+	if errors.As(err, &ite) {
 		return pathError{
 			path: path,
 			err:  err,
@@ -178,12 +188,11 @@ func newPathError(path tree.Path, err error) error {
 				"invalid interpolation format for %s.\nYou may need to escape any $ with another $.\n%s",
 				path, ite.Template),
 		}
-	default:
-		return pathError{
-			path: path,
-			err:  err,
-			msg:  fmt.Sprintf("error while interpolating %s: %s", path, err),
-		}
+	}
+	return pathError{
+		path: path,
+		err:  err,
+		msg:  fmt.Sprintf("error while interpolating %s: %s", path, err),
 	}
 }
 
