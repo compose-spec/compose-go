@@ -17,6 +17,7 @@
 package template
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -364,6 +365,83 @@ func TestMandatoryVariableErrorsWithNestedExpansion(t *testing.T) {
 		_, err := Substitute(tc.template, defaultMapping)
 		assert.ErrorContains(t, err, tc.expectedError)
 		assert.ErrorType(t, err, reflect.TypeOf(&MissingRequiredError{}))
+	}
+}
+
+// Multiple failing substitutions in one template string must all be collected
+// in order instead of stopping at the first failure.
+func TestSubstituteReportsAllErrors(t *testing.T) {
+	testCases := []struct {
+		name          string
+		template      string
+		expectedError string
+		checkErrorsAs func(t *testing.T, err error)
+	}{
+		{
+			name:     "two required variables on one line",
+			template: "${DB_HOST:?DB_HOST is required}:${DB_PORT:?DB_PORT is required}",
+			expectedError: "required variable DB_HOST is missing a value: DB_HOST is required\n" +
+				"required variable DB_PORT is missing a value: DB_PORT is required",
+			checkErrorsAs: func(t *testing.T, err error) {
+				t.Helper()
+				var missing *MissingRequiredError
+				assert.Assert(t, errors.As(err, &missing))
+				assert.Check(t, is.Equal("DB_HOST", missing.Variable))
+			},
+		},
+		{
+			name:     "three required variables in one string",
+			template: "${A:?a}/${B:?b}/${C:?c}",
+			expectedError: "required variable A is missing a value: a\n" +
+				"required variable B is missing a value: b\n" +
+				"required variable C is missing a value: c",
+		},
+		{
+			name:     "required variables across newlines",
+			template: "${A:?a}\n${B:?b}",
+			expectedError: "required variable A is missing a value: a\n" +
+				"required variable B is missing a value: b",
+		},
+		{
+			name:          "invalid template before missing variable",
+			template:      "${ ${MISSING:?required}",
+			expectedError: "Invalid template: \"${ ${MISSING:?required}\"\nrequired variable MISSING is missing a value: required",
+			checkErrorsAs: func(t *testing.T, err error) {
+				t.Helper()
+				var ite *InvalidTemplateError
+				var missing *MissingRequiredError
+				assert.Check(t, errors.As(err, &ite))
+				assert.Check(t, errors.As(err, &missing))
+			},
+		},
+		{
+			name:          "missing variable before invalid template",
+			template:      "${MISSING:?required} ${",
+			expectedError: "required variable MISSING is missing a value: required\nInvalid template: \"${MISSING:?required} ${\"",
+			checkErrorsAs: func(t *testing.T, err error) {
+				t.Helper()
+				var ite *InvalidTemplateError
+				var missing *MissingRequiredError
+				assert.Check(t, errors.As(err, &ite))
+				assert.Check(t, errors.As(err, &missing))
+			},
+		},
+		{
+			name:     "nested failure in default followed by another missing variable",
+			template: "${UNSET:-${INNER:?inner}} ${OUTER:?outer}",
+			expectedError: "required variable INNER is missing a value: inner\n" +
+				"required variable OUTER is missing a value: outer",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Substitute(tc.template, defaultMapping)
+			assert.Error(t, err, tc.expectedError)
+			if tc.checkErrorsAs != nil {
+				tc.checkErrorsAs(t, err)
+			}
+		})
 	}
 }
 

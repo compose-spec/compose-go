@@ -120,9 +120,9 @@ func WithoutLogging(cfg *Config) {
 
 // SubstituteWithOptions substitute variables in the string with their values.
 // It accepts additional options such as a custom function or pattern.
+// Every failing substitution in the template is collected in order and returned
+// as a joined error.
 func SubstituteWithOptions(template string, mapping Mapping, options ...Option) (string, error) {
-	var returnErr error
-
 	cfg := &Config{
 		pattern:         DefaultPattern,
 		replacementFunc: DefaultReplacementFunc,
@@ -132,26 +132,52 @@ func SubstituteWithOptions(template string, mapping Mapping, options ...Option) 
 		o(cfg)
 	}
 
-	result := cfg.pattern.ReplaceAllStringFunc(template, func(substring string) string {
+	result, errs := substitute(template, mapping, cfg)
+	for _, err := range errs {
+		var tmplErr *InvalidTemplateError
+		if errors.As(err, &tmplErr) && tmplErr.Template == "" {
+			tmplErr.Template = template
+		}
+	}
+
+	return result, joinErrors(errs)
+}
+
+func substitute(tmpl string, mapping Mapping, cfg *Config) (string, []error) {
+	var errs []error
+	result := cfg.pattern.ReplaceAllStringFunc(tmpl, func(substring string) string {
 		replacement, err := cfg.replacementFunc(substring, mapping, cfg)
 		if err != nil {
-			// Add the template for template errors
-			var tmplErr *InvalidTemplateError
-			if errors.As(err, &tmplErr) {
-				if tmplErr.Template == "" {
-					tmplErr.Template = template
-				}
-			}
-			// Save the first error to be returned
-			if returnErr == nil {
-				returnErr = err
-			}
-
+			errs = appendErrors(errs, err)
 		}
 		return replacement
 	})
+	return result, errs
+}
 
-	return result, returnErr
+func appendErrors(dst []error, err error) []error {
+	if err == nil {
+		return dst
+	}
+	var joined interface{ Unwrap() []error }
+	if errors.As(err, &joined) {
+		for _, e := range joined.Unwrap() {
+			dst = appendErrors(dst, e)
+		}
+		return dst
+	}
+	return append(dst, err)
+}
+
+func joinErrors(errs []error) error {
+	switch len(errs) {
+	case 0:
+		return nil
+	case 1:
+		return errs[0]
+	default:
+		return errors.Join(errs...)
+	}
 }
 
 func DefaultReplacementFunc(substring string, mapping Mapping, cfg *Config) (string, error) {
@@ -193,12 +219,16 @@ func DefaultReplacementAppliedFunc(substring string, mapping Mapping, cfg *Confi
 	if braced {
 		value, applied, err := subsFunc(substitution, mapping)
 		if err != nil {
+			if rest != "" {
+				_, restErrs := substitute(rest, mapping, cfg)
+				err = joinErrors(append(appendErrors(nil, err), restErrs...))
+			}
 			return "", false, err
 		}
 		if applied {
-			interpolatedNested, err := SubstituteWith(rest, mapping, pattern)
-			if err != nil {
-				return "", false, err
+			interpolatedNested, restErrs := substitute(rest, mapping, cfg)
+			if len(restErrs) > 0 {
+				return "", false, joinErrors(restErrs)
 			}
 			return value + interpolatedNested, true, nil
 		}
