@@ -118,7 +118,6 @@ func TestValidUnexistentInterpolation(t *testing.T) {
 		{test: "{{{ ${FOO:?foo_} }}}", errMsg: "foo_"},
 		{test: "{{{ ${FOO:?foo-bar-value} }}}", errMsg: "foo-bar-value"},
 		{test: "{{{ ${FOO:?foo} ${BAR:-DEFAULT_VALUE} }}}", errMsg: "foo"},
-		{test: "${FOO:?foo} ${BAR:?bar}", errMsg: "foo"},
 		{test: "{{{ ${BAR} }}}", expected: "{{{  }}}"},
 		{test: "${FOO:?baz} }}}", errMsg: "baz"},
 		{test: "${FOO?baz} }}}", errMsg: "baz"},
@@ -250,6 +249,65 @@ func TestInterpolateReportsAllErrors(t *testing.T) {
 		_, err := Interpolate(config, Options{LookupValue: defaultMapping})
 		assert.Error(t, err, expected)
 	}
+}
+
+// Multiple failing variable references inside a single string value must all
+// carry the key path prefix and stay unwrappable through errors.As.
+func TestInterpolateReportsAllErrorsInSingleValue(t *testing.T) {
+	t.Run("multiple missing variables in one value", func(t *testing.T) {
+		config := map[string]interface{}{
+			"service": map[string]interface{}{
+				"environment": map[string]interface{}{
+					"URI": "${DB_HOST:?DB_HOST is required}:${DB_PORT:?DB_PORT is required}",
+				},
+			},
+		}
+		expected := "error while interpolating service.environment.URI: required variable DB_HOST is missing a value: DB_HOST is required\n" +
+			"error while interpolating service.environment.URI: required variable DB_PORT is missing a value: DB_PORT is required"
+		_, err := Interpolate(config, Options{LookupValue: defaultMapping})
+		assert.Error(t, err, expected)
+
+		var missing *template.MissingRequiredError
+		assert.Assert(t, errors.As(err, &missing))
+		assert.Check(t, is.Equal("DB_HOST", missing.Variable))
+	})
+
+	t.Run("mixed invalid template and missing variable in one value", func(t *testing.T) {
+		config := map[string]interface{}{
+			"service": map[string]interface{}{
+				"environment": map[string]interface{}{
+					"VAL": "${ ${MISSING:?required}",
+				},
+			},
+		}
+		expected := "invalid interpolation format for service.environment.VAL.\n" +
+			"You may need to escape any $ with another $.\n" +
+			"${ ${MISSING:?required}\n" +
+			"error while interpolating service.environment.VAL: required variable MISSING is missing a value: required"
+		_, err := Interpolate(config, Options{LookupValue: defaultMapping})
+		assert.Error(t, err, expected)
+
+		var ite *template.InvalidTemplateError
+		var missing *template.MissingRequiredError
+		assert.Check(t, errors.As(err, &ite))
+		assert.Check(t, errors.As(err, &missing))
+	})
+
+	t.Run("deterministic order across multiple keys and variables", func(t *testing.T) {
+		config := map[string]interface{}{
+			"service": map[string]interface{}{
+				"aaa": "${FIRST:?one}:${SECOND:?two}",
+				"zzz": "${THIRD:?three}",
+			},
+		}
+		expected := "error while interpolating service.aaa: required variable FIRST is missing a value: one\n" +
+			"error while interpolating service.aaa: required variable SECOND is missing a value: two\n" +
+			"error while interpolating service.zzz: required variable THIRD is missing a value: three"
+		for range 100 {
+			_, err := Interpolate(config, Options{LookupValue: defaultMapping})
+			assert.Error(t, err, expected)
+		}
+	})
 }
 
 func TestInterpolateErrorsRemainUnwrappable(t *testing.T) {
