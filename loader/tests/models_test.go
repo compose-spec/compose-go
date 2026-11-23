@@ -62,18 +62,26 @@ models:
     runtime_flags:
       - "--some-flag"
 `)
-	assert.DeepEqual(t, p.Models["foo"], types.ModelConfig{
-		Model:        "ai/model",
-		ContextSize:  1024,
-		RuntimeFlags: []string{"--some-flag"},
-	})
-	assert.Assert(t, p.Services["test_array"].Models["foo"] == nil)
-	assert.Equal(t, p.Services["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
-	assert.Equal(t, p.Services["test_mapping"].Models["foo"].ModelVariable, "MODEL")
+	expect := func(p *types.Project) {
+		t.Helper()
+		assert.DeepEqual(t, p.Models["foo"], types.ModelConfig{
+			Model:        "ai/model",
+			ContextSize:  1024,
+			RuntimeFlags: []string{"--some-flag"},
+		})
+		assert.Assert(t, p.Services["test_array"].Models["foo"] == nil)
+		assert.Equal(t, p.Services["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
+		assert.Equal(t, p.Services["test_mapping"].Models["foo"].ModelVariable, "MODEL")
 
-	assert.Assert(t, p.Jobs["test_array"].Models["foo"] == nil)
-	assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
-	assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].ModelVariable, "MODEL")
+		assert.Assert(t, p.Jobs["test_array"].Models["foo"] == nil)
+		assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].EndpointVariable, "MODEL_URL")
+		assert.Equal(t, p.Jobs["test_mapping"].Models["foo"].ModelVariable, "MODEL")
+	}
+	expect(p)
+
+	yamlP, jsonP := roundTrip(t, p)
+	expect(yamlP)
+	expect(jsonP)
 }
 
 func TestModelsWithInvalidKey(t *testing.T) {

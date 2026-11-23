@@ -886,6 +886,9 @@ func (p *Project) MarshalJSON(options ...func(*marshallOptions)) ([]byte, error)
 	if len(src.Jobs) > 0 {
 		m["jobs"] = src.Jobs
 	}
+	if len(src.Models) > 0 {
+		m["models"] = src.Models
+	}
 	for k, v := range src.Extensions {
 		m[k] = v
 	}
