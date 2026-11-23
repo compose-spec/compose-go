@@ -265,6 +265,9 @@ func (i *includer) checkCycle(path string) error {
 func (i *includer) loadOptions(r *types.IncludeConfig) *Options {
 	loadOptions := i.options.clone()
 	loadOptions.ResolvePaths = true
+	// defaults (e.g. build context ".") must be set before the included file's
+	// relative paths are resolved against its own project directory
+	loadOptions.SkipDefaultValues = false
 	loadOptions.SkipNormalization = true
 	loadOptions.SkipConsistencyCheck = true
 	// include and extends events are only reported for declarations in the
