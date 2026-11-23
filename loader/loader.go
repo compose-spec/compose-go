@@ -209,29 +209,11 @@ func (l localResourceLoader) isDir(path string) bool {
 	return fileInfo.IsDir()
 }
 
+// clone returns a shallow copy, so every option, including ones added later,
+// carries over to included and extended files.
 func (o *Options) clone() *Options {
-	return &Options{
-		SkipValidation:             o.SkipValidation,
-		SkipInterpolation:          o.SkipInterpolation,
-		SkipNormalization:          o.SkipNormalization,
-		ResolvePaths:               o.ResolvePaths,
-		ConvertWindowsPaths:        o.ConvertWindowsPaths,
-		SkipConsistencyCheck:       o.SkipConsistencyCheck,
-		SkipExtends:                o.SkipExtends,
-		SkipInclude:                o.SkipInclude,
-		Interpolate:                o.Interpolate,
-		discardEnvFiles:            o.discardEnvFiles,
-		projectName:                o.projectName,
-		projectNameExplicit:        o.projectNameExplicit,
-		workingDirExplicit:         o.workingDirExplicit,
-		Profiles:                   o.Profiles,
-		SelectedServices:           o.SelectedServices,
-		PruneUnnecessaryResources:  o.PruneUnnecessaryResources,
-		ResourceLoaders:            o.ResourceLoaders,
-		KnownExtensions:            o.KnownExtensions,
-		Listeners:                  o.Listeners,
-		UnsupportedAttributesCheck: o.UnsupportedAttributesCheck,
-	}
+	c := *o
+	return &c
 }
 
 func (o *Options) SetProjectName(name string, explicit bool) {

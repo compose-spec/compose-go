@@ -286,6 +286,23 @@ func TestVisitCounterLimitOverride(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+// TestVisitCounterLimitOverrideAppliesToIncludes verifies that Options.MaxNodeVisits also
+// applies to included files: an included document must be held to the cap the caller set,
+// not silently fall back to the default (under which this small file would load fine).
+func TestVisitCounterLimitOverrideAppliesToIncludes(t *testing.T) {
+	var keys strings.Builder
+	for i := range 60 {
+		fmt.Fprintf(&keys, "  k%d: v\n", i)
+	}
+	_, err := includeProject(t, "include:\n  - small.yaml\n", map[string]string{
+		"small.yaml": "x-data1:\n" + keys.String() + "x-data2:\n" + keys.String(),
+	}, func(options *Options) {
+		options.SkipConsistencyCheck = true
+		options.MaxNodeVisits = 100
+	})
+	assert.ErrorContains(t, err, "exceeds maximum node visit limit (100)")
+}
+
 // TestLargeLegitimateFile verifies that a large but realistic compose file (400 services x 122
 // environment variables, ~50,000 node visits) is accepted without hitting the visit counter.
 func TestLargeLegitimateFile(t *testing.T) {

@@ -509,3 +509,16 @@ func TestNestedIncludeRelativeWorkingDirectory(t *testing.T) {
 		})
 	}
 }
+
+// The default build context of an included service is its own project
+// directory, even when the caller skips default values: defaults must be set
+// in the included file before its relative paths are resolved, or the context
+// would end up resolved against the including project.
+// https://github.com/compose-spec/compose-spec/blob/main/14-include.md#path
+func TestIncludeDefaultBuildContextWithSkipDefaultValues(t *testing.T) {
+	p, err := includeProject(t, "include:\n  - sub/compose.yaml\n", map[string]string{
+		"sub/compose.yaml": "services:\n  app:\n    build:\n      dockerfile: Dockerfile\n",
+	}, func(o *Options) { o.SkipDefaultValues = true })
+	assert.NilError(t, err)
+	assert.Equal(t, p.Services["app"].Build.Context, filepath.Join(p.WorkingDir, "sub"))
+}
