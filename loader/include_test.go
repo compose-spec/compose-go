@@ -483,3 +483,29 @@ func TestIncludeRelativePathsOfARemoteFile(t *testing.T) {
 	assert.Equal(t, p.Services["b"].Build.Context, filepath.Join(root, "module", "app"))
 	assert.Equal(t, p.Services["c"].Build.Context, filepath.Join(root, "module", "other"))
 }
+
+// Nested includes must resolve contexts relative to each included file, even
+// when the caller uses a relative working directory (docker/buildx#3099).
+// https://github.com/compose-spec/compose-spec/blob/main/14-include.md
+func TestNestedIncludeRelativeWorkingDirectory(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	createFileSubDir(t, dir, "b", "include:\n  - ../c/c.yml\n  - d/d.yml\nservices:\n  b:\n    build: .\n", "b.yml")
+	createFileSubDir(t, dir, "c", "services:\n  c:\n    build: .\n", "c.yml")
+	createFileSubDir(t, dir, filepath.Join("b", "d"), "services:\n  d:\n    build: .\n", "d.yml")
+	for name, wd := range map[string]string{"empty": "", "dot": ".", "absolute": dir} {
+		t.Run(name, func(t *testing.T) {
+			p, err := LoadWithContext(t.Context(), types.ConfigDetails{
+				WorkingDir: wd,
+				ConfigFiles: []types.ConfigFile{{
+					Filename: "a.yml",
+					Content:  []byte("include:\n  - b/b.yml\nservices:\n  a:\n    build: .\n"),
+				}},
+			}, func(o *Options) { o.SetProjectName("test", true) })
+			assert.NilError(t, err)
+			assert.Equal(t, p.Services["c"].Build.Context, filepath.Join(wd, "c"))
+			assert.Equal(t, p.Services["b"].Build.Context, filepath.Join(wd, "b"))
+			assert.Equal(t, p.Services["d"].Build.Context, filepath.Join(wd, "b", "d"))
+		})
+	}
+}
