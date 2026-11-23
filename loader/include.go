@@ -96,6 +96,11 @@ func loadIncludeConfig(source any) ([]types.IncludeConfig, error) {
 	return requires, err
 }
 
+// ApplyInclude loads the files of the `include` section of model, and imports
+// their resources into it. workingDir is the path base of the file declaring
+// the includes: the directory the paths of its model are resolved against, see
+// loadYamlFile. The directory the files are read from is that of the local
+// resource loader of options.
 func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapping, model map[string]any, options *Options, included []string, processor PostProcessor) error {
 	includeConfig, err := loadIncludeConfig(model["include"])
 	if err != nil {
@@ -124,7 +129,12 @@ func ApplyInclude(ctx context.Context, workingDir string, environment types.Mapp
 // section of a model into this very model
 type includer struct {
 	ctx context.Context
-	// workingDir is the working directory of the file declaring the includes
+	// workingDir is the path base of the file declaring the includes: the
+	// directory the paths of its model are resolved against. It is the
+	// working directory of the main project, absolute or not, and for the files
+	// of an included project the directory of the project relative to the one
+	// including it. It is not a directory of the file system in general, see
+	// projectDirectory.
 	workingDir  string
 	environment types.Mapping
 	// model is the model declaring the includes, receiving the included resources
@@ -144,7 +154,7 @@ func (i *includer) apply(r *types.IncludeConfig) error {
 		})
 	}
 
-	relworkingdir, err := i.resolvePaths(r)
+	pathBase, err := i.resolvePaths(r)
 	if err != nil {
 		return err
 	}
@@ -161,7 +171,7 @@ func (i *includer) apply(r *types.IncludeConfig) error {
 	}
 
 	config := types.ConfigDetails{
-		WorkingDir:  relworkingdir,
+		WorkingDir:  pathBase,
 		ConfigFiles: types.ToConfigFiles(r.Path),
 		Environment: i.environment.Clone().Merge(envFromFile),
 	}
@@ -178,73 +188,83 @@ func (i *includer) apply(r *types.IncludeConfig) error {
 }
 
 // resolvePaths replaces the paths of the include entry by the local files
-// served by the resource loaders. It returns the working directory, relative
-// when possible, of the main (first) file.
+// served by the resource loaders. It returns the path base of the main (first)
+// file: see resolvePath.
 func (i *includer) resolvePaths(r *types.IncludeConfig) (string, error) {
-	var relworkingdir string
+	var pathBase string
 	for idx, p := range r.Path {
-		resolved, relDir, err := i.resolvePath(r, idx, p)
+		resolved, base, err := i.resolvePath(r, idx, p)
 		if err != nil {
 			return "", err
 		}
 		if idx == 0 {
-			relworkingdir = relDir
+			pathBase = base
 		}
 		r.Path[idx] = resolved
 	}
-	return relworkingdir, nil
+	return pathBase, nil
 }
 
 // resolvePath loads the idx-th path of the include entry with every resource
-// loader accepting it. The first path is the "main" file, used to define
-// project-directory, the others are overrides: for this one the working
-// directory is returned too, and an include cycle is reported.
+// loader accepting it, and returns the local file serving it. The first path
+// is the "main" file, used to define the project directory, the others are
+// overrides: for the main one an include cycle is reported, and the path base
+// of the files is returned too.
+//
+// The path base is the directory the paths of the model of the included files
+// are resolved against, as the includer of the entry sees it (see
+// setProjectDirectory). It is not a directory to read files from: that one is
+// the project directory, which is always absolute.
 //
 // There is no break after the first loader accepting the path, on purpose. The
 // local loader is last and accepts everything, so a path first loaded by a
 // remote loader is handled a second time by the local loader, on the local copy
 // the remote loader returned. For the first path of the entry, the first pass
-// sets the project directory and returns the remote loader's Dir of the local
-// copy; the second pass finds the project directory set and returns it, as an
-// absolute path, instead. That is what makes the relative paths of a remote
-// file resolve: the remote loaders of Docker Compose key Dir on the reference
-// given to Load, but Dir is called here with the local copy and so returns
-// nothing. Stopping at the first loader would leave that working directory
-// empty.
+// sets the project directory from that local copy; the second pass finds it
+// set, and returns it as the path base, which is absolute: what the remote
+// loader tells with Dir is not relied on, as the remote loaders of Docker
+// Compose do not return the directory of the local copy. Stopping at the first
+// loader would leave the path base empty.
 func (i *includer) resolvePath(r *types.IncludeConfig, idx int, p string) (string, string, error) {
-	var relworkingdir string
+	var pathBase string
 	for _, loader := range i.options.ResourceLoaders {
 		if !loader.Accept(p) {
 			continue
 		}
-		path, err := loader.Load(i.ctx, p)
+		ref := p
+		path, err := loader.Load(i.ctx, ref)
 		if err != nil {
 			return "", "", err
 		}
 		p = path
 
 		if idx == 0 {
-			relworkingdir = i.setProjectDirectory(r, loader, path)
+			pathBase = i.setProjectDirectory(r, loader, ref, path)
 			if err := i.checkCycle(path); err != nil {
 				return "", "", err
 			}
 		}
 	}
-	return p, relworkingdir, nil
+	return p, pathBase, nil
 }
 
 // setProjectDirectory defines the absolute project directory of the include
-// entry, from the main file or the declared project_directory, and returns
-// the working directory to load the included files with
-func (i *includer) setProjectDirectory(r *types.IncludeConfig, loader ResourceLoader, path string) string {
+// entry, from the main file or the declared project_directory, and returns the
+// path base to load the included files with: the project directory relative to
+// that of the file declaring the entry when the loader can tell, so that the
+// paths of the model stay relative while the main project is loaded with a
+// relative working directory, and absolute otherwise.
+//
+// ref is the reference the loader was given, path the local file it returned.
+func (i *includer) setProjectDirectory(r *types.IncludeConfig, loader ResourceLoader, ref, path string) string {
 	switch {
 	case r.ProjectDirectory == "":
 		r.ProjectDirectory = filepath.Dir(path)
-		return loader.Dir(path)
+		return loader.Dir(ref)
 	case !filepath.IsAbs(r.ProjectDirectory):
-		relworkingdir := loader.Dir(r.ProjectDirectory)
+		pathBase := loader.Dir(r.ProjectDirectory)
 		r.ProjectDirectory = filepath.Join(i.projectDirectory(), r.ProjectDirectory)
-		return relworkingdir
+		return pathBase
 	default:
 		return r.ProjectDirectory
 	}
@@ -273,9 +293,7 @@ func (i *includer) loadOptions(r *types.IncludeConfig) *Options {
 	// include and extends events are only reported for declarations in the
 	// config files passed to the loader, not for those in included files
 	loadOptions.Listeners = nil
-	loadOptions.ResourceLoaders = append(loadOptions.RemoteResourceLoaders(), localResourceLoader{
-		WorkingDir: r.ProjectDirectory,
-	})
+	loadOptions.ResourceLoaders = append(loadOptions.RemoteResourceLoaders(), newLocalResourceLoader(r.ProjectDirectory))
 	return loadOptions
 }
 
@@ -310,25 +328,23 @@ func (i *includer) resolveEnvFiles(r *types.IncludeConfig) error {
 
 // projectDirectory is the directory a relative path declared by an include
 // entry, `env_file` or `project_directory`, is resolved against, as the file
-// system sees it: the project directory of the file declaring the entry.
+// system sees it: the absolute project directory of the file declaring the
+// entry. It is the directory of the local resource loader of the options, which
+// every loading level sets for the file it loads.
 //
-// It is workingDir when that one is absolute, as it is for the main project
-// and for the files served by a remote resource loader. It is not, in general:
-// workingDir is also the directory the model of the file is relative to, for
-// the files of an included project, that of the project including it. The paths
-// of the model are resolved from it level by level, until the main project
-// makes them absolute. That is right for the paths of the model, but such a
-// workingDir is not a path of the file system, and looking for a file with it
-// finds it from the working directory of the process. The local resource loader
-// the including entry set in the options holds the project directory to use.
+// It is not workingDir: that one is the directory the paths of the model are
+// resolved against, which is relative to the project including the file for
+// the files of an included project, and so is not a directory of the file
+// system. Looking for a file with it finds it from the working directory of
+// the process.
 func (i *includer) projectDirectory() string {
-	if filepath.IsAbs(i.workingDir) {
-		return i.workingDir
-	}
 	for _, loader := range slices.Backward(i.options.ResourceLoaders) {
-		if local, ok := loader.(localResourceLoader); ok && local.WorkingDir != "" {
-			return local.WorkingDir
+		if local, ok := loader.(localResourceLoader); ok {
+			return local.dir
 		}
+	}
+	if abs, err := filepath.Abs(i.workingDir); err == nil {
+		return abs
 	}
 	return i.workingDir
 }

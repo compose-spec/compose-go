@@ -137,12 +137,28 @@ func (o *Options) ProcessEvent(event string, metadata map[string]any) {
 }
 
 // ResourceLoader is a plugable remote resource resolver
+//
+// A resource is designated by a reference, as written in the compose file:
+// the path of an included file, of an extended file... A ResourceLoader maps
+// a reference to a local file the loader can read.
 type ResourceLoader interface {
 	// Accept returns `true` is the resource reference matches ResourceLoader supported protocol(s)
 	Accept(path string) bool
 	// Load returns the path to a local copy of remote resource identified by `path`.
+	//
+	// The path returned is that of a file of the local file system, which is
+	// what the compose-go loader opens. A ResourceLoader returns an absolute
+	// path unless it cannot, as a relative path only stands for a file while
+	// the working directory of the process does not change.
 	Load(ctx context.Context, path string) (string, error)
 	// Dir computes path to resource"s parent folder, made relative if possible
+	//
+	// `path` is the reference given to Load, not the local file it returned.
+	// The directory is the one the relative paths declared by the resource
+	// are resolved against: the loader makes it relative to the directory of
+	// the resource declaring the reference when it can, so that the paths of
+	// the model keep being relative when the project is loaded with a relative
+	// working directory, and absolute otherwise.
 	Dir(path string) string
 }
 
@@ -161,15 +177,36 @@ func (o Options) RemoteResourceLoaders() []ResourceLoader {
 	return loaders
 }
 
+// localResourceLoader serves the files of the local file system. It is the last
+// of the resource loaders, and so accepts the references no other one accepts.
+//
+// It resolves the references against dir, the project directory of the file
+// declaring them. dir is absolute, whatever working directory the project is
+// loaded with (see newLocalResourceLoader): a loader serving relative paths
+// would not be idempotent, Load applying dir again to a path that already
+// includes it, which is what the compose-go loader does when it hands the local
+// file Load returned to the next loader, or to Dir.
 type localResourceLoader struct {
-	WorkingDir string
+	// dir is the absolute directory the relative references are resolved against
+	dir string
 }
 
-func (l localResourceLoader) abs(p string) string {
-	if filepath.IsAbs(p) {
-		return p
+// newLocalResourceLoader serves the files of the directory dir, which can be
+// relative to the working directory of the process, or empty to stand for it.
+func newLocalResourceLoader(dir string) localResourceLoader {
+	if abs, err := filepath.Abs(dir); err == nil {
+		dir = abs
 	}
-	return filepath.Join(l.WorkingDir, p)
+	return localResourceLoader{dir: dir}
+}
+
+// resolve makes the reference absolute, resolving it against dir unless it is
+// absolute already.
+func (l localResourceLoader) resolve(ref string) string {
+	if filepath.IsAbs(ref) {
+		return ref
+	}
+	return filepath.Join(l.dir, ref)
 }
 
 func (l localResourceLoader) Accept(_ string) bool {
@@ -177,24 +214,20 @@ func (l localResourceLoader) Accept(_ string) bool {
 	return true
 }
 
-func (l localResourceLoader) Load(_ context.Context, p string) (string, error) {
-	// Keep physical paths absolute so nested includes do not apply WorkingDir twice.
-	return filepath.Abs(l.abs(p))
+// Load returns the absolute path of the file the reference designates
+func (l localResourceLoader) Load(_ context.Context, ref string) (string, error) {
+	return l.resolve(ref), nil
 }
 
-func (l localResourceLoader) Dir(originalPath string) string {
-	path, err := filepath.Abs(l.abs(originalPath))
-	if err != nil {
-		return originalPath
-	}
+// Dir returns the directory the relative paths declared by the file the
+// reference designates are resolved against, relative to dir: the directory of
+// the file, or the reference itself when it designates a directory.
+func (l localResourceLoader) Dir(ref string) string {
+	path := l.resolve(ref)
 	if !l.isDir(path) {
 		path = filepath.Dir(path)
 	}
-	base, err := filepath.Abs(l.WorkingDir)
-	if err != nil {
-		return path
-	}
-	rel, err := filepath.Rel(base, path)
+	rel, err := filepath.Rel(l.dir, path)
 	if err != nil {
 		return path
 	}
@@ -333,7 +366,7 @@ func LoadConfigFiles(ctx context.Context, configFiles []string, workingDir strin
 	for _, op := range options {
 		op(opts)
 	}
-	opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{})
+	opts.ResourceLoaders = append(opts.ResourceLoaders, newLocalResourceLoader(""))
 
 	for i, p := range configFiles {
 		if p == "-" {
@@ -414,7 +447,7 @@ func ToOptions(configDetails *types.ConfigDetails, options []func(*Options)) *Op
 	for _, op := range options {
 		op(opts)
 	}
-	opts.ResourceLoaders = append(opts.ResourceLoaders, localResourceLoader{configDetails.WorkingDir})
+	opts.ResourceLoaders = append(opts.ResourceLoaders, newLocalResourceLoader(configDetails.WorkingDir))
 	return opts
 }
 
@@ -464,10 +497,24 @@ func loadYamlModel(ctx context.Context, config types.ConfigDetails, opts *Option
 	return dict, nil
 }
 
+// loadYamlFile loads a compose file into dict, merging it with what was loaded
+// before it. file is read from the file system, and the files it includes or
+// extends are read from the directory of the local resource loader of opts:
+// the project directory, which is not the directory of file itself for the
+// main file, nor for an include declaring project_directory.
+//
+// pathBase is another directory: the one the relative paths of the model are
+// resolved against, as a path of the model is relative to it. For the main
+// project, it is the working directory it is loaded with, absolute or not. For
+// an included or extended file it is the directory of the file, relative to the
+// directory of the file including it when possible, so that the paths of the
+// model are rebased level by level and stay relative while the main project is
+// loaded with a relative working directory. It is only ever used to build
+// paths of the model, never to find a file.
 func loadYamlFile(ctx context.Context,
 	file types.ConfigFile,
 	opts *Options,
-	workingDir string,
+	pathBase string,
 	environment types.Mapping,
 	ct *cycleTracker,
 	dict map[string]interface{},
@@ -485,7 +532,7 @@ func loadYamlFile(ctx context.Context,
 	l := &yamlFileLoader{
 		file:        file,
 		opts:        opts,
-		workingDir:  workingDir,
+		pathBase:    pathBase,
 		environment: environment,
 		ct:          ct,
 		dict:        dict,
@@ -515,9 +562,10 @@ func loadYamlFile(ctx context.Context,
 // merged over the previous ones, so the model (dict) and the stack of files
 // being included (included) are shared by all of them.
 type yamlFileLoader struct {
-	file        types.ConfigFile
-	opts        *Options
-	workingDir  string
+	file types.ConfigFile
+	opts *Options
+	// pathBase is the directory the paths of the model are resolved against, see loadYamlFile
+	pathBase    string
 	environment types.Mapping
 	ct          *cycleTracker
 	// dict is the model accumulated from the config files loaded so far
@@ -604,7 +652,7 @@ func (l *yamlFileLoader) prepare(raw interface{}) (map[string]interface{}, error
 // attributes, then extended services
 func (l *yamlFileLoader) expand(ctx context.Context, cfg map[string]interface{}, processor PostProcessor) error {
 	if !l.opts.SkipInclude {
-		err := ApplyInclude(ctx, l.workingDir, l.environment, cfg, l.opts, l.included, processor)
+		err := ApplyInclude(ctx, l.pathBase, l.environment, cfg, l.opts, l.included, processor)
 		if err != nil {
 			return err
 		}

@@ -281,7 +281,7 @@ services:
 	ctx := withExtendsCache(t.Context())
 	opts := &Options{
 		SkipInterpolation: true,
-		ResourceLoaders:   []ResourceLoader{localResourceLoader{WorkingDir: dir}},
+		ResourceLoaders:   []ResourceLoader{newLocalResourceLoader(dir)},
 	}
 	first, _, err := getExtendsBaseFromFile(ctx, "services", "svc", "base", "compose.yaml", "base.yaml", opts, &cycleTracker{})
 	assert.NilError(t, err)
