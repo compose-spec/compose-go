@@ -96,6 +96,10 @@ func applyServiceExtends(ctx context.Context, section, name string, services map
 	var (
 		base      any
 		processor = post
+		// entries are the entries ref is looked up in: the ones of this file or
+		// of extends.file. The merged entry is written back to services, the
+		// entries of the file declaring name.
+		entries = services
 	)
 
 	if file != nil {
@@ -103,7 +107,7 @@ func applyServiceExtends(ctx context.Context, section, name string, services map
 		if !ok {
 			return nil, fmt.Errorf("extends.%s.file must be a string", name)
 		}
-		services, processor, err = getExtendsBaseFromFile(ctx, section, name, ref, filename, refFilename, opts, tracker)
+		entries, processor, err = getExtendsBaseFromFile(ctx, section, name, ref, filename, refFilename, opts, tracker)
 		if err != nil {
 			return nil, err
 		}
@@ -127,7 +131,7 @@ func applyServiceExtends(ctx context.Context, section, name string, services map
 	}
 
 	// recursively apply `extends`
-	base, err = applyServiceExtends(ctx, section, ref, services, opts, tracker, processor)
+	base, err = applyServiceExtends(ctx, section, ref, entries, opts, tracker, processor)
 	if err != nil {
 		return nil, err
 	}
