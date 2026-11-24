@@ -523,6 +523,68 @@ services:
 	assert.Equal(t, extendsCount, 1)
 }
 
+// TestLoadExtendsListenerSameFileThenExtendsFile loads a service "a" extending
+// "b" of the same file, while "b" extends a service of another file. The
+// extends of "b" must be resolved once, whatever the order the services are
+// processed in, so the listener reports each extends declaration once.
+func TestLoadExtendsListenerSameFileThenExtendsFile(t *testing.T) {
+	tmpdir := t.TempDir()
+	baseYAML := `
+services:
+  base:
+    image: alpine
+    command: echo base
+`
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "base.yaml"), []byte(baseYAML), 0o600))
+
+	rootYAML := `
+services:
+  a:
+    extends: b
+    environment:
+      FROM: a
+  b:
+    extends:
+      file: base.yaml
+      service: base
+    environment:
+      FROM: b
+`
+	assert.NilError(t, os.WriteFile(filepath.Join(tmpdir, "compose.yaml"), []byte(rootYAML), 0o600))
+
+	// map iteration order decides whether "a" or "b" is processed first: load
+	// several times to cover both orders
+	for range 20 {
+		extendsCount := 0
+		p, err := LoadWithContext(t.Context(), types.ConfigDetails{
+			WorkingDir: tmpdir,
+			ConfigFiles: []types.ConfigFile{{
+				Filename: filepath.Join(tmpdir, "compose.yaml"),
+			}},
+		}, func(options *Options) {
+			options.SkipConsistencyCheck = true
+			options.SetProjectName("project", true)
+			options.Listeners = []Listener{
+				func(event string, _ map[string]any) {
+					if event == "extends" {
+						extendsCount++
+					}
+				},
+			}
+		})
+		assert.NilError(t, err)
+		for _, name := range []string{"a", "b"} {
+			svc, err := p.GetService(name)
+			assert.NilError(t, err)
+			assert.Equal(t, svc.Image, "alpine")
+			assert.DeepEqual(t, svc.Command, types.ShellCommand{"echo", "base"})
+			assert.Equal(t, *svc.Environment["FROM"], name)
+		}
+		// the extends of "a" and of "b"
+		assert.Equal(t, extendsCount, 2)
+	}
+}
+
 func TestExtendsReset(t *testing.T) {
 	yaml := `
 name: test-extends-reset
