@@ -24,11 +24,54 @@ package tests
 // accessible by service containers."
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/compose-spec/compose-go/v2/errdefs"
+	"github.com/compose-spec/compose-go/v2/loader"
 	"github.com/compose-spec/compose-go/v2/types"
 	"gotest.tools/v3/assert"
 )
+
+// Hooks and jobs must resolve named volumes and reject conflicting mount targets
+// just like services. See https://github.com/compose-spec/compose-go/issues/982.
+func TestHookAndJobVolumeConsistency(t *testing.T) {
+	for _, container := range []struct{ name, yaml, indent, path, duplicateVolumeError string }{
+		{"pre-start hook", "services:\n  app:\n    image: alpine\n    pre_start:\n      - image: alpine\n", "        ", "services.app.pre_start[0].volumes", "target /data already mounted"},
+		{"job", "jobs:\n  task:\n    image: alpine\n    triggers: {manual: true}\n", "    ", "jobs.task.volumes", ""},
+	} {
+		t.Run(container.name, func(t *testing.T) {
+			for _, tc := range []struct {
+				name, volumes, errorText string
+				tmpfs                    bool
+			}{
+				{"undefined volume", "[missing:/data]", "undefined volume missing", false},
+				{"same volume targets", "[first:/data, second:/data]", container.duplicateVolumeError, false},
+				{"volume and tmpfs conflict", "[first:/data]", "target /data already mounted", true},
+				{"valid mounts", "[first:/data, /anon, ./local:/bind]", "", false},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					yaml := "name: test\nvolumes: {first: {}, second: {}}\n" + container.yaml
+					yaml += fmt.Sprintf("%svolumes: %s\n", container.indent, tc.volumes)
+					if tc.tmpfs {
+						yaml += container.indent + "tmpfs: [/data]\n"
+					}
+					_, err := loader.LoadWithContext(t.Context(), types.ConfigDetails{
+						ConfigFiles: []types.ConfigFile{{Filename: "compose.yml", Content: []byte(yaml)}},
+						WorkingDir:  t.TempDir(),
+					})
+					if tc.errorText == "" {
+						assert.NilError(t, err)
+						return
+					}
+					assert.ErrorIs(t, err, errdefs.ErrInvalid)
+					assert.ErrorContains(t, err, tc.errorText)
+					assert.ErrorContains(t, err, container.path)
+				})
+			}
+		})
+	}
+}
 
 func TestTopLevelVolumes(t *testing.T) {
 	p := load(t, `
