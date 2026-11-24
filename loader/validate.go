@@ -40,6 +40,11 @@ func checkConsistency(project *types.Project) error {
 	if err := checkJobsDependsOn(project); err != nil {
 		return err
 	}
+	for name, job := range project.Jobs {
+		if err := checkContainerVolumes(project, "jobs."+name, &job.ContainerSpec); err != nil {
+			return err
+		}
+	}
 	if err := checkSecrets(project); err != nil {
 		return err
 	}
@@ -86,7 +91,17 @@ func checkService(project *types.Project, name string, s *types.ServiceConfig) e
 	if err := checkServiceDevelop(s); err != nil {
 		return err
 	}
-	return checkServiceMounts(s)
+	servicePath := "services." + s.Name
+	if err := checkMountTargets(servicePath, &s.ContainerSpec); err != nil {
+		return err
+	}
+	for i := range s.PreStart {
+		path := fmt.Sprintf("%s.pre_start[%d]", servicePath, i)
+		if err := checkContainerVolumes(project, path, &s.PreStart[i].ContainerSpec); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // checkServiceBuild validate the build section of a service
@@ -191,12 +206,8 @@ func checkServiceNetworkModeService(project *types.Project, s *types.ServiceConf
 
 // checkServiceReferences validate the volumes, secrets, configs and models a service uses are declared
 func checkServiceReferences(project *types.Project, s *types.ServiceConfig) error {
-	for _, volume := range s.Volumes {
-		if volume.Type == types.VolumeTypeVolume && volume.Source != "" { // non anonymous volumes
-			if _, ok := project.Volumes[volume.Source]; !ok {
-				return fmt.Errorf("service %q refers to undefined volume %s: %w", s.Name, volume.Source, errdefs.ErrInvalid)
-			}
-		}
+	if err := checkVolumeReferences(project, fmt.Sprintf("service %q", s.Name), s.Volumes); err != nil {
+		return err
 	}
 	if s.Build != nil {
 		for _, secret := range s.Build.Secrets {
@@ -299,19 +310,38 @@ func checkServiceDevelop(s *types.ServiceConfig) error {
 	return nil
 }
 
-// checkServiceMounts validate a service does not mount two tmpfs or volumes on the same target
-func checkServiceMounts(s *types.ServiceConfig) error {
+func checkContainerVolumes(project *types.Project, path string, spec *types.ContainerSpec) error {
+	if err := checkVolumeReferences(project, path+".volumes", spec.Volumes); err != nil {
+		return err
+	}
+	return checkMountTargets(path, spec)
+}
+
+func checkVolumeReferences(project *types.Project, location string, volumes []types.ServiceVolumeConfig) error {
+	for _, volume := range volumes {
+		if volume.Type != types.VolumeTypeVolume || volume.Source == "" {
+			continue
+		}
+		if _, ok := project.Volumes[volume.Source]; !ok {
+			return fmt.Errorf("%s refers to undefined volume %s: %w", location, volume.Source, errdefs.ErrInvalid)
+		}
+	}
+	return nil
+}
+
+// checkMountTargets rejects multiple tmpfs or volume mounts at the same target.
+func checkMountTargets(containerPath string, spec *types.ContainerSpec) error {
 	mounts := map[string]string{}
-	for i, tmpfs := range s.Tmpfs {
-		loc := fmt.Sprintf("services.%s.tmpfs[%d]", s.Name, i)
+	for i, tmpfs := range spec.Tmpfs {
+		loc := fmt.Sprintf("%s.tmpfs[%d]", containerPath, i)
 		path, _, _ := strings.Cut(tmpfs, ":")
 		if p, ok := mounts[path]; ok {
 			return fmt.Errorf("%s: target %s already mounted as %s: %w", loc, path, p, errdefs.ErrInvalid)
 		}
 		mounts[path] = loc
 	}
-	for i, volume := range s.Volumes {
-		loc := fmt.Sprintf("services.%s.volumes[%d]", s.Name, i)
+	for i, volume := range spec.Volumes {
+		loc := fmt.Sprintf("%s.volumes[%d]", containerPath, i)
 		if p, ok := mounts[volume.Target]; ok {
 			return fmt.Errorf("%s: target %s already mounted as %s: %w", loc, volume.Target, p, errdefs.ErrInvalid)
 		}
