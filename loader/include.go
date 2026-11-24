@@ -137,8 +137,9 @@ type includer struct {
 
 // apply loads the files of one include entry, and imports their resources
 func (i *includer) apply(r *types.IncludeConfig) error {
-	for _, listener := range i.options.Listeners {
-		listener("include", map[string]any{
+	listening := len(i.options.Listeners) > 0
+	if listening {
+		i.options.ProcessEvent("include", map[string]any{
 			"path":       r.Path,
 			"workingdir": i.workingDir,
 		})
@@ -147,6 +148,14 @@ func (i *includer) apply(r *types.IncludeConfig) error {
 	relworkingdir, err := i.resolvePaths(r)
 	if err != nil {
 		return err
+	}
+	if listening {
+		for _, p := range r.Path {
+			i.options.ProcessEvent(EventFile, map[string]any{
+				"path":   p,
+				"source": "include",
+			})
+		}
 	}
 
 	loadOptions := i.loadOptions(r)
@@ -272,7 +281,7 @@ func (i *includer) loadOptions(r *types.IncludeConfig) *Options {
 	loadOptions.SkipConsistencyCheck = true
 	// include and extends events are only reported for declarations in the
 	// config files passed to the loader, not for those in included files
-	loadOptions.Listeners = nil
+	loadOptions.nested = true
 	loadOptions.ResourceLoaders = append(loadOptions.RemoteResourceLoaders(), localResourceLoader{
 		WorkingDir: r.ProjectDirectory,
 	})

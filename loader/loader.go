@@ -110,6 +110,10 @@ type Options struct {
 	// compose-file attributes not honored by the caller's runtime. See
 	// WithUnsupportedAttributesCheck.
 	UnsupportedAttributesCheck *UnsupportedAttributesCheck
+	// nested is set when loading a file reached through include or
+	// extends.file, so ProcessEvent can tell declarations of the config files
+	// passed to the loader from those of the files they reference
+	nested bool
 }
 
 var (
@@ -129,8 +133,28 @@ func (o *Options) warnObsoleteVersion(file string) {
 
 type Listener = func(event string, metadata map[string]any)
 
-// Invoke all listeners for an event
+// EventFile is the event reported for every compose file referenced through
+// include or extends.file, at any depth. Its metadata holds:
+//   - "path": the absolute path of the file, or of its local copy when it is
+//     served by a remote resource loader
+//   - "source": "include" or "extends", the declaration referencing the file
+//
+// The event is reported before the file is read, so a missing file is
+// reported too. The same file can be reported more than once, for instance
+// when several declarations reference it, but the files included by a cached
+// include are not reported again. The env_file of an include, the implicit
+// .env file and the files referenced by services (env_file, configs,
+// secrets...) are not reported.
+const EventFile = "file"
+
+// Invoke all listeners for an event.
+// The include and extends events are only reported for declarations in the
+// config files passed to the loader, not for those in included or extended
+// files. Other events are reported at any depth.
 func (o *Options) ProcessEvent(event string, metadata map[string]any) {
+	if o.nested && (event == "include" || event == "extends") {
+		return
+	}
 	for _, l := range o.Listeners {
 		l(event, metadata)
 	}

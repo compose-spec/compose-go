@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -69,6 +70,7 @@ func TestIncludeDiamondDedup(t *testing.T) {
 	defer timer.Stop()
 
 	done := make(chan result, 1)
+	fileEvents := 0
 	go func() {
 		p, err := LoadWithContext(t.Context(), types.ConfigDetails{
 			WorkingDir:  dir,
@@ -78,7 +80,11 @@ func TestIncludeDiamondDedup(t *testing.T) {
 			options.SkipConsistencyCheck = true
 			// Compose always registers a listener; make sure memoization stays
 			// effective with one registered.
-			options.Listeners = []Listener{func(string, map[string]any) {}}
+			options.Listeners = []Listener{func(event string, _ map[string]any) {
+				if event == EventFile {
+					fileEvents++
+				}
+			}}
 		})
 		done <- result{p, err}
 	}()
@@ -90,6 +96,9 @@ func TestIncludeDiamondDedup(t *testing.T) {
 		assert.NilError(t, err)
 		_, err = r.p.GetService("svc23")
 		assert.NilError(t, err)
+		// both include entries of each level are reported, but a cached include
+		// does not report its subtree again
+		assert.Equal(t, fileEvents, 2*24)
 	case <-timer.C:
 		t.Fatal("diamond include did not complete within 20s — include memoization likely not working")
 	}
@@ -166,6 +175,141 @@ services:
 	// only the two include declarations of compose.yaml, not the nested ones
 	assert.Equal(t, includeCount, 2)
 	// only app's extends, not child-a-svc's
+	assert.Equal(t, extendsCount, 1)
+}
+
+// TestListenerReportsFilesAtAnyDepth checks that a file event is emitted for
+// every file referenced through include or extends.file, at any depth, while
+// include/extends events stay limited to the config files passed to the loader.
+func TestListenerReportsFilesAtAnyDepth(t *testing.T) {
+	dir := t.TempDir()
+	remoteRoot := t.TempDir()
+	files := map[string]string{
+		"compose.yaml": `
+name: file-events
+include:
+  - path: child/compose.yaml
+  - path: [override/a.yaml, override/b.yaml]
+services:
+  app:
+    extends:
+      file: ext/base.yaml
+      service: base
+`,
+		"ext/base.yaml": `
+services:
+  base:
+    extends:
+      file: common.yaml
+      service: common
+`,
+		"ext/common.yaml": `
+services:
+  common:
+    image: busybox
+`,
+		"override/a.yaml": `
+services:
+  override:
+    image: a
+`,
+		"override/b.yaml": `
+services:
+  override:
+    image: b
+`,
+		"child/compose.yaml": `
+include:
+  - path: grand/compose.yaml
+  - path: remote:module
+services:
+  child:
+    extends: child-base
+  child-base:
+    extends:
+      file: base.yaml
+      service: base
+`,
+		"child/base.yaml": `
+services:
+  base:
+    image: alpine
+`,
+		"child/grand/compose.yaml": `
+services:
+  grand:
+    image: busybox
+`,
+	}
+	for name, content := range files {
+		assert.NilError(t, os.MkdirAll(filepath.Dir(filepath.Join(dir, name)), 0o700))
+		assert.NilError(t, os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600))
+	}
+	remoteFiles := map[string]string{
+		"module/compose.yaml": `
+include:
+  - path: nested.yaml
+services:
+  remote:
+    image: busybox
+`,
+		"module/nested.yaml": `
+services:
+  remote-nested:
+    image: busybox
+`,
+	}
+	for name, content := range remoteFiles {
+		assert.NilError(t, os.MkdirAll(filepath.Dir(filepath.Join(remoteRoot, name)), 0o700))
+		assert.NilError(t, os.WriteFile(filepath.Join(remoteRoot, name), []byte(content), 0o600))
+	}
+
+	var reported []string
+	includeCount, extendsCount := 0, 0
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
+		WorkingDir:  dir,
+		ConfigFiles: []types.ConfigFile{{Filename: filepath.Join(dir, "compose.yaml")}},
+	}, func(options *Options) {
+		options.SkipConsistencyCheck = true
+		options.ResourceLoaders = []ResourceLoader{remoteLoader{remoteRoot}}
+		options.Listeners = []Listener{
+			func(event string, metadata map[string]any) {
+				switch event {
+				case "include":
+					includeCount++
+				case "extends":
+					extendsCount++
+				case EventFile:
+					reported = append(reported, fmt.Sprintf("%s %s", metadata["source"], metadata["path"]))
+				}
+			},
+		}
+	})
+	assert.NilError(t, err)
+
+	for _, name := range []string{"app", "override", "child", "grand", "remote", "remote-nested"} {
+		_, err := p.GetService(name)
+		assert.NilError(t, err)
+	}
+	// the files of the remote include are reported with the path of their
+	// local copy, the same-file extends of child is not reported, and
+	// child/base.yaml is reported once although child extends child-base
+	expected := []string{
+		"include " + filepath.Join(dir, "child", "compose.yaml"),
+		"include " + filepath.Join(dir, "override", "a.yaml"),
+		"include " + filepath.Join(dir, "override", "b.yaml"),
+		"include " + filepath.Join(dir, "child", "grand", "compose.yaml"),
+		"include " + filepath.Join(remoteRoot, "module", "compose.yaml"),
+		"include " + filepath.Join(remoteRoot, "module", "nested.yaml"),
+		"extends " + filepath.Join(dir, "ext", "base.yaml"),
+		"extends " + filepath.Join(dir, "ext", "common.yaml"),
+		"extends " + filepath.Join(dir, "child", "base.yaml"),
+	}
+	slices.Sort(expected)
+	slices.Sort(reported)
+	assert.DeepEqual(t, reported, expected)
+	// only the declarations of compose.yaml
+	assert.Equal(t, includeCount, 2)
 	assert.Equal(t, extendsCount, 1)
 }
 
