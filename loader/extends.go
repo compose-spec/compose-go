@@ -113,10 +113,10 @@ func applyServiceExtends(ctx context.Context, section, name string, services map
 		}
 		filename = refFilename
 		// extends declared in the referenced file are not part of the config
-		// files passed to the loader: don't report events for them
-		if len(opts.Listeners) > 0 {
+		// files passed to the loader: don't report extends events for them
+		if len(opts.Listeners) > 0 && !opts.nested {
 			opts = opts.clone()
-			opts.Listeners = nil
+			opts.nested = true
 		}
 	} else {
 		_, ok := services[ref]
@@ -205,6 +205,13 @@ func getExtendsBaseFromFile(
 			return nil, nil, err
 		}
 		relworkingdir := loader.Dir(refPath)
+
+		if len(opts.Listeners) > 0 {
+			opts.ProcessEvent(EventFile, map[string]any{
+				"path":   local,
+				"source": "extends",
+			})
+		}
 
 		cache := extendsCache(ctx)
 		cacheKey := extendsRef{path: local, workingDir: relworkingdir, section: section}
