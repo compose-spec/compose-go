@@ -581,22 +581,25 @@ func (p *Project) WithSelectedServices(names []string, options ...DependencyOpti
 		return nil, err
 	}
 
-	// Disable all services which are not explicit target or dependencies
+	// Disable all services which are not explicit target or dependencies, in a single pass over
+	// the copy: going through WithServicesDisabled for each of them would copy the whole project
+	// once per disabled service.
 	enabled := Services{}
 	for name, s := range newProject.Services {
 		if _, ok := set[name]; ok {
 			// remove all dependencies but those implied by explicitly selected services
-			dependencies := s.DependsOn
-			for d := range dependencies {
+			for d := range s.DependsOn {
 				if _, ok := set[d]; !ok {
-					delete(dependencies, d)
+					delete(s.DependsOn, d)
 				}
 			}
-			s.DependsOn = dependencies
 			enabled[name] = s
-		} else {
-			newProject = newProject.WithServicesDisabled(name)
+			continue
 		}
+		if newProject.DisabledServices == nil {
+			newProject.DisabledServices = Services{}
+		}
+		newProject.DisabledServices[name] = s
 	}
 	newProject.Services = enabled
 	return newProject, nil
@@ -645,12 +648,14 @@ func (p *Project) WithSelectedJob(name string, options ...DependencyOption) (*Pr
 	sort.Strings(deps)
 
 	if len(deps) == 0 {
-		// Job has no service dependencies: return project with all services disabled
-		newProject := p.deepCopy()
-		for name := range newProject.Services {
-			newProject = newProject.WithServicesDisabled(name)
+		// Job has no service dependencies: return project with all services disabled, in a single
+		// call as one call per service would copy the project each time
+		names := make([]string, 0, len(p.Services))
+		for name := range p.Services {
+			names = append(names, name)
 		}
-		return newProject, nil
+		sort.Strings(names)
+		return p.WithServicesDisabled(names...), nil
 	}
 
 	return p.WithSelectedServices(deps, options...)
