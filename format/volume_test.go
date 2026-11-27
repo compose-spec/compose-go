@@ -151,6 +151,24 @@ func TestParseVolumeWithBindOptions(t *testing.T) {
 	assert.Check(t, is.DeepEqual(expected, volume))
 }
 
+// The engine reads the consistency of a mount in the options of a volume spec.
+func TestParseVolumeWithConsistency(t *testing.T) {
+	for spec, want := range map[string]types.ServiceVolumeConfig{
+		"/source:/target:cached":         {Type: "bind", Source: "/source", Target: "/target", Consistency: "cached", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
+		"/source:/target:ro,z,delegated": {Type: "bind", Source: "/source", Target: "/target", ReadOnly: true, Consistency: "delegated", Bind: &types.ServiceVolumeBind{CreateHostPath: true, SELinux: "z"}},
+		"name:/target:consistent":        {Type: "volume", Source: "name", Target: "/target", Consistency: "consistent", Volume: &types.ServiceVolumeVolume{}},
+		"name:/target:nocopy,rw,cached":  {Type: "volume", Source: "name", Target: "/target", Consistency: "cached", Volume: &types.ServiceVolumeVolume{NoCopy: true}},
+		// an option that is none of those is still ignored
+		"/source:/target:default": {Type: "bind", Source: "/source", Target: "/target", Bind: &types.ServiceVolumeBind{CreateHostPath: true}},
+	} {
+		t.Run(spec, func(t *testing.T) {
+			volume, err := ParseVolume(spec)
+			assert.NilError(t, err)
+			assert.Check(t, is.DeepEqual(want, volume))
+		})
+	}
+}
+
 func TestParseVolumeWithBindOptionsSELinuxShared(t *testing.T) {
 	volume, err := ParseVolume("/source:/target:ro,z")
 	expected := types.ServiceVolumeConfig{

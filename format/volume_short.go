@@ -26,7 +26,8 @@ import (
 // leaving out the options that are the default (`rw`).
 // It reports false when the short syntax can't say what the volume says, which
 // is when no spelling of it parses back as the same volume: something it has no
-// place for (a tmpfs, an image, a subpath, labels, a consistency, extensions...),
+// place for (a tmpfs, an image, a subpath, labels, a consistency the engine does
+// not read, extensions...),
 // or something it would read otherwise (a colon in a path, a bind source that
 // is not a path, a bind that doesn't create its host path).
 func ShortSyntax(v types.ServiceVolumeConfig) (string, bool) {
@@ -46,6 +47,9 @@ func ShortSyntax(v types.ServiceVolumeConfig) (string, bool) {
 	}
 	if v.Volume != nil && v.Volume.NoCopy {
 		options = append(options, "nocopy")
+	}
+	if v.Consistency != "" {
+		options = append(options, v.Consistency)
 	}
 
 	// an anonymous volume has no place for options
@@ -68,15 +72,43 @@ func ShortSyntax(v types.ServiceVolumeConfig) (string, bool) {
 
 // IsShortSyntaxExpressible tells whether the short syntax can say what the volume
 // says, so that a volume which isn't can only be written in the long syntax.
+//
+// Extensions (x-*) are not part of what a volume says: they are for the tools that
+// read the model, and the engine knows nothing of them. They do not make a volume
+// inexpressible, where ShortSyntax, which a caller may use to write the volume back,
+// leaves no extension behind and reports false.
 func IsShortSyntaxExpressible(v types.ServiceVolumeConfig) bool {
-	_, ok := ShortSyntax(v)
+	_, ok := ShortSyntax(withoutExtensions(v))
 	return ok
+}
+
+// withoutExtensions returns the volume without its extensions, and those of its
+// options, leaving the volume it was given untouched.
+func withoutExtensions(v types.ServiceVolumeConfig) types.ServiceVolumeConfig {
+	v.Extensions = nil
+	if v.Bind != nil {
+		bind := *v.Bind
+		bind.Extensions = nil
+		v.Bind = &bind
+	}
+	if v.Volume != nil {
+		volume := *v.Volume
+		volume.Extensions = nil
+		v.Volume = &volume
+	}
+	return v
 }
 
 // fitsShortSyntax checks what has no place in the short syntax, whatever the
 // spelling: the type, and the attributes and options it does not know.
 func fitsShortSyntax(v types.ServiceVolumeConfig) bool {
-	if v.Target == "" || v.Consistency != "" || len(v.Extensions) > 0 {
+	if v.Target == "" || len(v.Extensions) > 0 {
+		return false
+	}
+	switch v.Consistency {
+	case "", types.ConsistencyFull, types.ConsistencyCached, types.ConsistencyDelegated:
+	default:
+		// platform specific: the engine reads no other in the options of a spec
 		return false
 	}
 	if v.Tmpfs != nil || v.Image != nil {
@@ -117,7 +149,7 @@ func isZeroVolume(v *types.ServiceVolumeVolume) bool {
 // is the same as one that is not there: the parser always sets the options of
 // the type it recognizes.
 func sameVolume(parsed, v types.ServiceVolumeConfig) bool {
-	if parsed.Type != v.Type || parsed.Source != v.Source || parsed.Target != v.Target || parsed.ReadOnly != v.ReadOnly {
+	if parsed.Type != v.Type || parsed.Source != v.Source || parsed.Target != v.Target || parsed.ReadOnly != v.ReadOnly || parsed.Consistency != v.Consistency {
 		return false
 	}
 	var pb, vb types.ServiceVolumeBind

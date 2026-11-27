@@ -552,7 +552,9 @@ type ServiceVolumeConfig struct {
 	Extensions Extensions `yaml:"#extensions,inline,omitempty" json:"-"`
 }
 
-// String render ServiceVolumeConfig as a volume string, one can parse back using loader.ParseVolume
+// String render ServiceVolumeConfig as a volume string, one can parse back using loader.ParseVolume.
+// A consistency the engine does not read in the options of a spec is left out, as what the
+// short syntax has no place for is.
 func (s ServiceVolumeConfig) String() string {
 	access := "rw"
 	if s.ReadOnly {
@@ -567,6 +569,9 @@ func (s ServiceVolumeConfig) String() string {
 	}
 	if s.Volume != nil && s.Volume.NoCopy {
 		options = append(options, "nocopy")
+	}
+	if isConsistencyOption(s.Consistency) {
+		options = append(options, s.Consistency)
 	}
 	return fmt.Sprintf("%s:%s:%s", s.Source, s.Target, strings.Join(options, ","))
 }
@@ -609,6 +614,14 @@ func (o OptOut) IsZero() bool {
 	return bool(o)
 }
 
+func isConsistencyOption(consistency string) bool {
+	switch consistency {
+	case ConsistencyFull, ConsistencyCached, ConsistencyDelegated:
+		return true
+	}
+	return false
+}
+
 // SELinux represents the SELinux re-labeling options.
 const (
 	// SELinuxShared option indicates that the bind mount content is shared among multiple containers
@@ -631,6 +644,18 @@ const (
 	PropagationRSlave string = "rslave"
 	// PropagationSlave SLAVE
 	PropagationSlave string = "slave"
+)
+
+// Consistency represents the consistency requirements of a mount, the values the
+// engine reads in the options of a volume spec. Others, being platform specific,
+// can only be said in the long syntax.
+const (
+	// ConsistencyFull guarantees bind mount-like consistency
+	ConsistencyFull string = "consistent"
+	// ConsistencyCached lets the mount cache read data and the structure of the file system
+	ConsistencyCached string = "cached"
+	// ConsistencyDelegated lets the mount cache read and written data and the structure
+	ConsistencyDelegated string = "delegated"
 )
 
 // ServiceVolumeVolume are options for a service volume of type volume

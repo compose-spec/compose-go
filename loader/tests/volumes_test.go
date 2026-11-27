@@ -249,6 +249,54 @@ services:
 `)
 }
 
+// The short syntax reads the consistency of a mount, `consistent`, `cached` or `delegated`, as the engine reads it in the
+// options of a volume spec and as the long syntax says it with `consistency`. It was dropped without a word.
+//
+// Spec: "consistency: the consistency requirements of the mount. Available values are platform specific."
+// (a short syntax of its own, the spec lists `rw`, `ro`, `z` and `Z` only, but for the options the engine reads).
+func TestVolumeShortSyntaxConsistency(t *testing.T) {
+	loadsAs(t, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - /host:/cached:cached
+      - ./src:/delegated:ro,delegated
+      - data:/consistent:consistent
+      - type: bind
+        source: /host
+        target: /long
+        consistency: cached
+`, `
+name: test
+services:
+  foo:
+    image: alpine
+    volumes:
+      - type: bind
+        source: /host
+        target: /cached
+        consistency: cached
+        bind: {}
+      - type: bind
+        source: src
+        target: /delegated
+        read_only: true
+        consistency: delegated
+        bind: {}
+      - type: volume
+        source: data
+        target: /consistent
+        consistency: consistent
+        volume: {}
+      - type: bind
+        source: /host
+        target: /long
+        consistency: cached
+`)
+}
+
 // The `mode` of a `tmpfs` mount accepts the same values as the Docker CLI: a
 // number is read as written, and a string is read as an octal number, as
 // `--mount type=tmpfs,tmpfs-mode=1777` does. Both are canonicalized to a
