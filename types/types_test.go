@@ -29,6 +29,27 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
+// A volume is written as the volume spec the short syntax reads back, consistency
+// included when it is one the engine reads in the options of a spec.
+func TestServiceVolumeConfigString(t *testing.T) {
+	bind := &ServiceVolumeBind{SELinux: "z", Propagation: "rshared"}
+	for name, tc := range map[string]struct {
+		volume ServiceVolumeConfig
+		want   string
+	}{
+		"bind":                      {ServiceVolumeConfig{Source: "/s", Target: "/t"}, "/s:/t:rw"},
+		"propagation and selinux":   {ServiceVolumeConfig{Source: "/s", Target: "/t", Bind: bind}, "/s:/t:rw,z,rshared"},
+		"cached":                    {ServiceVolumeConfig{Source: "/s", Target: "/t", Consistency: ConsistencyCached}, "/s:/t:rw,cached"},
+		"read only and delegated":   {ServiceVolumeConfig{Source: "/s", Target: "/t", ReadOnly: true, Consistency: ConsistencyDelegated}, "/s:/t:ro,delegated"},
+		"nocopy and consistent":     {ServiceVolumeConfig{Source: "v", Target: "/t", Volume: &ServiceVolumeVolume{NoCopy: true}, Consistency: ConsistencyFull}, "v:/t:rw,nocopy,consistent"},
+		"a platform specific value": {ServiceVolumeConfig{Source: "/s", Target: "/t", Consistency: "default"}, "/s:/t:rw"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.volume.String(), tc.want)
+		})
+	}
+}
+
 func TestGetPullPolicyRejectsInvalidValue(t *testing.T) {
 	s := ServiceConfig{ContainerSpec: ContainerSpec{PullPolicy: "neverxxx"}}
 	_, _, err := s.GetPullPolicy()

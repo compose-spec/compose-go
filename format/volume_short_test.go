@@ -63,8 +63,12 @@ func TestShortSyntax(t *testing.T) {
 		{"bind with nocopy", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Volume = &types.ServiceVolumeVolume{NoCopy: true} }), ""},
 		{"bind with a colon in the target", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Target = "/t:x" }), ""},
 		{"bind with a colon in the source", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Source = "/da:ta" }), ""},
-		{"bind with a consistency", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Consistency = "cached" }), ""},
-		{"bind with an extension", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Extensions = types.Extensions{"x-a": true} }), ""},
+		{"bind consistency", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Consistency = "cached" }), "/data:/t:cached"},
+		{"bind selinux and consistency", with(bind(types.ServiceVolumeBind{CreateHostPath: true, SELinux: "z"}), func(v *types.ServiceVolumeConfig) {
+			v.Consistency = "delegated"
+		}), "/data:/t:z,delegated"},
+		{"bind with a consistency the engine does not read", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Consistency = "default" }), ""},
+		{"bind with a consistency of another platform", with(bind(create), func(v *types.ServiceVolumeConfig) { v.Consistency = "Cached" }), ""},
 		{"named volume", volume(nil), "vol:/t"},
 		{"named volume with empty options", volume(&types.ServiceVolumeVolume{}), "vol:/t"},
 		{"named volume read only", with(volume(nil), func(v *types.ServiceVolumeConfig) { v.ReadOnly = true }), "vol:/t:ro"},
@@ -83,9 +87,11 @@ func TestShortSyntax(t *testing.T) {
 			v.Bind = &types.ServiceVolumeBind{SELinux: "z"}
 		}), "vol:/t:z,nocopy"},
 		{"named volume bind recursive", with(volume(nil), func(v *types.ServiceVolumeConfig) { v.Bind = &types.ServiceVolumeBind{Recursive: "disabled"} }), ""},
-		{"named volume bind extension", with(volume(nil), func(v *types.ServiceVolumeConfig) {
-			v.Bind = &types.ServiceVolumeBind{Extensions: types.Extensions{"x-a": true}}
-		}), ""},
+		{"named volume consistency", with(volume(nil), func(v *types.ServiceVolumeConfig) { v.Consistency = "consistent" }), "vol:/t:consistent"},
+		{"named volume read only, nocopy and consistency", with(volume(&types.ServiceVolumeVolume{NoCopy: true}), func(v *types.ServiceVolumeConfig) {
+			v.ReadOnly, v.Consistency = true, "cached"
+		}), "vol:/t:ro,nocopy,cached"},
+		{"anonymous volume consistency", types.ServiceVolumeConfig{Type: types.VolumeTypeVolume, Target: "/t", Consistency: "cached"}, ""},
 		{"named volume with a colon in the target", with(volume(nil), func(v *types.ServiceVolumeConfig) { v.Target = "/t:x" }), ""},
 		// https://github.com/docker/compose/issues/12993
 		{"named volume at a path made of colons", with(volume(nil), func(v *types.ServiceVolumeConfig) {
@@ -113,10 +119,51 @@ func TestShortSyntax(t *testing.T) {
 	}
 }
 
+// Extensions are for the tools that read the model, and the engine reads none: they don't keep a volume from being said
+// in the short syntax, as far as the engine is concerned. ShortSyntax, which renders the volume, has no place for them
+// and doesn't say it, so that a caller who writes the volume back keeps them in the long syntax.
+func TestIsShortSyntaxExpressibleIgnoresExtensions(t *testing.T) {
+	ext := types.Extensions{"x-a": true}
+	tests := []struct {
+		name        string
+		volume      types.ServiceVolumeConfig
+		expressible bool
+	}{
+		{"bind", types.ServiceVolumeConfig{Type: types.VolumeTypeBind, Source: "/data", Target: "/t", Extensions: ext}, true},
+		{"bind option", types.ServiceVolumeConfig{Type: types.VolumeTypeBind, Source: "/data", Target: "/t", Bind: &types.ServiceVolumeBind{CreateHostPath: true, Extensions: ext}}, true},
+		{"bind option and selinux", types.ServiceVolumeConfig{
+			Type: types.VolumeTypeBind, Source: "/data", Target: "/t", Bind: &types.ServiceVolumeBind{CreateHostPath: true, SELinux: "z", Extensions: ext},
+		}, true},
+		{"named volume", types.ServiceVolumeConfig{Type: types.VolumeTypeVolume, Source: "vol", Target: "/t", Extensions: ext}, true},
+		{"named volume option", types.ServiceVolumeConfig{Type: types.VolumeTypeVolume, Source: "vol", Target: "/t", Volume: &types.ServiceVolumeVolume{NoCopy: true, Extensions: ext}}, true},
+		{"consistency", types.ServiceVolumeConfig{Type: types.VolumeTypeBind, Source: "/data", Target: "/t", Consistency: "cached", Extensions: ext}, true},
+		// what the short syntax has no place for stays so, whatever the extensions
+		{"bind not creating the host path", types.ServiceVolumeConfig{Type: types.VolumeTypeBind, Source: "/data", Target: "/t", Bind: &types.ServiceVolumeBind{Extensions: ext}}, false},
+		{"subpath", types.ServiceVolumeConfig{Type: types.VolumeTypeVolume, Source: "vol", Target: "/t", Volume: &types.ServiceVolumeVolume{Subpath: "a", Extensions: ext}}, false},
+		{"tmpfs", types.ServiceVolumeConfig{Type: types.VolumeTypeTmpfs, Target: "/t", Extensions: ext}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			before := tt.volume
+			assert.Equal(t, IsShortSyntaxExpressible(tt.volume), tt.expressible)
+			// the volume it was given is left as it was
+			assert.DeepEqual(t, tt.volume, before)
+			if tt.volume.Bind != nil {
+				assert.Equal(t, len(tt.volume.Bind.Extensions), len(before.Bind.Extensions))
+			}
+			if tt.expressible {
+				_, ok := ShortSyntax(tt.volume)
+				assert.Assert(t, !ok, "ShortSyntax must not drop the extensions")
+			}
+		})
+	}
+}
+
 // What the short syntax renders reads back as the volume it was rendered from.
 func TestShortSyntaxRoundTrip(t *testing.T) {
 	for _, spec := range []string{
 		"/data:/t", "./data:/t:ro", "~/data:/t:z", "/data:/t:rw,Z,rshared", "v:/t", "vol:/t:ro", "v:/t:nocopy", "/t", "vol:/t:z", "vol:/t:ro,Z,nocopy",
+		"/data:/t:cached", "./data:/t:ro,z,rshared,delegated", "vol:/t:consistent", "vol:/t:nocopy,cached",
 	} {
 		t.Run(spec, func(t *testing.T) {
 			volume, err := ParseVolume(spec)

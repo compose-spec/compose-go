@@ -106,6 +106,8 @@ func populateFieldFromBuffer(char rune, buffer []rune, volume *types.ServiceVolu
 			volume.ReadOnly = false
 		case "nocopy":
 			volume.Volume = &types.ServiceVolumeVolume{NoCopy: true}
+		case types.ConsistencyFull, types.ConsistencyCached, types.ConsistencyDelegated:
+			volume.Consistency = option
 		default:
 			if isBindOption(option) {
 				setBindOption(volume, option)
