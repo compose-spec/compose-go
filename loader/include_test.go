@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -521,4 +522,124 @@ func TestIncludeDefaultBuildContextWithSkipDefaultValues(t *testing.T) {
 	}, func(o *Options) { o.SkipDefaultValues = true })
 	assert.NilError(t, err)
 	assert.Equal(t, p.Services["app"].Build.Context, filepath.Join(p.WorkingDir, "sub"))
+}
+
+// The working directory a project is loaded with is transparent: relative or
+// absolute, empty or not, the model refers to the same files. The paths of a
+// relative working directory stay relative to it, and make the very same files
+// as the absolute ones once joined with the directory of the process. Includes,
+// nested ones, project_directory, extends across files and env files all take
+// part, as each of them rebases the paths of a file on its own directory.
+func TestWorkingDirectoryIsTransparent(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	writeTransparencyFixture(t, root)
+
+	want := modelPaths(t, root, filepath.Join(root, "proj"))
+	for name, wd := range map[string]string{"relative": "proj", "dot slash": "./proj"} {
+		t.Run(name, func(t *testing.T) {
+			assert.DeepEqual(t, absolutePaths(modelPaths(t, root, wd), root), want)
+		})
+	}
+	t.Run("empty, from the project directory", func(t *testing.T) {
+		t.Chdir(filepath.Join(root, "proj"))
+		assert.DeepEqual(t, absolutePaths(modelPaths(t, root, ""), filepath.Join(root, "proj")), want)
+	})
+}
+
+func writeTransparencyFixture(t *testing.T, root string) {
+	t.Helper()
+	files := map[string]string{
+		"proj/a.yml": "include:\n  - b/b.yml\n  - path: [x/x.yml, x/y.yml]\n  - path: pd/p.yml\n    project_directory: other\n" +
+			"  - path: ap/ap.yml\n    project_directory: " + filepath.Join(root, "proj", "abs") + "\n" +
+			"services:\n  a:\n    build: .\n    env_file: [a.env]\n    volumes: [./va:/va]\n    extends:\n      file: e/e.yml\n      service: e\n",
+		"proj/a.env":       "A=1\n",
+		"proj/b/b.yml":     "include:\n  - ../c/c.yml\n  - d/d.yml\nservices:\n  b:\n    build: .\n    env_file: [b.env]\n    volumes: [./vb:/vb]\n",
+		"proj/b/b.env":     "B=1\n",
+		"proj/c/c.yml":     "services:\n  c:\n    build: .\n    volumes: [./vc:/vc]\n    extends:\n      file: ../e/e2.yml\n      service: e2\n",
+		"proj/b/d/d.yml":   "services:\n  d:\n    build: ./dd\n    env_file: [d.env]\n",
+		"proj/b/d/d.env":   "D=1\n",
+		"proj/e/e.yml":     "services:\n  e:\n    image: x\n    volumes: [./ve:/ve]\n    extends:\n      file: e3.yml\n      service: e3\n",
+		"proj/e/e3.yml":    "services:\n  e3:\n    volumes: [./ve3:/ve3]\n    build: ./b3\n",
+		"proj/e/e2.yml":    "services:\n  e2:\n    image: y\n    volumes: [./ve2:/ve2]\n",
+		"proj/x/x.yml":     "services:\n  x:\n    build: .\n",
+		"proj/x/y.yml":     "services:\n  y:\n    build: .\n",
+		"proj/pd/p.yml":    "services:\n  p:\n    build: .\n    env_file: [p.env]\n",
+		"proj/other/p.env": "P=1\n",
+		"proj/ap/ap.yml":   "services:\n  ap:\n    build: .\n",
+	}
+	for name, content := range files {
+		assert.NilError(t, os.MkdirAll(filepath.Join(root, filepath.Dir(name)), 0o700))
+		assert.NilError(t, os.WriteFile(filepath.Join(root, name), []byte(content), 0o600))
+	}
+}
+
+// modelPaths loads proj/a.yml with the working directory wd, and returns the
+// paths its services refer to, by service
+func modelPaths(t *testing.T, root, wd string) map[string][]string {
+	t.Helper()
+	content, err := os.ReadFile(filepath.Join(root, "proj", "a.yml"))
+	assert.NilError(t, err)
+	p, err := LoadWithContext(t.Context(), types.ConfigDetails{
+		WorkingDir:  wd,
+		ConfigFiles: []types.ConfigFile{{Filename: "a.yml", Content: content}},
+	}, func(o *Options) { o.SetProjectName("test", true) })
+	assert.NilError(t, err, "working directory %q", wd)
+	got := map[string][]string{}
+	for name, s := range p.Services {
+		if s.Build != nil {
+			got[name] = append(got[name], s.Build.Context)
+		}
+		for _, v := range s.Volumes {
+			got[name] = append(got[name], v.Source)
+		}
+		for _, e := range s.EnvFiles {
+			got[name] = append(got[name], e.Path)
+		}
+		slices.Sort(got[name])
+	}
+	return got
+}
+
+// absolutePaths joins the relative paths with dir, the directory of the
+// process the relative paths are relative to
+func absolutePaths(m map[string][]string, dir string) map[string][]string {
+	for _, ps := range m {
+		for i, p := range ps {
+			if !filepath.IsAbs(p) {
+				ps[i] = filepath.Join(dir, p)
+			}
+		}
+	}
+	return m
+}
+
+// dirRecorder is a resource loader keeping the arguments Dir is called with
+type dirRecorder struct {
+	root string
+	dirs *[]string
+}
+
+func (dirRecorder) Accept(p string) bool { return strings.HasPrefix(p, "rec:") }
+func (l dirRecorder) Load(_ context.Context, p string) (string, error) {
+	return filepath.Join(l.root, strings.TrimPrefix(p, "rec:"), "compose.yaml"), nil
+}
+
+func (l dirRecorder) Dir(p string) string {
+	*l.dirs = append(*l.dirs, p)
+	return ""
+}
+
+// Dir is given the reference the loader was given to load, as ResourceLoader
+// documents, not the local file it returned
+func TestIncludeAsksDirForTheReference(t *testing.T) {
+	root := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(root, "module"), 0o700))
+	createFile(t, root, "services:\n  b:\n    image: x\n", "module/compose.yaml")
+
+	var dirs []string
+	_, err := includeProject(t, "include:\n  - rec:module\n", nil,
+		func(o *Options) { o.ResourceLoaders = []ResourceLoader{dirRecorder{root, &dirs}} })
+	assert.NilError(t, err)
+	assert.DeepEqual(t, dirs, []string{"rec:module"})
 }

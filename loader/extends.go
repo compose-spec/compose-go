@@ -164,9 +164,10 @@ type extendsCacheKey struct{}
 
 // extendsRef identifies an extends.file base within an extends cache scope.
 type extendsRef struct {
-	path       string
-	workingDir string
-	section    string
+	path string
+	// pathBase is the directory the paths of the file are resolved against
+	pathBase string
+	section  string
 }
 
 type extendsBase struct {
@@ -204,17 +205,17 @@ func getExtendsBaseFromFile(
 		if err != nil {
 			return nil, nil, err
 		}
-		relworkingdir := loader.Dir(refPath)
+		pathBase := loader.Dir(refPath)
 
 		cache := extendsCache(ctx)
-		cacheKey := extendsRef{path: local, workingDir: relworkingdir, section: section}
+		cacheKey := extendsRef{path: local, pathBase: pathBase, section: section}
 		base, hit := cache[cacheKey]
 		if hit {
 			// hand out a copy: resolving an extends chain writes merged
 			// services back into this map (see applyServiceExtends)
 			base.services = deepClone(base.services).(map[string]any)
 		} else {
-			base, err = loadExtendsBase(ctx, section, name, local, relworkingdir, opts, ct)
+			base, err = loadExtendsBase(ctx, section, name, local, pathBase, opts, ct)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -242,12 +243,14 @@ func getExtendsBaseFromFile(
 	return nil, nil, fmt.Errorf("cannot read %s", refPath)
 }
 
-func loadExtendsBase(ctx context.Context, section, name, local, relworkingdir string, opts *Options, ct *cycleTracker) (extendsBase, error) {
+// loadExtendsBase loads the base file of an extends.file: local is the local
+// file serving the reference, read from its own directory, and pathBase the
+// directory the paths of its model are resolved against (see ResourceLoader.Dir),
+// which is relative to the directory of the extending file when possible.
+func loadExtendsBase(ctx context.Context, section, name, local, pathBase string, opts *Options, ct *cycleTracker) (extendsBase, error) {
 	extendsOpts := opts.clone()
 	// replace localResourceLoader with a new flavour, using extended file base path
-	extendsOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), localResourceLoader{
-		WorkingDir: filepath.Dir(local),
-	})
+	extendsOpts.ResourceLoaders = append(opts.RemoteResourceLoaders(), newLocalResourceLoader(filepath.Dir(local)))
 	extendsOpts.ResolvePaths = false // we do relative path resolution after file has been loaded
 	extendsOpts.SkipNormalization = true
 	extendsOpts.SkipConsistencyCheck = true
@@ -256,7 +259,7 @@ func loadExtendsBase(ctx context.Context, section, name, local, relworkingdir st
 	extendsOpts.SkipValidation = true // we validate the merge result
 	extendsOpts.SkipDefaultValues = true
 	source, processor, err := loadYamlFile(ctx, types.ConfigFile{Filename: local},
-		extendsOpts, relworkingdir, nil, ct, map[string]any{}, nil)
+		extendsOpts, pathBase, nil, ct, map[string]any{}, nil)
 	if err != nil {
 		return extendsBase{}, err
 	}
@@ -273,7 +276,7 @@ func loadExtendsBase(ctx context.Context, section, name, local, relworkingdir st
 	for _, loader := range opts.RemoteResourceLoaders() {
 		remotes = append(remotes, loader.Accept)
 	}
-	err = paths.ResolveRelativePaths(source, relworkingdir, remotes)
+	err = paths.ResolveRelativePaths(source, pathBase, remotes)
 	if err != nil {
 		return extendsBase{}, err
 	}
